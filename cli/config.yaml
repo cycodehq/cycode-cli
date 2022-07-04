@@ -1,0 +1,8 @@
+soft_fail: False
+scans:
+  supported_scans:
+    - secret
+    - iac
+result_printer:
+  lines_to_display: 3
+  show_secret: False
