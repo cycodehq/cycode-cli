@@ -1,0 +1,5 @@
+cycode:
+  api:
+    base_url: http://api.cycode.com
+    time_out: 30
+#    base_url: http://localhost:5048 #local configuration
