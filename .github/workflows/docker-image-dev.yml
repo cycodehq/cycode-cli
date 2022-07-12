@@ -2,6 +2,9 @@ on:
   push:
     branches: dev
 
+permissions:
+  contents: read
+
 jobs:
   main:
     runs-on: ubuntu-latest
