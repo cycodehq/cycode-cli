@@ -1,0 +1,5 @@
+- id: cycode
+  name: Cycode pre commit defender
+  language: python
+  entry: cycode
+  args: ['scan', 'pre_commit']
