@@ -3,12 +3,12 @@
 
 name: Upload Python Package
 
-permissions:
-  contents: read
-
 on:
   release:
     types: [created]
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
