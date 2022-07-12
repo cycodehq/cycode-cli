@@ -1,6 +1,10 @@
 on:
   workflow_dispatch:
 
+permissions:
+  # Write permission needed for creating a tag.
+  contents: write
+
 jobs:
   main:
     runs-on: ubuntu-latest
