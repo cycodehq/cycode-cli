@@ -24,11 +24,11 @@ class ConfigFileManager(BaseFileManager):
         base_url = environment_section.get(self.BASE_URL_FIELD_NAME)
         return base_url
 
-    def get_verbose_flag(self) -> Optional[str]:
+    def get_verbose_flag(self) -> Optional[bool]:
         file_content = self.read_file()
 
         environment_section = file_content.get(self.ENVIRONMENT_SECTION_NAME, {})
-        verbose_flag = environment_section.get(self.BASE_URL_FIELD_NAME)
+        verbose_flag = environment_section.get(self.VERBOSE_FIELD_NAME)
         return verbose_flag
 
     def get_exclusions_by_scan_type(self, scan_type) -> Dict:
