@@ -8,8 +8,9 @@ from typing import Optional
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 from cli import printer
+from cli.printers import ResultsPrinter
 from typing import List, Dict
-from cli.models import Document, DetectionDetails
+from cli.models import Document, DocumentDetections
 from cli.ci_integrations import get_commit_range
 from cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES, \
     SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE, EXCLUSIONS_BY_VALUE_SECTION_NAME, EXCLUSIONS_BY_SHA_SECTION_NAME, \
@@ -134,7 +135,6 @@ def scan_disk_files(context: click.Context, scan_type: str, paths: List[str]):
     return scan_documents(scan_type, documents, is_git_diff=is_git_diff)
 
 
-@click.pass_context
 def scan_documents(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                    is_git_diff: bool = False, is_commit_range: bool = False):
     cycode_client = context.obj["client"]
@@ -220,7 +220,7 @@ def print_result(scan_result, documents_to_scan: List[Document], scan_type: str,
 
 def print_file_result(document: Document, detections):
     printer.print_detections(
-        detection_details=DetectionDetails(detections=detections, document=document))
+        detection_details=DocumentDetections(detections=detections, document=document))
 
 
 def get_diff_file_path(file):

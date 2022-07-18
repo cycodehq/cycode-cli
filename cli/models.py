@@ -16,7 +16,7 @@ class Document:
         )
 
 
-class DetectionDetails:
+class DocumentDetections:
     def __init__(self, document: Document, detections: List[Detection]):
         self.document = document
         self.detections = detections
