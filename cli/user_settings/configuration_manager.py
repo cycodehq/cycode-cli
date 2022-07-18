@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Optional, Dict
 from cli.user_settings.config_file_manager import ConfigFileManager
-from cli.consts import DEFAULT_BASE_URL, BASE_URL_ENV_VAR_NAME
+from cli.consts import DEFAULT_BASE_URL, BASE_URL_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
 
 
 class ConfigurationManager:
@@ -14,7 +14,7 @@ class ConfigurationManager:
         self.global_config_file_manager = ConfigFileManager(Path.home())
         self.local_config_file_manager = ConfigFileManager(os.getcwd())
 
-    def get_base_url(self) -> Optional[str]:
+    def get_base_url(self) -> str:
         base_url = self.get_base_url_from_environment_variables()
         if base_url is not None:
             return base_url
@@ -29,8 +29,26 @@ class ConfigurationManager:
 
         return DEFAULT_BASE_URL
 
+    def get_verbose_flag(self) -> bool:
+        verbose_flag = self.get_verbose_flag_from_environment_variables()
+        if verbose_flag is not None: # TODO cast to bool or take func from config
+            return verbose_flag
+
+        verbose_flag = self.local_config_file_manager.get_base_url()
+        if verbose_flag is not None:
+            return verbose_flag
+
+        verbose_flag = self.global_config_file_manager.get_base_url()
+        if verbose_flag is not None:
+            return verbose_flag
+
+        return DEFAULT_BASE_URL
+
     def get_base_url_from_environment_variables(self) -> str:
-        return os.getenv(BASE_URL_ENV_VAR_NAME)
+        return self._get_value_from_environment_variables(BASE_URL_ENV_VAR_NAME)
+
+    def get_verbose_flag_from_environment_variables(self) -> str:
+        return self._get_value_from_environment_variables(VERBOSE_ENV_VAR_NAME)
 
     def get_exclusions_by_scan_type(self, scan_type) -> Dict:
         local_exclusions = self.local_config_file_manager.get_exclusions_by_scan_type(scan_type)
@@ -51,3 +69,6 @@ class ConfigurationManager:
 
     def get_config_file_manager(self, scope):
         return self.local_config_file_manager if scope == 'local' else self.global_config_file_manager
+
+    def _get_value_from_environment_variables(self, env_var_name):
+        return os.getenv(env_var_name)

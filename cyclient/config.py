@@ -4,7 +4,7 @@ import sys
 from urllib.parse import urlparse
 from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.consts import BASE_URL_ENV_VAR_NAME, TIMEOUT_ENV_VAR_NAME, LOGGING_LEVEL_ENV_VAR_NAME, DEV_MODE_ENV_VAR_NAME, \
-    BATCH_SIZE_ENV_VAR_NAME
+    BATCH_SIZE_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
 
 
 # logs
@@ -27,6 +27,7 @@ DEFAULT_CONFIGURATION = {
     LOGGING_LEVEL_ENV_VAR_NAME: logging.INFO,
     DEV_MODE_ENV_VAR_NAME: 'False',
     BATCH_SIZE_ENV_VAR_NAME: 20,
+    VERBOSE_ENV_VAR_NAME: 'False'
 }
 
 configuration = dict(DEFAULT_CONFIGURATION, **os.environ)
@@ -69,3 +70,4 @@ except ValueError as e:
 timeout = _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
 dev_mode = _get_val_as_bool(DEV_MODE_ENV_VAR_NAME)
 batch_size = _get_val_as_int(BATCH_SIZE_ENV_VAR_NAME)
+verbose = _get_val_as_bool(VERBOSE_ENV_VAR_NAME)
