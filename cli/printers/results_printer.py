@@ -4,7 +4,6 @@ from cli.printers import JsonPrinter, TextPrinter
 from cli.models import DocumentDetections
 
 
-# TODO naming
 class ResultsPrinter:
     printers = {
         'text': TextPrinter(),
@@ -19,10 +18,7 @@ class ResultsPrinter:
     def get_printer(self, output_type: str):
         printer = self.printers.get(output_type)
         if not printer:
-            # TODO throw exception
-            pass
+            raise ValueError(f'the provided output is not supported - {output_type}')
 
         return printer
 
-    def get_supported_print_types(self):
-        return self.printers.keys()
