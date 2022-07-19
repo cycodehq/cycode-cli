@@ -6,6 +6,7 @@ from cli import code_scanner, __version__
 from cyclient import ScanClient, K8SUpdaterClient, logger
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
+from cli.user_settings.configuration_manager import ConfigurationManager
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
@@ -100,6 +101,8 @@ def finalize(context: click.Context, *args, **kwargs):
 @click.pass_context
 def main_cli(context: click.Context, verbose: bool):
     context.ensure_object(dict)
+    configuration_manager = ConfigurationManager()
+    verbose = verbose or configuration_manager.get_verbose_flag()
     context.obj["verbose"] = verbose
     log_level = logging.DEBUG if verbose else logging.INFO
     logger.setLevel(log_level)

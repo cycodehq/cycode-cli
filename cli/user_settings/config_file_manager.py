@@ -12,6 +12,7 @@ class ConfigFileManager(BaseFileManager):
     EXCLUSIONS_SECTION_NAME: str = 'exclusions'
 
     BASE_URL_FIELD_NAME: str = 'cycode_base_url'
+    VERBOSE_FIELD_NAME: str = 'verbose'
 
     def __init__(self, path):
         self.path = path
@@ -22,6 +23,13 @@ class ConfigFileManager(BaseFileManager):
         environment_section = file_content.get(self.ENVIRONMENT_SECTION_NAME, {})
         base_url = environment_section.get(self.BASE_URL_FIELD_NAME)
         return base_url
+
+    def get_verbose_flag(self) -> Optional[bool]:
+        file_content = self.read_file()
+
+        environment_section = file_content.get(self.ENVIRONMENT_SECTION_NAME, {})
+        verbose_flag = environment_section.get(self.VERBOSE_FIELD_NAME)
+        return verbose_flag
 
     def get_exclusions_by_scan_type(self, scan_type) -> Dict:
         file_content = self.read_file()
