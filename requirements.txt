@@ -1,5 +1,5 @@
 PyYAML==6.0
-click~=7.1.2
+click==8.1.0
 colorama~=0.4.3
 pathspec~=0.8.0
 typing~=3.7.4.3
