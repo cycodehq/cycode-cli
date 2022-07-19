@@ -76,7 +76,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     return 1
 
 
-@code_scan.resultcallback()
+@code_scan.result_callback()
 @click.pass_context
 def finalize(context: click.Context, *args, **kwargs):
     if context.obj["soft_fail"]:
