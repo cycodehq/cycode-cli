@@ -1,6 +1,6 @@
 import click
 import math
-from cli.models import DetectionDetails
+from cli.models import DocumentDetections
 from cli.config import config
 from cli.consts import SECRET_SCAN_TYPE
 from cli.utils.string_utils import obfuscate_text
@@ -9,7 +9,7 @@ import colorama
 
 
 @click.pass_context
-def print_detections(context: click.Context, detection_details: DetectionDetails):
+def print_detections(context: click.Context, detection_details: DocumentDetections):
     lines_to_display = config['result_printer']['lines_to_display']
     show_secret = context.obj['show_secret']
     scan_type = context.obj['scan_type']
