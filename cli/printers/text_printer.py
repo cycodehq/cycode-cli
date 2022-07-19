@@ -11,6 +11,10 @@ from cli.utils.string_utils import obfuscate_text
 class TextPrinter(BasePrinter):
 
     def print_results(self, context: click.Context, results: List[DocumentDetections]):
+        if not results:
+            click.secho("Good job! No issues were found!!! 👏👏👏", fg='green')
+            return
+
         scan_type = context.obj.get('scan_type')
         show_secret = context.obj.get('show_secret', False)
         lines_to_display = config.get('result_printer', {}).get('lines_to_display')

@@ -93,6 +93,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
 
 
 @click.command()
+@click.pass_context
 def scan_ci(context: click.Context):
     """ Execute scan in a CI environment which relies on the
     CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables """
@@ -151,9 +152,13 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
         relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
                                                                             scan_command_type)
-        issue_detected, all_detections_count, output_detections_count = print_result(scan_result, documents_to_scan,
-                                                                                     scan_type, scan_command_type)
-        context.obj['issue_detected'] = issue_detected
+        print_results(context, relevant_document_detections_list)
+
+        context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
+        all_detections_count = sum(
+            [len(document_detections.detections) for document_detections in document_detections_list])
+        output_detections_count = sum(
+            [len(document_detections.detections) for document_detections in relevant_document_detections_list])
         scan_completed = True
     except Exception as e:
         _handle_exception(context, e)
@@ -193,36 +198,10 @@ def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, s
     return scan_result
 
 
-# def print_results(document_detections_list: List[DocumentDetections]):
-
-
-
-def print_result(scan_result, documents_to_scan: List[Document], scan_type: str, scan_command_type: str):
-    all_detections_count = 0
-    output_detections_count = 0
-
-    issue_detected = False
-    if scan_result.did_detect:
-        for detections_per_file in scan_result.detections_per_file:
-            all_detections_count += len(detections_per_file.detections)
-            detections = exclude_irrelevant_detections(scan_type, scan_command_type, detections_per_file.detections)
-            if not detections:
-                continue
-
-            issue_detected = True
-            output_detections_count += len(detections)
-            file_name = get_path_by_os(detections_per_file.file_name)
-            logger.debug("going to find document of violated file, %s", {'file_name': file_name})
-            document = _get_document_by_file_name(documents_to_scan, file_name)
-            logger.debug('printing file\'s violations, %s',
-                         {'filename': file_name, 'document_path': document.path,
-                          'unique_id': document.unique_id})
-            print_file_result(document, detections)
-
-    if not issue_detected:
-        click.secho("Good job! No issues were found!!! 👏👏👏", fg='green')
-
-    return issue_detected, all_detections_count, output_detections_count
+def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
+    output_type = context.obj['output']
+    printer = ResultsPrinter()
+    printer.print_results(context, document_detections_list, output_type)
 
 
 def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: List[Document]) -> List[
@@ -233,7 +212,8 @@ def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: Lis
         file_name = get_path_by_os(detections_per_file.file_name)
         logger.debug("going to find document of violated file, %s", {'file_name': file_name})
         document = _get_document_by_file_name(documents_to_scan, file_name)
-        document_detections_list.append(DocumentDetections(document=document, detections=detections_per_file.detections))
+        document_detections_list.append(
+            DocumentDetections(document=document, detections=detections_per_file.detections))
 
     return document_detections_list
 
@@ -242,7 +222,8 @@ def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetec
                                     scan_command_type: str) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
-        relevant_detections = exclude_irrelevant_detections(scan_type, scan_command_type, document_detections.detections)
+        relevant_detections = exclude_irrelevant_detections(scan_type, scan_command_type,
+                                                            document_detections.detections)
         if relevant_detections:
             relevant_document_detections_list.append(DocumentDetections(document=document_detections.document,
                                                                         detections=relevant_detections))

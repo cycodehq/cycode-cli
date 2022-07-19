@@ -23,3 +23,6 @@ class ResultsPrinter:
             pass
 
         return printer
+
+    def get_supported_print_types(self):
+        return self.printers.keys()
