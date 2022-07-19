@@ -24,8 +24,8 @@ NO_ISSUES_STATUS_CODE = 0
 @click.option('--scan-type', '-t', default="secret",
               help="""
               \b
-              Specify the scan you wish to execute (secrets/iac), 
-              the default is secrets
+              Specify the scan you wish to execute (secret/iac), 
+              the default is secret
               """,
               type=click.Choice(config['scans']['supported_scans']))
 @click.option('--secret',
@@ -50,8 +50,15 @@ NO_ISSUES_STATUS_CODE = 0
               help='Run scan without failing, always return a non-error status code',
               type=bool,
               required=False)
+@click.option('--output', default='text',
+              help="""
+              \b
+              Specify the results output (text/json), 
+              the default is text
+              """,
+              type=click.Choice(['text', 'json']))
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output):
     """ Scan content for secrets/IaC violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
@@ -64,6 +71,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
         context.obj["soft_fail"] = config["soft_fail"]
 
     context.obj["scan_type"] = scan_type
+    context.obj["output"] = output
     context.obj["client"] = get_cycode_client(client_id, secret, "code_scan")
 
     return 1
