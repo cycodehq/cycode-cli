@@ -1,9 +1,13 @@
 import click
 from typing import List
 from cli.printers.base_printer import BasePrinter
-from cli.models import DocumentDetections, Detection, Document
+from cli.models import DocumentDetections
+from cyclient.models import DetectionSchema
 
 
 class JsonPrinter(BasePrinter):
     def print_results(self, context: click.Context, results: List[DocumentDetections]):
-        pass
+        detections = [detection for document_detections in results for detection in document_detections.detections]
+        detections_schema = DetectionSchema(many=True)
+        json_result = detections_schema.dumps(detections)
+        click.secho(json_result, fg='white')
