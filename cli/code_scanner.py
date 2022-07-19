@@ -230,11 +230,6 @@ def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetec
     return relevant_document_detections_list
 
 
-def print_file_result(document: Document, detections):
-    printer.print_detections(
-        detection_details=DocumentDetections(detections=detections, document=document))
-
-
 def get_diff_file_path(file):
     return file.b_path if file.b_path else file.a_path
 
