@@ -7,6 +7,11 @@ from cli.consts import BASE_URL_ENV_VAR_NAME, TIMEOUT_ENV_VAR_NAME, LOGGING_LEVE
     BATCH_SIZE_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
 
 
+# set io encoding (for windows)
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+
 # logs
 logging.basicConfig(
     stream=sys.stdout,
@@ -20,6 +25,8 @@ logging.getLogger("schedule").setLevel(logging.WARNING)
 logging.getLogger("kubernetes").setLevel(logging.WARNING)
 logging.getLogger("binaryornot").setLevel(logging.WARNING)
 logging.getLogger("chardet").setLevel(logging.WARNING)
+logging.getLogger("git.cmd").setLevel(logging.WARNING)
+logging.getLogger("git.util").setLevel(logging.WARNING)
 
 # configs
 DEFAULT_CONFIGURATION = {
