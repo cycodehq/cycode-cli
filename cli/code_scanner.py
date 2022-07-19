@@ -7,7 +7,6 @@ from uuid import uuid4, UUID
 from typing import Optional
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
-from cli import printer
 from cli.printers import ResultsPrinter
 from typing import List, Dict
 from cli.models import Document, DocumentDetections
