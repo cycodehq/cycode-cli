@@ -7,6 +7,11 @@ from cli.consts import BASE_URL_ENV_VAR_NAME, TIMEOUT_ENV_VAR_NAME, LOGGING_LEVE
     BATCH_SIZE_ENV_VAR_NAME
 
 
+# set io encoding (for windows)
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+
 # logs
 logging.basicConfig(
     stream=sys.stdout,
