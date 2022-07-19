@@ -15,16 +15,16 @@ class TextPrinter(BasePrinter):
         show_secret = context.obj.get('show_secret', False)
         lines_to_display = config.get('result_printer', {}).get('lines_to_display')
         for document_detections in results:
-            self.print_document_detections(document_detections, scan_type, show_secret, lines_to_display)
+            self._print_document_detections(document_detections, scan_type, show_secret, lines_to_display)
 
-    def print_document_detections(self, document_detections: DocumentDetections, scan_type: str, show_secret: bool,
+    def _print_document_detections(self, document_detections: DocumentDetections, scan_type: str, show_secret: bool,
                                   lines_to_display: int):
         document = document_detections.document
         for detection in document_detections.detections:
-            self.print_detection_summary(detection, document.path, scan_type)
-            self.print_detection_code_segment(detection, document, scan_type, show_secret, lines_to_display)
+            self._print_detection_summary(detection, document.path, scan_type)
+            self._print_detection_code_segment(detection, document, scan_type, show_secret, lines_to_display)
 
-    def print_detection_summary(self, detection: Detection, document_path: str, scan_type: str):
+    def _print_detection_summary(self, detection: Detection, document_path: str, scan_type: str):
         detection_name = detection.type if scan_type == SECRET_SCAN_TYPE else detection.message
         detection_sha = detection.detection_details.get('sha512')
         detection_sha_message = f'\nSecret SHA: {detection_sha}' if detection_sha else ''
@@ -35,8 +35,8 @@ class TextPrinter(BasePrinter):
             f'(rule ID: {detection.detection_rule_id}) in file: {click.format_filename(document_path)} ' +
             f'{detection_sha_message}{detection_commit_id_message}  ⛔ ')
 
-    def print_detection_code_segment(self, detection: Detection, document: Document, scan_type: str,
-                                     show_secret: bool, code_segment_size: int):
+    def _print_detection_code_segment(self, detection: Detection, document: Document, scan_type: str,
+                                      show_secret: bool, code_segment_size: int):
         detection_details = detection.detection_details
         detection_line = detection_details.get('line', -1) if scan_type == SECRET_SCAN_TYPE else \
             detection_details.get('line_in_file', -1)
@@ -45,8 +45,8 @@ class TextPrinter(BasePrinter):
 
         document_content = document.content
         document_lines = document_content.splitlines()
-        start_line = self.get_code_segment_start_line(detection_line, code_segment_size)
-        detection_position_in_line = self.get_position_in_line(document_content, detection_position)
+        start_line = self._get_code_segment_start_line(detection_line, code_segment_size)
+        detection_position_in_line = self._get_position_in_line(document_content, detection_position)
 
         click.echo()
         for i in range(code_segment_size):
@@ -56,48 +56,48 @@ class TextPrinter(BasePrinter):
 
             current_line = document_lines[current_line_index]
             is_detection_line = current_line_index == detection_line
-            self.print_line_of_code_segment(document, current_line, current_line_index + 1, detection_position_in_line,
-                                            violation_length, show_secret, scan_type, is_detection_line)
+            self._print_line_of_code_segment(document, current_line, current_line_index + 1, detection_position_in_line,
+                                             violation_length, show_secret, scan_type, is_detection_line)
         click.echo()
 
-    def get_code_segment_start_line(self, detection_line: int, code_segment_size: int):
+    def _get_code_segment_start_line(self, detection_line: int, code_segment_size: int):
         start_line = detection_line - math.ceil(code_segment_size / 2)
         return 0 if start_line < 0 else start_line
 
-    def print_line_of_code_segment(self, document: Document, line: str, line_number: int,
-                                   detection_position_in_line: int, violation_length: int, show_secret: bool,
-                                   scan_type: str, is_detection_line: bool):
+    def _print_line_of_code_segment(self, document: Document, line: str, line_number: int,
+                                    detection_position_in_line: int, violation_length: int, show_secret: bool,
+                                    scan_type: str, is_detection_line: bool):
         if is_detection_line:
-            self.print_detection_line(document, line, line_number, detection_position_in_line, violation_length,
-                                      show_secret, scan_type)
+            self._print_detection_line(document, line, line_number, detection_position_in_line, violation_length,
+                                       show_secret, scan_type)
         else:
-            self.print_line(document, line, line_number)
+            self._print_line(document, line, line_number)
 
-    def print_detection_line(self, document: Document, line: str, line_number: int, detection_position_in_line: int,
-                             violation_length: int, show_secret: bool, scan_type: str):
+    def _print_detection_line(self, document: Document, line: str, line_number: int, detection_position_in_line: int,
+                              violation_length: int, show_secret: bool, scan_type: str):
         click.echo(
-            f'{self.get_line_number_style(line_number)} '
-            f'{self.get_detection_line_style(line, document.is_git_diff_format, scan_type, detection_position_in_line, violation_length, show_secret)}')
+            f'{self._get_line_number_style(line_number)} '
+            f'{self._get_detection_line_style(line, document.is_git_diff_format, scan_type, detection_position_in_line, violation_length, show_secret)}')
 
-    def print_line(self, document: Document, line: str, line_number: int):
+    def _print_line(self, document: Document, line: str, line_number: int):
         click.echo(
-            f'{self.get_line_number_style(line_number)} {self.get_line_style(line, document.is_git_diff_format)}')
+            f'{self._get_line_number_style(line_number)} {self._get_line_style(line, document.is_git_diff_format)}')
 
-    def get_detection_line_style(self, line: str, is_git_diff: bool, scan_type: str, start_position: int, length: int,
-                                 show_secret: bool = False):
+    def _get_detection_line_style(self, line: str, is_git_diff: bool, scan_type: str, start_position: int, length: int,
+                                  show_secret: bool = False):
         if scan_type != SECRET_SCAN_TYPE or start_position < 0 or length < 0:
-            return self.get_line_style(line, is_git_diff)
+            return self._get_line_style(line, is_git_diff)
 
         violation = line[start_position: start_position + length]
         if not show_secret:
             violation = obfuscate_text(violation)
         line_to_violation = line[0: start_position]
         line_from_violation = line[start_position + length:]
-        return f'{self.get_line_style(line_to_violation, is_git_diff)}' \
-               f'{self.get_line_style(violation, is_git_diff, underline=True)}' \
-               f'{self.get_line_style(line_from_violation, is_git_diff)}'
+        return f'{self._get_line_style(line_to_violation, is_git_diff)}' \
+               f'{self._get_line_style(violation, is_git_diff, underline=True)}' \
+               f'{self._get_line_style(line_from_violation, is_git_diff)}'
 
-    def get_line_style(self, line: str, is_git_diff: bool, underline: bool = False):
+    def _get_line_style(self, line: str, is_git_diff: bool, underline: bool = False):
         if not is_git_diff:
             return click.style(line, fg='white', bold=False, underline=underline)
 
@@ -109,8 +109,8 @@ class TextPrinter(BasePrinter):
 
         return click.style(line, fg='white', bold=False, underline=underline)
 
-    def get_position_in_line(self, text: str, position: int) -> int:
+    def _get_position_in_line(self, text: str, position: int) -> int:
         return position - text.rfind('\n', 0, position) - 1
 
-    def get_line_number_style(self, line_number: int):
+    def _get_line_number_style(self, line_number: int):
         return f'{click.style(str(line_number), fg="white", bold=False)} {click.style("|", fg="red", bold=False)}'

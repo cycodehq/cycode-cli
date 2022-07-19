@@ -22,6 +22,7 @@ from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
 from cyclient import logger
+from cyclient.models import ZippedFileScanResult
 
 start_scan_time = time.time()
 
@@ -44,7 +45,7 @@ def scan_repository(context: click.Context, path, branch):
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(context.obj["scan_type"], documents_to_scan, is_git_diff=False)
+        return scan_documents(context, documents_to_scan, is_git_diff=False)
     except Exception as e:
         _handle_exception(context, e)
 
@@ -65,12 +66,11 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
     """	Scan all the commits history in this git repository """
     try:
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
-        return scan_commit_range(path=path, commit_range=commit_range)
+        return scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
         _handle_exception(context, e)
 
 
-@click.pass_context
 def scan_commit_range(context: click.Context, path: str, commit_range: str):
     scan_type = context.obj["scan_type"]
 
@@ -89,14 +89,14 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
 
             documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
             logger.debug('Found all relevant files for scanning %s', {'path': path, 'commit_range': commit_range})
-    return scan_documents(context.obj["scan_type"], documents_to_scan, is_git_diff=True, is_commit_range=True)
+    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
 @click.command()
-def scan_ci():
+def scan_ci(context: click.Context):
     """ Execute scan in a CI environment which relies on the
     CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables """
-    return scan_commit_range(path=os.getcwd(), commit_range=get_commit_range())
+    return scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
 @click.command()
@@ -108,7 +108,7 @@ def scan_path(context: click.Context, path):
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
-    return scan_disk_files(context.obj["scan_type"], files_to_scan)
+    return scan_disk_files(context, files_to_scan)
 
 
 @click.command()
@@ -118,13 +118,12 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     """ Use this command to scan the content that was not committed yet """
     diff_files = Repo(os.getcwd()).index.diff("HEAD", create_patch=True, R=True)
     documents_to_scan = [Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file))
-                      for file in diff_files]
+                         for file in diff_files]
     documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-    return scan_documents(context.obj["scan_type"], documents_to_scan, is_git_diff=True)
+    return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-@click.pass_context
-def scan_disk_files(context: click.Context, scan_type: str, paths: List[str]):
+def scan_disk_files(context: click.Context, paths: List[str]):
     is_git_diff = False
     documents = []
     for path in paths:
@@ -132,12 +131,13 @@ def scan_disk_files(context: click.Context, scan_type: str, paths: List[str]):
             content = f.read()
             documents.append(Document(path, content, is_git_diff))
 
-    return scan_documents(scan_type, documents, is_git_diff=is_git_diff)
+    return scan_documents(context, documents, is_git_diff=is_git_diff)
 
 
-def scan_documents(context: click.Context, scan_type: str, documents_to_scan: List[Document],
+def scan_documents(context: click.Context, documents_to_scan: List[Document],
                    is_git_diff: bool = False, is_commit_range: bool = False):
     cycode_client = context.obj["client"]
+    scan_type = context.obj["scan_type"]
     scan_command_type = context.info_name
     error_message = None
     all_detections_count = 0
@@ -148,6 +148,9 @@ def scan_documents(context: click.Context, scan_type: str, documents_to_scan: Li
     try:
         zipped_documents = zip_documents_to_scan(zipped_documents, documents_to_scan)
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range)
+        document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
+        relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
+                                                                            scan_command_type)
         issue_detected, all_detections_count, output_detections_count = print_result(scan_result, documents_to_scan,
                                                                                      scan_type, scan_command_type)
         context.obj['issue_detected'] = issue_detected
@@ -190,6 +193,10 @@ def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, s
     return scan_result
 
 
+# def print_results(document_detections_list: List[DocumentDetections]):
+
+
+
 def print_result(scan_result, documents_to_scan: List[Document], scan_type: str, scan_command_type: str):
     all_detections_count = 0
     output_detections_count = 0
@@ -208,7 +215,7 @@ def print_result(scan_result, documents_to_scan: List[Document], scan_type: str,
             logger.debug("going to find document of violated file, %s", {'file_name': file_name})
             document = _get_document_by_file_name(documents_to_scan, file_name)
             logger.debug('printing file\'s violations, %s',
-                         {'filename': file_name, 'socument_path': document.path,
+                         {'filename': file_name, 'document_path': document.path,
                           'unique_id': document.unique_id})
             print_file_result(document, detections)
 
@@ -216,6 +223,31 @@ def print_result(scan_result, documents_to_scan: List[Document], scan_type: str,
         click.secho("Good job! No issues were found!!! 👏👏👏", fg='green')
 
     return issue_detected, all_detections_count, output_detections_count
+
+
+def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: List[Document]) -> List[
+    DocumentDetections]:
+    logger.debug('enriching scan result')
+    document_detections_list = []
+    for detections_per_file in scan_result.detections_per_file:
+        file_name = get_path_by_os(detections_per_file.file_name)
+        logger.debug("going to find document of violated file, %s", {'file_name': file_name})
+        document = _get_document_by_file_name(documents_to_scan, file_name)
+        document_detections_list.append(DocumentDetections(document=document, detections=detections_per_file.detections))
+
+    return document_detections_list
+
+
+def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetections], scan_type: str,
+                                    scan_command_type: str) -> List[DocumentDetections]:
+    relevant_document_detections_list = []
+    for document_detections in document_detections_list:
+        relevant_detections = exclude_irrelevant_detections(scan_type, scan_command_type, document_detections.detections)
+        if relevant_detections:
+            relevant_document_detections_list.append(DocumentDetections(document=document_detections.document,
+                                                                        detections=relevant_detections))
+
+    return relevant_document_detections_list
 
 
 def print_file_result(document: Document, detections):
