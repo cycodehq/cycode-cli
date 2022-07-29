@@ -2,11 +2,10 @@ import os
 from pathlib import Path
 from typing import Optional, Dict
 from cli.user_settings.config_file_manager import ConfigFileManager
-from cli.consts import DEFAULT_BASE_URL, BASE_URL_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
+from cli.consts import DEFAULT_CYCODE_API_URL, CYCODE_API_URL_VAR_NAME, VERBOSE_ENV_VAR_NAME
 
 
 class ConfigurationManager:
-
     global_config_file_manager: ConfigFileManager
     local_config_file_manager: ConfigFileManager
 
@@ -27,7 +26,7 @@ class ConfigurationManager:
         if base_url is not None:
             return base_url
 
-        return DEFAULT_BASE_URL
+        return DEFAULT_CYCODE_API_URL
 
     def get_verbose_flag(self) -> bool:
         verbose_flag_env_var = self.get_verbose_flag_from_environment_variables()
@@ -36,7 +35,8 @@ class ConfigurationManager:
         return verbose_flag_env_var or verbose_flag_local_config or verbose_flag_global_config
 
     def get_base_url_from_environment_variables(self) -> Optional[str]:
-        return self._get_value_from_environment_variables(BASE_URL_ENV_VAR_NAME)
+        return self._get_value_from_environment_variables(CYCODE_API_URL_VAR_NAME)
+
 
     def get_verbose_flag_from_environment_variables(self) -> bool:
         value = self._get_value_from_environment_variables(VERBOSE_ENV_VAR_NAME, '')

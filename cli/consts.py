@@ -14,10 +14,10 @@ SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = [
     '.enc', '.deb', '.obj', '.model'
 ]
 
-DEFAULT_BASE_URL = "https://api.cycode.com"
+DEFAULT_CYCODE_API_URL = "https://api.cycode.com"
 
 # env var names
-BASE_URL_ENV_VAR_NAME = "BASE_URL"
+CYCODE_API_URL_VAR_NAME = "CYCODE_API_URL"
 TIMEOUT_ENV_VAR_NAME = "TIMEOUT"
 LOGGING_LEVEL_ENV_VAR_NAME = "LOGGING_LEVEL"
 # use only for dev envs locally

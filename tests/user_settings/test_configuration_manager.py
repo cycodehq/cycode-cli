@@ -1,6 +1,6 @@
 from mock import Mock
 from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.consts import DEFAULT_BASE_URL
+from cli.consts import DEFAULT_CYCODE_API_URL
 
 """
 we check for base url in the three places, in the following order:
@@ -56,7 +56,7 @@ def test_get_base_url_not_configured(mocker):
     result = configuration_manager.get_base_url()
 
     # Assert
-    assert result == DEFAULT_BASE_URL
+    assert result == DEFAULT_CYCODE_API_URL
 
 
 def _configure_mocks(mocker,
