@@ -1,6 +1,6 @@
 import click
 import math
-from typing import List
+from typing import List, Optional
 from cli.printers.base_printer import BasePrinter
 from cli.models import DocumentDetections, Detection, Document
 from cli.config import config
@@ -9,6 +9,9 @@ from cli.utils.string_utils import obfuscate_text
 
 
 class TextPrinter(BasePrinter):
+    RED_COLOR_NAME = 'red'
+    WHITE_COLOR_NAME = 'white'
+    GREEN_COLOR_NAME = 'green'
 
     def print_results(self, context: click.Context, results: List[DocumentDetections]):
         if not results:
@@ -89,32 +92,37 @@ class TextPrinter(BasePrinter):
 
     def _get_detection_line_style(self, line: str, is_git_diff: bool, scan_type: str, start_position: int, length: int,
                                   show_secret: bool = False):
+        line_color = self._get_line_color(line, is_git_diff)
         if scan_type != SECRET_SCAN_TYPE or start_position < 0 or length < 0:
-            return self._get_line_style(line, is_git_diff)
+            return self._get_line_style(line, is_git_diff, line_color)
 
         violation = line[start_position: start_position + length]
         if not show_secret:
             violation = obfuscate_text(violation)
         line_to_violation = line[0: start_position]
         line_from_violation = line[start_position + length:]
-        return f'{self._get_line_style(line_to_violation, is_git_diff)}' \
-               f'{self._get_line_style(violation, is_git_diff, underline=True)}' \
-               f'{self._get_line_style(line_from_violation, is_git_diff)}'
+        return f'{self._get_line_style(line_to_violation, is_git_diff, line_color)}' \
+               f'{self._get_line_style(violation, is_git_diff, line_color, underline=True)}' \
+               f'{self._get_line_style(line_from_violation, is_git_diff, line_color)}'
 
-    def _get_line_style(self, line: str, is_git_diff: bool, underline: bool = False):
+    def _get_line_style(self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False):
+        color = color or self._get_line_color(line, is_git_diff)
+        return click.style(line, fg=color, bold=False, underline=underline)
+
+    def _get_line_color(self, line: str, is_git_diff: bool):
         if not is_git_diff:
-            return click.style(line, fg='white', bold=False, underline=underline)
+            return self.WHITE_COLOR_NAME
 
         if line.startswith('+'):
-            return click.style(line, fg='green', bold=False, underline=underline)
+            return self.GREEN_COLOR_NAME
 
         if line.startswith('-'):
-            return click.style(line, fg='red', bold=False, underline=underline)
+            return self.RED_COLOR_NAME
 
-        return click.style(line, fg='white', bold=False, underline=underline)
+        return self.WHITE_COLOR_NAME
 
     def _get_position_in_line(self, text: str, position: int) -> int:
         return position - text.rfind('\n', 0, position) - 1
 
     def _get_line_number_style(self, line_number: int):
-        return f'{click.style(str(line_number), fg="white", bold=False)} {click.style("|", fg="red", bold=False)}'
+        return f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} {click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
