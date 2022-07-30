@@ -3,7 +3,7 @@ import os
 import sys
 from urllib.parse import urlparse
 from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.consts import BASE_URL_ENV_VAR_NAME, TIMEOUT_ENV_VAR_NAME, LOGGING_LEVEL_ENV_VAR_NAME, DEV_MODE_ENV_VAR_NAME, \
+from cli.consts import DEFAULT_CYCODE_API_URL, TIMEOUT_ENV_VAR_NAME, LOGGING_LEVEL_ENV_VAR_NAME, DEV_MODE_ENV_VAR_NAME, \
     BATCH_SIZE_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
 
 
@@ -70,8 +70,8 @@ base_url = configuration_manager.get_base_url()
 try:
     urlparse(base_url)
 except ValueError as e:
-    logger.warning(f'Invalid BASE_URL: {base_url}, using default value', e)
-    base_url = DEFAULT_CONFIGURATION.get(BASE_URL_ENV_VAR_NAME)
+    logger.warning(f'Invalid cycode api url: {base_url}, using default value', e)
+    base_url = DEFAULT_CYCODE_API_URL
 
 timeout = _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
 dev_mode = _get_val_as_bool(DEV_MODE_ENV_VAR_NAME)
