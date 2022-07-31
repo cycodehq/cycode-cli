@@ -3,7 +3,7 @@ from cli.utils.string_utils import generate_random_string, hash_string_to_sha256
 
 class AuthManager:
 
-    CODE_VERIFIER_LENGTH = 100
+    CODE_VERIFIER_LENGTH = 101
 
     def generate_pkce_code_pair(self) -> (str, str):
         code_verifier = generate_random_string(self.CODE_VERIFIER_LENGTH)
