@@ -1,6 +1,8 @@
+import hashlib
 import math
 import re
-import hashlib
+import random
+import string
 from sys import getsizeof
 from binaryornot.check import is_binary_string
 
@@ -34,5 +36,11 @@ def convert_string_to_bytes(content: str):
     return bytes(content, 'utf-8')
 
 
-def convert_string_to_sha256(content: str):
+def hash_string_to_sha256(content: str):
     return hashlib.sha256(content.encode()).hexdigest()
+
+
+def generate_random_string(string_len: int):
+    # letters, digits, and symbols
+    characters = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(random.choice(characters) for _ in range(string_len))

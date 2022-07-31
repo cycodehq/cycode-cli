@@ -1,7 +1,7 @@
 import os.path
 import click
 from typing import Optional
-from cli.utils.string_utils import obfuscate_text, convert_string_to_sha256
+from cli.utils.string_utils import obfuscate_text, hash_string_to_sha256
 from cli.utils.path_utils import get_absolute_path
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.config import configuration_manager, config
@@ -60,7 +60,7 @@ def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, scan_
         if scan_type != SECRET_SCAN_TYPE:
             raise click.ClickException("exclude by value is supported only for secret scan type")
         exclusion_type = EXCLUSIONS_BY_VALUE_SECTION_NAME
-        exclusion_value = convert_string_to_sha256(by_value)
+        exclusion_value = hash_string_to_sha256(by_value)
     elif by_sha is not None:
         if scan_type != SECRET_SCAN_TYPE:
             raise click.ClickException("exclude by sha is supported only for secret scan type")
