@@ -1,3 +1,4 @@
+import webbrowser
 from cli.utils.string_utils import generate_random_string, hash_string_to_sha256
 
 
@@ -9,3 +10,7 @@ class AuthManager:
         code_verifier = generate_random_string(self.CODE_VERIFIER_LENGTH)
         code_challenge = hash_string_to_sha256(code_verifier)
         return code_challenge, code_verifier
+
+    def redirect_to_login_page(self):
+
+    def build_login_url(self):
