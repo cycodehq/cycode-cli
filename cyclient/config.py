@@ -66,12 +66,12 @@ logger = get_logger("cycode cli")
 
 configuration_manager = ConfigurationManager()
 
-base_url = configuration_manager.get_base_url()
+cycode_api_url = configuration_manager.get_base_url()
 try:
-    urlparse(base_url)
+    urlparse(cycode_api_url)
 except ValueError as e:
-    logger.warning(f'Invalid cycode api url: {base_url}, using default value', e)
-    base_url = DEFAULT_CYCODE_API_URL
+    logger.warning(f'Invalid cycode api url: {cycode_api_url}, using default value', e)
+    cycode_api_url = DEFAULT_CYCODE_API_URL
 
 timeout = _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
 dev_mode = _get_val_as_bool(DEV_MODE_ENV_VAR_NAME)

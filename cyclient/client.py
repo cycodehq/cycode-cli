@@ -1,27 +1,23 @@
 import arrow
-from threading import Lock
 import requests.exceptions
-from requests import Response, Session
+from requests import Response, request
+from threading import Lock
 from cyclient import config
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
 
 
 class CycodeClient:
 
-    session: Session
-
     def __init__(self, client_id: str, client_secret: str):
         """
         :param client_secret: the api token to added to the requests
-        :param base_url: the api base url
+        :param api_url: the cycode api url
         """
-        self.init_session()
-
         self.client_secret = client_secret
         self.client_id = client_id
         self.timeout = config.timeout
 
-        self.base_url = config.base_url
+        self.api_url = config.cycode_api_url
 
         self._api_token = None
         self._expires_in = None
@@ -40,11 +36,11 @@ class CycodeClient:
 
     def refresh_api_token(self) -> None:
         try:
-            auth_response = self.session.post(f"{self.base_url}/api/v1/auth/api-token",
-                                              json={
-                                                  'clientId': self.client_id,
-                                                  'secret': self.client_secret
-                                              })
+            auth_response = requests.post(f"{self.api_url}/api/v1/auth/api-token",
+                                          json={
+                                              'clientId': self.client_id,
+                                              'secret': self.client_secret
+                                          })
             auth_response.raise_for_status()
         except requests.exceptions.HTTPError as e:  # 4xx/5xx status codes
             self._handle_http_exception(e)
@@ -54,32 +50,47 @@ class CycodeClient:
         self._expires_in = arrow.utcnow().shift(
             seconds=auth_response_data['expires_in'] * 0.8)
 
-    def init_session(self):
-        self.session = Session()
-        self.session.headers.update(
-            {
-                "User-Agent": "cycode-cli"
-            }
-        )
+    def post(
+            self,
+            url_path: str,
+            body: dict = None,
+            headers: dict = None,
+            **kwargs
+    ) -> Response:
+        return self._execute(
+            method="post", endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def execute(
+    def put(
+            self,
+            url_path: str,
+            body: dict = None,
+            headers: dict = None,
+            **kwargs
+    ) -> Response:
+        return self._execute(
+            method="put", endpoint=url_path, json=body, headers=headers, **kwargs)
+
+    def get(
+            self,
+            url_path: str,
+            headers: dict = None,
+            **kwargs
+    ) -> Response:
+        return self._execute(method="get", endpoint=url_path, headers=headers, **kwargs)
+
+    def _execute(
             self,
             method: str,
             endpoint: str,
+            headers: dict = None,
             **kwargs
     ) -> Response:
 
-        self.session.headers.update(
-            {
-                "Authorization": f"Bearer {self.api_token}",
-            }
-        )
-
-        url = f"{self.base_url}/{endpoint}"
+        url = f"{self.api_url}/{endpoint}"
 
         try:
-            response = self.session.request(
-                method=method, url=url, timeout=self.timeout, **kwargs
+            response = request(
+                method=method, url=url, timeout=self.timeout, headers=self.get_request_headers(headers), **kwargs
             )
             response.raise_for_status()
             return response
@@ -88,30 +99,14 @@ class CycodeClient:
         except requests.exceptions.HTTPError as e:  # 4xx/5xx status codes
             self._handle_http_exception(e)
 
-    def post(
-            self,
-            url_path: str,
-            body: dict = None,
-            **kwargs
-    ) -> Response:
-        return self.execute(
-            method="post", endpoint=url_path, json=body, **kwargs)
+    def get_request_headers(self, additional_headers: dict = None):
+        headers = {
+            "User-Agent": "cycode-cli"
+        }
 
-    def put(
-            self,
-            url_path: str,
-            body: dict = None,
-            **kwargs
-    ) -> Response:
-        return self.execute(
-            method="put", endpoint=url_path, json=body, **kwargs)
-
-    def get(
-            self,
-            url_path: str,
-            **kwargs
-    ) -> Response:
-        return self.execute(method="get", endpoint=url_path, **kwargs)
+        if additional_headers is None:
+            return headers
+        return {**headers, **additional_headers}
 
     def _handle_http_exception(self, e: requests.exceptions.HTTPError):
         if e.response.status_code == 401:
