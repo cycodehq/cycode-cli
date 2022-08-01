@@ -170,30 +170,6 @@ class OwnerReference:
         return "Name: {0}, Kind: {1}".format(self.name, self.kind)
 
 
-# class ZippedFileScanResult(Schema):
-#     def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], scan_id: str = None,
-#                  err: str = None):
-#         super().__init__()
-#         self.did_detect = did_detect
-#         self.detections_per_file = detections_per_file
-#         self.scan_id = scan_id
-#         self.err = err
-#
-#
-# class ZippedFileScanResultSchema(Schema):
-#     class Meta:
-#         unknown = EXCLUDE
-#
-#     did_detect = fields.Boolean()
-#     scan_id = fields.String()
-#     detections_per_file = fields.List(
-#         fields.Nested(DetectionsPerFileSchema))
-#     err = fields.String()
-#
-#     @post_load
-#     def build_dto(self, data, **kwargs):
-#         return ZippedFileScanResult(**data)
-
 class AuthenticationSession(Schema):
     def __init__(self, session_id: str):
         super().__init__()

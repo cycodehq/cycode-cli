@@ -1,6 +1,6 @@
+from requests import Response
 from . import models
 from .client import CycodeClient
-from requests import Response
 from cli.zip_file import InMemoryZip
 
 
