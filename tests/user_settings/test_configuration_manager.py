@@ -63,7 +63,7 @@ def _configure_mocks(mocker,
                      expected_env_var_base_url,
                      expected_local_config_file_base_url,
                      expected_global_config_file_base_url):
-    mocker.patch.object(ConfigurationManager, 'get_base_url_from_environment_variables',
+    mocker.patch.object(ConfigurationManager, 'get_api_url_from_environment_variables',
                         return_value=expected_env_var_base_url)
     configuration_manager = ConfigurationManager()
     configuration_manager.local_config_file_manager = Mock()
