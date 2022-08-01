@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 from typing import Optional, Dict
 from cli.user_settings.config_file_manager import ConfigFileManager
-from cli.consts import DEFAULT_CYCODE_API_URL, CYCODE_API_URL_VAR_NAME, VERBOSE_ENV_VAR_NAME
+from cli.consts import DEFAULT_CYCODE_API_URL, DEFAULT_CYCODE_APP_URL, CYCODE_API_URL_ENV_VAR_NAME, \
+    CYCODE_APP_URL_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
 
 
 class ConfigurationManager:
@@ -13,20 +14,35 @@ class ConfigurationManager:
         self.global_config_file_manager = ConfigFileManager(Path.home())
         self.local_config_file_manager = ConfigFileManager(os.getcwd())
 
-    def get_base_url(self) -> str:
-        base_url = self.get_base_url_from_environment_variables()
-        if base_url is not None:
-            return base_url
+    def get_cycode_api_url(self) -> str:
+        api_url = self.get_api_url_from_environment_variables()
+        if api_url is not None:
+            return api_url
 
-        base_url = self.local_config_file_manager.get_base_url()
-        if base_url is not None:
-            return base_url
+        api_url = self.local_config_file_manager.get_api_url()
+        if api_url is not None:
+            return api_url
 
-        base_url = self.global_config_file_manager.get_base_url()
-        if base_url is not None:
-            return base_url
+        api_url = self.global_config_file_manager.get_api_url()
+        if api_url is not None:
+            return api_url
 
         return DEFAULT_CYCODE_API_URL
+
+    def get_cycode_app_url(self) -> str:
+        app_url = self.get_app_url_from_environment_variables()
+        if app_url is not None:
+            return app_url
+
+        app_url = self.local_config_file_manager.get_app_url()
+        if app_url is not None:
+            return app_url
+
+        app_url = self.global_config_file_manager.get_app_url()
+        if app_url is not None:
+            return app_url
+
+        return DEFAULT_CYCODE_APP_URL
 
     def get_verbose_flag(self) -> bool:
         verbose_flag_env_var = self.get_verbose_flag_from_environment_variables()
@@ -34,9 +50,11 @@ class ConfigurationManager:
         verbose_flag_global_config = self.global_config_file_manager.get_verbose_flag()
         return verbose_flag_env_var or verbose_flag_local_config or verbose_flag_global_config
 
-    def get_base_url_from_environment_variables(self) -> Optional[str]:
-        return self._get_value_from_environment_variables(CYCODE_API_URL_VAR_NAME)
+    def get_api_url_from_environment_variables(self) -> Optional[str]:
+        return self._get_value_from_environment_variables(CYCODE_API_URL_ENV_VAR_NAME)
 
+    def get_app_url_from_environment_variables(self) -> Optional[str]:
+        return self._get_value_from_environment_variables(CYCODE_APP_URL_ENV_VAR_NAME)
 
     def get_verbose_flag_from_environment_variables(self) -> bool:
         value = self._get_value_from_environment_variables(VERBOSE_ENV_VAR_NAME, '')

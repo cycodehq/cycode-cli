@@ -21,7 +21,7 @@ class CycodeClient:
         self.client_id = client_id
         self.timeout = config.timeout
 
-        self.base_url = config.base_url
+        self.base_url = config.cycode_api_url
 
         self._api_token = None
         self._expires_in = None
