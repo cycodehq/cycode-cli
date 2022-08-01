@@ -19,7 +19,7 @@ def test_get_base_url_from_environment_variable(mocker):
                                              GLOBAL_CONFIG_BASE_URL_VALUE)
 
     # Act
-    result = configuration_manager.get_base_url()
+    result = configuration_manager.get_cycode_api_url()
 
     # Assert
     assert result == ENV_VARS_BASE_URL_VALUE
@@ -31,7 +31,7 @@ def test_get_base_url_from_local_config(mocker):
                                              GLOBAL_CONFIG_BASE_URL_VALUE)
 
     # Act
-    result = configuration_manager.get_base_url()
+    result = configuration_manager.get_cycode_api_url()
 
     # Assert
     assert result == LOCAL_CONFIG_FILE_BASE_URL_VALUE
@@ -42,7 +42,7 @@ def test_get_base_url_from_global_config(mocker):
     configuration_manager = _configure_mocks(mocker, None, None, GLOBAL_CONFIG_BASE_URL_VALUE)
 
     # Act
-    result = configuration_manager.get_base_url()
+    result = configuration_manager.get_cycode_api_url()
 
     # Assert
     assert result == GLOBAL_CONFIG_BASE_URL_VALUE
@@ -53,7 +53,7 @@ def test_get_base_url_not_configured(mocker):
     configuration_manager = _configure_mocks(mocker, None, None, None)
 
     # Act
-    result = configuration_manager.get_base_url()
+    result = configuration_manager.get_cycode_api_url()
 
     # Assert
     assert result == DEFAULT_CYCODE_API_URL
