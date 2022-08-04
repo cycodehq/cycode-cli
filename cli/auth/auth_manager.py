@@ -1,17 +1,21 @@
+import time
 import webbrowser
 from requests import Request
+from typing import Optional
+from cli.exceptions.custom_exceptions import AuthProcessError
 from cli.utils.string_utils import generate_random_string, hash_string_to_sha256
 from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.user_settings.credentials_manager import CredentialsManager
 from cyclient.auth_client import AuthClient
-from cyclient.models import ApiToken
+from cyclient.models import ApiToken, ApiTokenGenerationPollingResponse
 
 
 class AuthManager:
-
     CODE_VERIFIER_LENGTH = 101
     POLLING_WAIT_INTERVAL_IN_SECONDS = 3
     POLLING_TIMEOUT_IN_SECONDS = 180
+    FAILED_POLLING_STATUS = "Error"
+    COMPLETED_POLLING_STATUS = "Completed"
 
     configuration_manager: ConfigurationManager
     credentials_manager: CredentialsManager
@@ -26,6 +30,8 @@ class AuthManager:
         code_challenge, code_verifier = self._generate_pkce_code_pair()
         session_id = self.start_session(code_challenge)
         self.redirect_to_login_page(code_challenge, session_id)
+        api_token = self.get_api_token(session_id, code_verifier)
+        self.save_api_token(api_token)
 
     def start_session(self, code_challenge: str):
         return self.auth_client.start_session(code_challenge)
@@ -34,11 +40,23 @@ class AuthManager:
         login_url = self._build_login_url(code_challenge, session_id)
         webbrowser.open(login_url)
 
-    def get_api_token(self) -> ApiToken:
-        return
+    def get_api_token(self, session_id: str, code_verifier: str) -> Optional[ApiToken]:
+        api_token = self.get_api_token_polling(session_id, code_verifier)
+        if api_token is None:
+            raise AuthProcessError("failed to get api token")
+        return api_token
 
-    def get_api_token_polling(self):
-        return
+    def get_api_token_polling(self, session_id: str, code_verifier: str) -> Optional[ApiToken]:
+        end_polling_time = time.time() + self.POLLING_TIMEOUT_IN_SECONDS
+        while time.time() < end_polling_time:
+            api_token_polling_response = self.auth_client.get_api_token(session_id, code_verifier)
+            if self._is_api_token_process_completed(api_token_polling_response):
+                return api_token_polling_response.api_token
+            if self._is_api_token_process_failed(api_token_polling_response):
+                raise AuthProcessError('error during getting api token')
+            time.sleep(self.POLLING_WAIT_INTERVAL_IN_SECONDS)
+
+        raise AuthProcessError('session expired')
 
     def save_api_token(self, api_token: ApiToken):
         self.credentials_manager.update_credentials_file(api_token.client_id, api_token.secret)
@@ -59,13 +77,10 @@ class AuthManager:
         code_challenge = hash_string_to_sha256(code_verifier)
         return code_challenge, code_verifier
 
+    def _is_api_token_process_completed(self, api_token_polling_response: ApiTokenGenerationPollingResponse) -> bool:
+        return api_token_polling_response is not None \
+               and api_token_polling_response.status == self.COMPLETED_POLLING_STATUS
 
-    # def get_api_token(self):
-    #
-    # def wait_until(self, predicate, timeout_at=30, poll_every=1):
-    #     try:
-    #         polling.poll(predicate, poll_every, timeout=timeout_at)
-    #     except polling.TimeoutException:
-    #         raise PyDriverTimeoutException('Timed out after {} seconds waiting for {} to be true. '
-    #                                        'The predicate was polled every {} seconds.'.format(timeout_at, predicate,
-    #                                                                                            poll_every))
+    def _is_api_token_process_failed(self, api_token_polling_response: ApiTokenGenerationPollingResponse) -> bool:
+        return api_token_polling_response is not None \
+               and api_token_polling_response.status == self.FAILED_POLLING_STATUS

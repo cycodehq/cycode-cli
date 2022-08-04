@@ -27,3 +27,12 @@ class ZipTooLargeError(Exception):
 
     def __str__(self):
         return f'The size of zip to scan is too large, size limit: {self.size_limit}'
+
+
+class AuthProcessError(Exception):
+    def __init__(self, error_message: str):
+        self.error_message = error_message
+        super().__init__()
+
+    def __str__(self):
+        return f'Something went wrong during the authentication process, error message: {self.error_message}'
