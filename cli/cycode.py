@@ -3,10 +3,11 @@ import click
 import sys
 from cli.config import config
 from cli import code_scanner, __version__
-from cyclient import ScanClient, K8SUpdaterClient, logger
+from cyclient import ScanClient, logger
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cli.user_settings.configuration_manager import ConfigurationManager
+from cli.auth.auth_manager import AuthManager
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
@@ -108,7 +109,7 @@ def main_cli(context: click.Context, verbose: bool):
     logger.setLevel(log_level)
 
 
-def get_cycode_client(client_id, client_secret, execution_type):
+def get_cycode_client(client_id, client_secret):
     if not client_id or not client_secret:
         client_id, client_secret = _get_configured_credentials()
         if not client_id:
@@ -116,10 +117,7 @@ def get_cycode_client(client_id, client_secret, execution_type):
         if not client_secret:
             raise click.ClickException("Cycode client secret is needed.")
 
-    if execution_type == "code_scan":
-        return ScanClient(client_secret=client_secret, client_id=client_id)
-
-    return K8SUpdaterClient(client_secret=client_secret, client_id=client_id)
+    return ScanClient(client_secret=client_secret, client_id=client_id)
 
 
 def _get_configured_credentials():
@@ -134,4 +132,6 @@ def _should_fail_scan(context: click.Context):
 
 
 if __name__ == '__main__':
+    authenticator = AuthManager()
+    code_challenge, code_verifier = authenticator.generate_pkce_code_pair()
     main_cli()

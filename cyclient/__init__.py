@@ -1,5 +1,5 @@
 """Cycode Client"""
-from .client import CycodeClient
+from .cycode_client import CycodeClient
 from .scan_client import ScanClient
 from .config import logger
 
