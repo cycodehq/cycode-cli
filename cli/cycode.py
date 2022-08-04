@@ -6,6 +6,7 @@ from cli import code_scanner, __version__
 from cyclient import ScanClient, logger
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
+from cli.auth.auth_command import authenticate
 from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.auth.auth_manager import AuthManager
 
@@ -91,7 +92,8 @@ def finalize(context: click.Context, *args, **kwargs):
     commands={
         "scan": code_scan,
         "configure": set_credentials,
-        "ignore": add_exclusions
+        "ignore": add_exclusions,
+        "auth": authenticate
     },
     context_settings=CONTEXT
 )

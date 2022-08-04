@@ -6,7 +6,7 @@ class CycodeError(Exception):
         super().__init__(self.error_message)
 
     def __str__(self):
-        return f'error occurred during scan request. status code: {self.status_code}, error message: ' \
+        return f'error occurred during the request. status code: {self.status_code}, error message: ' \
                f'{self.error_message}'
 
 
