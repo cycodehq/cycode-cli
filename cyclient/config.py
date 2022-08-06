@@ -66,7 +66,7 @@ logger = get_logger("cycode cli")
 
 configuration_manager = ConfigurationManager()
 
-cycode_api_url = configuration_manager.get_base_url()
+cycode_api_url = configuration_manager.get_cycode_api_url()
 try:
     urlparse(cycode_api_url)
 except ValueError as e:

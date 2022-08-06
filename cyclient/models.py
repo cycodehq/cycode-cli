@@ -220,7 +220,7 @@ class ApiTokenGenerationPollingResponseSchema(Schema):
         unknown = EXCLUDE
 
     status = fields.String()
-    api_token = fields.Nested(ApiTokenSchema)
+    api_token = fields.Nested(ApiTokenSchema, allow_none=True)
 
     @post_load
     def build_dto(self, data, **kwargs):

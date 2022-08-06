@@ -13,7 +13,7 @@ class AuthClient:
         self.cycode_client = CycodeClient()
 
     def start_session(self, code_challenge: str):
-        path = f"/{self.AUTH_CONTROLLER_PATH}/start"
+        path = f"{self.AUTH_CONTROLLER_PATH}/start"
         body = {'code_challenge': code_challenge}
         try:
             response = self.cycode_client.post(url_path=path, body=body)
@@ -24,7 +24,7 @@ class AuthClient:
             raise CycodeError(e.response.status_code, e.response.text)
 
     def get_api_token(self, session_id: str, code_verifier: str) -> Optional[models.ApiTokenGenerationPollingResponse]:
-        path = f"/{self.AUTH_CONTROLLER_PATH}/token"
+        path = f"{self.AUTH_CONTROLLER_PATH}/token"
         body = {'session_id': session_id, 'code_verifier': code_verifier}
         try:
             response = self.cycode_client.post(url_path=path, body=body)

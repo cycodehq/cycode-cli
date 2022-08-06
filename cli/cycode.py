@@ -134,6 +134,4 @@ def _should_fail_scan(context: click.Context):
 
 
 if __name__ == '__main__':
-    authenticator = AuthManager()
-    code_challenge, code_verifier = authenticator.generate_pkce_code_pair()
     main_cli()
