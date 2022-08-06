@@ -74,7 +74,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
 
     context.obj["scan_type"] = scan_type
     context.obj["output"] = output
-    context.obj["client"] = get_cycode_client(client_id, secret, "code_scan")
+    context.obj["client"] = get_cycode_client(client_id, secret)
 
     return 1
 
