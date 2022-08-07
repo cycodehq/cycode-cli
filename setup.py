@@ -5,7 +5,7 @@ from cli import __version__
 
 def get_long_description():
     this_directory = Path(__file__).parent
-    return (this_directory / "README.md").read_text()
+    return (this_directory / "README.md").read_text(encoding='utf-8')
 
 
 setup(
