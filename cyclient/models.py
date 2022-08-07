@@ -15,7 +15,8 @@ class Detection(Schema):
             "type:{0}, "
             "message:{1}, "
             "detection_details: {2}"
-            "detection_rule_id:{3}".format(self.type, self.message, repr(self.detection_details), self.detection_rule_id)
+            "detection_rule_id:{3}".format(self.type, self.message, repr(self.detection_details),
+                                           self.detection_rule_id)
         )
 
 
@@ -53,7 +54,8 @@ class DetectionsPerFileSchema(Schema):
 
 
 class ZippedFileScanResult(Schema):
-    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], scan_id: str = None, err: str = None):
+    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], scan_id: str = None,
+                 err: str = None):
         super().__init__()
         self.did_detect = did_detect
         self.detections_per_file = detections_per_file
@@ -166,3 +168,60 @@ class OwnerReference:
 
     def __str__(self):
         return "Name: {0}, Kind: {1}".format(self.name, self.kind)
+
+
+class AuthenticationSession(Schema):
+    def __init__(self, session_id: str):
+        super().__init__()
+        self.session_id = session_id
+
+
+class AuthenticationSessionSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    session_id = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return AuthenticationSession(**data)
+
+
+class ApiToken(Schema):
+    def __init__(self, client_id: str, secret: str, description: str):
+        super().__init__()
+        self.client_id = client_id
+        self.secret = secret
+        self.description = description
+
+
+class ApiTokenSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    client_id = fields.String(data_key='clientId')
+    secret = fields.String()
+    description = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ApiToken(**data)
+
+
+class ApiTokenGenerationPollingResponse(Schema):
+    def __init__(self, status: str, api_token):
+        super().__init__()
+        self.status = status
+        self.api_token = api_token
+
+
+class ApiTokenGenerationPollingResponseSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    status = fields.String()
+    api_token = fields.Nested(ApiTokenSchema, allow_none=True)
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ApiTokenGenerationPollingResponse(**data)
