@@ -18,6 +18,7 @@ from cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, INFRA_CO
 from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
 from cli.utils.string_utils import get_content_size, is_binary_content
+from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
 from cyclient import logger
@@ -397,7 +398,8 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 
 def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     return is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename) \
-           or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename)
+           or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
+           or is_sub_path(ConfigFileManager.get_config_file_route(), filename)
 
 
 def _handle_exception(context: click.Context, e: Exception):
