@@ -34,9 +34,3 @@ def test_is_sub_path_subpath_not_exists():
     path = os.path.join(test_files_path, 'hello', 'random.txt')
     sub_path = os.path.join(test_files_path, 'goodbye')
     assert is_sub_path(path, sub_path) is False
-
-
-def test_is_sub_path_path_contains_subpath():
-    path = os.path.join(test_files_path, 'hello', 'random.txt')
-    sub_path = os.path.join(test_files_path.name, 'hello')
-    assert is_sub_path(path, sub_path) is False
