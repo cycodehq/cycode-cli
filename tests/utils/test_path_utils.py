@@ -3,7 +3,7 @@ from pathlib import Path
 from cli.utils.path_utils import is_sub_path
 
 
-test_files_path = path = Path(__file__).parent.absolute()
+test_files_path = Path(__file__).parent.absolute()
 
 
 def test_is_sub_path_both_paths_are_same():
@@ -33,4 +33,10 @@ def test_is_sub_path_path_not_exists():
 def test_is_sub_path_subpath_not_exists():
     path = os.path.join(test_files_path, 'hello', 'random.txt')
     sub_path = os.path.join(test_files_path, 'goodbye')
+    assert is_sub_path(path, sub_path) is False
+
+
+def test_is_sub_path_path_contains_subpath():
+    path = os.path.join(test_files_path, 'hello', 'random.txt')
+    sub_path = os.path.join(test_files_path.name, 'hello')
     assert is_sub_path(path, sub_path) is False
