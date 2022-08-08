@@ -400,7 +400,7 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     return is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename) \
            or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
-           or is_sub_path(ConfigFileManager.get_config_file_route(), filename)
+           or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
 def _handle_exception(context: click.Context, e: Exception):
