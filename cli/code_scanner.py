@@ -142,7 +142,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
     error_message = None
     all_detections_count = 0
     output_detections_count = 0
-    scan_id = uuid4()
+    scan_id = _get_scan_id(context)
     zipped_documents = InMemoryZip()
 
     try:
@@ -452,3 +452,9 @@ def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, sc
     except Exception as e:
         logger.debug('Failed to report scan status, %s', {'exception_message': str(e)})
         pass
+
+
+def _get_scan_id(context: click.Context):
+    scan_id = uuid4()
+    context.obj['scan_id'] = scan_id
+    return scan_id
