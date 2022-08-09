@@ -63,6 +63,10 @@ class ConfigFileManager(BaseFileManager):
     def get_filename(self) -> str:
         return os.path.join(self.get_config_directory_path(), self.FILE_NAME)
 
+    @staticmethod
+    def get_config_file_route() -> str:
+        return os.path.join(ConfigFileManager.CYCODE_HIDDEN_DIRECTORY, ConfigFileManager.FILE_NAME)
+
     def _get_exclusions_by_exclusion_type(self, scan_type, exclusion_type) -> List:
         scan_type_exclusions = self.get_exclusions_by_scan_type(scan_type)
         return scan_type_exclusions.get(exclusion_type, [])
