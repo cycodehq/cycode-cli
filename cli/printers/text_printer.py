@@ -14,8 +14,11 @@ class TextPrinter(BasePrinter):
     GREEN_COLOR_NAME = 'green'
 
     def print_results(self, context: click.Context, results: List[DocumentDetections]):
+        scan_id = context.obj.get('scan_id')
+        click.secho(f"Scan Results: (scan_id: {scan_id})")
+
         if not results:
-            click.secho("Good job! No issues were found!!! 👏👏👏", fg='green')
+            click.secho("Good job! No issues were found!!! 👏👏👏", fg=self.GREEN_COLOR_NAME)
             return
 
         scan_type = context.obj.get('scan_type')
