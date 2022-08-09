@@ -39,7 +39,7 @@ def scan_repository(context: click.Context, path, branch):
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         documents_to_scan = [
-            Document(get_path_by_os(obj.path), obj.data_stream.read().decode('utf-8', errors='replace'))
+            Document(get_path_by_os(os.path.join(path, obj.path)), obj.data_stream.read().decode('utf-8', errors='replace'))
             for obj
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
@@ -82,12 +82,13 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
         parent = commit.parents[0] if commit.parents else NULL_TREE
         diff = commit.diff(parent, create_patch=True, R=True)
         for blob in diff:
-            doc = Document(get_path_by_os(get_diff_file_path(blob)),
+            doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
                            blob.diff.decode('utf-8', errors='replace'), True, commit_id)
             documents_to_scan.append(doc)
 
             documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-            logger.debug('Found all relevant files for scanning %s', {'path': path, 'commit_range': commit_range})
+            logger.debug('Found all relevant files in commit %s',
+                         {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
