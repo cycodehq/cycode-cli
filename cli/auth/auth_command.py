@@ -8,12 +8,12 @@ from cyclient import logger
 @click.command()
 @click.pass_context
 def authenticate(context: click.Context):
-    """ Initial command to authenticate your CLI - TODO better text """
+    """ Authenticates your machine to associate CLI with your cycode account """
     try:
         logger.debug("starting authentication process")
         auth_manager = AuthManager()
         auth_manager.authenticate()
-        click.echo("success TODO TEXT")
+        click.echo("Successfully logged into cycode")
     except Exception as e:
         _handle_exception(context, e)
 
@@ -23,10 +23,10 @@ def _handle_exception(context: click.Context, e: Exception):
     if verbose:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
     if isinstance(e, AuthProcessError):
-        click.secho('Authentication process has failed. Please try again by executing the `cycode auth` command',
+        click.secho('Authentication failed. Please try again later using the command `cycode auth`',
                     fg='red', nl=False)
     elif isinstance(e, CycodeError):
-        click.secho('TBD message. Please try again by executing the `cycode auth` command',
+        click.secho('Authentication failed. Please try again later using the command `cycode auth`',
                     fg='red', nl=False)
     elif isinstance(e, click.ClickException):
         raise e
