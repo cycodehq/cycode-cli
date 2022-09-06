@@ -78,7 +78,7 @@ class AuthManager:
 
     def _build_login_url(self, code_challenge: str, session_id: str):
         app_url = self.configuration_manager.get_cycode_app_url()
-        login_url = f'{app_url}/account/login'
+        login_url = f'{app_url}/account/sign-in'
         query_params = {
             'source': 'cycode_cli',
             'code_challenge': code_challenge,
