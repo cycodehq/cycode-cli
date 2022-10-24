@@ -1,11 +1,11 @@
 from requests import Response, request
-from cyclient import config
+from cyclient import config, __version__
 
 
 class CycodeClient:
 
     MANDATORY_HEADERS: dict = {
-        "User-Agent": "cycode-cli"
+        "User-Agent": f'cycode-cli_{__version__}',
     }
 
     def __init__(self):
