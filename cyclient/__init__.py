@@ -1,8 +1,6 @@
-"""Cycode Client"""
 from .config import logger
-from version import version
 
-__version__ = version
+__version__ = "0.1.6"
 
 __all__ = [
     "logger",
