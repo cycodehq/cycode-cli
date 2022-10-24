@@ -1,12 +1,10 @@
 """Cycode Client"""
-from .cycode_client import CycodeClient
-from .scan_client import ScanClient
 from .config import logger
+from version import version
 
-__version__ = "0.0.15"
+__version__ = version
 
 __all__ = [
-    "CycodeClient",
-    "ScanClient",
-    "logger"
+    "logger",
+    "__version__"
 ]
