@@ -15,7 +15,7 @@ setup(
     url='https://github.com/cycodehq-public/cycode-cli',
     license='MIT',
     author='Cycode',
-    data_files=[('cyclient', ['cyclient/config.yaml']), ('cli', ['cli/config.yaml'])],
+    data_files=[('cyclient', ['cyclient/config.yaml', 'VERSION.txt']), ('cli', ['cli/config.yaml', 'VERSION.txt'])],
     entry_points={
         'console_scripts': [
             'cycode=cli.cycode:main_cli',
