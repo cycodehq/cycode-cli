@@ -7,7 +7,8 @@ This guide will guide you through both installation and usage.
 # Prerequisites
 
 - The Cycode CLI application requires Python version 3.8 or later.
-- A Cycode Client ID and Client Secret Key are required to use the product. See the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages for details on obtaining this value.
+- Use the [`cycode auth` command](#use-auth-command) to authenticate to Cycode with the CLI
+   - Alternatively, a Cycode Client ID and Client Secret Key can be acquired using the steps from the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages for details on obtaining these values.
 
 # Installation
 
@@ -15,6 +16,7 @@ The following installation steps are applicable on both Windows and UNIX / Linux
 
 > :memo: **Note**<br/>
 > The following steps assume the use of `python3` and `pip3` for Python-related commands, but some systems may instead use the `python` and `pip` commands, depending on your Python environment’s configuration.
+
 ## Install Cycode CLI
 
 To install the Cycode CLI application on your local machine, perform the following steps:
@@ -27,15 +29,52 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 3. Navigate to the top directory of the local repository you wish to scan.
 
-4. There are two methods to set the Cycode client ID and client secret:
+4. There are three methods to set the Cycode client ID and client secret:
 
-   - [cycode configure](#use-configure-command) (recommended)
+   - [cycode auth](#use-auth-command) (**Recommended**)
+   - [cycode configure](#use-configure-command)
    - Add them to your [environment variables](#add-to-environment-variables)
+### Use auth Command
+
+> :memo: **Note**<br/>
+> This is the **recommended** method for setting up your local machine to authenticate with Cycode CLI.
+
+1. Type the following command into your terminal/command line window:
+
+   `cycode auth`
+
+2. A browser window will appear, asking you to log into Cycode (as seen below):
+
+![](../../Downloads/command-line-interface%203/images/cycode_login.png)
+
+3. Enter you login credentials on this page and log in.
+
+4. You will eventually be taken to this page, where you will be asked to choose the business group you want to authorize Cycode with (if applicable):
+
+![](../../Downloads/command-line-interface%203/images/authorize_cli.png)
+
+> :memo: **Note**<br/>
+> This will be the default method for authenticating with the Cycode CLI.
+
+5. Click the **Allow** button to authorize the Cycode CLI on the chosen business group.
+
+![](../../Downloads/command-line-interface%203/images/allow_cli.png)
+
+6. Once done, you will see the following screen, if it was successfully selected:
+
+![](../../Downloads/command-line-interface%203/images/successfully_auth.png)
+
+7. In the terminal/command line screen, you will see the following when exiting the browser window:
+
+  ```bash
+  Successfully logged into cycode
+  ```
 
 ### Use configure Command
 
 > :memo: **Note**<br/>
-> If you already setup your Cycode client ID and client secret through the Linux or Windows environment variables those credentials will take precendent over this method
+> If you already setup your Cycode client ID and client secret through the Linux or Windows environment variables, those credentials will take precedent over this method
+
 1. Type the following command into your terminal/command line window:
 
    `cycode configure`
@@ -80,19 +119,19 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 1. From the Control Panel, navigate to the System menu:
 
-![](./images/image1.png)
+![](../../Downloads/command-line-interface%203/images/image1.png)
 
 2. Next, click Advanced system settings:
 
-![](./images/image2.png)
+![](../../Downloads/command-line-interface%203/images/image2.png)
 
 3. In the System Properties window that opens, click the Environment Variables button:
 
-![](./images/image3.png)
+![](../../Downloads/command-line-interface%203/images/image3.png)
 
 4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively:
 
-![](./images/image4.png)
+![](../../Downloads/command-line-interface%203/images/image4.png)
 
 ## Install Pre-Commit Hook
 
@@ -126,6 +165,7 @@ repos:
 > :memo: **Note**<br/>
 > Successful hook installation will result in the message:<br/>
 `Pre-commit installed at .git/hooks/pre-commit`
+
 # Cycode Command
 
 The following are the options and commands available with the Cycode CLI application:
@@ -138,6 +178,7 @@ The following are the options and commands available with the Cycode CLI applica
 
 | Command                             | Description |
 |-------------------------------------|-------------|
+| [auth](#use-auth-command)           | Authenticates your machine to associate CLI with your cycode account. |
 | [configure](#use-configure-command) | Initial command to authenticate your CLI client with Cycode using client ID and client secret. |
 | [ignore](#ingoring-scan-results)    | Ignore a specific value, path or rule ID |
 | [scan](#running-a-scan)             | Scan content for secrets/IaC violations, You need to specify which scan type: `ci`/`commit_history`/`path`/`repository`/etc |
@@ -407,6 +448,6 @@ For example, to see options available for a Path Scan, you would simply enter:
 
 `cycode scan path --help`
 
-To see the options available for the ignore scan funtion, use this command:
+To see the options available for the ignore scan function, use this command:
 
 `cycode ignore --help`
