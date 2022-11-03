@@ -45,24 +45,24 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 2. A browser window will appear, asking you to log into Cycode (as seen below):
 
-![](../../Downloads/command-line-interface%203/images/cycode_login.png)
+![](./images/cycode_login.png)
 
 3. Enter you login credentials on this page and log in.
 
 4. You will eventually be taken to this page, where you will be asked to choose the business group you want to authorize Cycode with (if applicable):
 
-![](../../Downloads/command-line-interface%203/images/authorize_cli.png)
+![](./images/authorize_cli.png)
 
 > :memo: **Note**<br/>
 > This will be the default method for authenticating with the Cycode CLI.
 
 5. Click the **Allow** button to authorize the Cycode CLI on the chosen business group.
 
-![](../../Downloads/command-line-interface%203/images/allow_cli.png)
+![](./images/allow_cli.png)
 
 6. Once done, you will see the following screen, if it was successfully selected:
 
-![](../../Downloads/command-line-interface%203/images/successfully_auth.png)
+![](./images/successfully_auth.png)
 
 7. In the terminal/command line screen, you will see the following when exiting the browser window:
 
@@ -119,19 +119,19 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 1. From the Control Panel, navigate to the System menu:
 
-![](../../Downloads/command-line-interface%203/images/image1.png)
+![](./images/image1.png)
 
 2. Next, click Advanced system settings:
 
-![](../../Downloads/command-line-interface%203/images/image2.png)
+![](./images/image2.png)
 
 3. In the System Properties window that opens, click the Environment Variables button:
 
-![](../../Downloads/command-line-interface%203/images/image3.png)
+![](./images/image3.png)
 
 4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively:
 
-![](../../Downloads/command-line-interface%203/images/image4.png)
+![](./images/image4.png)
 
 ## Install Pre-Commit Hook
 
