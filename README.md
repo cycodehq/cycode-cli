@@ -119,19 +119,19 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 1. From the Control Panel, navigate to the System menu:
 
-![](./images/image1.png)
+![](../../Downloads/command-line-interface%203/images/image1.png)
 
 2. Next, click Advanced system settings:
 
-![](./images/image2.png)
+![](../../Downloads/command-line-interface%203/images/image2.png)
 
 3. In the System Properties window that opens, click the Environment Variables button:
 
-![](./images/image3.png)
+![](../../Downloads/command-line-interface%203/images/image3.png)
 
 4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively:
 
-![](./images/image4.png)
+![](../../Downloads/command-line-interface%203/images/image4.png)
 
 ## Install Pre-Commit Hook
 
