@@ -14,7 +14,7 @@ from cli.ci_integrations import get_commit_range
 from cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES, \
     SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE, EXCLUSIONS_BY_VALUE_SECTION_NAME, EXCLUSIONS_BY_SHA_SECTION_NAME, \
     EXCLUSIONS_BY_RULE_SECTION_NAME, EXCLUSIONS_BY_PATH_SECTION_NAME, FILE_MAX_SIZE_LIMIT_IN_BYTES, \
-    PRE_COMMIT_SCAN_COMMAND_TYPE, ZIP_MAX_SIZE_LIMIT_IN_BYTES
+    PRE_COMMIT_SCAN_COMMAND_TYPE, ZIP_MAX_SIZE_LIMIT_IN_BYTES, SCA_SCAN_TYPE, SCA_CONFIGURATION_SCAN_SUPPORTED_FILES
 from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
 from cli.utils.string_utils import get_content_size, is_binary_content
@@ -40,7 +40,8 @@ def scan_repository(context: click.Context, path, branch):
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         documents_to_scan = [
-            Document(get_path_by_os(os.path.join(path, obj.path)), obj.data_stream.read().decode('utf-8', errors='replace'))
+            Document(get_path_by_os(os.path.join(path, obj.path)),
+                     obj.data_stream.read().decode('utf-8', errors='replace'))
             for obj
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
@@ -381,6 +382,9 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     if scan_type == INFRA_CONFIGURATION_SCAN_TYPE:
         return any(filename.lower().endswith(supported_file_extension) for supported_file_extension in
                    INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
+    if scan_type == SCA_SCAN_TYPE:
+        return any(filename == supported_file for supported_file in
+                   SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)
     return all(not filename.lower().endswith(file_extension_to_ignore) for file_extension_to_ignore in
                SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 

@@ -7,7 +7,6 @@ from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
 
 
 class ScanClient:
-
     SCAN_CONTROLLER_PATH = 'api/v1/scan'
 
     def __init__(self, client_id: str = None, client_secret: str = None):
@@ -37,7 +36,7 @@ class ScanClient:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         try:
             response = self.cycode_client.post(url_path=url_path, data={'scan_id': scan_id, 'is_git_diff': is_git_diff},
-                                 files=files)
+                                               files=files)
             return self.parse_zipped_file_scan_response(response)
         except Exception as e:
             self._handle_exception(e)
@@ -69,7 +68,12 @@ class ScanClient:
 
     @staticmethod
     def get_service_name(scan_type):
-        return 'secret' if scan_type == 'secret' else 'iac'
+        if scan_type == 'secret':
+            return 'secret'
+        elif scan_type == 'iac':
+            return 'iac'
+        elif scan_type == 'sca':
+            return 'security-vulnerability-detector-service'
 
     def _handle_exception(self, e: Exception):
         if isinstance(e, requests.exceptions.Timeout):
