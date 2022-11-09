@@ -6,7 +6,6 @@ class CycodeClient:
 
     MANDATORY_HEADERS: dict = {
         "User-Agent": f'cycode-cli_{__version__}',
-        "x-tenant-id": "7af2df04-a3df-44fa-b621-3ea565404441"
     }
 
     def __init__(self):
