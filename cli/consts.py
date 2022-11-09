@@ -18,7 +18,7 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
     'cargo.lock', 'cargo.toml',
     'composer.json', 'composer.lock',
     'go.sum', 'go.mod', 'gopkg.lock',
-    'pom.xml', 'build.gradle', 'gradle.lockfile',
+    'pom.xml', 'build.gradle', 'gradle.lockfile', 'build.gradle.kts',
     'package.json', 'package-lock.json', 'yarn.lock', 'npm-shrinkwrap.json',
     'packages.config', 'project.assets.json', 'packages.lock.json', 'nuget.config', '.csproj',
     'gemfile', 'gemfile.lock',
