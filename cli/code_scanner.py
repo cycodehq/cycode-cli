@@ -383,7 +383,7 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
         return any(filename.lower().endswith(supported_file_extension) for supported_file_extension in
                    INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
     if scan_type == SCA_SCAN_TYPE:
-        return any(filename == supported_file for supported_file in
+        return any(filename.endswith(supported_file) for supported_file in
                    SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)
     return all(not filename.lower().endswith(file_extension_to_ignore) for file_extension_to_ignore in
                SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
