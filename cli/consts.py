@@ -15,16 +15,16 @@ SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = [
 ]
 
 SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
-    'Cargo.lock', 'Cargo.toml',
+    'cargo.lock', 'cargo.toml',
     'composer.json', 'composer.lock',
-    'go.sum', 'go.mod', 'Gopkg.lock',
+    'go.sum', 'go.mod', 'gopkg.lock',
     'pom.xml', 'build.gradle', 'gradle.lockfile',
     'package.json', 'package-lock.json', 'yarn.lock', 'npm-shrinkwrap.json',
-    'packages.config', 'project.assets.json', 'packages.lock.json', 'nuget.config',
-    'Gemfile', 'Gemfile.lock',
+    'packages.config', 'project.assets.json', 'packages.lock.json', 'nuget.config', '.csproj',
+    'gemfile', 'gemfile.lock',
     'build.sbt', 'build.scala', 'build.sbt.lock',
     'pyproject.toml', 'poetry.lock',
-    'Pipfile', 'Pipfile.lock', 'requirements.txt', 'setup.py'
+    'pipfile', 'pipfile.lock', 'requirements.txt', 'setup.py'
 ]
 
 DEFAULT_CYCODE_API_URL = "https://api.cycode.com"
