@@ -27,7 +27,7 @@ NO_ISSUES_STATUS_CODE = 0
 @click.option('--scan-type', '-t', default="secret",
               help="""
               \b
-              Specify the scan you wish to execute (secret/iac), 
+              Specify the scan you wish to execute (secret/iac/sca), 
               the default is secret
               """,
               type=click.Choice(config['scans']['supported_scans']))
@@ -62,7 +62,7 @@ NO_ISSUES_STATUS_CODE = 0
               type=click.Choice(['text', 'json']))
 @click.pass_context
 def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output):
-    """ Scan content for secrets/IaC violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
+    """ Scan content for secrets/IaC/sca violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
     else:
