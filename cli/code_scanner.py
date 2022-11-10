@@ -23,6 +23,7 @@ from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
 from cyclient import logger
 from cyclient.models import ZippedFileScanResult
+from cli.helpers import sca_code_scanner
 
 start_scan_time = time.time()
 
@@ -128,7 +129,7 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 
 def scan_disk_files(context: click.Context, paths: List[str]):
     is_git_diff = False
-    documents = []
+    documents: List[Document] = []
     for path in paths:
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -149,6 +150,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
     zipped_documents = InMemoryZip()
 
     try:
+        perform_pre_scan_documents_actions(scan_type, documents_to_scan, is_git_diff)
         zipped_documents = zip_documents_to_scan(zipped_documents, documents_to_scan)
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range)
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
@@ -173,6 +175,11 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
                   'scan_id': str(scan_id), 'zip_file_size': zip_file_size})
     _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
                         all_detections_count, len(documents_to_scan), zip_file_size, scan_command_type, error_message)
+
+
+def perform_pre_scan_documents_actions(scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False):
+    if scan_type == 'sca':
+        sca_code_scanner.run_pre_scan_actions(documents_to_scan, is_git_diff)
 
 
 def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
