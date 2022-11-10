@@ -51,3 +51,7 @@ def _get_all_existing_files_in_directory(path: str):
 
 def is_path_exists(path: str):
     return os.path.exists(path)
+
+
+def get_file_dir(path: str) -> str:
+    return os.path.dirname(path)
