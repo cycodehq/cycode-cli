@@ -55,3 +55,7 @@ def is_path_exists(path: str):
 
 def get_file_dir(path: str) -> str:
     return os.path.dirname(path)
+
+
+def join_paths(path: str, filename: str) -> str:
+    return os.path.join(path, filename)
