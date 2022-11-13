@@ -3,14 +3,11 @@ import os
 import sys
 from urllib.parse import urlparse
 from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.consts import DEFAULT_CYCODE_API_URL, TIMEOUT_ENV_VAR_NAME, LOGGING_LEVEL_ENV_VAR_NAME, DEV_MODE_ENV_VAR_NAME, \
-    BATCH_SIZE_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
-
+from cli.consts import *
 
 # set io encoding (for windows)
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
-
 
 # logs
 logging.basicConfig(
@@ -73,7 +70,7 @@ except ValueError as e:
     logger.warning(f'Invalid cycode api url: {cycode_api_url}, using default value', e)
     cycode_api_url = DEFAULT_CYCODE_API_URL
 
-timeout = _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
+timeout = _get_val_as_int(CYCODE_CLI_REQUEST_TIMEOUT_ENV_VAR_NAME) or _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
 dev_mode = _get_val_as_bool(DEV_MODE_ENV_VAR_NAME)
 batch_size = _get_val_as_int(BATCH_SIZE_ENV_VAR_NAME)
 verbose = _get_val_as_bool(VERBOSE_ENV_VAR_NAME)

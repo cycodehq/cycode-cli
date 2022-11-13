@@ -1,8 +1,7 @@
-import os
 from cli.utils.shell_executor import shell
 from typing import List
 from cli.models import Document
-from cli.utils.path_utils import get_file_dir
+from cli.utils.path_utils import get_file_dir, join_paths
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
@@ -27,4 +26,4 @@ def generate_dependencies_tree(filename: str) -> str:
 
 
 def build_dep_tree_path(path):
-    return f'{get_file_dir(path)}/{BUILD_GRADLE_DEP_TREE_FILE_NAME}'
+    return join_paths(get_file_dir(path), BUILD_GRADLE_DEP_TREE_FILE_NAME)
