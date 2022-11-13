@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List
 from cyclient.models import Detection
 
@@ -26,3 +27,18 @@ class DocumentDetections:
             "document:{0}, "
             "detections:{1}".format(self.document, self.detections)
         )
+
+
+class Severity(Enum):
+    INFO = -1
+    LOW = 0
+    MEDIUM = 1
+    HIGH = 2
+    CRITICAL = 3
+
+    @staticmethod
+    def get_value(name):
+        if name not in Severity.__members__:
+            return None
+
+        return Severity[name].value

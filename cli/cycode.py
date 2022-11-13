@@ -1,6 +1,7 @@
 import logging
 import click
 import sys
+from cli.models import Severity
 from cli.config import config
 from cli import code_scanner, __version__
 from cyclient import logger
@@ -60,8 +61,13 @@ NO_ISSUES_STATUS_CODE = 0
               the default is text
               """,
               type=click.Choice(['text', 'json']))
+@click.option('--min-severity',
+              default=None,
+              help='Specify SCA packages vulnerabilities violations minimum severity',
+              type=click.Choice([e.name for e in Severity]),
+              required=False)
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, min_severity):
     """ Scan content for secrets/IaC/sca violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
@@ -76,6 +82,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     context.obj["scan_type"] = scan_type
     context.obj["output"] = output
     context.obj["client"] = get_cycode_client(client_id, secret)
+    context.obj["min_severity"] = min_severity
 
     return 1
 
