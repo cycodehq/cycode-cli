@@ -33,6 +33,7 @@ class Severity(Enum):
     INFO = -1
     LOW = 0
     MEDIUM = 1
+    MODERATE = 1
     HIGH = 2
     CRITICAL = 3
 
