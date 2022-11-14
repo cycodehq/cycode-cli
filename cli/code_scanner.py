@@ -142,7 +142,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
                    is_git_diff: bool = False, is_commit_range: bool = False):
     cycode_client = context.obj["client"]
     scan_type = context.obj["scan_type"]
-    min_severity = context.obj["min_severity"]
+    severity_threshold = context.obj["severity_threshold"]
     scan_command_type = context.info_name
     error_message = None
     all_detections_count = 0
@@ -156,7 +156,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range)
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
         relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
-                                                                            scan_command_type, min_severity)
+                                                                            scan_command_type, severity_threshold)
         print_results(context, relevant_document_detections_list)
 
         context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
@@ -229,10 +229,10 @@ def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: Lis
 
 
 def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetections], scan_type: str,
-                                    scan_command_type: str, min_severity: str) -> List[DocumentDetections]:
+                                    scan_command_type: str, severity_threshold: str) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
-        relevant_detections = exclude_irrelevant_detections(scan_type, scan_command_type, min_severity,
+        relevant_detections = exclude_irrelevant_detections(scan_type, scan_command_type, severity_threshold,
                                                             document_detections.detections)
         if relevant_detections:
             relevant_document_detections_list.append(DocumentDetections(document=document_detections.document,
@@ -270,20 +270,20 @@ def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> Li
     return [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
 
 
-def exclude_irrelevant_detections(scan_type: str, scan_command_type: str, min_severity: str, detections) -> List:
+def exclude_irrelevant_detections(scan_type: str, scan_command_type: str, severity_threshold: str, detections) -> List:
     relevant_detections = exclude_detections_by_exclusions_configuration(scan_type, detections)
     relevant_detections = exclude_detections_by_scan_command_type(scan_command_type, relevant_detections)
-    relevant_detections = exclude_detections_by_severity(scan_type, min_severity, relevant_detections)
+    relevant_detections = exclude_detections_by_severity(scan_type, severity_threshold, relevant_detections)
 
     return relevant_detections
 
 
-def exclude_detections_by_severity(scan_type: str, min_severity: str, detections) -> List:
-    if scan_type != 'sca' or min_severity is None:
+def exclude_detections_by_severity(scan_type: str, severity_threshold: str, detections) -> List:
+    if scan_type != SCA_SCAN_TYPE or severity_threshold is None:
         return detections
 
     return [detection for detection in detections if
-            _is_valid_detection_severity(detection.detection_details.get('advisory_severity'), min_severity)]
+            _does_severity_match_severity_threshold(detection.detection_details.get('advisory_severity'), severity_threshold)]
 
 
 def exclude_detections_by_scan_command_type(scan_command_type: str, detections) -> List:
@@ -485,9 +485,9 @@ def _get_scan_id(context: click.Context):
     return scan_id
 
 
-def _is_valid_detection_severity(detection_severity: str, min_severity: str) -> bool:
+def _does_severity_match_severity_threshold(detection_severity: str, severity_threshold: str) -> bool:
     detection_severity_value = Severity.get_value(detection_severity)
     if detection_severity_value is None:
         return True
 
-    return detection_severity_value >= Severity.get_value(min_severity)
+    return detection_severity_value >= Severity.get_value(severity_threshold)

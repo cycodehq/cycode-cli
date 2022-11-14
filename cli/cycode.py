@@ -61,13 +61,13 @@ NO_ISSUES_STATUS_CODE = 0
               the default is text
               """,
               type=click.Choice(['text', 'json']))
-@click.option('--min-severity',
+@click.option('--severity-threshold',
               default=None,
-              help='Specify SCA packages vulnerabilities violations minimum severity',
+              help='Minimum severity for dependency vulnerabilities',
               type=click.Choice([e.name for e in Severity]),
               required=False)
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, min_severity):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold):
     """ Scan content for secrets/IaC/sca violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
@@ -82,7 +82,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     context.obj["scan_type"] = scan_type
     context.obj["output"] = output
     context.obj["client"] = get_cycode_client(client_id, secret)
-    context.obj["min_severity"] = min_severity
+    context.obj["severity_threshold"] = severity_threshold
 
     return 1
 
