@@ -1,4 +1,6 @@
 import os.path
+import re
+
 import click
 from typing import Optional
 from cli.utils.string_utils import obfuscate_text, hash_string_to_sha256
@@ -41,7 +43,7 @@ def set_credentials():
 @click.option("--by-rule", type=click.STRING, required=False,
               help='Ignore scanning a specific secret rule ID/IaC rule ID. Need to specify scan type.')
 @click.option("--by-package", type=click.STRING, required=False,
-              help='Ignore a specific package version while scanning. expected pattern - name@version')
+              help='Ignore scanning a specific package version while running SCA scan. expected pattern - name@version')
 @click.option('--scan-type', '-t', default='secret',
               help="""
               \b
@@ -74,6 +76,8 @@ def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, by_pa
         exclusion_type = EXCLUSIONS_BY_PATH_SECTION_NAME
         exclusion_value = get_absolute_path(absolute_path)
     elif by_package is not None:
+        if not _is_package_pattern_valid(by_package):
+            raise click.ClickException("wrong package pattern. should be name@version.")
         if scan_type != SCA_SCAN_TYPE:
             raise click.ClickException("exclude by package is supported only for sca scan type")
         exclusion_type = EXCLUSIONS_BY_PACKAGE_SECTION_NAME
@@ -127,3 +131,7 @@ def _obfuscate_credential(credential: Optional[str]) -> str:
 
 def _is_path_to_ignore_exists(path: str) -> bool:
     return os.path.exists(path)
+
+
+def _is_package_pattern_valid(package: str) -> bool:
+    return re.search("^[^@]+@[^@]+$", package) is not None
