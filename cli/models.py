@@ -38,7 +38,7 @@ class Severity(Enum):
     CRITICAL = 3
 
     @staticmethod
-    def get_value(name):
+    def try_get_value(name: str) -> any:
         if name not in Severity.__members__:
             return None
 

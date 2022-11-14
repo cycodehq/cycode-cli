@@ -487,8 +487,8 @@ def _get_scan_id(context: click.Context):
 
 
 def _does_severity_match_severity_threshold(severity: str, severity_threshold: str) -> bool:
-    detection_severity_value = Severity.get_value(severity)
+    detection_severity_value = Severity.try_get_value(severity)
     if detection_severity_value is None:
         return True
 
-    return detection_severity_value >= Severity.get_value(severity_threshold)
+    return detection_severity_value >= Severity.try_get_value(severity_threshold)
