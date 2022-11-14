@@ -1,12 +1,13 @@
 import os.path
+import re
+
 import click
 from typing import Optional
 from cli.utils.string_utils import obfuscate_text, hash_string_to_sha256
 from cli.utils.path_utils import get_absolute_path
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.config import configuration_manager, config
-from cli.consts import SECRET_SCAN_TYPE, EXCLUSIONS_BY_VALUE_SECTION_NAME, EXCLUSIONS_BY_SHA_SECTION_NAME, \
-    EXCLUSIONS_BY_PATH_SECTION_NAME, EXCLUSIONS_BY_RULE_SECTION_NAME
+from cli.consts import *
 from cyclient import logger
 
 CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE = 'Successfully configured CLI credentials!'
@@ -41,6 +42,8 @@ def set_credentials():
               help='Avoid scanning a specific path. Need to specify scan type ')
 @click.option("--by-rule", type=click.STRING, required=False,
               help='Ignore scanning a specific secret rule ID/IaC rule ID. Need to specify scan type.')
+@click.option("--by-package", type=click.STRING, required=False,
+              help='Ignore scanning a specific package version while running SCA scan. expected pattern - name@version')
 @click.option('--scan-type', '-t', default='secret',
               help="""
               \b
@@ -50,10 +53,10 @@ def set_credentials():
               type=click.Choice(config['scans']['supported_scans']), required=False)
 @click.option('--global', '-g', 'is_global', is_flag=True, default=False, required=False,
               help='Add an ignore rule and update it in the global .cycode config file')
-def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, scan_type: str,
+def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str,
                    is_global: bool):
     """ Ignore a specific value, path or rule ID """
-    if not by_value and not by_sha and not by_path and not by_rule:
+    if not by_value and not by_sha and not by_path and not by_rule and not by_package:
         raise click.ClickException("ignore by type is missing")
 
     if by_value is not None:
@@ -72,6 +75,13 @@ def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, scan_
             raise click.ClickException("the provided path to ignore by is not exist")
         exclusion_type = EXCLUSIONS_BY_PATH_SECTION_NAME
         exclusion_value = get_absolute_path(absolute_path)
+    elif by_package is not None:
+        if scan_type != SCA_SCAN_TYPE:
+            raise click.ClickException("exclude by package is supported only for sca scan type")
+        if not _is_package_pattern_valid(by_package):
+            raise click.ClickException("wrong package pattern. should be name@version.")
+        exclusion_type = EXCLUSIONS_BY_PACKAGE_SECTION_NAME
+        exclusion_value = by_package
     else:
         exclusion_type = EXCLUSIONS_BY_RULE_SECTION_NAME
         exclusion_value = by_rule
@@ -121,3 +131,7 @@ def _obfuscate_credential(credential: Optional[str]) -> str:
 
 def _is_path_to_ignore_exists(path: str) -> bool:
     return os.path.exists(path)
+
+
+def _is_package_pattern_valid(package: str) -> bool:
+    return re.search("^[^@]+@[^@]+$", package) is not None

@@ -11,10 +11,7 @@ from cli.printers import ResultsPrinter
 from typing import List, Dict
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
-from cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES, \
-    SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE, EXCLUSIONS_BY_VALUE_SECTION_NAME, EXCLUSIONS_BY_SHA_SECTION_NAME, \
-    EXCLUSIONS_BY_RULE_SECTION_NAME, EXCLUSIONS_BY_PATH_SECTION_NAME, FILE_MAX_SIZE_LIMIT_IN_BYTES, \
-    PRE_COMMIT_SCAN_COMMAND_TYPE, ZIP_MAX_SIZE_LIMIT_IN_BYTES, SCA_SCAN_TYPE, SCA_CONFIGURATION_SCAN_SUPPORTED_FILES
+from cli.consts import *
 from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
 from cli.utils.string_utils import get_content_size, is_binary_content
@@ -324,6 +321,14 @@ def _should_exclude_detection(detection, exclusions: Dict) -> bool:
                          {'detection_rule': detection_rule})
             return True
 
+    exclusions_by_package = exclusions.get(EXCLUSIONS_BY_PACKAGE_SECTION_NAME, [])
+    if exclusions_by_package:
+        package = _get_package_name(detection)
+        if package in exclusions_by_package:
+            logger.debug('Going to ignore violations because is in the packages to ignore list, %s',
+                         {'package': package})
+            return True
+
     return False
 
 
@@ -339,6 +344,17 @@ def _is_path_configured_in_exclusions(scan_type: str, file_path: str) -> bool:
         if is_sub_path(exclusion_path, file_path):
             return True
     return False
+
+
+def _get_package_name(detection) -> str:
+    package_name = detection.detection_details.get('vulnerable_component', '')
+    package_version = detection.detection_details.get('vulnerable_component_version', '')
+
+    if package_name is '':
+        package_name = detection.detection_details.get('package_name', '')
+        package_version = detection.detection_details.get('package_version', '')
+
+    return f'{package_name}@{package_version}'
 
 
 def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
