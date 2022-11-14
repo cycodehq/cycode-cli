@@ -63,7 +63,7 @@ NO_ISSUES_STATUS_CODE = 0
               type=click.Choice(['text', 'json']))
 @click.option('--severity-threshold',
               default=None,
-              help='Minimum severity for dependency vulnerabilities',
+              help='Show only violations at the specified level or higher (supported for SCA scan type only).',
               type=click.Choice([e.name for e in Severity]),
               required=False)
 @click.pass_context

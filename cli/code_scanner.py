@@ -283,7 +283,8 @@ def exclude_detections_by_severity(scan_type: str, severity_threshold: str, dete
         return detections
 
     return [detection for detection in detections if
-            _does_severity_match_severity_threshold(detection.detection_details.get('advisory_severity'), severity_threshold)]
+            _does_severity_match_severity_threshold(detection.detection_details.get('advisory_severity'),
+                                                    severity_threshold)]
 
 
 def exclude_detections_by_scan_command_type(scan_command_type: str, detections) -> List:
@@ -485,8 +486,8 @@ def _get_scan_id(context: click.Context):
     return scan_id
 
 
-def _does_severity_match_severity_threshold(detection_severity: str, severity_threshold: str) -> bool:
-    detection_severity_value = Severity.get_value(detection_severity)
+def _does_severity_match_severity_threshold(severity: str, severity_threshold: str) -> bool:
+    detection_severity_value = Severity.get_value(severity)
     if detection_severity_value is None:
         return True
 
