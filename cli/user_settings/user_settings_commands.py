@@ -76,10 +76,10 @@ def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, by_pa
         exclusion_type = EXCLUSIONS_BY_PATH_SECTION_NAME
         exclusion_value = get_absolute_path(absolute_path)
     elif by_package is not None:
-        if not _is_package_pattern_valid(by_package):
-            raise click.ClickException("wrong package pattern. should be name@version.")
         if scan_type != SCA_SCAN_TYPE:
             raise click.ClickException("exclude by package is supported only for sca scan type")
+        if not _is_package_pattern_valid(by_package):
+            raise click.ClickException("wrong package pattern. should be name@version.")
         exclusion_type = EXCLUSIONS_BY_PACKAGE_SECTION_NAME
         exclusion_value = by_package
     else:
