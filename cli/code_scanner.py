@@ -13,7 +13,8 @@ from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
 from cli.config import configuration_manager
-from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
+from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
+    get_path_by_os, get_file_dir
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
@@ -44,7 +45,8 @@ def scan_repository(context: click.Context, path, branch):
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(context, documents_to_scan, is_git_diff=False)
+        return scan_documents(context, documents_to_scan, is_git_diff=False,
+                              scan_parameters=get_repository_details(path, branch))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -136,7 +138,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document],
-                   is_git_diff: bool = False, is_commit_range: bool = False):
+                   is_git_diff: bool = False, is_commit_range: bool = False, scan_parameters: dict = None):
     cycode_client = context.obj["client"]
     scan_type = context.obj["scan_type"]
     severity_threshold = context.obj["severity_threshold"]
@@ -150,7 +152,8 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
     try:
         perform_pre_scan_documents_actions(scan_type, documents_to_scan, is_git_diff)
         zipped_documents = zip_documents_to_scan(zipped_documents, documents_to_scan)
-        scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range)
+        scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
+                                   scan_parameters)
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
         relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
                                                                             scan_command_type, severity_threshold)
@@ -198,9 +201,10 @@ def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
 
 
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
-                 is_commit_range: bool):
+                 is_commit_range: bool, scan_parameters: dict):
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
-        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, is_git_diff)
+        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, scan_parameters,
+                                                               is_git_diff)
 
     return scan_result
 
@@ -252,6 +256,22 @@ def should_process_git_object(obj, depth):
 
 def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
+
+
+def get_repository_details(path: str, branch: str) -> Optional[dict]:
+    try:
+        repo = Repo(path)
+        git_remote_url = repo.remotes[0].config_reader.get('url')
+        org_name = os.path.basename(get_file_dir(git_remote_url))
+        repo_name = os.path.splitext(os.path.basename(git_remote_url))[0]
+        branch_name = branch or repo.active_branch.name
+        return {
+            'organization': org_name,
+            'repository': repo_name,
+            'branch': branch_name
+        }
+    except (Exception,):
+        return None
 
 
 def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_scan: List[Document]) -> \
