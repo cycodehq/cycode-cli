@@ -1,12 +1,13 @@
 from typing import List, Optional
 import subprocess
 import click
+from cyclient import logger
 
 TIMEOUT = 60
 
 
 def shell(command: List[str], timeout: int = TIMEOUT) -> Optional[str]:
-    click.echo(f"executing shell command: {' '.join(map(str, command))}")
+    logger.debug(f"executing shell command: {' '.join(map(str, command))}")
     try:
         result = subprocess.run(
             command,
@@ -16,7 +17,8 @@ def shell(command: List[str], timeout: int = TIMEOUT) -> Optional[str]:
             timeout=timeout,
         )
         return result.stdout.decode("utf-8").rstrip()
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        logger.debug('Error occurred while running shell command. %s', {'exception': str(e.stderr)})
         pass
     except subprocess.TimeoutExpired:
         raise click.Abort(f'Command {" ".join(map(str, command))} timed out')
