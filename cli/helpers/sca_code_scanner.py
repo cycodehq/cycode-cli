@@ -15,7 +15,10 @@ def run_pre_scan_actions(documents_to_scan: List[Document], is_git_diff: bool = 
     for document in documents_to_scan:
         if is_gradle_project(document):
             gradle_dependencies_tree = try_generate_dependencies_tree(document.path)
-            if gradle_dependencies_tree is not None:
+            if gradle_dependencies_tree is None:
+                logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
+                               {'filename': document.path})
+            else:
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path), gradle_dependencies_tree, is_git_diff))
 
@@ -27,7 +30,8 @@ def try_generate_dependencies_tree(filename: str) -> Optional[str]:
     try:
         gradle_dependencies = shell(command, BUILD_GRADLE_DEP_TREE_TIMEOUT)
     except Exception as e:
-        logger.debug('Failed to generate gradle dependencies tree. %s', {'exception': str(e)})
+        logger.debug('Failed to run gradle dependencies tree shell comment. %s',
+                     {'filename': filename, 'exception': str(e)})
         return None
 
     return gradle_dependencies
