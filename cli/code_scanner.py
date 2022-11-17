@@ -13,8 +13,7 @@ from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
 from cli.config import configuration_manager
-from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
-    get_path_by_os
+from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
