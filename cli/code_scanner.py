@@ -44,7 +44,8 @@ def scan_repository(context: click.Context, path, branch):
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(context, documents_to_scan, is_git_diff=False)
+        return scan_documents(context, documents_to_scan, is_git_diff=False,
+                              scan_parameters=try_get_git_remote_url(path))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -73,7 +74,7 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 def scan_commit_range(context: click.Context, path: str, commit_range: str):
     scan_type = context.obj["scan_type"]
 
-    if scan_type != (SECRET_SCAN_TYPE and SCA_SCAN_TYPE):
+    if scan_type != SECRET_SCAN_TYPE:
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     documents_to_scan = []
@@ -89,8 +90,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
             documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
             logger.debug('Found all relevant files in commit %s',
                          {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
-    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True,
-                          scan_parameters=try_get_git_remote_url(path))
+    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
 @click.command()
