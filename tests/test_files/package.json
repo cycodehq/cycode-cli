@@ -1,0 +1,15 @@
+{
+  "name": "main-project",
+  "version": "0.2.0",
+  "license": "MIT",
+  "dependencies": {
+    "tough-cookie": "^2.2.8",
+    "node-forge": "^0.8.5"
+  },
+  "devDependencies": {
+    "http-server": "^0.12.2"
+  },
+  "engines": {
+    "node": ">=10"
+  }
+}

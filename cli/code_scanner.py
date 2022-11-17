@@ -14,7 +14,7 @@ from cli.ci_integrations import get_commit_range
 from cli.consts import *
 from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
-    get_path_by_os, get_file_dir
+    get_path_by_os
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
@@ -91,7 +91,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
             logger.debug('Found all relevant files in commit %s',
                          {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True,
-                          scan_parameters=get_git_remote_url(path))
+                          scan_parameters=try_get_git_remote_url(path))
 
 
 @click.command()
@@ -258,7 +258,7 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def get_git_remote_url(path: str) -> Optional[dict]:
+def try_get_git_remote_url(path: str) -> Optional[dict]:
     try:
         git_remote_url = Repo(path).remotes[0].config_reader.get('url')
         return {
