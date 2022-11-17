@@ -45,8 +45,7 @@ def scan_repository(context: click.Context, path, branch):
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=get_repository_details(path, branch))
+        return scan_documents(context, documents_to_scan, is_git_diff=False)
     except Exception as e:
         _handle_exception(context, e)
 
@@ -75,7 +74,7 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 def scan_commit_range(context: click.Context, path: str, commit_range: str):
     scan_type = context.obj["scan_type"]
 
-    if scan_type != SECRET_SCAN_TYPE:
+    if scan_type != (SECRET_SCAN_TYPE and SCA_SCAN_TYPE):
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     documents_to_scan = []
@@ -91,7 +90,8 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
             documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
             logger.debug('Found all relevant files in commit %s',
                          {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
-    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
+    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True,
+                          scan_parameters=get_git_remote_url(path))
 
 
 @click.command()
@@ -258,17 +258,11 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def get_repository_details(path: str, branch: str) -> Optional[dict]:
+def get_git_remote_url(path: str) -> Optional[dict]:
     try:
-        repo = Repo(path)
-        git_remote_url = repo.remotes[0].config_reader.get('url')
-        org_name = os.path.basename(get_file_dir(git_remote_url))
-        repo_name = os.path.splitext(os.path.basename(git_remote_url))[0]
-        branch_name = branch or repo.active_branch.name
+        git_remote_url = Repo(path).remotes[0].config_reader.get('url')
         return {
-            'organization': org_name,
-            'repository': repo_name,
-            'branch': branch_name
+            'remote_url': git_remote_url,
         }
     except (Exception,):
         return None
@@ -370,7 +364,7 @@ def _get_package_name(detection) -> str:
     package_name = detection.detection_details.get('vulnerable_component', '')
     package_version = detection.detection_details.get('vulnerable_component_version', '')
 
-    if package_name is '':
+    if package_name == '':
         package_name = detection.detection_details.get('package_name', '')
         package_version = detection.detection_details.get('package_version', '')
 
