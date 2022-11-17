@@ -156,6 +156,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
         relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
                                                                             scan_command_type, severity_threshold)
+        context.obj['report_url'] = scan_result.report_url
         print_results(context, relevant_document_detections_list)
 
         context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
