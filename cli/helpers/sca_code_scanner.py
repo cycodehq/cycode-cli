@@ -18,6 +18,8 @@ def run_pre_scan_actions(documents_to_scan: List[Document], is_git_diff: bool = 
             if gradle_dependencies_tree is None:
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
+                documents_to_add.append(
+                    Document(build_dep_tree_path(document.path), '', is_git_diff))
             else:
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path), gradle_dependencies_tree, is_git_diff))
