@@ -44,7 +44,8 @@ def scan_repository(context: click.Context, path, branch):
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(context, documents_to_scan, is_git_diff=False)
+        return scan_documents(context, documents_to_scan, is_git_diff=False,
+                              scan_parameters=try_get_git_remote_url(path))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -136,7 +137,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document],
-                   is_git_diff: bool = False, is_commit_range: bool = False):
+                   is_git_diff: bool = False, is_commit_range: bool = False, scan_parameters: dict = None):
     cycode_client = context.obj["client"]
     scan_type = context.obj["scan_type"]
     severity_threshold = context.obj["severity_threshold"]
@@ -150,10 +151,12 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
     try:
         perform_pre_scan_documents_actions(scan_type, documents_to_scan, is_git_diff)
         zipped_documents = zip_documents_to_scan(zipped_documents, documents_to_scan)
-        scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range)
+        scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
+                                   scan_parameters)
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
         relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
                                                                             scan_command_type, severity_threshold)
+        context.obj['report_url'] = scan_result.report_url
         print_results(context, relevant_document_detections_list)
 
         context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
@@ -198,9 +201,10 @@ def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
 
 
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
-                 is_commit_range: bool):
+                 is_commit_range: bool, scan_parameters: dict):
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
-        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, is_git_diff)
+        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, scan_parameters,
+                                                               is_git_diff)
 
     return scan_result
 
@@ -252,6 +256,17 @@ def should_process_git_object(obj, depth):
 
 def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
+
+
+def try_get_git_remote_url(path: str) -> Optional[dict]:
+    try:
+        git_remote_url = Repo(path).remotes[0].config_reader.get('url')
+        return {
+            'remote_url': git_remote_url,
+        }
+    except Exception as e:
+        logger.debug('Failed to get git remote URL. %s', {'exception_message': str(e)})
+        return None
 
 
 def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_scan: List[Document]) -> \
@@ -350,7 +365,7 @@ def _get_package_name(detection) -> str:
     package_name = detection.detection_details.get('vulnerable_component', '')
     package_version = detection.detection_details.get('vulnerable_component_version', '')
 
-    if package_name is '':
+    if package_name == '':
         package_name = detection.detection_details.get('package_name', '')
         package_version = detection.detection_details.get('package_version', '')
 

@@ -27,8 +27,11 @@ class TextPrinter(BasePrinter):
         for document_detections in results:
             self._print_document_detections(document_detections, scan_type, show_secret, lines_to_display)
 
+        if context.obj.get('report_url'):
+            click.secho(f"Report URL: {context.obj.get('report_url')}")
+
     def _print_document_detections(self, document_detections: DocumentDetections, scan_type: str, show_secret: bool,
-                                  lines_to_display: int):
+                                   lines_to_display: int):
         document = document_detections.document
         for detection in document_detections.detections:
             self._print_detection_summary(detection, document.path, scan_type)

@@ -54,12 +54,13 @@ class DetectionsPerFileSchema(Schema):
 
 
 class ZippedFileScanResult(Schema):
-    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], scan_id: str = None,
-                 err: str = None):
+    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], report_url: str = None,
+                 scan_id: str = None, err: str = None):
         super().__init__()
         self.did_detect = did_detect
         self.detections_per_file = detections_per_file
         self.scan_id = scan_id
+        self.report_url = report_url
         self.err = err
 
 
@@ -69,6 +70,7 @@ class ZippedFileScanResultSchema(Schema):
 
     did_detect = fields.Boolean()
     scan_id = fields.String()
+    report_url = fields.String(allow_none=True)
     detections_per_file = fields.List(
         fields.Nested(DetectionsPerFileSchema))
     err = fields.String()

@@ -1,3 +1,4 @@
+import json
 import requests.exceptions
 from requests import Response
 from . import models
@@ -30,12 +31,15 @@ class ScanClient:
         except Exception as e:
             self._handle_exception(e)
 
-    def zipped_file_scan(self, scan_type: str, zip_file: InMemoryZip, scan_id: str,
+    def zipped_file_scan(self, scan_type: str, zip_file: InMemoryZip, scan_id: str, scan_parameters: dict,
                          is_git_diff: bool = False) -> models.ZippedFileScanResult:
         url_path = f"{self.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/zipped-file"
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         try:
-            response = self.cycode_client.post(url_path=url_path, data={'scan_id': scan_id, 'is_git_diff': is_git_diff},
+            response = self.cycode_client.post(url_path=url_path,
+                                               data={'scan_id': scan_id,
+                                                     'is_git_diff': is_git_diff,
+                                                     'scan_parameters': json.dumps(scan_parameters)},
                                                files=files)
             return self.parse_zipped_file_scan_response(response)
         except Exception as e:
