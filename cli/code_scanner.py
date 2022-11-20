@@ -264,7 +264,8 @@ def try_get_git_remote_url(path: str) -> Optional[dict]:
         return {
             'remote_url': git_remote_url,
         }
-    except (Exception,):
+    except Exception as e:
+        logger.debug('Failed to get git remote URL. %s', {'exception_message': str(e)})
         return None
 
 
