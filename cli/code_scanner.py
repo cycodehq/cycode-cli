@@ -74,23 +74,36 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 def scan_commit_range(context: click.Context, path: str, commit_range: str):
     scan_type = context.obj["scan_type"]
 
-    if scan_type != SECRET_SCAN_TYPE:
+    if scan_type != (SECRET_SCAN_TYPE and SCA_SCAN_TYPE):
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
-    documents_to_scan = []
-    for commit in Repo(path).iter_commits(rev=commit_range):
-        commit_id = commit.hexsha
-        parent = commit.parents[0] if commit.parents else NULL_TREE
-        diff = commit.diff(parent, create_patch=True, R=True)
-        for blob in diff:
-            doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
-                           blob.diff.decode('utf-8', errors='replace'), True, commit_id)
-            documents_to_scan.append(doc)
+    if scan_type == SCA_SCAN_TYPE:
+        files_set = set()
+        for commit in Repo(path).iter_commits(rev=commit_range):
+            for file in commit.stats.files:
+                files_set.add(os.path.join(path, file))
+        files_set = exclude_irrelevant_files(context, list(files_set))
+        documents_to_scan = [Document(file, get_file_content(file)) for file in files_set]
+        is_git_diff = False
+        is_commit_range = False
+    else:
+        documents_to_scan = []
+        for commit in Repo(path).iter_commits(rev=commit_range):
+            commit_id = commit.hexsha
+            parent = commit.parents[0] if commit.parents else NULL_TREE
+            diff = commit.diff(parent, create_patch=True, R=True)
+            for blob in diff:
+                doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
+                               blob.diff.decode('utf-8', errors='replace'), True, commit_id)
+                documents_to_scan.append(doc)
 
-            documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-            logger.debug('Found all relevant files in commit %s',
-                         {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
-    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
+                documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
+                logger.debug('Found all relevant files in commit %s',
+                             {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
+        is_git_diff = True
+        is_commit_range = True
+
+    return scan_documents(context, documents_to_scan, is_git_diff=is_git_diff, is_commit_range=is_commit_range)
 
 
 @click.command()
@@ -313,6 +326,12 @@ def exclude_detections_for_pre_commit_scan_command_type(detections) -> List:
 def exclude_detections_by_exclusions_configuration(scan_type: str, detections) -> List:
     exclusions = configuration_manager.get_exclusions_by_scan_type(scan_type)
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
+
+
+def get_file_content(file_path: str) -> str:
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return content
 
 
 def _should_exclude_detection(detection, exclusions: Dict) -> bool:
