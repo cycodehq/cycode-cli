@@ -78,12 +78,9 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     if scan_type == SCA_SCAN_TYPE:
-        files_set = set()
-        for commit in Repo(path).iter_commits(rev=commit_range):
-            for file in commit.stats.files:
-                files_set.add(os.path.join(path, file))
-        files_set = exclude_irrelevant_files(context, list(files_set))
-        documents_to_scan = [Document(file, get_file_content(file)) for file in files_set]
+        files = get_commit_range_changed_files(context, path, commit_range)
+        files = exclude_irrelevant_files(context, list(files))
+        documents_to_scan = [Document(file, get_file_content(file)) for file in files]
         is_git_diff = False
         is_commit_range = False
     else:
@@ -326,6 +323,14 @@ def exclude_detections_for_pre_commit_scan_command_type(detections) -> List:
 def exclude_detections_by_exclusions_configuration(scan_type: str, detections) -> List:
     exclusions = configuration_manager.get_exclusions_by_scan_type(scan_type)
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
+
+
+def get_commit_range_changed_files(context, path, commit_range):
+    files_set = set()
+    for commit in Repo(path).iter_commits(rev=commit_range):
+        for file in commit.stats.files:
+            files_set.add(os.path.join(path, file))
+    return files_set
 
 
 def get_file_content(file_path: str) -> str:
