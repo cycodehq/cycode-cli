@@ -150,7 +150,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
 
     try:
         perform_pre_scan_documents_actions(scan_type, documents_to_scan, is_git_diff)
-        zipped_documents = zip_documents_to_scan(zipped_documents, documents_to_scan)
+        zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
                                    scan_parameters)
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
@@ -183,12 +183,11 @@ def perform_pre_scan_documents_actions(scan_type: str, documents_to_scan: List[D
         sca_code_scanner.run_pre_scan_actions(documents_to_scan, is_git_diff)
 
 
-def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
+def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
-        if zip_file_size > ZIP_MAX_SIZE_LIMIT_IN_BYTES:
-            raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+        validate_zip_file_size(scan_type, zip_file_size)
 
         logger.debug('adding file to zip, %s', {'index': index, 'filename': document.path})
         zip.append(document.path, document.unique_id, document.content)
@@ -198,6 +197,15 @@ def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
     logger.debug('finished to create zip file, %s', {'zip_creation_time': zip_creation_time})
     return zip
+
+
+def validate_zip_file_size(scan_type, zip_file_size):
+    if scan_type == SCA_SCAN_TYPE:
+        if zip_file_size > SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES:
+            raise ZipTooLargeError(SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+    else:
+        if zip_file_size > ZIP_MAX_SIZE_LIMIT_IN_BYTES:
+            raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
 
 
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
@@ -393,7 +401,7 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
                      {'filename': filename})
         return False
 
-    if _does_file_exceed_max_size_limit(filename):
+    if scan_type != SCA_SCAN_TYPE and _does_file_exceed_max_size_limit(filename):
         logger.debug("file is irrelevant because its exceeded max size limit, %s",
                      {'filename': filename})
         return False
@@ -421,7 +429,7 @@ def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -
                      {'filename': filename})
         return False
 
-    if _does_document_exceed_max_size_limit(content):
+    if scan_type != SCA_SCAN_TYPE and _does_document_exceed_max_size_limit(content):
         logger.debug("document is irrelevant because its exceeded max size limit, %s",
                      {'filename': filename})
         return False
