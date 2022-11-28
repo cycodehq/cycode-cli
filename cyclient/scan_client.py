@@ -50,7 +50,7 @@ class ScanClient:
             self._handle_exception(e)
 
     def zipped_file_scan_async(self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict,
-                               is_git_diff: bool = False) -> models.ScanPollingResult:
+                               is_git_diff: bool = False) -> models.ScanInitializationResponse:
         url_path = f"{self.SCAN_SERVICE_CONTROLLER_PATH}/{scan_type}/repository"
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         try:
@@ -58,15 +58,15 @@ class ScanClient:
                                                data={'is_git_diff': is_git_diff,
                                                      'scan_parameters': json.dumps(scan_parameters)},
                                                files=files)
-            return models.ScanPollingSchema().load(response.json())
+            return models.ScanInitializationResponseSchema().load(response.json())
         except Exception as e:
             self._handle_exception(e)
 
-    def get_scan_details(self, scan_id: str) -> models.ScanDetailsResult:
+    def get_scan_details(self, scan_id: str) -> models.ScanDetailsResponse:
         url_path = f"{self.SCAN_SERVICE_CONTROLLER_PATH}/{scan_id}"
         try:
             response = self.cycode_client.get(url_path=url_path)
-            return models.ScanDetailsSchema().load(response.json())
+            return models.ScanDetailsResponseSchema().load(response.json())
         except Exception as e:
             self._handle_exception(e)
 

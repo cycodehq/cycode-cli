@@ -104,14 +104,14 @@ class ScanResultSchema(Schema):
         return ScanResult(**data)
 
 
-class ScanPollingResult(Schema):
+class ScanInitializationResponse(Schema):
     def __init__(self, scan_id: str = None, err: str = None):
         super().__init__()
         self.scan_id = scan_id
         self.err = err
 
 
-class ScanPollingSchema(Schema):
+class ScanInitializationResponseSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
@@ -120,10 +120,10 @@ class ScanPollingSchema(Schema):
 
     @post_load
     def build_dto(self, data, **kwargs):
-        return ScanPollingResult(**data)
+        return ScanInitializationResponse(**data)
 
 
-class ScanDetailsResult(Schema):
+class ScanDetailsResponse(Schema):
     def __init__(self, scan_status: str = None, results_count: int = None, metadata: str = None, err: str = None):
         super().__init__()
         self.scan_status = scan_status
@@ -132,7 +132,7 @@ class ScanDetailsResult(Schema):
         self.err = err
 
 
-class ScanDetailsSchema(Schema):
+class ScanDetailsResponseSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
@@ -143,7 +143,7 @@ class ScanDetailsSchema(Schema):
 
     @post_load
     def build_dto(self, data, **kwargs):
-        return ScanDetailsResult(**data)
+        return ScanDetailsResponse(**data)
 
 
 class K8SResource:
