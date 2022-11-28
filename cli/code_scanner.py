@@ -16,7 +16,7 @@ from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
-from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
+from cli.exceptions.custom_exceptions import *
 from cyclient import logger
 from cyclient.models import *
 from cli.helpers import sca_code_scanner
@@ -232,10 +232,10 @@ def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_async_result, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
-            raise Exception('error occurred while running scan')
+            raise CycodeInternalError('error occurred while trying to scan zip file')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    raise Exception('Failed to complete scan after %i seconds', polling_timeout)
+    raise CycodeInternalError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
 def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
@@ -491,7 +491,7 @@ def _handle_exception(context: click.Context, e: Exception):
     verbose = context.obj["verbose"]
     if verbose:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
-    if isinstance(e, CycodeError):
+    if isinstance(e, (CycodeError, CycodeInternalError)):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
