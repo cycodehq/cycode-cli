@@ -224,8 +224,9 @@ def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan
                               scan_parameters: dict) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
+    polling_timeout = configuration_manager.get_polling_timeout_in_seconds()
 
-    end_polling_time = time.time() + configuration_manager.get_polling_timeout_in_seconds()
+    end_polling_time = time.time() + polling_timeout
     while time.time() < end_polling_time:
         logger.debug("scan in progress")
         scan_details = cycode_client.get_scan_details(scan_async_result.scan_id)
@@ -235,8 +236,7 @@ def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan
             raise Exception('error occurred while running scan')
         time.sleep(POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    raise Exception('Failed to complete scan after %i seconds',
-                    configuration_manager.get_polling_timeout_in_seconds())
+    raise Exception('Failed to complete scan after %i seconds', polling_timeout)
 
 
 def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
