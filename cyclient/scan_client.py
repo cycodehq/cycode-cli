@@ -115,7 +115,7 @@ class ScanClient:
     def _handle_exception(self, e: Exception):
         if isinstance(e, requests.exceptions.Timeout):
             raise CycodeError(504, "Timeout Error")
-        elif isinstance(e, requests.exceptions.HTTPError):
+        elif isinstance(e, (requests.exceptions.HTTPError, requests.exceptions.ConnectionError)):
             self._handle_http_exception(e)
 
     @staticmethod
