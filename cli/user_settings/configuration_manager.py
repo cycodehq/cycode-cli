@@ -79,9 +79,9 @@ class ConfigurationManager:
     def get_config_file_manager(self, scope):
         return self.local_config_file_manager if scope == 'local' else self.global_config_file_manager
 
-    def get_polling_timeout_in_seconds(self) -> int:
-        return int(self._get_value_from_environment_variables(POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
-                                                              POLLING_TIMEOUT_IN_SECONDS_DEFAULT))
+    def get_scan_polling_timeout_in_seconds(self) -> int:
+        return int(self._get_value_from_environment_variables(SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
+                                                              SCAN_POLLING_TIMEOUT_IN_SECONDS_DEFAULT))
 
     @staticmethod
     def _get_value_from_environment_variables(env_var_name, default=None):
