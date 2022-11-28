@@ -104,6 +104,71 @@ class ScanResultSchema(Schema):
         return ScanResult(**data)
 
 
+class ScanPollingResult(Schema):
+    def __init__(self, scan_id: str = None, err: str = None):
+        super().__init__()
+        self.scan_id = scan_id
+        self.err = err
+
+
+class ScanPollingSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    scan_id = fields.String()
+    err = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ScanPollingResult(**data)
+
+
+class ScanDetailsResult(Schema):
+    def __init__(self, scan_status: str = None, results_count: int = None, metadata: str = None, err: str = None):
+        super().__init__()
+        self.scan_status = scan_status
+        self.results_count = results_count
+        self.report_url = metadata
+        self.err = err
+
+
+class ScanDetailsSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    scan_status = fields.String()
+    results_count = fields.Integer(allow_none=True)
+    metadata = fields.String(allow_none=True)
+    err = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ScanDetailsResult(**data)
+
+
+class ScanDetectionsResult(Schema):
+    def __init__(self, scan_status: str = None, results_count: int = None, metadata: str = None, err: str = None):
+        super().__init__()
+        self.scan_status = scan_status
+        self.results_count = results_count
+        self.report_url = metadata
+        self.err = err
+
+
+class ScanDetectionsSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    scan_status = fields.String()
+    results_count = fields.Integer(allow_none=True)
+    metadata = fields.Integer(allow_none=True)
+    err = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ScanDetailsResult(**data)
+
+
 class K8SResource:
     def __init__(self, name: str, resource_type: str, namespace: str, content: Dict):
         super().__init__()

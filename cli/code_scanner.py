@@ -23,6 +23,10 @@ from cyclient.models import ZippedFileScanResult
 from cli.helpers import sca_code_scanner
 
 start_scan_time = time.time()
+POLLING_WAIT_INTERVAL_IN_SECONDS = 10
+POLLING_TIMEOUT_IN_SECONDS = 32400
+SCAN_STATUS_COMPLETED = 'Completed'
+SCAN_STATUS_ERROR = 'Error'
 
 
 @click.command()
@@ -210,11 +214,32 @@ def validate_zip_file_size(scan_type, zip_file_size):
 
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
-    scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
-        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, scan_parameters,
-                                                               is_git_diff)
+    if scan_type == SCA_SCAN_TYPE:
+        scan_result = perform_scan_with_polling(cycode_client, zipped_documents, scan_type, scan_parameters)
+    else:
+        scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
+            if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
+                                                                   scan_parameters, is_git_diff)
 
     return scan_result
+
+
+def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
+                              scan_parameters: dict) -> ZippedFileScanResult:
+    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
+    logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
+
+    end_polling_time = time.time() + POLLING_TIMEOUT_IN_SECONDS
+    while time.time() < end_polling_time:
+        logger.debug("scan in progress")
+        scan_details = cycode_client.get_scan_details(scan_async_result.scan_id)
+        if scan_details.scan_status == SCAN_STATUS_COMPLETED:
+            return _get_scan_result(cycode_client, scan_async_result, scan_details)
+        if scan_details.scan_status == SCAN_STATUS_ERROR:
+            raise Exception('error occurred while running scan')
+        time.sleep(POLLING_WAIT_INTERVAL_IN_SECONDS)
+
+    raise Exception('Failed to complete scan after %i seconds', POLLING_TIMEOUT_IN_SECONDS)
 
 
 def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
@@ -531,3 +556,15 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
         return True
 
     return detection_severity_value >= Severity.try_get_value(severity_threshold)
+
+
+def _get_scan_result(cycode_client, scan_async_result, scan_details):
+    if scan_details.results_count and scan_details.results_count > 0:
+        detections_per_file = cycode_client.get_scan_detections(scan_async_result.scan_id)
+        scan_result = ZippedFileScanResult(did_detect=True, detections_per_file=detections_per_file,
+                                           scan_id=scan_async_result.scan_id,
+                                           report_url=scan_details.report_url)
+    else:
+        scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
+                                           scan_id=scan_async_result.scan_id)
+    return scan_result

@@ -1,14 +1,18 @@
 import json
 import requests.exceptions
 from requests import Response
+from typing import List
 from . import models
 from .cycode_token_based_client import CycodeTokenBasedClient
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
+from cyclient import logger
 
 
 class ScanClient:
     SCAN_CONTROLLER_PATH = 'api/v1/scan'
+    SCAN_SERVICE_CONTROLLER_PATH = 'scans/api/v1/scan'
+    DETECTIONS_SERVICE_CONTROLLER_PATH = 'detections/api/v1/detections'
 
     def __init__(self, client_id: str = None, client_secret: str = None):
         self.cycode_client = CycodeTokenBasedClient(client_id, client_secret)
@@ -42,6 +46,35 @@ class ScanClient:
                                                      'scan_parameters': json.dumps(scan_parameters)},
                                                files=files)
             return self.parse_zipped_file_scan_response(response)
+        except Exception as e:
+            self._handle_exception(e)
+
+    def zipped_file_scan_async(self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict,
+                               is_git_diff: bool = False) -> models.ScanPollingResult:
+        url_path = f"{self.SCAN_SERVICE_CONTROLLER_PATH}/{scan_type}/repository"
+        files = {'file': ('multiple_files_scan.zip', zip_file.read())}
+        try:
+            response = self.cycode_client.post(url_path=url_path,
+                                               data={'is_git_diff': is_git_diff,
+                                                     'scan_parameters': json.dumps(scan_parameters)},
+                                               files=files)
+            return models.ScanPollingSchema().load(response.json())
+        except Exception as e:
+            self._handle_exception(e)
+
+    def get_scan_details(self, scan_id: str) -> models.ScanDetailsResult:
+        url_path = f"{self.SCAN_SERVICE_CONTROLLER_PATH}/{scan_id}"
+        try:
+            response = self.cycode_client.get(url_path=url_path)
+            return models.ScanDetailsSchema().load(response.json())
+        except Exception as e:
+            self._handle_exception(e)
+
+    def get_scan_detections(self, scan_id) -> List[models.DetectionsPerFile]:
+        url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}"
+        try:
+            response = self.cycode_client.get(url_path=url_path)
+            return self.map_detections_per_file(response.json())
         except Exception as e:
             self._handle_exception(e)
 
@@ -91,3 +124,21 @@ class ScanClient:
             raise HttpUnauthorizedError(e.response.text)
         else:
             raise CycodeError(e.response.status_code, e.response.text)
+
+    @staticmethod
+    def map_detections_per_file(detections) -> List[models.DetectionsPerFile]:
+        detections_per_files = {}
+        for detection in detections:
+            try:
+                detection['message'] = detection['correlation_message']
+                file_name = detection['detection_details']['file_name']
+                if detections_per_files.get(file_name) is None:
+                    detections_per_files[file_name] = [models.DetectionSchema().load(detection)]
+                else:
+                    detections_per_files[file_name].append(models.DetectionSchema().load(detection))
+            except Exception as e:
+                logger.debug("Failed to parse detection: %s", str(e))
+                continue
+
+        return [models.DetectionsPerFile(file_name=file_name, detections=file_detections)
+                for file_name, file_detections in detections_per_files.items()]
