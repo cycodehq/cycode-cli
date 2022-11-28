@@ -557,12 +557,11 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
 
 def _get_scan_result(cycode_client, scan_async_result: ScanPollingResult,
                      scan_details: ScanDetailsResult) -> ZippedFileScanResult:
-    if scan_details.results_count and scan_details.results_count > 0:
-        detections_per_file = cycode_client.get_scan_detections(scan_async_result.scan_id)
-        scan_result = ZippedFileScanResult(did_detect=True, detections_per_file=detections_per_file,
-                                           scan_id=scan_async_result.scan_id,
-                                           report_url=scan_details.report_url)
-    else:
-        scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
-                                           scan_id=scan_async_result.scan_id)
+    scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
+                                       scan_id=scan_async_result.scan_id,
+                                       report_url=scan_details.report_url)
+    if not scan_details.results_count:
+        return scan_result
+    scan_result.detections_per_file = cycode_client.get_scan_detections(scan_async_result.scan_id)
+    scan_result.did_detect = True
     return scan_result
