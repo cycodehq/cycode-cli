@@ -19,7 +19,7 @@ from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
 from cyclient import logger
-from cyclient.models import ZippedFileScanResult
+from cyclient.models import ZippedFileScanResult, ScanPollingResult, ScanDetailsResult
 from cli.helpers import sca_code_scanner
 
 start_scan_time = time.time()
@@ -555,7 +555,8 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
     return detection_severity_value >= Severity.try_get_value(severity_threshold)
 
 
-def _get_scan_result(cycode_client, scan_async_result, scan_details):
+def _get_scan_result(cycode_client, scan_async_result: ScanPollingResult,
+                     scan_details: ScanDetailsResult) -> ZippedFileScanResult:
     if scan_details.results_count and scan_details.results_count > 0:
         detections_per_file = cycode_client.get_scan_detections(scan_async_result.scan_id)
         scan_result = ZippedFileScanResult(did_detect=True, detections_per_file=detections_per_file,
