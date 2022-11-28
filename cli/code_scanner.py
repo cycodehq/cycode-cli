@@ -8,7 +8,6 @@ from typing import Optional
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
-from typing import List, Dict
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
@@ -19,7 +18,7 @@ from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
 from cyclient import logger
-from cyclient.models import ZippedFileScanResult, ScanPollingResult, ScanDetailsResult
+from cyclient.models import *
 from cli.helpers import sca_code_scanner
 
 start_scan_time = time.time()
@@ -562,6 +561,25 @@ def _get_scan_result(cycode_client, scan_async_result: ScanPollingResult,
                                        report_url=scan_details.report_url)
     if not scan_details.results_count:
         return scan_result
-    scan_result.detections_per_file = cycode_client.get_scan_detections(scan_async_result.scan_id)
+    scan_detections = cycode_client.get_scan_detections(scan_async_result.scan_id)
+    scan_result.detections_per_file = map_detections_per_file(scan_detections)
     scan_result.did_detect = True
     return scan_result
+
+
+def map_detections_per_file(detections) -> List[DetectionsPerFile]:
+    detections_per_files = {}
+    for detection in detections:
+        try:
+            detection['message'] = detection['correlation_message']
+            file_name = detection['detection_details']['file_name']
+            if detections_per_files.get(file_name) is None:
+                detections_per_files[file_name] = [DetectionSchema().load(detection)]
+            else:
+                detections_per_files[file_name].append(DetectionSchema().load(detection))
+        except Exception as e:
+            logger.debug("Failed to parse detection: %s", str(e))
+            continue
+
+    return [DetectionsPerFile(file_name=file_name, detections=file_detections)
+            for file_name, file_detections in detections_per_files.items()]

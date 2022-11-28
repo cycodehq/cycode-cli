@@ -70,11 +70,11 @@ class ScanClient:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_scan_detections(self, scan_id) -> List[models.DetectionsPerFile]:
+    def get_scan_detections(self, scan_id: str):
         url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}"
         try:
             response = self.cycode_client.get(url_path=url_path)
-            return self.map_detections_per_file(response.json())
+            return response.json()
         except Exception as e:
             self._handle_exception(e)
 
@@ -124,21 +124,3 @@ class ScanClient:
             raise HttpUnauthorizedError(e.response.text)
         else:
             raise CycodeError(e.response.status_code, e.response.text)
-
-    @staticmethod
-    def map_detections_per_file(detections) -> List[models.DetectionsPerFile]:
-        detections_per_files = {}
-        for detection in detections:
-            try:
-                detection['message'] = detection['correlation_message']
-                file_name = detection['detection_details']['file_name']
-                if detections_per_files.get(file_name) is None:
-                    detections_per_files[file_name] = [models.DetectionSchema().load(detection)]
-                else:
-                    detections_per_files[file_name].append(models.DetectionSchema().load(detection))
-            except Exception as e:
-                logger.debug("Failed to parse detection: %s", str(e))
-                continue
-
-        return [models.DetectionsPerFile(file_name=file_name, detections=file_detections)
-                for file_name, file_detections in detections_per_files.items()]
