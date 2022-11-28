@@ -127,7 +127,7 @@ class ScanDetailsResult(Schema):
     def __init__(self, scan_status: str = None, results_count: int = None, metadata: str = None, err: str = None):
         super().__init__()
         self.scan_status = scan_status
-        self.results_count = results_count
+        self.detections_count = results_count
         self.report_url = metadata
         self.err = err
 

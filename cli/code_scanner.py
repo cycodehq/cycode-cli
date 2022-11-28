@@ -559,7 +559,7 @@ def _get_scan_result(cycode_client, scan_async_result: ScanPollingResult,
     scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
                                        scan_id=scan_async_result.scan_id,
                                        report_url=scan_details.report_url)
-    if not scan_details.results_count:
+    if not scan_details.detections_count:
         return scan_result
     scan_detections = cycode_client.get_scan_detections(scan_async_result.scan_id)
     scan_result.detections_per_file = map_detections_per_file(scan_detections)
