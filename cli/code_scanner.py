@@ -580,12 +580,14 @@ def _try_get_report_url(metadata: str) -> Optional[str]:
 
 
 def wait_for_detections_creation(cycode_client, scan_id: str, expected_detections_count: int):
+    logger.debug("waiting for detections to be created")
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
             return
         time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
+    logger.debug("%i detections has been created", scan_persisted_detections_count)
 
 
 def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
