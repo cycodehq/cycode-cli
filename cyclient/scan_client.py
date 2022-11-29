@@ -78,10 +78,10 @@ class ScanClient:
         try:
             while page_number == 0 or last_response_size == page_size:
                 url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}&page_size={page_size}&page_number={page_number}"
-                response = self.cycode_client.get(url_path=url_path)
-                detections.extend(response.json())
+                response = self.cycode_client.get(url_path=url_path).json()
+                detections.extend(response)
                 page_number += 1
-                last_response_size = len(response.json())
+                last_response_size = len(response)
             return detections
         except Exception as e:
             self._handle_exception(e)
@@ -90,7 +90,7 @@ class ScanClient:
         url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count?scan_id={scan_id}"
         try:
             response = self.cycode_client.get(url_path=url_path)
-            return response.json().get('count')
+            return response.json().get('count', 0)
         except Exception as e:
             self._handle_exception(e)
 
