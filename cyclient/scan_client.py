@@ -70,11 +70,19 @@ class ScanClient:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_scan_detections(self, scan_id: str):
+    def get_scan_detections(self, scan_id: str) -> List[dict]:
         url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}"
         try:
             response = self.cycode_client.get(url_path=url_path)
             return response.json()
+        except Exception as e:
+            self._handle_exception(e)
+
+    def get_scan_detections_count(self, scan_id: str) -> int:
+        url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count?scan_id={scan_id}"
+        try:
+            response = self.cycode_client.get(url_path=url_path)
+            return response.json().get('count')
         except Exception as e:
             self._handle_exception(e)
 
