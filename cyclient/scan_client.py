@@ -70,11 +70,19 @@ class ScanClient:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_scan_detections(self, scan_id: str) -> List[dict]:
-        url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}"
+    def get_scan_detections_with_paging(self, scan_id: str) -> List[dict]:
+        detections = []
+        page_number = 0
+        page_size = 200
+        last_response_size = 0
         try:
-            response = self.cycode_client.get(url_path=url_path)
-            return response.json()
+            while page_number == 0 or last_response_size == page_size:
+                url_path = f"{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}&page_size={page_size}&page_number={page_number}"
+                response = self.cycode_client.get(url_path=url_path)
+                detections.extend(response.json())
+                page_number += 1
+                last_response_size = len(response.json())
+            return detections
         except Exception as e:
             self._handle_exception(e)
 

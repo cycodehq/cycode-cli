@@ -221,7 +221,8 @@ def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, s
 
 def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
                               scan_parameters: dict) -> ZippedFileScanResult:
-    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
+    # scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
+    scan_async_result = ScanInitializationResponse(scan_id="d789d12c-194e-47c1-9fdd-5f8a1d10809d")
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
     polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
 
@@ -561,13 +562,24 @@ def _get_scan_result(cycode_client, scan_async_result: ScanInitializationRespons
                                        report_url=scan_details.report_url)
     if not scan_details.detections_count:
         return scan_result
-    scan_detections = cycode_client.get_scan_detections(scan_async_result.scan_id)
-    scan_result.detections_per_file = map_detections_per_file(scan_detections)
+
+    wait_for_detections_creation(cycode_client, scan_async_result.scan_id, scan_details.detections_count)
+    scan_detections = cycode_client.get_scan_detections_with_paging(scan_async_result.scan_id)
+    scan_result.detections_per_file = _map_detections_per_file(scan_detections)
     scan_result.did_detect = True
     return scan_result
 
 
-def map_detections_per_file(detections) -> List[DetectionsPerFile]:
+def wait_for_detections_creation(cycode_client, scan_id: str, expected_detections_count: int):
+    end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
+    while time.time() < end_polling_time:
+        scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
+        if scan_persisted_detections_count == expected_detections_count:
+            return
+        time.sleep(3)
+
+
+def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
     detections_per_files = {}
     for detection in detections:
         try:
