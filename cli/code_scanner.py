@@ -581,6 +581,7 @@ def _try_get_report_url(metadata: str) -> Optional[str]:
 
 def wait_for_detections_creation(cycode_client, scan_id: str, expected_detections_count: int):
     logger.debug("waiting for detections to be created")
+    scan_persisted_detections_count = 0
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
