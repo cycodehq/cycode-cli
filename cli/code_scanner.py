@@ -576,7 +576,7 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
             return
-        time.sleep(3)
+        time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
 
 
 def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
