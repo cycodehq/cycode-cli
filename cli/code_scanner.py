@@ -210,17 +210,17 @@ def validate_zip_file_size(scan_type, zip_file_size):
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
     if scan_type == SCA_SCAN_TYPE:
-        scan_result = perform_scan_with_polling(cycode_client, zipped_documents, scan_type, scan_parameters)
-    else:
-        scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
-            if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
-                                                                   scan_parameters, is_git_diff)
+        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
+
+    scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
+        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
+                                                               scan_parameters, is_git_diff)
 
     return scan_result
 
 
-def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
-                              scan_parameters: dict) -> ZippedFileScanResult:
+def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
+                       scan_parameters: dict) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
     polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
@@ -563,7 +563,7 @@ def _get_scan_result(cycode_client, scan_async_result: ScanInitializationRespons
         return scan_result
 
     wait_for_detections_creation(cycode_client, scan_async_result.scan_id, scan_details.detections_count)
-    scan_detections = cycode_client.get_scan_detections_with_paging(scan_async_result.scan_id)
+    scan_detections = cycode_client.get_scan_detections(scan_async_result.scan_id)
     scan_result.detections_per_file = _map_detections_per_file(scan_detections)
     scan_result.did_detect = True
     return scan_result

@@ -70,7 +70,7 @@ class ScanClient:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_scan_detections_with_paging(self, scan_id: str) -> List[dict]:
+    def get_scan_detections(self, scan_id: str) -> List[dict]:
         detections = []
         page_number = 0
         page_size = 200
