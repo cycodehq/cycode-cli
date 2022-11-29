@@ -584,6 +584,9 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
         try:
             detection['message'] = detection['correlation_message']
             file_name = detection['detection_details']['file_name']
+            if file_name is None:
+                logger.debug("file name is missing from detection with id %s", detection.get('id'))
+                continue
             if detections_per_files.get(file_name) is None:
                 detections_per_files[file_name] = [DetectionSchema().load(detection)]
             else:
