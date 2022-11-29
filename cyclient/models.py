@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict
 from marshmallow import Schema, fields, EXCLUDE, post_load
 
@@ -102,6 +103,51 @@ class ScanResultSchema(Schema):
     @post_load
     def build_dto(self, data, **kwargs):
         return ScanResult(**data)
+
+
+class ScanInitializationResponse(Schema):
+    def __init__(self, scan_id: str = None, err: str = None):
+        super().__init__()
+        self.scan_id = scan_id
+        self.err = err
+
+
+class ScanInitializationResponseSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    scan_id = fields.String()
+    err = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ScanInitializationResponse(**data)
+
+
+class ScanDetailsResponse(Schema):
+    def __init__(self, scan_status: str = None, results_count: int = None, metadata: str = None, message: str = None,
+                 err: str = None):
+        super().__init__()
+        self.scan_status = scan_status
+        self.detections_count = results_count
+        self.metadata = metadata
+        self.message = message
+        self.err = err
+
+
+class ScanDetailsResponseSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    scan_status = fields.String()
+    results_count = fields.Integer(allow_none=True)
+    metadata = fields.String(allow_none=True)
+    message = fields.String(allow_none=True)
+    err = fields.String()
+
+    @post_load
+    def build_dto(self, data, **kwargs):
+        return ScanDetailsResponse(**data)
 
 
 class K8SResource:
