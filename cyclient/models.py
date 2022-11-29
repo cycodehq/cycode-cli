@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict
 from marshmallow import Schema, fields, EXCLUDE, post_load
 
@@ -129,7 +130,7 @@ class ScanDetailsResponse(Schema):
         super().__init__()
         self.scan_status = scan_status
         self.detections_count = results_count
-        self.report_url = metadata
+        self.metadata = metadata
         self.message = message
         self.err = err
 

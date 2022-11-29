@@ -558,7 +558,7 @@ def _get_scan_result(cycode_client, scan_async_result: ScanInitializationRespons
                      scan_details: ScanDetailsResponse) -> ZippedFileScanResult:
     scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
                                        scan_id=scan_async_result.scan_id,
-                                       report_url=scan_details.report_url)
+                                       report_url=_try_get_report_url(scan_details.metadata))
     if not scan_details.detections_count:
         return scan_result
 
@@ -567,6 +567,16 @@ def _get_scan_result(cycode_client, scan_async_result: ScanInitializationRespons
     scan_result.detections_per_file = _map_detections_per_file(scan_detections)
     scan_result.did_detect = True
     return scan_result
+
+
+def _try_get_report_url(metadata: str) -> Optional[str]:
+    if metadata is None:
+        return None
+    try:
+        metadata = json.loads(metadata)
+        return metadata.get('report_url')
+    except ValueError:
+        return None
 
 
 def wait_for_detections_creation(cycode_client, scan_id: str, expected_detections_count: int):
