@@ -221,8 +221,7 @@ def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, s
 
 def perform_scan_with_polling(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
                               scan_parameters: dict) -> ZippedFileScanResult:
-    # scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
-    scan_async_result = ScanInitializationResponse(scan_id="d789d12c-194e-47c1-9fdd-5f8a1d10809d")
+    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
     polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
 
