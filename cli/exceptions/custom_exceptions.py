@@ -9,7 +9,7 @@ class CycodeError(Exception):
                f'{self.error_message}'
 
 
-class CycodeInternalError(Exception):
+class ScanAsyncError(Exception):
     def __init__(self, error_message: str):
         self.error_message = error_message
         super().__init__(self.error_message)

@@ -232,10 +232,10 @@ def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: 
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_async_result, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
-            raise CycodeInternalError(f'error occurred while trying to scan zip file. {scan_details.message}')
+            raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    raise CycodeInternalError(f'Failed to complete scan after {polling_timeout} seconds')
+    raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
 def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
@@ -491,7 +491,7 @@ def _handle_exception(context: click.Context, e: Exception):
     verbose = context.obj["verbose"]
     if verbose:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
-    if isinstance(e, (CycodeError, CycodeInternalError)):
+    if isinstance(e, (CycodeError, ScanAsyncError)):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
