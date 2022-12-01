@@ -8,7 +8,6 @@ from typing import Optional
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
-from typing import List, Dict
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
@@ -17,9 +16,9 @@ from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
-from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError, ZipTooLargeError
+from cli.exceptions.custom_exceptions import *
 from cyclient import logger
-from cyclient.models import ZippedFileScanResult
+from cyclient.models import *
 from cli.helpers import sca_code_scanner
 
 start_scan_time = time.time()
@@ -160,7 +159,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
 
     try:
         perform_pre_scan_documents_actions(scan_type, documents_to_scan, is_git_diff)
-        zipped_documents = zip_documents_to_scan(zipped_documents, documents_to_scan)
+        zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
                                    scan_parameters)
         document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
@@ -193,12 +192,11 @@ def perform_pre_scan_documents_actions(scan_type: str, documents_to_scan: List[D
         sca_code_scanner.run_pre_scan_actions(documents_to_scan, is_git_diff)
 
 
-def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
+def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
-        if zip_file_size > ZIP_MAX_SIZE_LIMIT_IN_BYTES:
-            raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+        validate_zip_file_size(scan_type, zip_file_size)
 
         logger.debug('adding file to zip, %s', {'index': index, 'filename': document.path})
         zip.append(document.path, document.unique_id, document.content)
@@ -210,13 +208,44 @@ def zip_documents_to_scan(zip: InMemoryZip, documents: List[Document]):
     return zip
 
 
+def validate_zip_file_size(scan_type, zip_file_size):
+    if scan_type == SCA_SCAN_TYPE:
+        if zip_file_size > SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES:
+            raise ZipTooLargeError(SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+    else:
+        if zip_file_size > ZIP_MAX_SIZE_LIMIT_IN_BYTES:
+            raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+
+
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
+    if scan_type == SCA_SCAN_TYPE:
+        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
+
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
-        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, scan_parameters,
-                                                               is_git_diff)
+        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
+                                                               scan_parameters, is_git_diff)
 
     return scan_result
+
+
+def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
+                       scan_parameters: dict) -> ZippedFileScanResult:
+    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
+    logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
+    polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
+
+    end_polling_time = time.time() + polling_timeout
+    while time.time() < end_polling_time:
+        logger.debug("scan in progress")
+        scan_details = cycode_client.get_scan_details(scan_async_result.scan_id)
+        if scan_details.scan_status == SCAN_STATUS_COMPLETED:
+            return _get_scan_result(cycode_client, scan_async_result, scan_details)
+        if scan_details.scan_status == SCAN_STATUS_ERROR:
+            raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
+        time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
+
+    raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
 def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
@@ -419,7 +448,7 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
                      {'filename': filename})
         return False
 
-    if _does_file_exceed_max_size_limit(filename):
+    if scan_type != SCA_SCAN_TYPE and _does_file_exceed_max_size_limit(filename):
         logger.debug("file is irrelevant because its exceeded max size limit, %s",
                      {'filename': filename})
         return False
@@ -447,7 +476,7 @@ def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -
                      {'filename': filename})
         return False
 
-    if _does_document_exceed_max_size_limit(content):
+    if scan_type != SCA_SCAN_TYPE and _does_document_exceed_max_size_limit(content):
         logger.debug("document is irrelevant because its exceeded max size limit, %s",
                      {'filename': filename})
         return False
@@ -488,7 +517,7 @@ def _handle_exception(context: click.Context, e: Exception):
     verbose = context.obj["verbose"]
     if verbose:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
-    if isinstance(e, CycodeError):
+    if isinstance(e, (CycodeError, ScanAsyncError)):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
@@ -549,3 +578,61 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
         return True
 
     return detection_severity_value >= Severity.try_get_value(severity_threshold)
+
+
+def _get_scan_result(cycode_client, scan_async_result: ScanInitializationResponse,
+                     scan_details: ScanDetailsResponse) -> ZippedFileScanResult:
+    scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
+                                       scan_id=scan_async_result.scan_id,
+                                       report_url=_try_get_report_url(scan_details.metadata))
+    if not scan_details.detections_count:
+        return scan_result
+
+    wait_for_detections_creation(cycode_client, scan_async_result.scan_id, scan_details.detections_count)
+    scan_detections = cycode_client.get_scan_detections(scan_async_result.scan_id)
+    scan_result.detections_per_file = _map_detections_per_file(scan_detections)
+    scan_result.did_detect = True
+    return scan_result
+
+
+def _try_get_report_url(metadata: str) -> Optional[str]:
+    if metadata is None:
+        return None
+    try:
+        metadata = json.loads(metadata)
+        return metadata.get('report_url')
+    except ValueError:
+        return None
+
+
+def wait_for_detections_creation(cycode_client, scan_id: str, expected_detections_count: int):
+    logger.debug("waiting for detections to be created")
+    scan_persisted_detections_count = 0
+    end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
+    while time.time() < end_polling_time:
+        scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
+        if scan_persisted_detections_count == expected_detections_count:
+            return
+        time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
+    logger.debug("%i detections has been created", scan_persisted_detections_count)
+
+
+def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
+    detections_per_files = {}
+    for detection in detections:
+        try:
+            detection['message'] = detection['correlation_message']
+            file_name = detection['detection_details']['file_name']
+            if file_name is None:
+                logger.debug("file name is missing from detection with id %s", detection.get('id'))
+                continue
+            if detections_per_files.get(file_name) is None:
+                detections_per_files[file_name] = [DetectionSchema().load(detection)]
+            else:
+                detections_per_files[file_name].append(DetectionSchema().load(detection))
+        except Exception as e:
+            logger.debug("Failed to parse detection: %s", str(e))
+            continue
+
+    return [DetectionsPerFile(file_name=file_name, detections=file_detections)
+            for file_name, file_detections in detections_per_files.items()]

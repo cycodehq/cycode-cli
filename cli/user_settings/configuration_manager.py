@@ -2,8 +2,7 @@ import os
 from pathlib import Path
 from typing import Optional, Dict
 from cli.user_settings.config_file_manager import ConfigFileManager
-from cli.consts import DEFAULT_CYCODE_API_URL, DEFAULT_CYCODE_APP_URL, CYCODE_API_URL_ENV_VAR_NAME, \
-    CYCODE_APP_URL_ENV_VAR_NAME, VERBOSE_ENV_VAR_NAME
+from cli.consts import *
 
 
 class ConfigurationManager:
@@ -80,5 +79,10 @@ class ConfigurationManager:
     def get_config_file_manager(self, scope):
         return self.local_config_file_manager if scope == 'local' else self.global_config_file_manager
 
-    def _get_value_from_environment_variables(self, env_var_name, default=None):
+    def get_scan_polling_timeout_in_seconds(self) -> int:
+        return int(self._get_value_from_environment_variables(SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
+                                                              SCAN_POLLING_TIMEOUT_IN_SECONDS_DEFAULT))
+
+    @staticmethod
+    def _get_value_from_environment_variables(env_var_name, default=None):
         return os.getenv(env_var_name, default)

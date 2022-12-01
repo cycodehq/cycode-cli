@@ -1,4 +1,3 @@
-
 class CycodeError(Exception):
     def __init__(self, status_code: int, error_message: str):
         self.status_code = status_code
@@ -8,6 +7,15 @@ class CycodeError(Exception):
     def __str__(self):
         return f'error occurred during the request. status code: {self.status_code}, error message: ' \
                f'{self.error_message}'
+
+
+class ScanAsyncError(Exception):
+    def __init__(self, error_message: str):
+        self.error_message = error_message
+        super().__init__(self.error_message)
+
+    def __str__(self):
+        return f'error occurred during the scan. error message: {self.error_message}'
 
 
 class HttpUnauthorizedError(Exception):
