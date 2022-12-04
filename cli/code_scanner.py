@@ -43,6 +43,7 @@ def scan_repository(context: click.Context, path, branch):
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
+        perform_pre_scan_documents_actions(context, documents_to_scan)
         return scan_documents(context, documents_to_scan, is_git_diff=False,
                               scan_parameters=try_get_git_remote_url(path))
     except Exception as e:
@@ -72,16 +73,15 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 
 def scan_commit_range(context: click.Context, path: str, commit_range: str):
     scan_type = context.obj["scan_type"]
-
     if scan_type != (SECRET_SCAN_TYPE and SCA_SCAN_TYPE):
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     if scan_type == SCA_SCAN_TYPE:
-        files = get_commit_range_changed_files(path, commit_range)
-        files = exclude_irrelevant_files(context, list(files))
-        documents_to_scan = [Document(file, get_file_content(file)) for file in files]
+        from_commit, to_commit = parse_commit_range(commit_range)
+        documents_to_scan = get_commit_range_modified_documents(path, from_commit, to_commit)
+        exclude_irrelevant_documents_to_scan(context, documents_to_scan)
+        sca_code_scanner.perform_pre_commit_range_scan_actions(path, documents_to_scan, from_commit, to_commit)
         is_git_diff = False
-        is_commit_range = False
     else:
         documents_to_scan = []
         for commit in Repo(path).iter_commits(rev=commit_range):
@@ -97,9 +97,8 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
                 logger.debug('Found all relevant files in commit %s',
                              {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
         is_git_diff = True
-        is_commit_range = True
 
-    return scan_documents(context, documents_to_scan, is_git_diff=is_git_diff, is_commit_range=is_commit_range)
+    return scan_documents(context, documents_to_scan, is_git_diff=is_git_diff, is_commit_range=True)
 
 
 @click.command()
@@ -141,12 +140,12 @@ def scan_disk_files(context: click.Context, paths: List[str]):
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
             documents.append(Document(path, content, is_git_diff))
-
+    perform_pre_scan_documents_actions(context, documents)
     return scan_documents(context, documents, is_git_diff=is_git_diff)
 
 
-def scan_documents(context: click.Context, documents_to_scan: List[Document],
-                   is_git_diff: bool = False, is_commit_range: bool = False, scan_parameters: dict = None):
+def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
+                   is_commit_range: bool = False, scan_parameters: dict = None):
     cycode_client = context.obj["client"]
     scan_type = context.obj["scan_type"]
     severity_threshold = context.obj["severity_threshold"]
@@ -158,7 +157,6 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
     zipped_documents = InMemoryZip()
 
     try:
-        perform_pre_scan_documents_actions(scan_type, documents_to_scan, is_git_diff)
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
                                    scan_parameters)
@@ -187,9 +185,10 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document],
                         all_detections_count, len(documents_to_scan), zip_file_size, scan_command_type, error_message)
 
 
-def perform_pre_scan_documents_actions(scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False):
-    if scan_type == 'sca':
-        sca_code_scanner.run_pre_scan_actions(documents_to_scan, is_git_diff)
+def perform_pre_scan_documents_actions(context: click.Context, documents_to_scan: List[Document]) -> None:
+    scan_type = context.obj['scan_type']
+    if scan_type == SCA_SCAN_TYPE:
+        sca_code_scanner.add_dependencies_tree_document(documents_to_scan)
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
@@ -354,14 +353,18 @@ def exclude_detections_by_exclusions_configuration(scan_type: str, detections) -
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
 
 
-def get_commit_range_changed_files(path: str, commit_range: str) -> set:
-    files_set = set()
-    for commit in Repo(path).iter_commits(rev=commit_range):
-        for file in commit.stats.files:
-            file_path = os.path.join(path, file)
-            if os.path.exists(file_path):
-                files_set.add(file_path)
-    return files_set
+def get_commit_range_modified_documents(path: str, from_commit: str, to_commit: str) -> List[Document]:
+    documents = []
+    repo = Repo(path)
+    diff = repo.commit(from_commit).diff(to_commit)
+    modified_files_diff = [change for change in diff if change.change_type != 'D']
+    for blob in modified_files_diff:
+        diff_file_path = get_diff_file_path(blob)
+        file_path = get_path_by_os(os.path.join(path, diff_file_path))
+        file_content = repo.git.show(f'{to_commit}:{diff_file_path}')
+        documents.append(Document(file_path, file_content))
+
+    return documents
 
 
 def get_file_content(file_path: str) -> str:
@@ -636,3 +639,8 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
 
     return [DetectionsPerFile(file_name=file_name, detections=file_detections)
             for file_name, file_detections in detections_per_files.items()]
+
+
+def parse_commit_range(commit_range: str) -> (str, str):
+    commit_range_list = commit_range.split('...')
+    return commit_range_list[0], commit_range_list[1]

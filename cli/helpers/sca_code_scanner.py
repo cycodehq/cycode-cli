@@ -1,16 +1,40 @@
-from cli.utils.shell_executor import shell
+import click
+from git import Repo
 from typing import List, Optional
 from cli.models import Document
+from cli.utils.shell_executor import shell
 from cli.utils.path_utils import get_file_dir, join_paths
 from cyclient import logger
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
 BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
+BUILD_GRADLE_DEP_TREE_COMMIT_RANGE_FROM_FILE_NAME = 'from-gradle-dependencies-generated.txt'
+BUILD_GRADLE_DEP_TREE_COMMIT_RANGE_TO_FILE_NAME = 'to-gradle-dependencies-generated.txt'
 BUILD_GRADLE_DEP_TREE_TIMEOUT = 180
 
 
-def run_pre_scan_actions(documents_to_scan: List[Document], is_git_diff: bool = False):
+def perform_pre_commit_range_scan_actions(path: str, documents_to_scan: List[Document], from_commit: str,
+                                          to_commit: str) -> None:
+    repo = Repo(path)
+    if repo.is_dirty(untracked_files=True):
+        raise click.ClickException("Couldn't run dependencies over commit range, repo is dirty.")
+
+    current_head = get_current_git_head(repo)
+    try:
+        # run restore over first commit on range
+        repo.git.checkout(from_commit)
+        add_dependencies_tree_document(documents_to_scan, BUILD_GRADLE_DEP_TREE_COMMIT_RANGE_FROM_FILE_NAME)
+        # run restore over last commit on range
+        repo.git.checkout(to_commit)
+        add_dependencies_tree_document(documents_to_scan, BUILD_GRADLE_DEP_TREE_COMMIT_RANGE_TO_FILE_NAME)
+        # revert to initial state
+    finally:
+        repo.git.checkout(current_head)
+
+
+def add_dependencies_tree_document(documents_to_scan: List[Document],
+                                   generated_file_name=BUILD_GRADLE_DEP_TREE_FILE_NAME) -> None:
     documents_to_add: List[Document] = []
     for document in documents_to_scan:
         if is_gradle_project(document):
@@ -19,10 +43,10 @@ def run_pre_scan_actions(documents_to_scan: List[Document], is_git_diff: bool = 
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
                 documents_to_add.append(
-                    Document(build_dep_tree_path(document.path), '', is_git_diff))
+                    Document(build_dep_tree_path(document.path, generated_file_name), '', False))
             else:
                 documents_to_add.append(
-                    Document(build_dep_tree_path(document.path), gradle_dependencies_tree, is_git_diff))
+                    Document(build_dep_tree_path(document.path, generated_file_name), gradle_dependencies_tree, False))
 
     documents_to_scan.extend(documents_to_add)
 
@@ -39,9 +63,17 @@ def try_generate_dependencies_tree(filename: str) -> Optional[str]:
     return gradle_dependencies
 
 
-def build_dep_tree_path(path):
-    return join_paths(get_file_dir(path), BUILD_GRADLE_DEP_TREE_FILE_NAME)
+def build_dep_tree_path(path: str, generated_file_name: str) -> str:
+    return join_paths(get_file_dir(path), generated_file_name)
 
 
 def is_gradle_project(document: Document) -> bool:
     return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
+
+
+def get_current_git_head(repo: Repo) -> str:
+    try:
+        current_head = repo.active_branch
+    except (Exception,):
+        current_head = repo.head.object.hexsha
+    return current_head
