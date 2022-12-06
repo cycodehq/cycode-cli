@@ -126,7 +126,7 @@ class ScanClient:
         elif scan_type == 'iac':
             return 'iac'
         elif scan_type == 'sca':
-            return 'security-vulnerability-detector-service'
+            return 'scans'
 
     def _handle_exception(self, e: Exception):
         if isinstance(e, requests.exceptions.Timeout):
