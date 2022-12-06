@@ -31,20 +31,31 @@ start_scan_time = time.time()
               help='Branch to scan, if not set scanning the default branch',
               type=str,
               required=False)
+@click.option('--monitor',
+              is_flag=True,
+              default=False,
+              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
+                   "vulnerabilities and violations.",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_repository(context: click.Context, path, branch):
+def scan_repository(context: click.Context, path, branch, monitor):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
+        scan_type = context.obj["scan_type"]
+        if monitor and scan_type != SCA_SCAN_TYPE:
+            raise click.ClickException(f"Monitor is currently supported for SCA scan type only")
+
         documents_to_scan = [
-            Document(get_path_by_os(os.path.join(path, obj.path)),
+            Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
                      obj.data_stream.read().decode('utf-8', errors='replace'))
             for obj
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=try_get_git_remote_url(path))
+                              scan_parameters=get_scan_parameters(path, monitor))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -285,6 +296,14 @@ def should_process_git_object(obj, depth):
 
 def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
+
+
+def get_scan_parameters(path: str, monitor: bool) -> dict:
+    scan_parameters = {"monitor": monitor}
+    remote_url = try_get_git_remote_url(path)
+    if remote_url:
+        scan_parameters.update(remote_url)
+    return scan_parameters
 
 
 def try_get_git_remote_url(path: str) -> Optional[dict]:
