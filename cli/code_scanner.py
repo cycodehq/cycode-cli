@@ -35,7 +35,7 @@ start_scan_time = time.time()
               is_flag=True,
               default=False,
               help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
-                   "vulnerabilities and violations.",
+                   "vulnerabilities and violations (supported for SCA scan type only).",
               type=bool,
               required=False)
 @click.pass_context
@@ -45,7 +45,7 @@ def scan_repository(context: click.Context, path, branch, monitor):
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
-            raise click.ClickException(f"Monitor is currently supported for SCA scan type only")
+            raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
 
         documents_to_scan = [
             Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
