@@ -12,13 +12,13 @@ BUILD_GRADLE_DEP_TREE_TIMEOUT = 180
 
 
 def run_pre_scan_actions(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False):
-    is_monitor = context.params.get('monitor')
+    is_monitor_action = context.obj.get('monitor')
     project_path = context.params.get('path')
     documents_to_add: List[Document] = []
     for document in documents_to_scan:
         if is_gradle_project(document):
             gradle_dependencies_tree = try_generate_dependencies_tree(
-                get_manifest_file_path(document, is_monitor, project_path))
+                get_manifest_file_path(document, is_monitor_action, project_path))
             if gradle_dependencies_tree is None:
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
@@ -31,8 +31,8 @@ def run_pre_scan_actions(context: click.Context, documents_to_scan: List[Documen
     documents_to_scan.extend(documents_to_add)
 
 
-def get_manifest_file_path(document, is_monitor, project_path):
-    return join_paths(project_path, document.path) if is_monitor else document.path
+def get_manifest_file_path(document, is_monitor_action, project_path):
+    return join_paths(project_path, document.path) if is_monitor_action else document.path
 
 
 def try_generate_dependencies_tree(filename: str) -> Optional[str]:

@@ -43,6 +43,7 @@ def scan_repository(context: click.Context, path, branch, monitor):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
+        context.obj["monitor"] = monitor
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -145,7 +146,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
             content = f.read()
             documents.append(Document(path, content, is_git_diff))
 
-    perform_pre_scan_documents_actions(scan_type, documents, is_git_diff)
+    perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
     return scan_documents(context, documents, is_git_diff=is_git_diff)
 
 
