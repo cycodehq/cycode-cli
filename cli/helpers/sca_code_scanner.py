@@ -1,5 +1,6 @@
-from cli.utils.shell_executor import shell
+import click
 from typing import List, Optional
+from cli.utils.shell_executor import shell
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths
 from cyclient import logger
@@ -10,11 +11,14 @@ BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
 BUILD_GRADLE_DEP_TREE_TIMEOUT = 180
 
 
-def run_pre_scan_actions(documents_to_scan: List[Document], is_git_diff: bool = False):
+def run_pre_scan_actions(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False):
+    is_monitor = context.params.get('monitor')
+    project_path = context.params.get('path')
     documents_to_add: List[Document] = []
     for document in documents_to_scan:
         if is_gradle_project(document):
-            gradle_dependencies_tree = try_generate_dependencies_tree(document.path)
+            gradle_dependencies_tree = try_generate_dependencies_tree(
+                join_paths(project_path, document.path) if is_monitor else document.path)
             if gradle_dependencies_tree is None:
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
