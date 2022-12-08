@@ -43,6 +43,7 @@ def scan_repository(context: click.Context, path, branch, monitor):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
+        context.obj["monitor"] = monitor
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -53,8 +54,8 @@ def scan_repository(context: click.Context, path, branch, monitor):
             for obj
             in get_git_repository_tree_file_entries(path, branch)]
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
+        perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        perform_pre_scan_documents_actions(context, documents_to_scan)
         return scan_documents(context, documents_to_scan, is_git_diff=False,
                               scan_parameters=get_scan_parameters(path, monitor))
     except Exception as e:
@@ -145,13 +146,15 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 
 
 def scan_disk_files(context: click.Context, paths: List[str]):
+    scan_type = context.obj['scan_type']
     is_git_diff = False
     documents: List[Document] = []
     for path in paths:
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
             documents.append(Document(path, content, is_git_diff))
-    perform_pre_scan_documents_actions(context, documents)
+
+    perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
     return scan_documents(context, documents, is_git_diff=is_git_diff)
 
 
@@ -196,10 +199,10 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
                         all_detections_count, len(documents_to_scan), zip_file_size, scan_command_type, error_message)
 
 
-def perform_pre_scan_documents_actions(context: click.Context, documents_to_scan: List[Document]) -> None:
-    scan_type = context.obj['scan_type']
+def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
+                                       is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
-        sca_code_scanner.add_dependencies_tree_document(documents_to_scan)
+        sca_code_scanner.run_pre_scan_actions(context, documents_to_scan, is_git_diff)
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
@@ -384,12 +387,6 @@ def get_commit_range_modified_documents(path: str, from_commit: str, to_commit: 
         documents.append(Document(file_path, file_content))
 
     return documents
-
-
-def get_file_content(file_path: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return content
 
 
 def _should_exclude_detection(detection, exclusions: Dict) -> bool:

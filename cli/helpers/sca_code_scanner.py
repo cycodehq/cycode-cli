@@ -1,8 +1,7 @@
 import click
-from git import Repo
 from typing import List, Optional
-from cli.models import Document
 from cli.utils.shell_executor import shell
+from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths
 from cyclient import logger
 
@@ -33,12 +32,11 @@ def perform_pre_commit_range_scan_actions(path: str, documents_to_scan: List[Doc
         repo.git.checkout(current_head)
 
 
-def add_dependencies_tree_document(documents_to_scan: List[Document],
-                                   generated_file_name=BUILD_GRADLE_DEP_TREE_FILE_NAME) -> None:
+def add_dependencies_tree_document(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False) -> None:
     documents_to_add: List[Document] = []
     for document in documents_to_scan:
         if is_gradle_project(document):
-            gradle_dependencies_tree = try_generate_dependencies_tree(document.path)
+            gradle_dependencies_tree = try_generate_dependencies_tree(get_manifest_file_path(document, is_monitor_action, project_path))
             if gradle_dependencies_tree is None:
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
@@ -49,6 +47,10 @@ def add_dependencies_tree_document(documents_to_scan: List[Document],
                     Document(build_dep_tree_path(document.path, generated_file_name), gradle_dependencies_tree, False))
 
     documents_to_scan.extend(documents_to_add)
+
+
+def get_manifest_file_path(document, is_monitor_action, project_path):
+    return join_paths(project_path, document.path) if is_monitor_action else document.path
 
 
 def try_generate_dependencies_tree(filename: str) -> Optional[str]:
