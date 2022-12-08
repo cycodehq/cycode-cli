@@ -18,7 +18,7 @@ def run_pre_scan_actions(context: click.Context, documents_to_scan: List[Documen
     for document in documents_to_scan:
         if is_gradle_project(document):
             gradle_dependencies_tree = try_generate_dependencies_tree(
-                join_paths(project_path, document.path) if is_monitor else document.path)
+                get_manifest_file_path(document, is_monitor, project_path))
             if gradle_dependencies_tree is None:
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
@@ -29,6 +29,10 @@ def run_pre_scan_actions(context: click.Context, documents_to_scan: List[Documen
                     Document(build_dep_tree_path(document.path), gradle_dependencies_tree, is_git_diff))
 
     documents_to_scan.extend(documents_to_add)
+
+
+def get_manifest_file_path(document, is_monitor, project_path):
+    return join_paths(project_path, document.path) if is_monitor else document.path
 
 
 def try_generate_dependencies_tree(filename: str) -> Optional[str]:
