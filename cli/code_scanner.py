@@ -89,11 +89,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     if scan_type == SCA_SCAN_TYPE:
-        from_commit, to_commit = parse_commit_range(commit_range)
-        documents_to_scan = get_commit_range_modified_documents(path, from_commit, to_commit)
-        exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-        sca_code_scanner.perform_pre_commit_range_scan_actions(path, documents_to_scan, from_commit, to_commit)
-        is_git_diff = False
+        return scan_sca_commit_range(commit_range, context, path)
     else:
         documents_to_scan = []
         for commit in Repo(path).iter_commits(rev=commit_range):
@@ -108,9 +104,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
                 documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
                 logger.debug('Found all relevant files in commit %s',
                              {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
-        is_git_diff = True
-
-    return scan_documents(context, documents_to_scan, is_git_diff=is_git_diff, is_commit_range=True)
+        return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
 @click.command()
@@ -145,6 +139,17 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
+def scan_sca_commit_range(commit_range, context, path):
+    from_commit_rev, to_commit_rev = parse_commit_range(commit_range)
+    from_commit_documents, to_commit_documents = \
+        get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
+    exclude_irrelevant_documents_to_scan(context, from_commit_documents)
+    exclude_irrelevant_documents_to_scan(context, to_commit_documents)
+    sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
+                                                           to_commit_documents, to_commit_rev)
+    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
+
+
 def scan_disk_files(context: click.Context, paths: List[str]):
     scan_type = context.obj['scan_type']
     is_git_diff = False
@@ -174,17 +179,9 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
                                    scan_parameters)
-        document_detections_list = enrich_scan_result(scan_result, documents_to_scan)
-        relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
-                                                                            scan_command_type, severity_threshold)
-        context.obj['report_url'] = scan_result.report_url
-        print_results(context, relevant_document_detections_list)
-
-        context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
-        all_detections_count = sum(
-            [len(document_detections.detections) for document_detections in document_detections_list])
-        output_detections_count = sum(
-            [len(document_detections.detections) for document_detections in relevant_document_detections_list])
+        all_detections_count, output_detections_count = \
+            handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
+                               documents_to_scan)
         scan_completed = True
     except Exception as e:
         _handle_exception(context, e)
@@ -199,10 +196,61 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
                         all_detections_count, len(documents_to_scan), zip_file_size, scan_command_type, error_message)
 
 
+def scan_commit_range_documents(context: click.Context, from_documents_to_scan: List[Document],
+                                to_documents_to_scan: List[Document], scan_parameters: dict = None):
+    cycode_client = context.obj["client"]
+    scan_type = context.obj["scan_type"]
+    severity_threshold = context.obj["severity_threshold"]
+    scan_command_type = context.info_name
+    error_message = None
+    all_detections_count = 0
+    output_detections_count = 0
+    scan_id = _get_scan_id(context)
+    from_commit_zipped_documents = InMemoryZip()
+    to_commit_zipped_documents = InMemoryZip()
+
+    try:
+        from_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents, from_documents_to_scan)
+        to_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents, to_documents_to_scan)
+        scan_result = perform_commit_range_scan_async(cycode_client, from_zipped_documents, to_zipped_documents,
+                                                      scan_type, scan_parameters)
+        all_detections_count, output_detections_count = \
+            handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
+                               to_documents_to_scan)
+        scan_completed = True
+    except Exception as e:
+        _handle_exception(context, e)
+        error_message = str(e)
+        scan_completed = False
+
+    zip_file_size = getsizeof(from_commit_zipped_documents.in_memory_zip) + getsizeof(
+        to_commit_zipped_documents.in_memory_zip)
+    logger.debug('Finished scan process, %s',
+                 {'all_violations_count': all_detections_count, 'relevant_violations_count': output_detections_count,
+                  'scan_id': str(scan_id), 'zip_file_size': zip_file_size})
+    _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
+                        all_detections_count, len(to_documents_to_scan), zip_file_size, scan_command_type,
+                        error_message)
+
+
+def handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold, to_documents_to_scan):
+    document_detections_list = enrich_scan_result(scan_result, to_documents_to_scan)
+    relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
+                                                                        scan_command_type, severity_threshold)
+    context.obj['report_url'] = scan_result.report_url
+    print_results(context, relevant_document_detections_list)
+    context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
+    all_detections_count = sum(
+        [len(document_detections.detections) for document_detections in document_detections_list])
+    output_detections_count = sum(
+        [len(document_detections.detections) for document_detections in relevant_document_detections_list])
+    return all_detections_count, output_detections_count
+
+
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
-        sca_code_scanner.run_pre_scan_actions(context, documents_to_scan, is_git_diff)
+        sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
@@ -245,6 +293,28 @@ def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, s
 def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
                        scan_parameters: dict) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
+    logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
+    polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
+
+    end_polling_time = time.time() + polling_timeout
+    while time.time() < end_polling_time:
+        logger.debug("scan in progress")
+        scan_details = cycode_client.get_scan_details(scan_async_result.scan_id)
+        if scan_details.scan_status == SCAN_STATUS_COMPLETED:
+            return _get_scan_result(cycode_client, scan_async_result, scan_details)
+        if scan_details.scan_status == SCAN_STATUS_ERROR:
+            raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
+        time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
+
+    raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
+
+
+def perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents: InMemoryZip,
+                                    to_commit_zipped_documents: InMemoryZip, scan_type: str,
+                                    scan_parameters: dict) -> ZippedFileScanResult:
+    scan_async_result = cycode_client.multiple_zipped_file_scan_async(from_commit_zipped_documents,
+                                                                      to_commit_zipped_documents, scan_type,
+                                                                      scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
     polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
 
@@ -375,18 +445,24 @@ def exclude_detections_by_exclusions_configuration(scan_type: str, detections) -
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
 
 
-def get_commit_range_modified_documents(path: str, from_commit: str, to_commit: str) -> List[Document]:
-    documents = []
+def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_commit_rev: str) -> (
+        List[Document], List[Document]):
+    from_commit_documents = []
+    to_commit_documents = []
     repo = Repo(path)
-    diff = repo.commit(from_commit).diff(to_commit)
+    diff = repo.commit(from_commit_rev).diff(to_commit_rev)
     modified_files_diff = [change for change in diff if change.change_type != 'D']
     for blob in modified_files_diff:
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(os.path.join(path, diff_file_path))
-        file_content = repo.git.show(f'{to_commit}:{diff_file_path}')
-        documents.append(Document(file_path, file_content))
 
-    return documents
+        file_content = repo.git.show(f'{from_commit_rev}:{diff_file_path}')
+        from_commit_documents.append(Document(file_path, file_content))
+
+        file_content = repo.git.show(f'{to_commit_rev}:{diff_file_path}')
+        to_commit_documents.append(Document(file_path, file_content))
+
+    return from_commit_documents, to_commit_documents
 
 
 def _should_exclude_detection(detection, exclusions: Dict) -> bool:
