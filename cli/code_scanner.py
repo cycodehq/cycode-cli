@@ -447,7 +447,7 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
     modified_files_diff = [change for change in diff if change.change_type != 'D']
     for blob in modified_files_diff:
         diff_file_path = get_diff_file_path(blob)
-        file_path = get_path_by_os(os.path.join(path, diff_file_path))
+        file_path = get_path_by_os(diff_file_path)
 
         file_content = repo.git.show(f'{from_commit_rev}:{diff_file_path}')
         from_commit_documents.append(Document(file_path, file_content))

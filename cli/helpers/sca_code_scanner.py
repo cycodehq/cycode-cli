@@ -26,7 +26,7 @@ def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Repo,
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         for ecosystem_project_file in sca_utils.ecosystem_project_files.get(ecosystem):
-            file_to_search = f'{get_file_dir(doc.path)}/{ecosystem_project_file}'
+            file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
             if not is_project_file_exists_in_documents(documents, file_to_search):
                 try:
                     file_content = repo.git.show(f'{commit_rev}:{file_to_search}')
