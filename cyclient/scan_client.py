@@ -65,9 +65,9 @@ class ScanClient:
     def multiple_zipped_file_scan_async(self, from_commit_zip_file: InMemoryZip, to_commit_zip_file: InMemoryZip,
                                         scan_type: str, scan_parameters: dict,
                                         is_git_diff: bool = False) -> models.ScanInitializationResponse:
-        url_path = f"{self.SCAN_SERVICE_CONTROLLER_PATH}/commit-range/{scan_type}/repository"
-        files = {'from_commit': ('multiple_files_scan.zip', from_commit_zip_file.read()),
-                 'to_commit': ('multiple_files_scan.zip', to_commit_zip_file.read())}
+        url_path = f"{self.SCAN_SERVICE_CONTROLLER_PATH}/{scan_type}/repository/commit-range"
+        files = {'file_from_commit': ('multiple_files_scan.zip', from_commit_zip_file.read()),
+                 'file_to_commit': ('multiple_files_scan.zip', to_commit_zip_file.read())}
         try:
             response = self.cycode_client.post(url_path=url_path,
                                                data={'is_git_diff': is_git_diff,
