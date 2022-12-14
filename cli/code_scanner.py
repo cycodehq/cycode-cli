@@ -726,14 +726,14 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
 
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):
-    from_commit = None
-    to_commit = None
+    from_commit_rev = None
+    to_commit_rev = None
     for commit in Repo(path).iter_commits(rev=commit_range):
-        if not to_commit:
-            to_commit = commit.hexsha
-        from_commit = commit.hexsha
+        if not to_commit_rev:
+            to_commit_rev = commit.hexsha
+        from_commit_rev = commit.hexsha
 
-    return from_commit, to_commit
+    return from_commit_rev, to_commit_rev
 
 
 def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> str:
