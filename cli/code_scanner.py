@@ -85,7 +85,7 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 
 def scan_commit_range(context: click.Context, path: str, commit_range: str):
     scan_type = context.obj["scan_type"]
-    if scan_type != (SECRET_SCAN_TYPE and SCA_SCAN_TYPE):
+    if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     if scan_type == SCA_SCAN_TYPE:
@@ -444,15 +444,15 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
     to_commit_documents = []
     repo = Repo(path)
     diff = repo.commit(from_commit_rev).diff(to_commit_rev)
-    modified_files_diff = [change for change in diff if change.change_type != 'D']
+    modified_files_diff = [change for change in diff if change.change_type != COMMIT_DIFF_DELETED_FILE_IND]
     for blob in modified_files_diff:
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(diff_file_path)
 
-        file_content = repo.git.show(f'{from_commit_rev}:{diff_file_path}')
+        file_content = get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
         from_commit_documents.append(Document(file_path, file_content))
 
-        file_content = repo.git.show(f'{to_commit_rev}:{diff_file_path}')
+        file_content = get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
         to_commit_documents.append(Document(file_path, file_content))
 
     return from_commit_documents, to_commit_documents
@@ -728,3 +728,7 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
 def parse_commit_range(commit_range: str) -> (str, str):
     commit_range_list = commit_range.split('...')
     return commit_range_list[0], commit_range_list[1]
+
+
+def get_file_content_from_commit(repo, commit, file_path):
+    return repo.git.show(f'{commit}:{file_path}')

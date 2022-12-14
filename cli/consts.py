@@ -27,6 +27,8 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
     'pipfile', 'pipfile.lock', 'requirements.txt', 'setup.py'
 ]
 
+COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]
+
 DEFAULT_CYCODE_API_URL = "https://api.cycode.com"
 DEFAULT_CYCODE_APP_URL = "https://app.cycode.com"
 
@@ -68,3 +70,5 @@ DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS = 10
 # scan statuses
 SCAN_STATUS_COMPLETED = 'Completed'
 SCAN_STATUS_ERROR = 'Error'
+
+COMMIT_DIFF_DELETED_FILE_IND = 'D'
