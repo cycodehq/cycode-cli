@@ -89,7 +89,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     if scan_type == SCA_SCAN_TYPE:
-        return scan_sca_commit_range(commit_range, context, path)
+        return scan_sca_commit_range(context, path, commit_range)
     else:
         documents_to_scan = []
         for commit in Repo(path).iter_commits(rev=commit_range):
@@ -139,8 +139,8 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-def scan_sca_commit_range(commit_range, context, path):
-    from_commit_rev, to_commit_rev = parse_commit_range(commit_range)
+def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
     exclude_irrelevant_documents_to_scan(context, from_commit_documents)
@@ -725,10 +725,16 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
             for file_name, file_detections in detections_per_files.items()]
 
 
-def parse_commit_range(commit_range: str) -> (str, str):
-    commit_range_list = commit_range.split('...')
-    return commit_range_list[0], commit_range_list[1]
+def parse_commit_range(commit_range: str, path: str) -> (str, str):
+    from_commit = None
+    to_commit = None
+    for commit in Repo(path).iter_commits(rev=commit_range):
+        if not to_commit:
+            to_commit = commit.hexsha
+        from_commit = commit.hexsha
+
+    return from_commit, to_commit
 
 
-def get_file_content_from_commit(repo, commit, file_path):
+def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> str:
     return repo.git.show(f'{commit}:{file_path}')
