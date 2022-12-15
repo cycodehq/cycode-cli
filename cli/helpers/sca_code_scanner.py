@@ -5,7 +5,7 @@ from cli.utils.shell_executor import shell
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths
 from cyclient import logger
-from cli.helpers import sca_utils
+from cli.consts import *
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
@@ -25,7 +25,10 @@ def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Repo,
     documents_to_add: List[Document] = []
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
-        for ecosystem_project_file in sca_utils.ecosystem_project_files.get(ecosystem):
+        if ecosystem is None:
+            logger.debug("failed to resolve project file ecosystem: %s", doc.path)
+            continue
+        for ecosystem_project_file in PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
             file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
             if not is_project_file_exists_in_documents(documents, file_to_search):
                 try:
@@ -38,14 +41,11 @@ def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Repo,
 
 
 def is_project_file_exists_in_documents(documents: List[Document], file: str):
-    for doc in documents:
-        if file == doc.path:
-            return True
-    return False
+    return any(doc for doc in documents if file == doc.path)
 
 
 def get_project_file_ecosystem(document: Document):
-    for ecosystem, project_files in sca_utils.ecosystem_project_files.items():
+    for ecosystem, project_files in PROJECT_FILES_BY_ECOSYSTEM_MAP.items():
         for project_file in project_files:
             if document.path.endswith(project_file):
                 return ecosystem

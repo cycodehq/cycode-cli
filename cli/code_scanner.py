@@ -444,7 +444,7 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
     to_commit_documents = []
     repo = Repo(path)
     diff = repo.commit(from_commit_rev).diff(to_commit_rev)
-    modified_files_diff = [change for change in diff if change.change_type != COMMIT_DIFF_DELETED_FILE_IND]
+    modified_files_diff = [change for change in diff if change.change_type != COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE]
     for blob in modified_files_diff:
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(diff_file_path)

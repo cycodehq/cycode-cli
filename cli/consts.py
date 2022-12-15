@@ -27,6 +27,22 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
     'pipfile', 'pipfile.lock', 'requirements.txt', 'setup.py'
 ]
 
+PROJECT_FILES_BY_ECOSYSTEM_MAP = {
+    "crates": ["Cargo.lock", "Cargo.toml"],
+    "composer": ["composer.json", "composer.lock"],
+    "go": ["go.sum", "go.mod", "Gopkg.lock"],
+    "maven_pom": ["pom.xml"],
+    "maven_gradle": ["build.gradle", "build.gradle.kts", "gradle.lockfile"],
+    "npm": ["package.json", "package-lock.json", "yarn.lock", "npm-shrinkwrap.json", ".npmrc"],
+    "nuget": ["packages.config", "project.assets.json", "packages.lock.json", "nuget.config"],
+    "ruby_gems": ["Gemfile", "Gemfile.lock"],
+    "sbt": ["build.sbt", "build.scala", "build.sbt.lock"],
+    "pypi_poetry": ["pyproject.toml", "poetry.lock"],
+    "pypi_pipenv": ["Pipfile", "Pipfile.lock"],
+    "pypi_requirements": ["requirements.txt"],
+    "pypi_setup": ["setup.py"]
+}
+
 COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]
 
 DEFAULT_CYCODE_API_URL = "https://api.cycode.com"
@@ -71,4 +87,4 @@ DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS = 10
 SCAN_STATUS_COMPLETED = 'Completed'
 SCAN_STATUS_ERROR = 'Error'
 
-COMMIT_DIFF_DELETED_FILE_IND = 'D'
+COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE = 'D'
