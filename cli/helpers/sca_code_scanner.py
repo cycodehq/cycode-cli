@@ -28,16 +28,22 @@ def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Repo,
         if ecosystem is None:
             logger.debug("failed to resolve project file ecosystem: %s", doc.path)
             continue
-        for ecosystem_project_file in PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
-            file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
-            if not is_project_file_exists_in_documents(documents, file_to_search):
-                try:
-                    file_content = repo.git.show(f'{commit_rev}:{file_to_search}')
-                except GitCommandError:
-                    continue
-                documents_to_add.append(Document(file_to_search, file_content))
+        documents_to_add = get_ecosystem_project_files_if_exists(documents, commit_rev, doc, ecosystem, repo)
 
     documents.extend(documents_to_add)
+
+
+def get_ecosystem_project_files_if_exists(documents, commit_rev, doc, ecosystem, repo):
+    documents_to_add: List[Document] = []
+    for ecosystem_project_file in PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
+        file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
+        if not is_project_file_exists_in_documents(documents, file_to_search):
+            try:
+                file_content = repo.git.show(f'{commit_rev}:{file_to_search}')
+            except GitCommandError:
+                continue
+            documents_to_add.append(Document(file_to_search, file_content))
+    return documents_to_add
 
 
 def is_project_file_exists_in_documents(documents: List[Document], file: str):
