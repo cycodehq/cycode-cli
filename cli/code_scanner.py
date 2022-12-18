@@ -223,11 +223,14 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     to_commit_zipped_documents = InMemoryZip()
 
     try:
-        from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
-                                                             from_documents_to_scan)
-        to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents, to_documents_to_scan)
-        scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
-                                                      to_commit_zipped_documents, scan_type, scan_parameters)
+        scan_result = init_default_scan_result(str(scan_id))
+        if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
+            from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
+                                                                 from_documents_to_scan)
+            to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
+                                                               to_documents_to_scan)
+            scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
+                                                          to_commit_zipped_documents, scan_type, scan_parameters)
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
                                to_documents_to_scan)
@@ -245,6 +248,10 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
                         all_detections_count, len(to_documents_to_scan), zip_file_size, scan_command_type,
                         error_message)
+
+
+def should_scan_documents(from_documents_to_scan: List[Document], to_documents_to_scan: List[Document]) -> bool:
+    return len(from_documents_to_scan) > 0 or len(to_documents_to_scan) > 0
 
 
 def handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold, to_documents_to_scan):
@@ -702,9 +709,7 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
 
 
 def _get_scan_result(cycode_client, scan_id: str, scan_details: ScanDetailsResponse) -> ZippedFileScanResult:
-    scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
-                                       scan_id=scan_id,
-                                       report_url=_try_get_report_url(scan_details.metadata))
+    scan_result = init_default_scan_result(scan_id, scan_details.metadata)
     if not scan_details.detections_count:
         return scan_result
 
@@ -713,6 +718,12 @@ def _get_scan_result(cycode_client, scan_id: str, scan_details: ScanDetailsRespo
     scan_result.detections_per_file = _map_detections_per_file(scan_detections)
     scan_result.did_detect = True
     return scan_result
+
+
+def init_default_scan_result(scan_id: str, scan_metadata: str = None) -> ZippedFileScanResult:
+    return ZippedFileScanResult(did_detect=False, detections_per_file=[],
+                                scan_id=scan_id,
+                                report_url=_try_get_report_url(scan_metadata))
 
 
 def _try_get_report_url(metadata: str) -> Optional[str]:
