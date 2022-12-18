@@ -12,7 +12,8 @@ from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
 from cli.config import configuration_manager
-from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
+from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
+    get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
@@ -132,11 +133,23 @@ def scan_path(context: click.Context, path):
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     """ Use this command to scan the content that was not committed yet """
+    scan_type = context.obj['scan_type']
+    if scan_type == SCA_SCAN_TYPE:
+        return scan_sca_pre_commit(context)
+
     diff_files = Repo(os.getcwd()).index.diff("HEAD", create_patch=True, R=True)
     documents_to_scan = [Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file))
                          for file in diff_files]
     documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
     return scan_documents(context, documents_to_scan, is_git_diff=True)
+
+
+def scan_sca_pre_commit(context):
+    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
+    exclude_irrelevant_documents_to_scan(context, git_head_documents)
+    exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
+    sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
+    return scan_commit_range_documents(context, git_head_documents, pre_committed_documents)
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
@@ -436,6 +449,23 @@ def exclude_detections_for_pre_commit_scan_command_type(detections) -> List:
 def exclude_detections_by_exclusions_configuration(scan_type: str, detections) -> List:
     exclusions = configuration_manager.get_exclusions_by_scan_type(scan_type)
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
+
+
+def get_pre_commit_modified_documents():
+    repo = Repo(os.getcwd())
+    diff_files = repo.index.diff(GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    git_head_documents = []
+    pre_committed_documents = []
+    for file in diff_files:
+        diff_file_path = get_diff_file_path(file)
+        file_path = get_path_by_os(diff_file_path)
+
+        file_content = get_file_content_from_commit(repo, GIT_HEAD_COMMIT_REV, diff_file_path)
+        git_head_documents.append(Document(file_path, file_content))
+
+        file_content = get_file_content(file_path)
+        pre_committed_documents.append(Document(file_path, file_content))
+    return git_head_documents, pre_committed_documents
 
 
 def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_commit_rev: str) -> (

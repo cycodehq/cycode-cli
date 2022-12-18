@@ -1,9 +1,10 @@
+import os
 import click
 from typing import List, Optional
 from git import Repo, GitCommandError
 from cli.utils.shell_executor import shell
 from cli.models import Document
-from cli.utils.path_utils import get_file_dir, join_paths
+from cli.utils.path_utils import get_file_dir, join_paths, get_file_content
 from cyclient import logger
 from cli.consts import *
 
@@ -21,7 +22,15 @@ def perform_pre_commit_range_scan_actions(path: str, from_commit_documents: List
     add_ecosystem_related_files_if_exists(to_commit_documents, repo, to_commit_rev)
 
 
-def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Repo, commit_rev: str):
+def perform_pre_hook_range_scan_actions(git_head_documents: List[Document],
+                                        pre_committed_documents: List[Document]) -> None:
+    repo = Repo(os.getcwd())
+    add_ecosystem_related_files_if_exists(git_head_documents, repo, GIT_HEAD_COMMIT_REV)
+    add_ecosystem_related_files_if_exists(pre_committed_documents)
+
+
+def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Optional[Repo] = None,
+                                          commit_rev: Optional[str] = None):
     documents_to_add: List[Document] = []
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
@@ -39,8 +48,11 @@ def get_ecosystem_project_files_if_exists(documents, commit_rev, doc, ecosystem,
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
             try:
-                file_content = repo.git.show(f'{commit_rev}:{file_to_search}')
-            except GitCommandError:
+                if repo:
+                    file_content = repo.git.show(f'{commit_rev}:{file_to_search}')
+                else:
+                    file_content = get_file_content(file_to_search)
+            except (GitCommandError, FileNotFoundError):
                 continue
             documents_to_add.append(Document(file_to_search, file_content))
     return documents_to_add
