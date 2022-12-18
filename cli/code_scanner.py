@@ -5,7 +5,7 @@ import traceback
 from platform import platform
 from uuid import uuid4, UUID
 from typing import Optional
-from git import Repo, NULL_TREE, InvalidGitRepositoryError
+from git import Repo, NULL_TREE, InvalidGitRepositoryError, GitCommandError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
@@ -146,8 +146,8 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 
 def scan_sca_pre_commit(context):
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
-    exclude_irrelevant_documents_to_scan(context, git_head_documents)
-    exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
+    git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
+    pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
     return scan_commit_range_documents(context, git_head_documents, pre_committed_documents)
 
@@ -156,8 +156,8 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
-    exclude_irrelevant_documents_to_scan(context, from_commit_documents)
-    exclude_irrelevant_documents_to_scan(context, to_commit_documents)
+    from_commit_documents = exclude_irrelevant_documents_to_scan(context, from_commit_documents)
+    to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
     return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
@@ -461,7 +461,8 @@ def get_pre_commit_modified_documents():
         file_path = get_path_by_os(diff_file_path)
 
         file_content = get_file_content_from_commit(repo, GIT_HEAD_COMMIT_REV, diff_file_path)
-        git_head_documents.append(Document(file_path, file_content))
+        if file_content is not None:
+            git_head_documents.append(Document(file_path, file_content))
 
         file_content = get_file_content(file_path)
         pre_committed_documents.append(Document(file_path, file_content))
@@ -480,10 +481,12 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
         file_path = get_path_by_os(diff_file_path)
 
         file_content = get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
-        from_commit_documents.append(Document(file_path, file_content))
+        if file_content is not None:
+            from_commit_documents.append(Document(file_path, file_content))
 
         file_content = get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
-        to_commit_documents.append(Document(file_path, file_content))
+        if file_content is not None:
+            to_commit_documents.append(Document(file_path, file_content))
 
     return from_commit_documents, to_commit_documents
 
@@ -766,5 +769,8 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
     return from_commit_rev, to_commit_rev
 
 
-def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> str:
-    return repo.git.show(f'{commit}:{file_path}')
+def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
+    try:
+        return repo.git.show(f'{commit}:{file_path}')
+    except GitCommandError:
+        return None
