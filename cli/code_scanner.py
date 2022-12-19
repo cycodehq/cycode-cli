@@ -471,8 +471,10 @@ def get_pre_commit_modified_documents():
         if file_content is not None:
             git_head_documents.append(Document(file_path, file_content))
 
-        file_content = get_file_content(file_path)
-        pre_committed_documents.append(Document(file_path, file_content))
+        if os.path.exists(file_path):
+            file_content = get_file_content(file_path)
+            pre_committed_documents.append(Document(file_path, file_content))
+
     return git_head_documents, pre_committed_documents
 
 
