@@ -31,18 +31,17 @@ def perform_pre_hook_range_scan_actions(git_head_documents: List[Document],
 
 def add_ecosystem_related_files_if_exists(documents: List[Document], repo: Optional[Repo] = None,
                                           commit_rev: Optional[str] = None):
-    documents_to_add: List[Document] = []
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
             logger.debug("failed to resolve project file ecosystem: %s", doc.path)
             continue
-        documents_to_add = get_ecosystem_project_files_if_exists(documents, commit_rev, doc, ecosystem, repo)
+        documents_to_add = get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo)
+        documents.extend(documents_to_add)
 
-    documents.extend(documents_to_add)
 
-
-def get_ecosystem_project_files_if_exists(documents, commit_rev, doc, ecosystem, repo):
+def get_doc_ecosystem_related_project_files(doc: Document, documents: List[Document], ecosystem: str,
+                                            commit_rev: Optional[str], repo: Optional[Repo]) -> List[Document]:
     documents_to_add: List[Document] = []
     for ecosystem_project_file in PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
@@ -58,11 +57,11 @@ def get_ecosystem_project_files_if_exists(documents, commit_rev, doc, ecosystem,
     return documents_to_add
 
 
-def is_project_file_exists_in_documents(documents: List[Document], file: str):
+def is_project_file_exists_in_documents(documents: List[Document], file: str) -> bool:
     return any(doc for doc in documents if file == doc.path)
 
 
-def get_project_file_ecosystem(document: Document):
+def get_project_file_ecosystem(document: Document) -> Optional[str]:
     for ecosystem, project_files in PROJECT_FILES_BY_ECOSYSTEM_MAP.items():
         for project_file in project_files:
             if document.path.endswith(project_file):
@@ -92,7 +91,7 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
     documents_to_scan.extend(documents_to_add)
 
 
-def get_manifest_file_path(document, is_monitor_action, project_path):
+def get_manifest_file_path(document: Document, is_monitor_action: bool, project_path: str) -> str:
     return join_paths(project_path, document.path) if is_monitor_action else document.path
 
 
