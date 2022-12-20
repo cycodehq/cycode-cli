@@ -7,4 +7,4 @@
   name: Cycode SCA pre commit defender
   language: python
   entry: cycode
-  args: [ 'scan', '-t', 'sca', 'pre_commit' ]
+  args: [ 'scan', '--scan_type', 'sca', 'pre_commit' ]
