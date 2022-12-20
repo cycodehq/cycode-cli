@@ -46,14 +46,12 @@ def get_doc_ecosystem_related_project_files(doc: Document, documents: List[Docum
     for ecosystem_project_file in PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
-            try:
-                if repo:
-                    file_content = repo.git.show(f'{commit_rev}:{file_to_search}')
-                else:
-                    file_content = get_file_content(file_to_search)
-            except (GitCommandError, FileNotFoundError):
-                continue
-            documents_to_add.append(Document(file_to_search, file_content))
+            file_content = get_file_content_from_commit(repo, commit_rev, file_to_search) if repo \
+                else get_file_content(file_to_search)
+
+            if file_content is not None:
+                documents_to_add.append(Document(file_to_search, file_content))
+
     return documents_to_add
 
 
@@ -113,3 +111,10 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 def is_gradle_project(document: Document) -> bool:
     return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
+
+
+def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
+    try:
+        return repo.git.show(f'{commit}:{file_path}')
+    except GitCommandError:
+        return None

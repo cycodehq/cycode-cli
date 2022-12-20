@@ -467,7 +467,7 @@ def get_pre_commit_modified_documents():
         diff_file_path = get_diff_file_path(file)
         file_path = get_path_by_os(diff_file_path)
 
-        file_content = get_file_content_from_commit(repo, GIT_HEAD_COMMIT_REV, diff_file_path)
+        file_content = sca_code_scanner.get_file_content_from_commit(repo, GIT_HEAD_COMMIT_REV, diff_file_path)
         if file_content is not None:
             git_head_documents.append(Document(file_path, file_content))
 
@@ -489,11 +489,11 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(diff_file_path)
 
-        file_content = get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
+        file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
         if file_content is not None:
             from_commit_documents.append(Document(file_path, file_content))
 
-        file_content = get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
+        file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
         if file_content is not None:
             to_commit_documents.append(Document(file_path, file_content))
 
@@ -780,10 +780,3 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
-
-
-def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
-    try:
-        return repo.git.show(f'{commit}:{file_path}')
-    except GitCommandError:
-        return None
