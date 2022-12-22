@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 import pathspec
 import os
 from pathlib import Path
@@ -59,3 +59,12 @@ def get_file_dir(path: str) -> str:
 
 def join_paths(path: str, filename: str) -> str:
     return os.path.join(path, filename)
+
+
+def get_file_content(file_path: str) -> Optional[str]:
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return content
+    except FileNotFoundError:
+        return None

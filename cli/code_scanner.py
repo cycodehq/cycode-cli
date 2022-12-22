@@ -5,14 +5,15 @@ import traceback
 from platform import platform
 from uuid import uuid4, UUID
 from typing import Optional
-from git import Repo, NULL_TREE, InvalidGitRepositoryError
+from git import Repo, NULL_TREE, InvalidGitRepositoryError, GitCommandError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
 from cli.config import configuration_manager
-from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, get_path_by_os
+from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
+    get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
@@ -132,6 +133,10 @@ def scan_path(context: click.Context, path):
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     """ Use this command to scan the content that was not committed yet """
+    scan_type = context.obj['scan_type']
+    if scan_type == SCA_SCAN_TYPE:
+        return scan_sca_pre_commit(context)
+
     diff_files = Repo(os.getcwd()).index.diff("HEAD", create_patch=True, R=True)
     documents_to_scan = [Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file))
                          for file in diff_files]
@@ -139,12 +144,20 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
+def scan_sca_pre_commit(context):
+    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
+    git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
+    pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
+    sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
+    return scan_commit_range_documents(context, git_head_documents, pre_committed_documents)
+
+
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
-    exclude_irrelevant_documents_to_scan(context, from_commit_documents)
-    exclude_irrelevant_documents_to_scan(context, to_commit_documents)
+    from_commit_documents = exclude_irrelevant_documents_to_scan(context, from_commit_documents)
+    to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
     return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
@@ -210,11 +223,14 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     to_commit_zipped_documents = InMemoryZip()
 
     try:
-        from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
-                                                             from_documents_to_scan)
-        to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents, to_documents_to_scan)
-        scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
-                                                      to_commit_zipped_documents, scan_type, scan_parameters)
+        scan_result = init_default_scan_result(str(scan_id))
+        if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
+            from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
+                                                                 from_documents_to_scan)
+            to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
+                                                               to_documents_to_scan)
+            scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
+                                                          to_commit_zipped_documents, scan_type, scan_parameters)
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
                                to_documents_to_scan)
@@ -232,6 +248,10 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
                         all_detections_count, len(to_documents_to_scan), zip_file_size, scan_command_type,
                         error_message)
+
+
+def should_scan_documents(from_documents_to_scan: List[Document], to_documents_to_scan: List[Document]) -> bool:
+    return len(from_documents_to_scan) > 0 or len(to_documents_to_scan) > 0
 
 
 def handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold, to_documents_to_scan):
@@ -438,6 +458,26 @@ def exclude_detections_by_exclusions_configuration(scan_type: str, detections) -
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
 
 
+def get_pre_commit_modified_documents():
+    repo = Repo(os.getcwd())
+    diff_files = repo.index.diff(GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    git_head_documents = []
+    pre_committed_documents = []
+    for file in diff_files:
+        diff_file_path = get_diff_file_path(file)
+        file_path = get_path_by_os(diff_file_path)
+
+        file_content = sca_code_scanner.get_file_content_from_commit(repo, GIT_HEAD_COMMIT_REV, diff_file_path)
+        if file_content is not None:
+            git_head_documents.append(Document(file_path, file_content))
+
+        if os.path.exists(file_path):
+            file_content = get_file_content(file_path)
+            pre_committed_documents.append(Document(file_path, file_content))
+
+    return git_head_documents, pre_committed_documents
+
+
 def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_commit_rev: str) -> (
         List[Document], List[Document]):
     from_commit_documents = []
@@ -449,11 +489,13 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(diff_file_path)
 
-        file_content = get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
-        from_commit_documents.append(Document(file_path, file_content))
+        file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
+        if file_content is not None:
+            from_commit_documents.append(Document(file_path, file_content))
 
-        file_content = get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
-        to_commit_documents.append(Document(file_path, file_content))
+        file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
+        if file_content is not None:
+            to_commit_documents.append(Document(file_path, file_content))
 
     return from_commit_documents, to_commit_documents
 
@@ -669,9 +711,7 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
 
 
 def _get_scan_result(cycode_client, scan_id: str, scan_details: ScanDetailsResponse) -> ZippedFileScanResult:
-    scan_result = ZippedFileScanResult(did_detect=False, detections_per_file=[],
-                                       scan_id=scan_id,
-                                       report_url=_try_get_report_url(scan_details.metadata))
+    scan_result = init_default_scan_result(scan_id, scan_details.metadata)
     if not scan_details.detections_count:
         return scan_result
 
@@ -680,6 +720,12 @@ def _get_scan_result(cycode_client, scan_id: str, scan_details: ScanDetailsRespo
     scan_result.detections_per_file = _map_detections_per_file(scan_detections)
     scan_result.did_detect = True
     return scan_result
+
+
+def init_default_scan_result(scan_id: str, scan_metadata: str = None) -> ZippedFileScanResult:
+    return ZippedFileScanResult(did_detect=False, detections_per_file=[],
+                                scan_id=scan_id,
+                                report_url=_try_get_report_url(scan_metadata))
 
 
 def _try_get_report_url(metadata: str) -> Optional[str]:
@@ -734,7 +780,3 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
-
-
-def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> str:
-    return repo.git.show(f'{commit}:{file_path}')
