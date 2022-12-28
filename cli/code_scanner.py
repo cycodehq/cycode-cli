@@ -161,8 +161,6 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
-    perform_pre_scan_documents_actions(context, SCA_SCAN_TYPE, from_commit_documents, False)
-    perform_pre_scan_documents_actions(context, SCA_SCAN_TYPE, to_commit_documents, False)
     return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
 
 
