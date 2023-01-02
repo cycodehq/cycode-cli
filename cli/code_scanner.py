@@ -5,7 +5,7 @@ import traceback
 from platform import platform
 from uuid import uuid4, UUID
 from typing import Optional
-from git import Repo, NULL_TREE, InvalidGitRepositoryError, GitCommandError
+from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
@@ -144,12 +144,13 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-def scan_sca_pre_commit(context):
+def scan_sca_pre_commit(context: click.Context):
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
-    return scan_commit_range_documents(context, git_head_documents, pre_committed_documents)
+    return scan_commit_range_documents(context, git_head_documents, pre_committed_documents,
+                                       configuration_manager.get_sca_pre_commit_timeout_in_seconds())
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
@@ -210,7 +211,8 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
 
 
 def scan_commit_range_documents(context: click.Context, from_documents_to_scan: List[Document],
-                                to_documents_to_scan: List[Document], scan_parameters: dict = None):
+                                to_documents_to_scan: List[Document], scan_parameters: dict = None,
+                                timeout: int = None):
     cycode_client = context.obj["client"]
     scan_type = context.obj["scan_type"]
     severity_threshold = context.obj["severity_threshold"]
@@ -230,7 +232,8 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
             to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
                                                                to_documents_to_scan)
             scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
-                                                          to_commit_zipped_documents, scan_type, scan_parameters)
+                                                          to_commit_zipped_documents, scan_type, scan_parameters,
+                                                          timeout)
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
                                to_documents_to_scan)
@@ -321,16 +324,18 @@ def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: 
 
 def perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents: InMemoryZip,
                                     to_commit_zipped_documents: InMemoryZip, scan_type: str,
-                                    scan_parameters: dict) -> ZippedFileScanResult:
+                                    scan_parameters: dict, timeout: int = None) -> ZippedFileScanResult:
     scan_async_result = \
         cycode_client.multiple_zipped_file_scan_async(from_commit_zipped_documents, to_commit_zipped_documents,
                                                       scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
-    return poll_scan_results(cycode_client, scan_async_result.scan_id)
+    return poll_scan_results(cycode_client, scan_async_result.scan_id, timeout)
 
 
-def poll_scan_results(cycode_client, scan_id: str):
-    polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
+def poll_scan_results(cycode_client, scan_id: str, polling_timeout: int = None):
+    if polling_timeout is None:
+        polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
+
     end_polling_time = time.time() + polling_timeout
     while time.time() < end_polling_time:
         logger.debug("scan in progress")
