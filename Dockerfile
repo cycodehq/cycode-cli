@@ -1,7 +1,7 @@
 FROM python:3.8.16-alpine3.17 as builder
 WORKDIR /usr/cycode/app
 COPY . ./
-RUN python -m pip install --upgrade --no-cache-dir pip==22.0.4 setuptools==57.5.0 wheel==0.37.1
+RUN python -m pip install --upgrade --no-cache-dir pip==22.0.4 setuptools==65.5.1 wheel==0.37.1
 RUN python3 setup.py sdist bdist_wheel
 
 FROM python:3.8.16-alpine3.17
