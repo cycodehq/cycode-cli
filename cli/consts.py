@@ -3,6 +3,7 @@ PRE_COMMIT_SCAN_COMMAND_TYPE = 'pre_commit'
 SECRET_SCAN_TYPE = 'secret'
 INFRA_CONFIGURATION_SCAN_TYPE = 'iac'
 SCA_SCAN_TYPE = "sca"
+SAST_SCAN_TYPE = "sast"
 
 INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
     '.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile'
