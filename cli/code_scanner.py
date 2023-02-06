@@ -776,7 +776,7 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
             for file_name, file_detections in detections_per_files.items()]
 
 def _get_file_name_from_detection(detection):
-    if detection['source_policy_type'] == "SAST":
+    if detection['category'] == "SAST":
         return detection['detection_details']['file_path']
     
     return detection['detection_details']['file_name']
