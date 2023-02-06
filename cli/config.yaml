@@ -4,6 +4,7 @@ scans:
     - secret
     - iac
     - sca
+    - sast
 result_printer:
   lines_to_display: 3
   show_secret: False

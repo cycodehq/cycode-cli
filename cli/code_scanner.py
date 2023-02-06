@@ -304,7 +304,7 @@ def validate_zip_file_size(scan_type, zip_file_size):
 
 def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
-    if scan_type == SCA_SCAN_TYPE:
+    if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
         return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
 
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
@@ -634,7 +634,7 @@ def _does_file_exceed_max_size_limit(filename: str) -> bool:
 
 
 def _get_document_by_file_name(documents: List[Document], file_name: str) -> Optional[Document]:
-    return next((document for document in documents if document.path == file_name), None)
+    return next((document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)), None)
 
 
 def _does_document_exceed_max_size_limit(content: str) -> bool:
@@ -760,7 +760,7 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
     for detection in detections:
         try:
             detection['message'] = detection['correlation_message']
-            file_name = detection['detection_details']['file_name']
+            file_name = _get_file_name_from_detection(detection)
             if file_name is None:
                 logger.debug("file name is missing from detection with id %s", detection.get('id'))
                 continue
@@ -775,6 +775,11 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
     return [DetectionsPerFile(file_name=file_name, detections=file_detections)
             for file_name, file_detections in detections_per_files.items()]
 
+def _get_file_name_from_detection(detection):
+    if detection['category'] == "SAST":
+        return detection['detection_details']['file_path']
+    
+    return detection['detection_details']['file_name']
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):
     from_commit_rev = None
@@ -785,3 +790,10 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
+
+def _normalize_file_path(path: str):
+    if path.startswith("/"):
+        return path[1:]
+    if path.startswith("./"):
+        return path[2:]
+    return path
