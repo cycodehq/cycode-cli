@@ -140,7 +140,7 @@ class ScanClient:
             return 'secret'
         elif scan_type == 'iac':
             return 'iac'
-        elif scan_type == 'sca':
+        elif scan_type == 'sca' or scan_type == 'sast':
             return 'scans'
 
     def _handle_exception(self, e: Exception):
