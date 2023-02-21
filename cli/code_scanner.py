@@ -1,11 +1,12 @@
 import click
 import os
+import sys
 import time
 import traceback
 from platform import platform
 from uuid import uuid4, UUID
 from typing import Optional
-from git import Repo, NULL_TREE, InvalidGitRepositoryError
+from git import Repo, NULL_TREE, InvalidGitRepositoryError, Commit
 from sys import getsizeof
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
@@ -142,6 +143,16 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
                          for file in diff_files]
     documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
     return scan_documents(context, documents_to_scan, is_git_diff=True)
+
+
+@click.command()
+@click.pass_context
+def pre_receive_scan(context: click.Context):
+    """ Use this command to scan the content that was not committed yet """
+    branch_update_details = parse_pre_receive_input()
+    start_commit, end_commit = calculate_commit_range(branch_update_details)
+    logger.info(f'start commit: {start_commit}, end commit: {end_commit}')
+    pass
 
 
 def scan_sca_pre_commit(context: click.Context):
@@ -380,6 +391,34 @@ def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetec
                                                                         detections=relevant_detections))
 
     return relevant_document_detections_list
+
+
+def parse_pre_receive_input() -> str:
+    pre_receive_input = sys.stdin.read().strip()
+    if not pre_receive_input:
+        raise ValueError("pre receive input was not found")
+
+    # each line represents a branch update request, handle the first one only
+    # TODO support case of multiple update branch requests
+    branch_update_details = pre_receive_input.splitlines()[0]
+    return branch_update_details
+
+
+def calculate_commit_range(branch_update_details: str) -> (str, str):
+    end_commit = get_end_commit_from_branch_update_details(branch_update_details)
+    start_commit = find_branch_oldest_not_updated_commit(end_commit)
+    return start_commit, end_commit
+
+
+def get_end_commit_from_branch_update_details(update_details: str) -> str:
+    # update details pattern: <start_commit> <end_commit> <ref>
+    _, end_commit, _ = update_details.split()
+    return end_commit
+
+
+def find_branch_oldest_not_updated_commit(commit: str) -> Optional[str]:
+    not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
+    return not_updated_commits
 
 
 def get_diff_file_path(file):
@@ -775,11 +814,13 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
     return [DetectionsPerFile(file_name=file_name, detections=file_detections)
             for file_name, file_detections in detections_per_files.items()]
 
+
 def _get_file_name_from_detection(detection):
     if detection['category'] == "SAST":
         return detection['detection_details']['file_path']
     
     return detection['detection_details']['file_name']
+
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):
     from_commit_rev = None
@@ -790,6 +831,7 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
+
 
 def _normalize_file_path(path: str):
     if path.startswith("/"):

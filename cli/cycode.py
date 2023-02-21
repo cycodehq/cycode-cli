@@ -22,7 +22,8 @@ NO_ISSUES_STATUS_CODE = 0
         "repository": code_scanner.scan_repository,
         "commit_history": code_scanner.scan_repository_commit_history,
         "path": code_scanner.scan_path,
-        "pre_commit": code_scanner.pre_commit_scan
+        "pre_commit": code_scanner.pre_commit_scan,
+        "pre_receive": code_scanner.pre_receive_scan
     },
 )
 @click.option('--scan-type', '-t', default="secret",
