@@ -72,5 +72,6 @@ except ValueError as e:
 
 timeout = _get_val_as_int(CYCODE_CLI_REQUEST_TIMEOUT_ENV_VAR_NAME) or _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
 dev_mode = _get_val_as_bool(DEV_MODE_ENV_VAR_NAME)
+dev_tenant_id = _get_val_as_string(DEV_TENANT_ID_ENV_VAR_NAME)
 batch_size = _get_val_as_int(BATCH_SIZE_ENV_VAR_NAME)
 verbose = _get_val_as_bool(VERBOSE_ENV_VAR_NAME)

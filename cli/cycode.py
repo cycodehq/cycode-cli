@@ -1,16 +1,21 @@
 import logging
-import click
 import sys
-from cli.models import Severity
-from cli.config import config
+
+import click
+
 from cli import code_scanner, __version__
-from cyclient import logger
-from cyclient.scan_client import ScanClient
+from cli.auth.auth_command import authenticate
+from cli.config import config, dev_mode
+from cli.models import Severity
+from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
-from cli.auth.auth_command import authenticate
-from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.auth.auth_manager import AuthManager
+from cyclient import logger
+from cyclient.cycode_dev_based_client import CycodeDevBasedClient
+from cyclient.cycode_token_based_client import CycodeTokenBasedClient
+from cyclient.scan_client import ScanClient
+from cyclient.scan_config.DefaultScanConfig import DefaultScanConfig
+from cyclient.scan_config.DevScanConfig import DevScanConfig
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
@@ -127,7 +132,10 @@ def get_cycode_client(client_id, client_secret):
         if not client_secret:
             raise click.ClickException("Cycode client secret is needed.")
 
-    return ScanClient(client_secret=client_secret, client_id=client_id)
+    cycode_client = CycodeDevBasedClient() if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
+    scan_config = DevScanConfig() if dev_mode else DefaultScanConfig()
+
+    return ScanClient(cycode_client=cycode_client, scan_config=scan_config)
 
 
 def _get_configured_credentials():
