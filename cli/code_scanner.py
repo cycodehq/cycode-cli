@@ -153,6 +153,7 @@ def pre_receive_scan(context: click.Context):
     print("ddddddd")
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
+    scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
     logger.info(f'start commit: {start_commit}, end commit: {end_commit}')
     pass
 
@@ -420,7 +421,9 @@ def get_end_commit_from_branch_update_details(update_details: str) -> str:
 
 def find_branch_oldest_not_updated_commit(commit: str) -> Optional[str]:
     not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
-    return not_updated_commits
+    if not not_updated_commits:
+        return None
+    return not_updated_commits[0]
 
 
 def get_diff_file_path(file):
