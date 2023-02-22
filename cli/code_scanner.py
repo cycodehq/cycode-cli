@@ -150,6 +150,7 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 def pre_receive_scan(context: click.Context):
     """ Use this command to scan the content that was not committed yet """
     logger.info(f'cccccccc')
+    print("ddddddd")
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     logger.info(f'start commit: {start_commit}, end commit: {end_commit}')
