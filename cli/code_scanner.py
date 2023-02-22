@@ -6,7 +6,7 @@ import traceback
 from platform import platform
 from uuid import uuid4, UUID
 from typing import Optional
-from git import Repo, NULL_TREE, InvalidGitRepositoryError, Commit
+from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
@@ -149,6 +149,7 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 @click.pass_context
 def pre_receive_scan(context: click.Context):
     """ Use this command to scan the content that was not committed yet """
+    logger.info(f'cccccccc')
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     logger.info(f'start commit: {start_commit}, end commit: {end_commit}')
