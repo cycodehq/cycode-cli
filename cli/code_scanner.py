@@ -421,9 +421,10 @@ def get_end_commit_from_branch_update_details(update_details: str) -> str:
 
 def find_branch_oldest_not_updated_commit(commit: str) -> Optional[str]:
     not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
-    if not not_updated_commits:
+    commits = not_updated_commits.splitlines()
+    if not commits:
         return None
-    return not_updated_commits[0]
+    return commits[0]
 
 
 def get_diff_file_path(file):
