@@ -6,6 +6,7 @@ import click
 from cli import code_scanner, __version__
 from cli.auth.auth_command import authenticate
 from cli.config import config, dev_mode
+from cli.consts import DEV_SCAN_CYCODE_APP_URL, DEV_DETECTION_CYCODE_APP_URL
 from cli.models import Severity
 from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.user_settings.credentials_manager import CredentialsManager
@@ -132,10 +133,14 @@ def get_cycode_client(client_id, client_secret):
         if not client_secret:
             raise click.ClickException("Cycode client secret is needed.")
 
-    cycode_client = CycodeDevBasedClient() if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
+    scan_cycode_client = CycodeDevBasedClient(DEV_SCAN_CYCODE_APP_URL) if dev_mode else CycodeTokenBasedClient(
+        client_id, client_secret)
+    detection_cycode_client = CycodeDevBasedClient(
+        DEV_DETECTION_CYCODE_APP_URL) if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
     scan_config = DevScanConfig() if dev_mode else DefaultScanConfig()
 
-    return ScanClient(cycode_client=cycode_client, scan_config=scan_config)
+    return ScanClient(scan_cycode_client=scan_cycode_client, detection_cycode_client=detection_cycode_client,
+                      scan_config=scan_config)
 
 
 def _get_configured_credentials():
