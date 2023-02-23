@@ -133,11 +133,14 @@ def get_cycode_client(client_id, client_secret):
         if not client_secret:
             raise click.ClickException("Cycode client secret is needed.")
 
-    scan_cycode_client = CycodeDevBasedClient(DEV_SCAN_CYCODE_APP_URL) if dev_mode else CycodeTokenBasedClient(
-        client_id, client_secret)
-    detection_cycode_client = CycodeDevBasedClient(
-        DEV_DETECTION_CYCODE_APP_URL) if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
-    scan_config = DevScanConfig() if dev_mode else DefaultScanConfig()
+    if dev_mode:
+        scan_cycode_client = CycodeDevBasedClient(DEV_SCAN_CYCODE_APP_URL)
+        detection_cycode_client = CycodeDevBasedClient(DEV_DETECTION_CYCODE_APP_URL)
+        scan_config = DevScanConfig()
+    else:
+        scan_cycode_client = CycodeTokenBasedClient(client_id, client_secret)
+        detection_cycode_client = CycodeTokenBasedClient(client_id, client_secret)
+        scan_config = DefaultScanConfig()
 
     return ScanClient(scan_cycode_client=scan_cycode_client, detection_cycode_client=detection_cycode_client,
                       scan_config=scan_config)
