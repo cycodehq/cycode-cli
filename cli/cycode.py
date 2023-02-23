@@ -134,16 +134,25 @@ def get_cycode_client(client_id, client_secret):
             raise click.ClickException("Cycode client secret is needed.")
 
     if dev_mode:
-        scan_cycode_client = CycodeDevBasedClient(DEV_SCAN_CYCODE_APP_URL)
-        detection_cycode_client = CycodeDevBasedClient(DEV_DETECTION_CYCODE_APP_URL)
-        scan_config = DevScanConfig()
+        detection_cycode_client, scan_config, scan_cycode_client = create_scan_for_dev_env()
     else:
-        scan_cycode_client = CycodeTokenBasedClient(client_id, client_secret)
-        detection_cycode_client = CycodeTokenBasedClient(client_id, client_secret)
-        scan_config = DefaultScanConfig()
+        detection_cycode_client, scan_config, scan_cycode_client = create_scan(client_id, client_secret)
 
     return ScanClient(scan_cycode_client=scan_cycode_client, detection_cycode_client=detection_cycode_client,
                       scan_config=scan_config)
+
+
+def create_scan(client_id, client_secret):
+    cycode_client = CycodeTokenBasedClient(client_id, client_secret)
+    scan_config = DefaultScanConfig()
+    return cycode_client, scan_config, cycode_client
+
+
+def create_scan_for_dev_env():
+    scan_cycode_client = CycodeDevBasedClient(DEV_SCAN_CYCODE_APP_URL)
+    detection_cycode_client = CycodeDevBasedClient(DEV_DETECTION_CYCODE_APP_URL)
+    scan_config = DevScanConfig()
+    return detection_cycode_client, scan_config, scan_cycode_client
 
 
 def _get_configured_credentials():
