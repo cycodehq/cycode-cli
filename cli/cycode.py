@@ -6,7 +6,7 @@ import click
 from cli import code_scanner, __version__
 from cli.auth.auth_command import authenticate
 from cli.config import config, dev_mode
-from cli.consts import DEV_SCAN_CYCODE_APP_URL, DEV_DETECTION_CYCODE_APP_URL
+from cli.config_dev import DEV_SCAN_CYCODE_APP_URL, DEV_DETECTION_CYCODE_APP_URL
 from cli.models import Severity
 from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.user_settings.credentials_manager import CredentialsManager
