@@ -49,7 +49,7 @@ class CycodeClientBase:
             **kwargs
     ) -> Response:
 
-        url = f"{self.api_url}/{endpoint}"
+        url = f"{self.api_url}{self.append_to_endpoind()}{endpoint}"
 
         response = request(
             method=method, url=url, timeout=self.timeout, headers=self.get_request_headers(headers), **kwargs
@@ -61,4 +61,7 @@ class CycodeClientBase:
         if additional_headers is None:
             return self.MANDATORY_HEADERS
         return {**self.MANDATORY_HEADERS, **additional_headers}
+
+    def append_to_endpoind(self):
+        return "/"
 

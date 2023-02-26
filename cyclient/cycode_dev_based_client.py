@@ -1,5 +1,4 @@
 from cyclient.config import dev_tenant_id
-from cyclient.cycode_client import CycodeClient
 from cyclient.cycode_client_base import CycodeClientBase
 
 """
@@ -17,3 +16,6 @@ class CycodeDevBasedClient(CycodeClientBase):
         headers['X-Tenant-Id'] = dev_tenant_id
 
         return headers
+
+    def append_to_endpoind(self):
+        return ""
