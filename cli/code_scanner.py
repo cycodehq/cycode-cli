@@ -859,7 +859,7 @@ def should_skip_scan():
     if git_push_option_count is not None:
         prefix = "GIT_PUSH_OPTION_"
         for i in range(int(git_push_option_count)):
-            if os.getenv(f"{prefix}{i}") == "cycode_skip_scan":
+            if os.getenv(f"{prefix}{i}") == "skip-cycode-scan":
                 return True
 
     return False
