@@ -160,7 +160,7 @@ def pre_receive_scan(context: click.Context):
     if should_skip_pre_receive_scan():
         logger.info("Scan request has been skipped successfully")
         return
-
+    return
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
@@ -868,7 +868,7 @@ def should_skip_pre_receive_scan() -> bool:
 
 
 def is_git_push_option_has_value(match_value: str) -> bool:
-    option_count_env_value = os.getenv("GIT_PUSH_OPTION_COUNT", 0)
+    option_count_env_value = os.getenv("GIT_PUSH_OPTION_COUNT", "")
     option_count = int(option_count_env_value) if option_count_env_value.isdigit() else 0
 
     return any(os.getenv(f"GIT_PUSH_OPTION_{i}") == match_value for i in range(option_count))
