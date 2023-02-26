@@ -1,5 +1,4 @@
-import json
-from typing import List, Dict
+from typing import List, Dict, Optional
 from marshmallow import Schema, fields, EXCLUDE, post_load
 
 
@@ -36,10 +35,11 @@ class DetectionSchema(Schema):
 
 
 class DetectionsPerFile(Schema):
-    def __init__(self, file_name: str, detections: List[Detection]):
+    def __init__(self, file_name: str, detections: List[Detection], commit_id: Optional[str] = None):
         super().__init__()
         self.file_name = file_name
         self.detections = detections
+        self.commit_id = commit_id
 
 
 class DetectionsPerFileSchema(Schema):
@@ -48,6 +48,7 @@ class DetectionsPerFileSchema(Schema):
 
     file_name = fields.String()
     detections = fields.List(fields.Nested(DetectionSchema))
+    commit_id = fields.String(allow_none=True)
 
     @post_load
     def build_dto(self, data, **kwargs):
@@ -55,7 +56,7 @@ class DetectionsPerFileSchema(Schema):
 
 
 class ZippedFileScanResult(Schema):
-    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], report_url: str = None,
+    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], report_url: Optional[str] = None,
                  scan_id: str = None, err: str = None):
         super().__init__()
         self.did_detect = did_detect
