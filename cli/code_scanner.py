@@ -160,8 +160,6 @@ def pre_receive_scan(context: click.Context):
         logger.info("Scan request has been skipped successfully")
         return
 
-    logger.info("yofi")
-    return
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
