@@ -16,7 +16,16 @@ class FunctionContext:
 
 
 class TimerThread(Thread):
+    """
+    Custom thread class for executing timer in the background. In addition giving the ability to perform
+    action every X seconds until reaching to the configured timeout
 
+    Members:
+        timeout - the amount of time to count until timeout in seconds
+        quit_function - function to perform when reaching to timeout
+        repeat_function (Optional) - function to perform every X seconds until reaching to timeout
+        repeat_interval (Optional) - the period to wait until performing repeat function again in seconds
+    """
     def __init__(self, timeout: int,
                  quit_function: FunctionContext,
                  repeat_function: Optional[FunctionContext] = None,
@@ -29,11 +38,13 @@ class TimerThread(Thread):
         self.event = Event()
 
     def run(self):
-        # do not perform any action till timeout
+        # do not perform any functionality till timeout, perform quit function on timeout
         if not self._repeat_function or not self._repeat_interval:
             self._run_quit_function_on_timeout()
             return
 
+        # perform repeat function every X time according to repeat interval
+        # until reaching to timeout, then if timeout perform quit function
         self._run_repeat_function_until_timeout_and_quit_function_on_timeout()
 
     def stop(self):
@@ -47,7 +58,7 @@ class TimerThread(Thread):
 
     def _run_repeat_function_until_timeout_and_quit_function_on_timeout(self):
         while not self.event.wait(self._repeat_interval):
-            self._call_repeat_till_quit_function()
+            self._call_repeat_function()
             self._timeout -= self._repeat_interval
             if self._timeout <= 0:
                 break
@@ -59,12 +70,25 @@ class TimerThread(Thread):
     def _call_quit_function(self):
         self._quit_function.FUNCTION(*self._quit_function.ARGS, **self._quit_function.KWARGS)
 
-    def _call_repeat_till_quit_function(self):
+    def _call_repeat_function(self):
         self._repeat_function.FUNCTION(*self._repeat_function.ARGS, **self._repeat_function.KWARGS)
 
 
 class TimeoutAfter:
+    """
+    A task wrapper for controlling how much time a task should be run before timing out
 
+    Use Example:
+        with TimeoutAfter(5, repeat_function=FunctionContext(x), repeat_interval=2):
+            <task logic>
+
+    Members:
+        timeout - the amount of time to count until timeout in seconds
+        quit_function (Optional) - function to perform when reaching to timeout,
+                                   the default option is to interrupt main thread
+        repeat_function (Optional) - function to perform every X seconds until reaching to timeout
+        repeat_interval (Optional) - the period to wait until performing repeat function again in seconds
+    """
     def __init__(self, timeout: int,
                  quit_function: Optional[FunctionContext] = None,
                  repeat_function: Optional[FunctionContext] = None,
@@ -84,6 +108,9 @@ class TimeoutAfter:
                  exc_tb: Optional[TracebackType]) -> None:
         if self.timeout:
             self.timer.stop()
+
+        # catch the exception of interrupt_main before exiting
+        # the with statement and throw timeout error instead
         if exc_type == KeyboardInterrupt:
             raise TimeoutError()
 
