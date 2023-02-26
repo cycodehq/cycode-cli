@@ -155,12 +155,12 @@ def pre_receive_scan(context: click.Context):
 
     if is_verbose_mode_set_in_pre_receive_scan():
         logger.setLevel(logging.DEBUG)
-        logger.debug("Debug mode was set")
+        logger.debug("Pre receive scan is running on verbose mode")
 
     if should_skip_pre_receive_scan():
-        logger.info("Scan request has been skipped successfully")
+        logger.info("Pre receive scan has been skipped successfully")
         return
-    return
+
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
