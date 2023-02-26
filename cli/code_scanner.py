@@ -151,6 +151,11 @@ def pre_receive_scan(context: click.Context):
     """ Use this command to scan the content that was not committed yet """
     logger.info(f'cccccccc')
     print("ddddddd")
+
+    if should_skip_scan():
+        logger.info("Scan request has been skipped successfully")
+        return
+
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
@@ -679,7 +684,9 @@ def _does_file_exceed_max_size_limit(filename: str) -> bool:
 
 
 def _get_document_by_file_name(documents: List[Document], file_name: str) -> Optional[Document]:
-    return next((document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)), None)
+    return next(
+        (document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)),
+        None)
 
 
 def _does_document_exceed_max_size_limit(content: str) -> bool:
@@ -824,7 +831,7 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
 def _get_file_name_from_detection(detection):
     if detection['category'] == "SAST":
         return detection['detection_details']['file_path']
-    
+
     return detection['detection_details']['file_name']
 
 
@@ -845,3 +852,11 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
+
+def should_skip_scan():
+    if int(os.getenv("GIT_PUSH_OPTION_COUNT")) > 0:
+        for name, value in os.environ.items():
+            if name.startswith("GIT_PUSH_OPTION") and value == "cycode_skip_scan":
+                return True
+    return False
