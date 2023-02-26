@@ -153,10 +153,11 @@ def pre_receive_scan(context: click.Context):
     logger.info(f'cccccccc')
     print("ddddddd")
 
-    if is_verbose_mode():
+    if is_verbose_mode_set_in_pre_receive_scan():
         logger.setLevel(logging.DEBUG)
+        logger.debug("Debug mode was set")
 
-    if should_skip_scan():
+    if should_skip_pre_receive_scan():
         logger.info("Scan request has been skipped successfully")
         return
 
@@ -858,19 +859,16 @@ def _normalize_file_path(path: str):
     return path
 
 
-def is_verbose_mode() -> bool:
+def is_verbose_mode_set_in_pre_receive_scan() -> bool:
     return is_git_push_option_has_value("cycode-verbose")
 
 
-def should_skip_scan() -> bool:
+def should_skip_pre_receive_scan() -> bool:
     return is_git_push_option_has_value("skip-cycode-scan")
 
 
 def is_git_push_option_has_value(match_value: str) -> bool:
-    git_push_option_count = os.getenv("GIT_PUSH_OPTION_COUNT", 0)
-    option_count = int(git_push_option_count) if git_push_option_count.isdigit() else 0
+    option_count_env_value = os.getenv("GIT_PUSH_OPTION_COUNT", 0)
+    option_count = int(option_count_env_value) if option_count_env_value.isdigit() else 0
 
-    if option_count > 0:
-        return any(os.getenv(f"GIT_PUSH_OPTION_{i}") == match_value for i in range(option_count))
-
-    return False
+    return any(os.getenv(f"GIT_PUSH_OPTION_{i}") == match_value for i in range(option_count))
