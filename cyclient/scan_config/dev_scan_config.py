@@ -1,4 +1,4 @@
-from cyclient.scan_config.ScanConfigBase import ScanConfigBase
+from cyclient.scan_config.scan_config_base import ScanConfigBase
 
 
 class DevScanConfig(ScanConfigBase):

@@ -8,12 +8,12 @@ from cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
 from cli.zip_file import InMemoryZip
 from . import models
 from .cycode_client_base import CycodeClientBase
-from .scan_config import ScanConfigBase
+from .scan_config import scan_config_base
 
 
 class ScanClient:
     def __init__(self, scan_cycode_client: CycodeClientBase, detection_cycode_client: CycodeClientBase,
-                 scan_config: ScanConfigBase):
+                 scan_config: scan_config_base):
         self.scan_cycode_client = scan_cycode_client
         self.detection_cycode_client = detection_cycode_client
         self.scan_config = scan_config

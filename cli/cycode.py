@@ -15,8 +15,8 @@ from cyclient import logger
 from cyclient.cycode_dev_based_client import CycodeDevBasedClient
 from cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from cyclient.scan_client import ScanClient
-from cyclient.scan_config.DefaultScanConfig import DefaultScanConfig
-from cyclient.scan_config.DevScanConfig import DevScanConfig
+from cyclient.scan_config.default_scan_config import DefaultScanConfig
+from cyclient.scan_config.dev_scan_config import DevScanConfig
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
