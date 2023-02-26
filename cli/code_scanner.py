@@ -1,3 +1,4 @@
+import logging
 import click
 import os
 import sys
@@ -152,10 +153,15 @@ def pre_receive_scan(context: click.Context):
     logger.info(f'cccccccc')
     print("ddddddd")
 
+    if is_verbose_mode():
+        logger.setLevel(logging.DEBUG)
+
     if should_skip_scan():
         logger.info("Scan request has been skipped successfully")
         return
 
+    logger.info("yofi")
+    return
     branch_update_details = parse_pre_receive_input()
     start_commit, end_commit = calculate_commit_range(branch_update_details)
     scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
@@ -854,12 +860,19 @@ def _normalize_file_path(path: str):
     return path
 
 
-def should_skip_scan():
-    git_push_option_count = os.getenv("GIT_PUSH_OPTION_COUNT")
-    if git_push_option_count is not None:
-        prefix = "GIT_PUSH_OPTION_"
-        for i in range(int(git_push_option_count)):
-            if os.getenv(f"{prefix}{i}") == "skip-cycode-scan":
-                return True
+def is_verbose_mode() -> bool:
+    return is_git_push_option_has_value("cycode-verbose")
+
+
+def should_skip_scan() -> bool:
+    return is_git_push_option_has_value("skip-cycode-scan")
+
+
+def is_git_push_option_has_value(match_value: str) -> bool:
+    git_push_option_count = os.getenv("GIT_PUSH_OPTION_COUNT", 0)
+    option_count = int(git_push_option_count) if git_push_option_count.isdigit() else 0
+
+    if option_count > 0:
+        return any(os.getenv(f"GIT_PUSH_OPTION_{i}") == match_value for i in range(option_count))
 
     return False
