@@ -855,8 +855,11 @@ def _normalize_file_path(path: str):
 
 
 def should_skip_scan():
-    if int(os.getenv("GIT_PUSH_OPTION_COUNT")) > 0:
-        for name, value in os.environ.items():
-            if name.startswith("GIT_PUSH_OPTION") and value == "cycode_skip_scan":
+    git_push_option_count = os.getenv("GIT_PUSH_OPTION_COUNT")
+    if git_push_option_count is not None:
+        prefix = "GIT_PUSH_OPTION_"
+        for i in range(int(git_push_option_count)):
+            if os.getenv(f"{prefix}{i}") == "cycode_skip_scan":
                 return True
+
     return False
