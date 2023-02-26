@@ -5,18 +5,13 @@ import click
 
 from cli import code_scanner, __version__
 from cli.auth.auth_command import authenticate
-from cli.config import config, dev_mode
-from cli.config_dev import DEV_SCAN_CYCODE_APP_URL, DEV_DETECTION_CYCODE_APP_URL
+from cli.config import config
 from cli.models import Severity
 from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cyclient import logger
-from cyclient.cycode_dev_based_client import CycodeDevBasedClient
-from cyclient.cycode_token_based_client import CycodeTokenBasedClient
-from cyclient.scan_client import ScanClient
-from cyclient.scan_config.default_scan_config import DefaultScanConfig
-from cyclient.scan_config.dev_scan_config import DevScanConfig
+from cyclient.scan_config.scan_config_creator import create_scan_for_env
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
@@ -133,26 +128,7 @@ def get_cycode_client(client_id, client_secret):
         if not client_secret:
             raise click.ClickException("Cycode client secret is needed.")
 
-    if dev_mode:
-        detection_cycode_client, scan_config, scan_cycode_client = create_scan_for_dev_env()
-    else:
-        detection_cycode_client, scan_config, scan_cycode_client = create_scan(client_id, client_secret)
-
-    return ScanClient(scan_cycode_client=scan_cycode_client, detection_cycode_client=detection_cycode_client,
-                      scan_config=scan_config)
-
-
-def create_scan(client_id, client_secret):
-    cycode_client = CycodeTokenBasedClient(client_id, client_secret)
-    scan_config = DefaultScanConfig()
-    return cycode_client, scan_config, cycode_client
-
-
-def create_scan_for_dev_env():
-    scan_cycode_client = CycodeDevBasedClient(DEV_SCAN_CYCODE_APP_URL)
-    detection_cycode_client = CycodeDevBasedClient(DEV_DETECTION_CYCODE_APP_URL)
-    scan_config = DevScanConfig()
-    return detection_cycode_client, scan_config, scan_cycode_client
+    return create_scan_for_env(client_id, client_secret)
 
 
 def _get_configured_credentials():
