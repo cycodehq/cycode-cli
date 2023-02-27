@@ -5,24 +5,21 @@ from types import TracebackType
 
 
 class FunctionContext:
-    FUNCTION: Callable
-    ARGS: Optional[List]
-    KWARGS: Optional[Dict]
 
-    def __init__(self, function: Callable, args: Optional[List] = None, kwargs: Optional[Dict] = None):
-        self.FUNCTION = function
-        self.ARGS = args or []
-        self.KWARGS = kwargs or {}
+    def __init__(self, function: Callable, args: List = None, kwargs: Dict = None):
+        self.function = function
+        self.args = args or []
+        self.kwargs = kwargs or {}
 
 
 class TimerThread(Thread):
     """
-    Custom thread class for executing timer in the background. In addition giving the ability to perform
+    Custom thread class for executing timer in the background, in addition giving the ability to perform
     action every X seconds until reaching to the configured timeout
 
     Members:
         timeout - the amount of time to count until timeout in seconds
-        quit_function - function to perform when reaching to timeout
+        quit_function (Mandatory) - function to perform when reaching to timeout
         repeat_function (Optional) - function to perform every X seconds until reaching to timeout
         repeat_interval (Optional) - the period to wait until performing repeat function again in seconds
     """
@@ -68,10 +65,10 @@ class TimerThread(Thread):
         self.stop()
 
     def _call_quit_function(self):
-        self._quit_function.FUNCTION(*self._quit_function.ARGS, **self._quit_function.KWARGS)
+        self._quit_function.function(*self._quit_function.args, **self._quit_function.kwargs)
 
     def _call_repeat_function(self):
-        self._repeat_function.FUNCTION(*self._repeat_function.ARGS, **self._repeat_function.KWARGS)
+        self._repeat_function.function(*self._repeat_function.args, **self._repeat_function.kwargs)
 
 
 class TimeoutAfter:
