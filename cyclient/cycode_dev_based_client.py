@@ -18,4 +18,4 @@ class CycodeDevBasedClient(CycodeClientBase):
         return headers
 
     def append_to_endpoind(self):
-        return ""
+        return ":"

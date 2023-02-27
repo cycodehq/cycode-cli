@@ -1,1 +1,1 @@
-DEV_CYCODE_APP_URL = "http://localhost:"
+DEV_CYCODE_APP_URL = "http://localhost"
