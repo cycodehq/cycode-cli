@@ -105,7 +105,7 @@ class ScanClient:
         url_path = self.scan_config.get_scan_detections_count_controller_path(scan_id)
         try:
             response = self.scan_cycode_client.get(url_path=url_path)
-            return response.json().get('count', 0)
+            return len(response.json())
         except Exception as e:
             self._handle_exception(e)
 
