@@ -39,12 +39,26 @@ start_scan_time = time.time()
                    "vulnerabilities and violations (supported for SCA scan type only).",
               type=bool,
               required=False)
+@click.option('--package-vulnerabilities',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of package vulnerabilities",
+              type=bool,
+              required=False)
+@click.option('--license-compliance',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of license compliance",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_repository(context: click.Context, path, branch, monitor):
+def scan_repository(context: click.Context, path, branch, monitor, package_vulnerabilities, license_compliance):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         context.obj["monitor"] = monitor
+        context.obj["package_vulnerabilities"] = package_vulnerabilities
+        context.obj["license_compliance"] = license_compliance
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -58,7 +72,8 @@ def scan_repository(context: click.Context, path, branch, monitor):
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=get_scan_parameters(path, monitor))
+                              scan_parameters=get_scan_parameters(path, monitor, package_vulnerabilities,
+                                                                  license_compliance))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -74,10 +89,24 @@ def scan_repository(context: click.Context, path, branch, monitor):
               type=click.STRING,
               default="--all",
               required=False)
+@click.option('--package-vulnerabilities',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of package vulnerabilities",
+              type=bool,
+              required=False)
+@click.option('--license-compliance',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of license compliance",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
+def scan_repository_commit_history(context: click.Context, path: str, commit_range: str, package_vulnerabilities: bool, license_compliance: bool):
     """	Scan all the commits history in this git repository """
     try:
+        context.obj["package_vulnerabilities"] = package_vulnerabilities
+        context.obj["license_compliance"] = license_compliance
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
@@ -109,19 +138,47 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
 
 
 @click.command()
+@click.option('--package-vulnerabilities',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of package vulnerabilities",
+              type=bool,
+              required=False)
+@click.option('--license-compliance',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of license compliance",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_ci(context: click.Context):
+def scan_ci(context: click.Context, package_vulnerabilities, license_compliance):
     """ Execute scan in a CI environment which relies on the
     CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables """
+    context.obj["package_vulnerabilities"] = package_vulnerabilities
+    context.obj["license_compliance"] = license_compliance
     return scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
 @click.command()
 @click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.option('--package-vulnerabilities',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of package vulnerabilities",
+              type=bool,
+              required=False)
+@click.option('--license-compliance',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of license compliance",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_path(context: click.Context, path):
+def scan_path(context: click.Context, path, package_vulnerabilities, license_compliance):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
+    context.obj["package_vulnerabilities"] = package_vulnerabilities
+    context.obj["license_compliance"] = license_compliance
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
@@ -130,10 +187,24 @@ def scan_path(context: click.Context, path):
 
 @click.command()
 @click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
+@click.option('--package-vulnerabilities',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of package vulnerabilities",
+              type=bool,
+              required=False)
+@click.option('--license-compliance',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return detections of license compliance",
+              type=bool,
+              required=False)
 @click.pass_context
-def pre_commit_scan(context: click.Context, ignored_args: List[str]):
+def pre_commit_scan(context: click.Context, ignored_args: List[str], package_vulnerabilities, license_compliance):
     """ Use this command to scan the content that was not committed yet """
     scan_type = context.obj['scan_type']
+    context.obj["package_vulnerabilities"] = package_vulnerabilities
+    context.obj["license_compliance"] = license_compliance
     if scan_type == SCA_SCAN_TYPE:
         return scan_sca_pre_commit(context)
 
@@ -154,6 +225,9 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    package_vulnerabilities = context.obj["package_vulnerabilities"]
+    license_compliance = context.obj["license_compliance"]
+    scan_parameters = get_default_scan_parameters(None, package_vulnerabilities, license_compliance)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -161,10 +235,16 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
-    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
+
+    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents,
+                                       scan_parameters=scan_parameters)
 
 
 def scan_disk_files(context: click.Context, paths: List[str]):
+    package_vulnerabilities = context.obj["package_vulnerabilities"]
+    license_compliance = context.obj["license_compliance"]
+    scan_parameters = get_default_scan_parameters(monitor=None, package_vulnerabilities=package_vulnerabilities,
+                                          license_compliance=license_compliance)
     scan_type = context.obj['scan_type']
     is_git_diff = False
     documents: List[Document] = []
@@ -174,7 +254,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
             documents.append(Document(path, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    return scan_documents(context, documents, is_git_diff=is_git_diff)
+    return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
@@ -398,11 +478,21 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def get_scan_parameters(path: str, monitor: bool) -> dict:
-    scan_parameters = {"monitor": monitor}
+def get_default_scan_parameters(monitor: bool, package_vulnerabilities: bool, license_compliance: bool) -> dict:
+    return {
+        "monitor": monitor,
+        "package_vulnerabilities": package_vulnerabilities,
+        "license_compliance": license_compliance
+    }
+
+
+def get_scan_parameters(path: str, monitor: bool, package_vulnerabilities: bool, license_compliance: bool) -> dict:
+    scan_parameters = get_default_scan_parameters(monitor, package_vulnerabilities, license_compliance)
     remote_url = try_get_git_remote_url(path)
+
     if remote_url:
         scan_parameters.update(remote_url)
+
     return scan_parameters
 
 
@@ -634,7 +724,9 @@ def _does_file_exceed_max_size_limit(filename: str) -> bool:
 
 
 def _get_document_by_file_name(documents: List[Document], file_name: str) -> Optional[Document]:
-    return next((document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)), None)
+    return next(
+        (document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)),
+        None)
 
 
 def _does_document_exceed_max_size_limit(content: str) -> bool:
@@ -775,11 +867,13 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
     return [DetectionsPerFile(file_name=file_name, detections=file_detections)
             for file_name, file_detections in detections_per_files.items()]
 
+
 def _get_file_name_from_detection(detection):
     if detection['category'] == "SAST":
         return detection['detection_details']['file_path']
-    
+
     return detection['detection_details']['file_name']
+
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):
     from_commit_rev = None
@@ -790,6 +884,7 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
+
 
 def _normalize_file_path(path: str):
     if path.startswith("/"):
