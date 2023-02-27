@@ -320,7 +320,8 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
 
-        logger.debug('adding file to zip, %s', {'index': index, 'filename': document.path})
+        logger.debug('adding file to zip, %s',
+                     {'index': index, 'filename': document.path, 'unique_id': document.unique_id})
         zip.append(document.path, document.unique_id, document.content)
     zip.close()
 
