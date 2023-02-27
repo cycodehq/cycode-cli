@@ -16,7 +16,7 @@ from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
-from cli.utils.task_timer import TimeoutAfter, FunctionContext
+from cli.utils.task_timer import TimeoutAfter
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import *
@@ -163,7 +163,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
         scan_type = context.obj['scan_type']
         timeout = configuration_manager.get_pre_receive_command_timeout(scan_type)
         logger.debug(f'timeout: {timeout}, path: {os.getcwd()}')
-        with TimeoutAfter(timeout, repeat_function=FunctionContext(_scan_in_progress_message), repeat_interval=10):
+        with TimeoutAfter(timeout):
             if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
                 raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 

@@ -1,4 +1,5 @@
 import logging
+
 import click
 import sys
 from cli.models import Severity
@@ -10,7 +11,6 @@ from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cli.auth.auth_command import authenticate
 from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.auth.auth_manager import AuthManager
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
