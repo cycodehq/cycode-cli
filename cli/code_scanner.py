@@ -1,10 +1,10 @@
 import click
+import json
 import os
 import time
 import traceback
 from platform import platform
 from uuid import uuid4, UUID
-from typing import Optional
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 from cli.printers import ResultsPrinter
@@ -99,7 +99,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str):
             diff = commit.diff(parent, create_patch=True, R=True)
             for blob in diff:
                 doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
-                               blob.diff.decode('utf-8', errors='replace'), True, commit_id)
+                               blob.diff.decode('utf-8', errors='replace'), True, unique_id=commit_id)
                 documents_to_scan.append(doc)
 
                 documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
@@ -355,14 +355,15 @@ def print_results(context: click.Context, document_detections_list: List[Documen
     printer.print_results(context, document_detections_list, output_type)
 
 
-def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: List[Document]) -> List[
-    DocumentDetections]:
+def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: List[Document]) -> \
+        List[DocumentDetections]:
     logger.debug('enriching scan result')
     document_detections_list = []
     for detections_per_file in scan_result.detections_per_file:
         file_name = get_path_by_os(detections_per_file.file_name)
-        logger.debug("going to find document of violated file, %s", {'file_name': file_name})
-        document = _get_document_by_file_name(documents_to_scan, file_name)
+        commit_id = detections_per_file.commit_id
+        logger.debug("going to find document of violated file, %s", {'file_name': file_name, 'commit_id': commit_id})
+        document = _get_document_by_file_name(documents_to_scan, file_name, commit_id)
         document_detections_list.append(
             DocumentDetections(document=document, detections=detections_per_file.detections))
 
@@ -633,8 +634,11 @@ def _does_file_exceed_max_size_limit(filename: str) -> bool:
     return FILE_MAX_SIZE_LIMIT_IN_BYTES < get_file_size(filename)
 
 
-def _get_document_by_file_name(documents: List[Document], file_name: str) -> Optional[Document]:
-    return next((document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)), None)
+def _get_document_by_file_name(documents: List[Document], file_name: str, unique_id: Optional[str] = None) \
+        -> Optional[Document]:
+    return next(
+        (document for document in documents if _normalize_file_path(document.path) == _normalize_file_path(file_name)
+         and document.unique_id == unique_id), None)
 
 
 def _does_document_exceed_max_size_limit(content: str) -> bool:
@@ -775,11 +779,13 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
     return [DetectionsPerFile(file_name=file_name, detections=file_detections)
             for file_name, file_detections in detections_per_files.items()]
 
+
 def _get_file_name_from_detection(detection):
     if detection['category'] == "SAST":
         return detection['detection_details']['file_path']
-    
+
     return detection['detection_details']['file_name']
+
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):
     from_commit_rev = None
@@ -790,6 +796,7 @@ def parse_commit_range(commit_range: str, path: str) -> (str, str):
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
+
 
 def _normalize_file_path(path: str):
     if path.startswith("/"):
