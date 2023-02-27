@@ -103,7 +103,7 @@ class ConfigurationManager:
         return DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT
 
     def get_pre_receive_command_timeout(self, scan_type: str) -> int:
-        command_timeout = self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME)
+        command_timeout = self._get_value_from_environment_variables(PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME)
         if command_timeout is not None:
             return int(command_timeout)
 
