@@ -98,7 +98,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     commit_ids_to_scan = []
     for commit in Repo(path).iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
-            logger.info(f'Reached to max commits to scan count. Going to scan {max_commits_count} last commits')
+            logger.info(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
             break
 
         commit_id = commit.hexsha
@@ -162,6 +162,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
     try:
         scan_type = context.obj['scan_type']
         timeout = configuration_manager.get_pre_receive_command_timeout(scan_type)
+        logger.debug(f'timeout: {timeout}')
         with TimeoutAfter(timeout, repeat_function=FunctionContext(_scan_in_progress_message), repeat_interval=10):
             if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
                 raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
@@ -174,6 +175,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
                 return
 
             max_commits_to_scan = configuration_manager.get_pre_receive_max_commits_to_scan_count(scan_type)
+            logger.debug(f'max_commits_to_scan: {max_commits_to_scan}')
             return scan_commit_range(context, os.getcwd(), commit_range, max_commits_count=max_commits_to_scan)
     except Exception as e:
         _handle_exception(context, e)
