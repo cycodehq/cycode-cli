@@ -224,12 +224,15 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str], package_vul
 
 
 def scan_sca_pre_commit(context: click.Context):
+    package_vulnerabilities = context.obj["package_vulnerabilities"]
+    license_compliance = context.obj["license_compliance"]
+    scan_parameters = get_default_scan_parameters(None, package_vulnerabilities, license_compliance)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
     return scan_commit_range_documents(context, git_head_documents, pre_committed_documents,
-                                       configuration_manager.get_sca_pre_commit_timeout_in_seconds())
+                                       configuration_manager.get_sca_pre_commit_timeout_in_seconds(), scan_parameters=scan_parameters)
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
