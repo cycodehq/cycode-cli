@@ -84,28 +84,36 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
         _handle_exception(context, e)
 
 
-def scan_commit_range(context: click.Context, path: str, commit_range: str):
+def scan_commit_range(context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None):
     scan_type = context.obj["scan_type"]
     if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
         raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
     if scan_type == SCA_SCAN_TYPE:
         return scan_sca_commit_range(context, path, commit_range)
-    else:
-        documents_to_scan = []
-        for commit in Repo(path).iter_commits(rev=commit_range):
-            commit_id = commit.hexsha
-            parent = commit.parents[0] if commit.parents else NULL_TREE
-            diff = commit.diff(parent, create_patch=True, R=True)
-            for blob in diff:
-                doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
-                               blob.diff.decode('utf-8', errors='replace'), True, unique_id=commit_id)
-                documents_to_scan.append(doc)
 
-                documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-                logger.debug('Found all relevant files in commit %s',
-                             {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
-        return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
+    documents_to_scan = []
+    commit_ids_to_scan = []
+    for commit in Repo(path).iter_commits(rev=commit_range):
+        if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
+            logger.info(f'Reached to max commits to scan count. Going to scan {max_commits_count} last commits')
+            break
+
+        commit_id = commit.hexsha
+        commit_ids_to_scan.append(commit_id)
+        parent = commit.parents[0] if commit.parents else NULL_TREE
+        diff = commit.diff(parent, create_patch=True, R=True)
+        for blob in diff:
+            doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
+                           blob.diff.decode('utf-8', errors='replace'), True, unique_id=commit_id)
+            documents_to_scan.append(doc)
+
+            documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
+            logger.debug('Found all relevant files in commit %s',
+                         {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
+
+    logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
+    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
 @click.command()
@@ -785,6 +793,10 @@ def _get_file_name_from_detection(detection):
         return detection['detection_details']['file_path']
 
     return detection['detection_details']['file_name']
+
+
+def _does_reach_to_max_commits_to_scan_limit(commit_ids: List, max_commits_count: Optional[int]) -> bool:
+    return max_commits_count is not None and len(commit_ids) >= max_commits_count
 
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):

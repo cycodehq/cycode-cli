@@ -81,11 +81,15 @@ class ConfigurationManager:
 
     def get_scan_polling_timeout_in_seconds(self) -> int:
         return int(self._get_value_from_environment_variables(SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
-                                                              SCAN_POLLING_TIMEOUT_IN_SECONDS_DEFAULT))
+                                                              DEFAULT_SCAN_POLLING_TIMEOUT_IN_SECONDS))
 
     def get_sca_pre_commit_timeout_in_seconds(self) -> int:
         return int(self._get_value_from_environment_variables(SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
-                                                              SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS_DEFAULT))
+                                                              DEFAULT_SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS))
+
+    def get_pre_receive_max_commits_count_to_scan(self) -> int:
+        return int(self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME,
+                                                              DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT))
 
     @staticmethod
     def _get_value_from_environment_variables(env_var_name, default=None):
