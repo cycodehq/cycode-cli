@@ -37,11 +37,11 @@ class ConfigFileManager(BaseFileManager):
         scan_type_exclusions = exclusions_section.get(scan_type, {})
         return scan_type_exclusions
 
-    def get_max_commits(self, scan_type) -> Optional[int]:
-        return self._get_value_from_scan_type_configuration(scan_type, self.MAX_COMMITS_FIELD_NAME)
+    def get_max_commits(self, command_scan_type) -> Optional[int]:
+        return self._get_value_from_command_scan_type_configuration(command_scan_type, self.MAX_COMMITS_FIELD_NAME)
 
-    def get_command_timeout(self, scan_type) -> Optional[int]:
-        return self._get_value_from_scan_type_configuration(scan_type, self.COMMAND_TIMEOUT_FIELD_NAME)
+    def get_command_timeout(self, command_scan_type) -> Optional[int]:
+        return self._get_value_from_command_scan_type_configuration(command_scan_type, self.COMMAND_TIMEOUT_FIELD_NAME)
 
     def update_base_url(self, base_url: str):
         update_data = {
@@ -86,13 +86,13 @@ class ConfigFileManager(BaseFileManager):
         value = environment_section.get(field_name)
         return value
 
-    def _get_scan_configuration_by_scan_type(self, scan_type: str) -> Dict:
+    def _get_scan_configuration_by_scan_type(self, command_scan_type: str) -> Dict:
         scan_section = self._get_section(self.SCAN_SECTION_NAME)
-        return scan_section.get(scan_type, {})
+        return scan_section.get(command_scan_type, {})
 
-    def _get_value_from_scan_type_configuration(self, scan_type: str, field_name: str):
-        scan_type_configuration = self._get_scan_configuration_by_scan_type(scan_type)
-        value = scan_type_configuration.get(field_name)
+    def _get_value_from_command_scan_type_configuration(self, command_scan_type: str, field_name: str):
+        command_scan_type_configuration = self._get_scan_configuration_by_scan_type(command_scan_type)
+        value = command_scan_type_configuration.get(field_name)
         return value
 
     def _get_section(self, section_name: str) -> Dict:
