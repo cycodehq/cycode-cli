@@ -97,4 +97,5 @@ class ConfigFileManager(BaseFileManager):
 
     def _get_section(self, section_name: str) -> Dict:
         file_content = self.read_file()
+        print(f'config file: {file_content}')
         return file_content.get(section_name, {})
