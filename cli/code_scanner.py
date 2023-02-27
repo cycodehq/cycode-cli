@@ -178,6 +178,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
                 return
 
             max_commits_to_scan = configuration_manager.get_pre_receive_max_commits_to_scan_count(scan_command_type)
+            logger.debug(f'timeout {timeout}, max_commits: {max_commits_to_scan}')
             return scan_commit_range(context, os.getcwd(), commit_range, max_commits_count=max_commits_to_scan)
     except Exception as e:
         _handle_exception(context, e)
