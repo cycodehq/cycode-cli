@@ -162,7 +162,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
     try:
         scan_type = context.obj['scan_type']
         timeout = configuration_manager.get_pre_receive_command_timeout(scan_type)
-        logger.debug(f'timeout: {timeout}')
+        logger.debug(f'timeout: {timeout}, path: {os.getcwd()}')
         with TimeoutAfter(timeout, repeat_function=FunctionContext(_scan_in_progress_message), repeat_interval=10):
             if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
                 raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
