@@ -87,9 +87,35 @@ class ConfigurationManager:
         return int(self._get_value_from_environment_variables(SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
                                                               DEFAULT_SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS))
 
-    def get_pre_receive_max_commits_count_to_scan(self) -> int:
-        return int(self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME,
-                                                              DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT))
+    def get_pre_receive_max_commits_to_scan_count(self, scan_type: str) -> int:
+        max_commits = self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME)
+        if max_commits is not None:
+            return int(max_commits)
+
+        max_commits = self.local_config_file_manager.get_max_commits(scan_type)
+        if max_commits is not None:
+            return max_commits
+
+        max_commits = self.global_config_file_manager.get_max_commits(scan_type)
+        if max_commits is not None:
+            return max_commits
+
+        return DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT
+
+    def get_pre_receive_command_timeout(self, scan_type: str) -> int:
+        command_timeout = self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME)
+        if command_timeout is not None:
+            return int(command_timeout)
+
+        command_timeout = self.local_config_file_manager.get_command_timeout(scan_type)
+        if command_timeout is not None:
+            return command_timeout
+
+        command_timeout = self.global_config_file_manager.get_command_timeout(scan_type)
+        if command_timeout is not None:
+            return command_timeout
+
+        return DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS
 
     @staticmethod
     def _get_value_from_environment_variables(env_var_name, default=None):

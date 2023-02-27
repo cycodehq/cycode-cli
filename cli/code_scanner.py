@@ -16,6 +16,7 @@ from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
+from cli.utils.task_timer import TimeoutAfter, FunctionContext
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import *
@@ -154,16 +155,28 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 
 
 @click.command()
+@click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def pre_receive_scan(context: click.Context):
-    """ Use this command to scan the content that was not committed yet """
-    logger.info(f'cccccccc')
-    print("ddddddd")
-    branch_update_details = parse_pre_receive_input()
-    start_commit, end_commit = calculate_commit_range(branch_update_details)
-    scan_commit_range(context, os.getcwd(), f'{start_commit}~1...{end_commit}')
-    logger.info(f'start commit: {start_commit}, end commit: {end_commit}')
-    pass
+def pre_receive_scan(context: click.Context, ignored_args: List[str]):
+    """ Use this command to scan commits on server side before pushing them to the repository """
+    try:
+        timeout = configuration_manager.get_pre_receive_command_timeout()
+        with TimeoutAfter(timeout, repeat_function=FunctionContext(_scan_in_progress_message), repeat_interval=10):
+            scan_type = context.obj['scan_type']
+            if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
+                raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
+
+            branch_update_details = parse_pre_receive_input()
+            commit_range = calculate_pre_receive_commit_range(branch_update_details)
+            if not commit_range:
+                logger.info('No new commits found for pushed branch, %s',
+                            {'branch_update_details': branch_update_details})
+                return
+
+            max_commits_to_scan = configuration_manager.get_pre_receive_max_commits_to_scan_count(scan_type)
+            return scan_commit_range(context, os.getcwd(), commit_range, max_commits_count=max_commits_to_scan)
+    except Exception as e:
+        _handle_exception(context, e)
 
 
 def scan_sca_pre_commit(context: click.Context):
@@ -416,10 +429,20 @@ def parse_pre_receive_input() -> str:
     return branch_update_details
 
 
-def calculate_commit_range(branch_update_details: str) -> (str, str):
+def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[str]:
     end_commit = get_end_commit_from_branch_update_details(branch_update_details)
+
+    # branch is deleted, no need to perform scan
+    if end_commit == EMPTY_COMMIT_SHA:
+        return
+
     start_commit = find_branch_oldest_not_updated_commit(end_commit)
-    return start_commit, end_commit
+
+    # no new commit to update found
+    if not start_commit:
+        return
+
+    return f'{start_commit}~1...{end_commit}'
 
 
 def get_end_commit_from_branch_update_details(update_details: str) -> str:
@@ -429,6 +452,7 @@ def get_end_commit_from_branch_update_details(update_details: str) -> str:
 
 
 def find_branch_oldest_not_updated_commit(commit: str) -> Optional[str]:
+    # get list of commits by chronological order that not in the repository yet
     not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
     commits = not_updated_commits.splitlines()
     if not commits:
@@ -713,6 +737,9 @@ def _handle_exception(context: click.Context, e: Exception):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
+    elif isinstance(e, TimeoutError):
+        click.secho('Command timed out', fg='red', nl=False)
+        context.obj["soft_fail"] = True
     elif isinstance(e, HttpUnauthorizedError):
         click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
                     'Please re-generate your token and reconfigure it by running the `cycode configure` command',
@@ -861,3 +888,7 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
+
+def _scan_in_progress_message():
+    logger.info("Scan in progress...")

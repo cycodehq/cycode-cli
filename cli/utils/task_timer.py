@@ -109,7 +109,7 @@ class TimeoutAfter:
         # catch the exception of interrupt_main before exiting
         # the with statement and throw timeout error instead
         if exc_type == KeyboardInterrupt:
-            raise TimeoutError()
+            raise TimeoutError(f"Task timed out after {self.timeout} seconds")
 
     def timeout_function(self):
         interrupt_main()
