@@ -160,9 +160,9 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
 def pre_receive_scan(context: click.Context, ignored_args: List[str]):
     """ Use this command to scan commits on server side before pushing them to the repository """
     try:
-        timeout = configuration_manager.get_pre_receive_command_timeout()
+        scan_type = context.obj['scan_type']
+        timeout = configuration_manager.get_pre_receive_command_timeout(scan_type)
         with TimeoutAfter(timeout, repeat_function=FunctionContext(_scan_in_progress_message), repeat_interval=10):
-            scan_type = context.obj['scan_type']
             if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
                 raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
