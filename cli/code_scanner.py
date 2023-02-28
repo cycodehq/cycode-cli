@@ -1,5 +1,6 @@
 import click
 import json
+import logging
 import os
 import sys
 import time
@@ -169,6 +170,10 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
                 "A scan has been skipped as per your request."
                 " Please note that this may leave your system vulnerable to secrets that have not been detected")
             return
+
+        if is_verbose_mode_requested_in_pre_receive_scan():
+            enable_verbose_mode(context)
+            logger.debug('Verbose mode enabled, all log levels will be displayed')
 
         command_scan_type = context.info_name
         timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
@@ -913,6 +918,15 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
+
+def enable_verbose_mode(context: click.Context):
+    context.obj["verbose"] = True
+    logger.setLevel(logging.DEBUG)
+
+
+def is_verbose_mode_requested_in_pre_receive_scan() -> bool:
+    return does_git_push_option_have_value(VERBOSE_SCAN_FLAG)
 
 
 def should_skip_pre_receive_scan() -> bool:
