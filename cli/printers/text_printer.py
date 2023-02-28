@@ -25,7 +25,7 @@ class TextPrinter(BasePrinter):
         self.show_secret = context.obj.get('show_secret', False)
         self.lines_to_display = config.get('result_printer', {}).get('lines_to_display')
 
-    def print_results(self, context: click.Context, results: List[DocumentDetections]):
+    def print_results(self, results: List[DocumentDetections]):
         click.secho(f"Scan Results: (scan_id: {self.scan_id})")
 
         if not results:
@@ -35,8 +35,8 @@ class TextPrinter(BasePrinter):
         for document_detections in results:
             self._print_document_detections(document_detections)
 
-        if context.obj.get('report_url'):
-            click.secho(f"Report URL: {context.obj.get('report_url')}")
+        if self.context.obj.get('report_url'):
+            click.secho(f"Report URL: {self.context.obj.get('report_url')}")
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document

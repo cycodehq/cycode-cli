@@ -14,7 +14,7 @@ class JsonPrinter(BasePrinter):
         super().__init__(context)
         self.scan_id = context.obj.get('scan_id')
 
-    def print_results(self, context: click.Context, results: List[DocumentDetections]):
+    def print_results(self, results: List[DocumentDetections]):
         detections = [detection for document_detections in results for detection in document_detections.detections]
         detections_schema = DetectionSchema(many=True)
         detections_dict = detections_schema.dump(detections)
