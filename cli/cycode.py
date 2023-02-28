@@ -11,7 +11,7 @@ from cli.user_settings.configuration_manager import ConfigurationManager
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cyclient import logger
-from cyclient.scan_config.scan_config_creator import create_scan_for_env
+from cyclient.scan_config.scan_config_creator import create_scan_client
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
@@ -128,7 +128,7 @@ def get_cycode_client(client_id, client_secret):
         if not client_secret:
             raise click.ClickException("Cycode client secret is needed.")
 
-    return create_scan_for_env(client_id, client_secret)
+    return create_scan_client(client_id, client_secret)
 
 
 def _get_configured_credentials():

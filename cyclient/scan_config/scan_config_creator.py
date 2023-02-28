@@ -6,7 +6,7 @@ from cyclient.scan_client import ScanClient
 from cyclient.scan_config.scan_config_base import DefaultScanConfig, DevScanConfig
 
 
-def create_scan_for_env(client_id, client_secret):
+def create_scan_client(client_id, client_secret):
     if dev_mode:
         scan_cycode_client, scan_config = create_scan_for_dev_env()
     else:
