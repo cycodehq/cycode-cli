@@ -1,7 +1,7 @@
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
-class ScanConfigBase:
+class ScanConfigBase(ABC):
     def __init__(self):
         self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
         self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
