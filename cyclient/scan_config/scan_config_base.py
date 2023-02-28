@@ -1,14 +1,20 @@
+
+from abc import abstractmethod
+
 class ScanConfigBase:
     def __init__(self):
         self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
         self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
 
+    @abstractmethod
     def get_service_name(self, scan_type):
         pass
 
+    @abstractmethod
     def get_scans_prefix(self):
         pass
 
+    @abstractmethod
     def get_detections_prefix(self):
         pass
 
