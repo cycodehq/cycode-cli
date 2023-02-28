@@ -164,6 +164,12 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
         if scan_type != SECRET_SCAN_TYPE:
             raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
 
+        if should_skip_pre_receive_scan():
+            logger.info(
+                "A scan has been skipped as per your request."
+                " Please note that this may leave your system vulnerable to secrets that have not been detected")
+            return
+
         command_scan_type = context.info_name
         timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
         with TimeoutAfter(timeout):
@@ -908,3 +914,12 @@ def _normalize_file_path(path: str):
         return path[2:]
     return path
 
+
+def should_skip_pre_receive_scan() -> bool:
+    return does_git_push_option_have_value(SKIP_SCAN_FLAG)
+
+
+def does_git_push_option_have_value(value: str) -> bool:
+    option_count_env_value = os.getenv(GIT_PUSH_OPTION_COUNT_ENV_VAR_NAME, '')
+    option_count = int(option_count_env_value) if option_count_env_value.isdigit() else 0
+    return any(os.getenv(f'{GIT_PUSH_OPTION_ENV_VAR_PREFIX}{i}') == value for i in range(option_count))
