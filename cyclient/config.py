@@ -2,10 +2,12 @@ import logging
 import os
 import sys
 from urllib.parse import urlparse
-from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.consts import *
 
+from cli.consts import *
+from cli.user_settings.configuration_manager import ConfigurationManager
 # set io encoding (for windows)
+from cyclient.config_dev import DEV_MODE_ENV_VAR_NAME, DEV_TENANT_ID_ENV_VAR_NAME
+
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
