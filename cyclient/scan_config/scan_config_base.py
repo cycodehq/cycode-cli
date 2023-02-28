@@ -50,8 +50,6 @@ class ScanConfigBase(ABC):
 
 
 class DevScanConfig(ScanConfigBase):
-    def __init__(self):
-        super().__init__()
 
     def get_service_name(self, scan_type):
         if scan_type == 'secret':
@@ -69,8 +67,6 @@ class DevScanConfig(ScanConfigBase):
 
 
 class DefaultScanConfig(ScanConfigBase):
-    def __init__(self):
-        super().__init__()
 
     def get_service_name(self, scan_type):
         if scan_type == 'secret':
