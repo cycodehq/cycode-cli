@@ -146,24 +146,10 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
 
 
 @click.command()
-@click.option('--package-vulnerabilities',
-              is_flag=True,
-              default=None,
-              help="When specified, the scan results will be return detections of package vulnerabilities",
-              type=bool,
-              required=False)
-@click.option('--license-compliance',
-              is_flag=True,
-              default=None,
-              help="When specified, the scan results will be return detections of license compliance",
-              type=bool,
-              required=False)
 @click.pass_context
-def scan_ci(context: click.Context, package_vulnerabilities, license_compliance):
+def scan_ci(context: click.Context):
     """ Execute scan in a CI environment which relies on the
     CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables """
-    context.obj["package_vulnerabilities"] = package_vulnerabilities
-    context.obj["license_compliance"] = license_compliance
     return scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
