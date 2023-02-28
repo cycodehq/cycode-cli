@@ -424,9 +424,22 @@ def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetec
 
 
 def parse_pre_receive_input() -> str:
+    """
+    Parsing input to pushed branch update details
+
+    Example input:
+    old_value new_value refname
+    -----------------------------------------------
+    0000000000000000000000000000000000000000 9cf90954ef26e7c58284f8ebf7dcd0fcf711152a refs/heads/main
+    973a96d3e925b65941f7c47fa16129f1577d499f 0000000000000000000000000000000000000000 refs/heads/feature-branch
+    59564ef68745bca38c42fc57a7822efd519a6bd9 3378e52dcfa47fb11ce3a4a520bea5f85d5d0bf3 refs/heads/develop
+
+    :return: first branch update details (input's first line)
+    """
     pre_receive_input = sys.stdin.read().strip()
     if not pre_receive_input:
-        raise ValueError("pre receive input was not found")
+        raise ValueError(
+            "Pre receive input was not found. Make sure that you are using this command only in pre-receive hook")
 
     # each line represents a branch update request, handle the first one only
     # TODO support case of multiple update branch requests
@@ -441,7 +454,7 @@ def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[s
     if end_commit == EMPTY_COMMIT_SHA:
         return
 
-    start_commit = find_branch_oldest_not_updated_commit(end_commit)
+    start_commit = get_oldest_unupdated_commit_for_branch(end_commit)
 
     # no new commit to update found
     if not start_commit:
@@ -456,8 +469,9 @@ def get_end_commit_from_branch_update_details(update_details: str) -> str:
     return end_commit
 
 
-def find_branch_oldest_not_updated_commit(commit: str) -> Optional[str]:
-    # get list of commits by chronological order that not in the repository yet
+def get_oldest_unupdated_commit_for_branch(commit: str) -> Optional[str]:
+    # get a list of commits by chronological order that are not in the remote repository yet
+    # more info about rev-list command: https://git-scm.com/docs/git-rev-list
     not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
     commits = not_updated_commits.splitlines()
     if not commits:
@@ -894,6 +908,3 @@ def _normalize_file_path(path: str):
         return path[2:]
     return path
 
-
-def _scan_in_progress_message():
-    logger.info("Scan in progress...")
