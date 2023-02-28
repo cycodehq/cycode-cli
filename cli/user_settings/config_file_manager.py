@@ -10,10 +10,15 @@ class ConfigFileManager(BaseFileManager):
 
     ENVIRONMENT_SECTION_NAME: str = 'environment'
     EXCLUSIONS_SECTION_NAME: str = 'exclusions'
+    SCAN_SECTION_NAME: str = 'scan'
 
     API_URL_FIELD_NAME: str = 'cycode_api_url'
     APP_URL_FIELD_NAME: str = 'cycode_app_url'
     VERBOSE_FIELD_NAME: str = 'verbose'
+
+    MAX_COMMITS_FIELD_NAME: str = 'max_commits'
+    COMMAND_TIMEOUT_FIELD_NAME: str = 'command_timeout'
+
 
     def __init__(self, path):
         self.path = path
@@ -28,10 +33,15 @@ class ConfigFileManager(BaseFileManager):
         return self._get_value_from_environment_section(self.VERBOSE_FIELD_NAME)
 
     def get_exclusions_by_scan_type(self, scan_type) -> Dict:
-        file_content = self.read_file()
-        exclusions_section = file_content.get(self.EXCLUSIONS_SECTION_NAME, {})
+        exclusions_section = self._get_section(self.EXCLUSIONS_SECTION_NAME)
         scan_type_exclusions = exclusions_section.get(scan_type, {})
         return scan_type_exclusions
+
+    def get_max_commits(self, command_scan_type) -> Optional[int]:
+        return self._get_value_from_command_scan_type_configuration(command_scan_type, self.MAX_COMMITS_FIELD_NAME)
+
+    def get_command_timeout(self, command_scan_type) -> Optional[int]:
+        return self._get_value_from_command_scan_type_configuration(command_scan_type, self.COMMAND_TIMEOUT_FIELD_NAME)
 
     def update_base_url(self, base_url: str):
         update_data = {
@@ -72,7 +82,19 @@ class ConfigFileManager(BaseFileManager):
         return scan_type_exclusions.get(exclusion_type, [])
 
     def _get_value_from_environment_section(self, field_name: str):
-        file_content = self.read_file()
-        environment_section = file_content.get(self.ENVIRONMENT_SECTION_NAME, {})
+        environment_section = self._get_section(self.ENVIRONMENT_SECTION_NAME)
         value = environment_section.get(field_name)
         return value
+
+    def _get_scan_configuration_by_scan_type(self, command_scan_type: str) -> Dict:
+        scan_section = self._get_section(self.SCAN_SECTION_NAME)
+        return scan_section.get(command_scan_type, {})
+
+    def _get_value_from_command_scan_type_configuration(self, command_scan_type: str, field_name: str):
+        command_scan_type_configuration = self._get_scan_configuration_by_scan_type(command_scan_type)
+        value = command_scan_type_configuration.get(field_name)
+        return value
+
+    def _get_section(self, section_name: str) -> Dict:
+        file_content = self.read_file()
+        return file_content.get(section_name, {})

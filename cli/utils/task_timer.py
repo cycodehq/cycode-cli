@@ -14,35 +14,21 @@ class FunctionContext:
 
 class TimerThread(Thread):
     """
-    Custom thread class for executing timer in the background, in addition giving the ability to perform
-    action every X seconds until reaching to the configured timeout
+    Custom thread class for executing timer in the background
 
     Members:
         timeout - the amount of time to count until timeout in seconds
         quit_function (Mandatory) - function to perform when reaching to timeout
-        repeat_function (Optional) - function to perform every X seconds until reaching to timeout
-        repeat_interval (Optional) - the period to wait until performing repeat function again in seconds
     """
     def __init__(self, timeout: int,
-                 quit_function: FunctionContext,
-                 repeat_function: Optional[FunctionContext] = None,
-                 repeat_interval: Optional[int] = None):
+                 quit_function: FunctionContext):
         Thread.__init__(self)
         self._timeout = timeout
         self._quit_function = quit_function
-        self._repeat_function = repeat_function
-        self._repeat_interval = repeat_interval
         self.event = Event()
 
     def run(self):
-        # do not perform any functionality till timeout, perform quit function on timeout
-        if not self._repeat_function or not self._repeat_interval:
-            self._run_quit_function_on_timeout()
-            return
-
-        # perform repeat function every X time according to repeat interval
-        # until reaching to timeout, then if timeout perform quit function
-        self._run_repeat_function_until_timeout_and_quit_function_on_timeout()
+        self._run_quit_function_on_timeout()
 
     def stop(self):
         self.event.set()
@@ -53,22 +39,8 @@ class TimerThread(Thread):
             self._call_quit_function()
         self.stop()
 
-    def _run_repeat_function_until_timeout_and_quit_function_on_timeout(self):
-        while not self.event.wait(self._repeat_interval):
-            self._call_repeat_function()
-            self._timeout -= self._repeat_interval
-            if self._timeout <= 0:
-                break
-
-        if not self.event.is_set():
-            self._call_quit_function()
-        self.stop()
-
     def _call_quit_function(self):
         self._quit_function.function(*self._quit_function.args, **self._quit_function.kwargs)
-
-    def _call_repeat_function(self):
-        self._repeat_function.function(*self._repeat_function.args, **self._repeat_function.kwargs)
 
 
 class TimeoutAfter:
@@ -83,19 +55,12 @@ class TimeoutAfter:
         timeout - the amount of time to count until timeout in seconds
         quit_function (Optional) - function to perform when reaching to timeout,
                                    the default option is to interrupt main thread
-        repeat_function (Optional) - function to perform every X seconds until reaching to timeout
-        repeat_interval (Optional) - the period to wait until performing repeat function again in seconds
     """
     def __init__(self, timeout: int,
-                 quit_function: Optional[FunctionContext] = None,
-                 repeat_function: Optional[FunctionContext] = None,
-                 repeat_interval: Optional[int] = None):
+                 quit_function: Optional[FunctionContext] = None):
         self.timeout = timeout
         self._quit_function = quit_function or FunctionContext(function=self.timeout_function)
-        self._repeat_function = repeat_function
-        self._repeat_interval = repeat_interval
-        self.timer = TimerThread(timeout, quit_function=self._quit_function, repeat_function=self._repeat_function,
-                                 repeat_interval=repeat_interval)
+        self.timer = TimerThread(timeout, quit_function=self._quit_function)
 
     def __enter__(self) -> None:
         if self.timeout:
@@ -109,7 +74,7 @@ class TimeoutAfter:
         # catch the exception of interrupt_main before exiting
         # the with statement and throw timeout error instead
         if exc_type == KeyboardInterrupt:
-            raise TimeoutError()
+            raise TimeoutError(f"Task timed out after {self.timeout} seconds")
 
     def timeout_function(self):
         interrupt_main()

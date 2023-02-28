@@ -1,6 +1,7 @@
 import click
 import json
 import os
+import sys
 import time
 import traceback
 from platform import platform
@@ -15,6 +16,7 @@ from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
+from cli.utils.task_timer import TimeoutAfter
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import *
@@ -96,7 +98,7 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     commit_ids_to_scan = []
     for commit in Repo(path).iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
-            logger.info(f'Reached to max commits to scan count. Going to scan {max_commits_count} last commits')
+            logger.info(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
             break
 
         commit_id = commit.hexsha
@@ -150,6 +152,35 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
                          for file in diff_files]
     documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
     return scan_documents(context, documents_to_scan, is_git_diff=True)
+
+
+@click.command()
+@click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
+@click.pass_context
+def pre_receive_scan(context: click.Context, ignored_args: List[str]):
+    """ Use this command to scan commits on server side before pushing them to the repository """
+    try:
+        scan_type = context.obj['scan_type']
+        if scan_type != SECRET_SCAN_TYPE:
+            raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
+
+        command_scan_type = context.info_name
+        timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
+        with TimeoutAfter(timeout):
+            if scan_type not in COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
+                raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
+
+            branch_update_details = parse_pre_receive_input()
+            commit_range = calculate_pre_receive_commit_range(branch_update_details)
+            if not commit_range:
+                logger.info('No new commits found for pushed branch, %s',
+                            {'branch_update_details': branch_update_details})
+                return
+
+            max_commits_to_scan = configuration_manager.get_pre_receive_max_commits_to_scan_count(command_scan_type)
+            return scan_commit_range(context, os.getcwd(), commit_range, max_commits_count=max_commits_to_scan)
+    except Exception as e:
+        _handle_exception(context, e)
 
 
 def scan_sca_pre_commit(context: click.Context):
@@ -291,7 +322,8 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
 
-        logger.debug('adding file to zip, %s', {'index': index, 'filename': document.path})
+        logger.debug('adding file to zip, %s',
+                     {'index': index, 'filename': document.path, 'unique_id': document.unique_id})
         zip.append(document.path, document.unique_id, document.content)
     zip.close()
 
@@ -389,6 +421,62 @@ def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetec
                                                                         detections=relevant_detections))
 
     return relevant_document_detections_list
+
+
+def parse_pre_receive_input() -> str:
+    """
+    Parsing input to pushed branch update details
+
+    Example input:
+    old_value new_value refname
+    -----------------------------------------------
+    0000000000000000000000000000000000000000 9cf90954ef26e7c58284f8ebf7dcd0fcf711152a refs/heads/main
+    973a96d3e925b65941f7c47fa16129f1577d499f 0000000000000000000000000000000000000000 refs/heads/feature-branch
+    59564ef68745bca38c42fc57a7822efd519a6bd9 3378e52dcfa47fb11ce3a4a520bea5f85d5d0bf3 refs/heads/develop
+
+    :return: first branch update details (input's first line)
+    """
+    pre_receive_input = sys.stdin.read().strip()
+    if not pre_receive_input:
+        raise ValueError(
+            "Pre receive input was not found. Make sure that you are using this command only in pre-receive hook")
+
+    # each line represents a branch update request, handle the first one only
+    # TODO support case of multiple update branch requests
+    branch_update_details = pre_receive_input.splitlines()[0]
+    return branch_update_details
+
+
+def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[str]:
+    end_commit = get_end_commit_from_branch_update_details(branch_update_details)
+
+    # branch is deleted, no need to perform scan
+    if end_commit == EMPTY_COMMIT_SHA:
+        return
+
+    start_commit = get_oldest_unupdated_commit_for_branch(end_commit)
+
+    # no new commit to update found
+    if not start_commit:
+        return
+
+    return f'{start_commit}~1...{end_commit}'
+
+
+def get_end_commit_from_branch_update_details(update_details: str) -> str:
+    # update details pattern: <start_commit> <end_commit> <ref>
+    _, end_commit, _ = update_details.split()
+    return end_commit
+
+
+def get_oldest_unupdated_commit_for_branch(commit: str) -> Optional[str]:
+    # get a list of commits by chronological order that are not in the remote repository yet
+    # more info about rev-list command: https://git-scm.com/docs/git-rev-list
+    not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
+    commits = not_updated_commits.splitlines()
+    if not commits:
+        return None
+    return commits[0]
 
 
 def get_diff_file_path(file):
@@ -668,6 +756,9 @@ def _handle_exception(context: click.Context, e: Exception):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
+    elif isinstance(e, TimeoutError):
+        click.secho('Command timed out', fg='red', nl=False)
+        context.obj["soft_fail"] = True
     elif isinstance(e, HttpUnauthorizedError):
         click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
                     'Please re-generate your token and reconfigure it by running the `cycode configure` command',
@@ -816,3 +907,4 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
