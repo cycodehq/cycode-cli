@@ -91,6 +91,12 @@ PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME = 'PRE_RECEIVE_MAX_COMMITS_TO
 DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT = 50
 PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME = 'PRE_RECEIVE_COMMAND_TIMEOUT'
 DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS = 60
+PRE_RECEIVE_REMEDIATION_MESSAGE = """
+Cycode Secrets Push Protection
+------------------------------------------------------------------------------
+Resolve the following secrets by rewriting your local commit history before pushing again.
+Learn how to: https://cycode.com/dont-let-hardcoded-secrets-compromise-your-security-4-effective-remediation-techniques 
+"""
 
 # scan statuses
 SCAN_STATUS_COMPLETED = 'Completed'

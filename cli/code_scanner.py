@@ -18,6 +18,7 @@ from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.utils.task_timer import TimeoutAfter
+from cli.utils import scan_utils
 from cli.user_settings.config_file_manager import ConfigFileManager
 from cli.zip_file import InMemoryZip
 from cli.exceptions.custom_exceptions import *
@@ -189,7 +190,8 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
                 return
 
             max_commits_to_scan = configuration_manager.get_pre_receive_max_commits_to_scan_count(command_scan_type)
-            return scan_commit_range(context, os.getcwd(), commit_range, max_commits_count=max_commits_to_scan)
+            scan_commit_range(context, os.getcwd(), commit_range, max_commits_count=max_commits_to_scan)
+            perform_post_pre_receive_scan_actions(context)
     except Exception as e:
         _handle_exception(context, e)
 
@@ -918,6 +920,11 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
+
+def perform_post_pre_receive_scan_actions(context: click.Context):
+    if scan_utils.is_scan_failed(context):
+        click.echo(PRE_RECEIVE_REMEDIATION_MESSAGE)
 
 
 def enable_verbose_mode(context: click.Context):
