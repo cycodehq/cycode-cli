@@ -234,7 +234,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     cycode_client = context.obj["client"]
     scan_type = context.obj["scan_type"]
     severity_threshold = context.obj["severity_threshold"]
-    scan_command_type = context.info_name
+    command_scan_type = context.info_name
     error_message = None
     all_detections_count = 0
     output_detections_count = 0
@@ -246,7 +246,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
                                    scan_parameters)
         all_detections_count, output_detections_count = \
-            handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
+            handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
                                documents_to_scan)
         scan_completed = True
     except Exception as e:
@@ -259,7 +259,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
                  {'all_violations_count': all_detections_count, 'relevant_violations_count': output_detections_count,
                   'scan_id': str(scan_id), 'zip_file_size': zip_file_size})
     _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
-                        all_detections_count, len(documents_to_scan), zip_file_size, scan_command_type, error_message)
+                        all_detections_count, len(documents_to_scan), zip_file_size, command_scan_type, error_message)
 
 
 def scan_commit_range_documents(context: click.Context, from_documents_to_scan: List[Document],
@@ -309,10 +309,10 @@ def should_scan_documents(from_documents_to_scan: List[Document], to_documents_t
     return len(from_documents_to_scan) > 0 or len(to_documents_to_scan) > 0
 
 
-def handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold, to_documents_to_scan):
+def handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold, to_documents_to_scan):
     document_detections_list = enrich_scan_result(scan_result, to_documents_to_scan)
     relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
-                                                                        scan_command_type, severity_threshold)
+                                                                        command_scan_type, severity_threshold)
     context.obj['report_url'] = scan_result.report_url
     print_results(context, relevant_document_detections_list)
     context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
@@ -424,10 +424,10 @@ def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: Lis
 
 
 def exclude_irrelevant_scan_results(document_detections_list: List[DocumentDetections], scan_type: str,
-                                    scan_command_type: str, severity_threshold: str) -> List[DocumentDetections]:
+                                    command_scan_type: str, severity_threshold: str) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
-        relevant_detections = exclude_irrelevant_detections(scan_type, scan_command_type, severity_threshold,
+        relevant_detections = exclude_irrelevant_detections(scan_type, command_scan_type, severity_threshold,
                                                             document_detections.detections)
         if relevant_detections:
             relevant_document_detections_list.append(DocumentDetections(document=document_detections.document,
@@ -540,9 +540,9 @@ def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> Li
     return [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
 
 
-def exclude_irrelevant_detections(scan_type: str, scan_command_type: str, severity_threshold: str, detections) -> List:
+def exclude_irrelevant_detections(scan_type: str, command_scan_type: str, severity_threshold: str, detections) -> List:
     relevant_detections = exclude_detections_by_exclusions_configuration(scan_type, detections)
-    relevant_detections = exclude_detections_by_scan_command_type(scan_command_type, relevant_detections)
+    relevant_detections = exclude_detections_by_command_scan_type(command_scan_type, relevant_detections)
     relevant_detections = exclude_detections_by_severity(scan_type, severity_threshold, relevant_detections)
 
     return relevant_detections
@@ -557,7 +557,7 @@ def exclude_detections_by_severity(scan_type: str, severity_threshold: str, dete
                                                     severity_threshold)]
 
 
-def exclude_detections_by_scan_command_type(scan_command_type: str, detections) -> List:
+def exclude_detections_by_command_scan_type(scan_command_type: str, detections) -> List:
     if scan_command_type != PRE_COMMIT_SCAN_COMMAND_TYPE:
         return detections
 
@@ -795,7 +795,7 @@ def _handle_exception(context: click.Context, e: Exception):
 
 def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, scan_completed: bool,
                         output_detections_count: int, all_detections_count: int, files_to_scan_count: int,
-                        zip_size: int, scan_command_type: str, error_message: Optional[str]):
+                        zip_size: int, command_scan_type: str, error_message: Optional[str]):
     try:
         cycode_client = context.obj["client"]
         end_scan_time = time.time()
@@ -806,7 +806,7 @@ def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, sc
             'all_detections_count': all_detections_count,
             'scannable_files_count': files_to_scan_count,
             'status': 'Completed' if scan_completed else 'Error',
-            'scan_command_type': scan_command_type,
+            'scan_command_type': command_scan_type,
             'operation_system': platform(),
             'error_message': error_message
         }
