@@ -117,6 +117,24 @@ class ConfigurationManager:
 
         return DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS
 
+    def get_should_exclude_detections_in_deleted_lines(self, command_scan_type: str) -> bool:
+        exclude_detections_in_deleted_lines = self._get_value_from_environment_variables(
+            EXCLUDE_DETECTIONS_IN_DELETED_LINES_ENV_VAR_NAME)
+        if exclude_detections_in_deleted_lines is not None:
+            return exclude_detections_in_deleted_lines.lower() in ('true', '1')
+
+        exclude_detections_in_deleted_lines = self.local_config_file_manager \
+            .get_exclude_detections_in_deleted_lines(command_scan_type)
+        if exclude_detections_in_deleted_lines is not None:
+            return exclude_detections_in_deleted_lines
+
+        exclude_detections_in_deleted_lines = self.global_config_file_manager\
+            .get_exclude_detections_in_deleted_lines(command_scan_type)
+        if exclude_detections_in_deleted_lines is not None:
+            return exclude_detections_in_deleted_lines
+
+        return DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES
+
     @staticmethod
     def _get_value_from_environment_variables(env_var_name, default=None):
         return os.getenv(env_var_name, default)

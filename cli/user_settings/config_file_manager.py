@@ -18,7 +18,7 @@ class ConfigFileManager(BaseFileManager):
 
     MAX_COMMITS_FIELD_NAME: str = 'max_commits'
     COMMAND_TIMEOUT_FIELD_NAME: str = 'command_timeout'
-
+    EXCLUDE_DETECTIONS_IN_DELETED_LINES: str = 'exclude_detections_in_deleted_lines'
 
     def __init__(self, path):
         self.path = path
@@ -42,6 +42,10 @@ class ConfigFileManager(BaseFileManager):
 
     def get_command_timeout(self, command_scan_type) -> Optional[int]:
         return self._get_value_from_command_scan_type_configuration(command_scan_type, self.COMMAND_TIMEOUT_FIELD_NAME)
+
+    def get_exclude_detections_in_deleted_lines(self, command_scan_type) -> Optional[bool]:
+        return self._get_value_from_command_scan_type_configuration(command_scan_type,
+                                                                    self.EXCLUDE_DETECTIONS_IN_DELETED_LINES)
 
     def update_base_url(self, base_url: str):
         update_data = {

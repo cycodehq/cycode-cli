@@ -4,7 +4,7 @@ from typing import List, Optional
 from cli.printers.base_printer import BasePrinter
 from cli.models import DocumentDetections, Detection, Document
 from cli.config import config
-from cli.consts import SECRET_SCAN_TYPE
+from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
 from cli.utils.string_utils import obfuscate_text
 
 
@@ -57,7 +57,7 @@ class TextPrinter(BasePrinter):
             f'{detection_sha_message}{detection_commit_id_message}  ⛔ ')
 
     def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int):
-        if document.is_git_diff_format:
+        if self._is_git_diff_based_scan():
             self._print_detection_from_git_diff(detection, document)
             return
 
@@ -169,3 +169,6 @@ class TextPrinter(BasePrinter):
         self._print_detection_line(document, detection_line, detection_line_number_in_original_file,
                                    detection_position_in_line, violation_length)
         click.echo()
+
+    def _is_git_diff_based_scan(self):
+        return self.command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES and self.scan_type == SECRET_SCAN_TYPE

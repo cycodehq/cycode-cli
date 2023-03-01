@@ -1,4 +1,6 @@
-PRE_COMMIT_SCAN_COMMAND_TYPE = 'pre_commit'
+PRE_COMMIT_COMMAND_SCAN_TYPE = 'pre_commit'
+PRE_RECEIVE_COMMAND_SCAN_TYPE = 'pre_receive'
+COMMIT_HISTORY_COMMAND_SCAN_TYPE = 'commit_history'
 
 SECRET_SCAN_TYPE = 'secret'
 INFRA_CONFIGURATION_SCAN_TYPE = 'iac'
@@ -45,6 +47,8 @@ PROJECT_FILES_BY_ECOSYSTEM_MAP = {
 }
 
 COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]
+
+COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES = [PRE_RECEIVE_COMMAND_SCAN_TYPE, COMMIT_HISTORY_COMMAND_SCAN_TYPE]
 
 DEFAULT_CYCODE_API_URL = "https://api.cycode.com"
 DEFAULT_CYCODE_APP_URL = "https://app.cycode.com"
@@ -97,6 +101,9 @@ Cycode Secrets Push Protection
 Resolve the following secrets by rewriting your local commit history before pushing again.
 Learn how to: https://cycode.com/dont-let-hardcoded-secrets-compromise-your-security-4-effective-remediation-techniques 
 """
+
+EXCLUDE_DETECTIONS_IN_DELETED_LINES_ENV_VAR_NAME = 'EXCLUDE_DETECTIONS_IN_DELETED_LINES'
+DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES = True
 
 # scan statuses
 SCAN_STATUS_COMPLETED = 'Completed'
