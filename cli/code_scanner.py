@@ -542,7 +542,7 @@ def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> Li
 
 def exclude_irrelevant_detections(scan_type: str, command_scan_type: str, severity_threshold: str, detections) -> List:
     relevant_detections = exclude_detections_by_exclusions_configuration(scan_type, detections)
-    relevant_detections = exclude_detections_by_command_scan_type(command_scan_type, relevant_detections)
+    relevant_detections = exclude_detections_by_scan_type(scan_type, command_scan_type, relevant_detections)
     relevant_detections = exclude_detections_by_severity(scan_type, severity_threshold, relevant_detections)
 
     return relevant_detections
@@ -557,14 +557,18 @@ def exclude_detections_by_severity(scan_type: str, severity_threshold: str, dete
                                                     severity_threshold)]
 
 
-def exclude_detections_by_command_scan_type(scan_command_type: str, detections) -> List:
-    if scan_command_type != PRE_COMMIT_SCAN_COMMAND_TYPE:
-        return detections
+def exclude_detections_by_scan_type(scan_type: str, command_scan_type: str, detections) -> List:
+    if command_scan_type == PRE_COMMIT_COMMAND_SCAN_TYPE:
+        return exclude_detections_in_deleted_lines(detections)
 
-    return exclude_detections_for_pre_commit_scan_command_type(detections)
+    if command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES \
+            and scan_type == SECRET_SCAN_TYPE\
+            and configuration_manager.get_should_exclude_detections_in_deleted_lines():
+        return exclude_detections_in_deleted_lines(detections)
+    return detections
 
 
-def exclude_detections_for_pre_commit_scan_command_type(detections) -> List:
+def exclude_detections_in_deleted_lines(detections) -> List:
     return [detection for detection in detections if detection.detection_details.get('line_type') != 'Removed']
 
 
