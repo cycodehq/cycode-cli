@@ -11,7 +11,7 @@ from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
-from cli.config import configuration_manager
+from cli.config import configuration_manager, config
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
@@ -39,26 +39,24 @@ start_scan_time = time.time()
                    "vulnerabilities and violations (supported for SCA scan type only).",
               type=bool,
               required=False)
-@click.option('--package-vulnerabilities',
-              is_flag=True,
+@click.option('--sca-scan',
               default=None,
-              help="When specified, the scan results will be return detections of package vulnerabilities",
-              type=bool,
-              required=False)
-@click.option('--license-compliance',
-              is_flag=True,
-              default=None,
-              help="When specified, the scan results will be return detections of license compliance",
-              type=bool,
-              required=False)
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def scan_repository(context: click.Context, path, branch, monitor, package_vulnerabilities, license_compliance):
+def scan_repository(context: click.Context, path, branch, monitor, sca_scan):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         context.obj["monitor"] = monitor
-        context.obj["package_vulnerabilities"] = package_vulnerabilities
-        context.obj["license_compliance"] = license_compliance
+        _sca_scan_to_context(context, sca_scan)
+        package_vulnerabilities = context.obj["package-vulnerabilities"]
+        license_compliance = context.obj["license-compliance"]
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -89,24 +87,20 @@ def scan_repository(context: click.Context, path, branch, monitor, package_vulne
               type=click.STRING,
               default="--all",
               required=False)
-@click.option('--package-vulnerabilities',
-              is_flag=True,
+@click.option('--sca-scan',
               default=None,
-              help="When specified, the scan results will be return detections of package vulnerabilities",
-              type=bool,
-              required=False)
-@click.option('--license-compliance',
-              is_flag=True,
-              default=None,
-              help="When specified, the scan results will be return detections of license compliance",
-              type=bool,
-              required=False)
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def scan_repository_commit_history(context: click.Context, path: str, commit_range: str, package_vulnerabilities: bool, license_compliance: bool):
+def scan_repository_commit_history(context: click.Context, path: str, commit_range: str, sca_scan: List[str]):
     """	Scan all the commits history in this git repository """
     try:
-        context.obj["package_vulnerabilities"] = package_vulnerabilities
-        context.obj["license_compliance"] = license_compliance
+        _sca_scan_to_context(context, sca_scan)
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
@@ -155,24 +149,20 @@ def scan_ci(context: click.Context):
 
 @click.command()
 @click.argument("path", nargs=1, type=click.STRING, required=True)
-@click.option('--package-vulnerabilities',
-              is_flag=True,
+@click.option('--sca-scan',
               default=None,
-              help="When specified, the scan results will be return detections of package vulnerabilities",
-              type=bool,
-              required=False)
-@click.option('--license-compliance',
-              is_flag=True,
-              default=None,
-              help="When specified, the scan results will be return detections of license compliance",
-              type=bool,
-              required=False)
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def scan_path(context: click.Context, path, package_vulnerabilities, license_compliance):
+def scan_path(context: click.Context, path, sca_scan):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
-    context.obj["package_vulnerabilities"] = package_vulnerabilities
-    context.obj["license_compliance"] = license_compliance
+    _sca_scan_to_context(context, sca_scan)
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
@@ -181,24 +171,20 @@ def scan_path(context: click.Context, path, package_vulnerabilities, license_com
 
 @click.command()
 @click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
-@click.option('--package-vulnerabilities',
-              is_flag=True,
+@click.option('--sca-scan',
               default=None,
-              help="When specified, the scan results will be return detections of package vulnerabilities",
-              type=bool,
-              required=False)
-@click.option('--license-compliance',
-              is_flag=True,
-              default=None,
-              help="When specified, the scan results will be return detections of license compliance",
-              type=bool,
-              required=False)
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def pre_commit_scan(context: click.Context, ignored_args: List[str], package_vulnerabilities, license_compliance):
+def pre_commit_scan(context: click.Context, ignored_args: List[str], sca_scan: List[str]):
     """ Use this command to scan the content that was not committed yet """
     scan_type = context.obj['scan_type']
-    context.obj["package_vulnerabilities"] = package_vulnerabilities
-    context.obj["license_compliance"] = license_compliance
+    _sca_scan_to_context(context, sca_scan)
     if scan_type == SCA_SCAN_TYPE:
         return scan_sca_pre_commit(context)
 
@@ -210,8 +196,8 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str], package_vul
 
 
 def scan_sca_pre_commit(context: click.Context):
-    package_vulnerabilities = context.obj["package_vulnerabilities"]
-    license_compliance = context.obj["license_compliance"]
+    package_vulnerabilities = context.obj["package-vulnerabilities"]
+    license_compliance = context.obj["license-compliance"]
     scan_parameters = get_default_scan_parameters(None, package_vulnerabilities, license_compliance)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
@@ -222,8 +208,8 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
-    package_vulnerabilities = context.obj["package_vulnerabilities"]
-    license_compliance = context.obj["license_compliance"]
+    package_vulnerabilities = context.obj["package-vulnerabilities"]
+    license_compliance = context.obj["license-compliance"]
     scan_parameters = get_default_scan_parameters(None, package_vulnerabilities, license_compliance)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
@@ -238,8 +224,8 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
 
 
 def scan_disk_files(context: click.Context, paths: List[str]):
-    package_vulnerabilities = context.obj["package_vulnerabilities"]
-    license_compliance = context.obj["license_compliance"]
+    package_vulnerabilities = context.obj["package-vulnerabilities"]
+    license_compliance = context.obj["license-compliance"]
     scan_parameters = get_default_scan_parameters(monitor=None, package_vulnerabilities=package_vulnerabilities,
                                           license_compliance=license_compliance)
     scan_type = context.obj['scan_type']
@@ -895,3 +881,11 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
+
+def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]):
+    for sca_scan_option in config['scans']['supported_sca_scans']:
+        context.obj[sca_scan_option] = None
+    for sca_scan_option_selected in sca_scan_user_selected:
+        context.obj[sca_scan_option_selected] = True
+
