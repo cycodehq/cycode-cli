@@ -13,7 +13,7 @@ class ResultsPrinter:
     def print_results(self, context: click.Context, detections_results_list: List[DocumentDetections],
                       output_type: str):
         printer = self.get_printer(output_type, context)
-        printer.print_results(context, detections_results_list)
+        printer.print_results(detections_results_list)
 
     def get_printer(self, output_type: str, context: click.Context):
         printer = self.printers.get(output_type)

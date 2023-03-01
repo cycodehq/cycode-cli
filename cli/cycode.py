@@ -74,7 +74,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     if show_secret:
         context.obj["show_secret"] = show_secret
     else:
-        context.obj["show_secret"] = config["result_printer"]["show_secret"]
+        context.obj["show_secret"] = config["result_printer"]["default"]["show_secret"]
 
     if soft_fail:
         context.obj["soft_fail"] = soft_fail

@@ -15,15 +15,15 @@ class TextPrinter(BasePrinter):
 
     scan_id: str
     scan_type: str
+    command_scan_type: str
     show_secret: bool = False
-    lines_to_display: int
 
     def __init__(self, context: click.Context):
         super().__init__(context)
         self.scan_id = context.obj.get('scan_id')
         self.scan_type = context.obj.get('scan_type')
+        self.command_scan_type = context.info_name
         self.show_secret = context.obj.get('show_secret', False)
-        self.lines_to_display = config.get('result_printer', {}).get('lines_to_display')
 
     def print_results(self, results: List[DocumentDetections]):
         click.secho(f"Scan Results: (scan_id: {self.scan_id})")
@@ -40,9 +40,10 @@ class TextPrinter(BasePrinter):
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document
+        lines_to_display = self._get_lines_to_display_count()
         for detection in document_detections.detections:
             self._print_detection_summary(detection, document.path)
-            self._print_detection_code_segment(detection, document, self.lines_to_display)
+            self._print_detection_code_segment(detection, document, lines_to_display)
 
     def _print_detection_summary(self, detection: Detection, document_path: str):
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
@@ -56,28 +57,11 @@ class TextPrinter(BasePrinter):
             f'{detection_sha_message}{detection_commit_id_message}  ⛔ ')
 
     def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int):
-        detection_details = detection.detection_details
-        detection_line = detection_details.get('line', -1) if self.scan_type == SECRET_SCAN_TYPE else \
-            detection_details.get('line_in_file', -1)
-        detection_position = detection_details.get('start_position', -1)
-        violation_length = detection_details.get('length', -1)
+        if document.is_git_diff_format:
+            self._print_detection_from_git_diff(detection, document)
+            return
 
-        document_content = document.content
-        document_lines = document_content.splitlines()
-        start_line = self._get_code_segment_start_line(detection_line, code_segment_size)
-        detection_position_in_line = self._get_position_in_line(document_content, detection_position)
-
-        click.echo()
-        for i in range(code_segment_size):
-            current_line_index = start_line + i
-            if current_line_index >= len(document_lines):
-                break
-
-            current_line = document_lines[current_line_index]
-            is_detection_line = current_line_index == detection_line
-            self._print_line_of_code_segment(document, current_line, current_line_index + 1, detection_position_in_line,
-                                             violation_length, is_detection_line)
-        click.echo()
+        self._print_detection_from_file(detection, document, code_segment_size)
 
     def _get_code_segment_start_line(self, detection_line: int, code_segment_size: int):
         start_line = detection_line - math.ceil(code_segment_size / 2)
@@ -135,3 +119,53 @@ class TextPrinter(BasePrinter):
 
     def _get_line_number_style(self, line_number: int):
         return f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} {click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
+
+    def _get_lines_to_display_count(self) -> int:
+        result_printer_configuration = config.get('result_printer')
+        lines_to_display_of_scan = result_printer_configuration.get(self.scan_type, {}) \
+            .get(self.command_scan_type, {}).get('lines_to_display')
+        if lines_to_display_of_scan:
+            return lines_to_display_of_scan
+
+        return result_printer_configuration.get('default').get('lines_to_display')
+
+    def _print_detection_from_file(self, detection: Detection, document: Document, code_segment_size: int):
+        detection_details = detection.detection_details
+        detection_line = detection_details.get('line', -1) if self.scan_type == SECRET_SCAN_TYPE else \
+            detection_details.get('line_in_file', -1)
+        detection_position = detection_details.get('start_position', -1)
+        violation_length = detection_details.get('length', -1)
+
+        file_content = document.content
+        file_lines = file_content.splitlines()
+        start_line = self._get_code_segment_start_line(detection_line, code_segment_size)
+        detection_position_in_line = self._get_position_in_line(file_content, detection_position)
+
+        click.echo()
+        for i in range(code_segment_size):
+            current_line_index = start_line + i
+            if current_line_index >= len(file_lines):
+                break
+
+            current_line = file_lines[current_line_index]
+            is_detection_line = current_line_index == detection_line
+            self._print_line_of_code_segment(document, current_line, current_line_index + 1, detection_position_in_line,
+                                             violation_length, is_detection_line)
+        click.echo()
+
+    def _print_detection_from_git_diff(self, detection: Detection, document: Document):
+        detection_details = detection.detection_details
+        detection_line_number = detection_details.get('line', -1)
+        detection_line_number_in_original_file = detection_details.get('line_in_file', -1)
+        detection_position = detection_details.get('start_position', -1)
+        violation_length = detection_details.get('length', -1)
+
+        git_diff_content = document.content
+        git_diff_lines = git_diff_content.splitlines()
+        detection_line = git_diff_lines[detection_line_number]
+        detection_position_in_line = self._get_position_in_line(git_diff_content, detection_position)
+
+        click.echo()
+        self._print_detection_line(document, detection_line, detection_line_number_in_original_file,
+                                   detection_position_in_line, violation_length)
+        click.echo()
