@@ -563,7 +563,7 @@ def exclude_detections_by_scan_type(scan_type: str, command_scan_type: str, dete
 
     if command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES \
             and scan_type == SECRET_SCAN_TYPE\
-            and configuration_manager.get_should_exclude_detections_in_deleted_lines():
+            and configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type):
         return exclude_detections_in_deleted_lines(detections)
     return detections
 
