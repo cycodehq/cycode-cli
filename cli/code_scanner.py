@@ -43,12 +43,19 @@ start_scan_time = time.time()
                    "vulnerabilities and violations (supported for SCA scan type only).",
               type=bool,
               required=False)
+@click.option('--report',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return also report link url of scan result.",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_repository(context: click.Context, path, branch, monitor):
+def scan_repository(context: click.Context, path, branch, monitor, report):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         context.obj["monitor"] = monitor
+        context.obj["report"] = report
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -62,7 +69,7 @@ def scan_repository(context: click.Context, path, branch, monitor):
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=get_scan_parameters(path, monitor))
+                              scan_parameters=get_scan_parameters(path, monitor, report))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -78,10 +85,17 @@ def scan_repository(context: click.Context, path, branch, monitor):
               type=click.STRING,
               default="--all",
               required=False)
+@click.option('--report',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return also report link url of scan result.",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
+def scan_repository_commit_history(context: click.Context, path: str, commit_range: str, report: bool):
     """	Scan all the commits history in this git repository """
     try:
+        context.obj["report"] = report
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
@@ -130,22 +144,36 @@ def scan_ci(context: click.Context):
 
 @click.command()
 @click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.option('--report',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return also report link url of scan result.",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_path(context: click.Context, path):
+def scan_path(context: click.Context, path, report):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
+    context.obj["report"] = report
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
-    return scan_disk_files(context, files_to_scan)
+    return scan_disk_files(context, path, files_to_scan)
 
 
 @click.command()
 @click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
+@click.option('--report',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return also report link url of scan result.",
+              type=bool,
+              required=False)
 @click.pass_context
-def pre_commit_scan(context: click.Context, ignored_args: List[str]):
+def pre_commit_scan(context: click.Context, ignored_args: List[str], report):
     """ Use this command to scan the content that was not committed yet """
     scan_type = context.obj['scan_type']
+    context.obj["report"] = report
     if scan_type == SCA_SCAN_TYPE:
         return scan_sca_pre_commit(context)
 
@@ -197,15 +225,20 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
 
 def scan_sca_pre_commit(context: click.Context):
+    report = context.obj["report"]
+    scan_parameters = get_default_scan_parameters(None, report)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
     return scan_commit_range_documents(context, git_head_documents, pre_committed_documents,
-                                       configuration_manager.get_sca_pre_commit_timeout_in_seconds())
+                                       configuration_manager.get_sca_pre_commit_timeout_in_seconds(),
+                                       scan_parameters=scan_parameters)
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    report = context.obj["report"]
+    scan_parameters = get_scan_parameters(path, None, report)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -213,10 +246,13 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
-    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
+    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents,
+                                       scan_parameters=scan_parameters)
 
 
-def scan_disk_files(context: click.Context, paths: List[str]):
+def scan_disk_files(context: click.Context, path, paths: List[str]):
+    report = context.obj["report"]
+    scan_parameters = get_scan_parameters(path, None, report)
     scan_type = context.obj['scan_type']
     is_git_diff = False
     documents: List[Document] = []
@@ -226,7 +262,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
             documents.append(Document(path, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    return scan_documents(context, documents, is_git_diff=is_git_diff)
+    return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
@@ -508,11 +544,20 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def get_scan_parameters(path: str, monitor: bool) -> dict:
-    scan_parameters = {"monitor": monitor}
+def get_default_scan_parameters(monitor: bool, report: bool) -> dict:
+    return {
+        "monitor": monitor,
+        "report": report
+    }
+
+
+def get_scan_parameters(path: str, monitor: bool, report: bool) -> dict:
+    scan_parameters = get_default_scan_parameters(monitor, report)
     remote_url = try_get_git_remote_url(path)
+
     if remote_url:
         scan_parameters.update(remote_url)
+
     return scan_parameters
 
 
