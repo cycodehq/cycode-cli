@@ -138,14 +138,22 @@ def scan_ci(context: click.Context):
 
 @click.command()
 @click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.option('--monitor',
+              is_flag=True,
+              default=False,
+              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
+                   "vulnerabilities and violations (supported for SCA scan type only).",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_path(context: click.Context, path):
+def scan_path(context: click.Context, path, monitor):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
+    context.obj["monitor"] = monitor
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
-    return scan_disk_files(context, files_to_scan)
+    return scan_disk_files(context, path, files_to_scan)
 
 
 @click.command()
@@ -227,8 +235,10 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
                                        scan_parameters=scan_parameters)
 
 
-def scan_disk_files(context: click.Context, paths: List[str]):
+def scan_disk_files(context: click.Context, path, paths: List[str]):
     scan_type = context.obj['scan_type']
+    monitor = context.obj['monitor']
+    scan_parameters = get_scan_parameters(path, monitor)
     is_git_diff = False
     documents: List[Document] = []
     for path in paths:
@@ -237,7 +247,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
             documents.append(Document(path, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    return scan_documents(context, documents, is_git_diff=is_git_diff)
+    return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
