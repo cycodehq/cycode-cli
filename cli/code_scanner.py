@@ -78,10 +78,18 @@ def scan_repository(context: click.Context, path, branch, monitor):
               type=click.STRING,
               default="--all",
               required=False)
+@click.option('--monitor',
+              is_flag=True,
+              default=False,
+              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
+                   "vulnerabilities and violations (supported for SCA scan type only).",
+              type=bool,
+              required=False)
 @click.pass_context
-def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
+def scan_repository_commit_history(context: click.Context, monitor: bool, path: str, commit_range: str):
     """	Scan all the commits history in this git repository """
     try:
+        context.obj["monitor"] = monitor
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
@@ -206,6 +214,8 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    monitor = context.obj["monitor"]
+    scan_parameters = get_scan_parameters(path, monitor)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -213,7 +223,8 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
-    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
+    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents,
+                                       scan_parameters=scan_parameters)
 
 
 def scan_disk_files(context: click.Context, paths: List[str]):
