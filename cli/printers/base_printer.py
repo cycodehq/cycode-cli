@@ -2,6 +2,7 @@ import click
 from abc import ABC, abstractmethod
 from typing import List
 from cli.models import DocumentDetections
+from cyclient import models
 
 
 class BasePrinter(ABC):
@@ -12,5 +13,9 @@ class BasePrinter(ABC):
         self.context = context
 
     @abstractmethod
-    def print_results(self, results: List[DocumentDetections]):
+    def print_results(self, context: click.Context, results: List[DocumentDetections]):
+        pass
+
+    @abstractmethod
+    def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
         pass
