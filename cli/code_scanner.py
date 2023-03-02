@@ -774,7 +774,7 @@ def _handle_exception(context: click.Context, e: Exception):
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
     elif isinstance(e, TimeoutError):
-        click.secho('Command timed out', fg='red', nl=False)
+        click.secho('Cycode was unable to complete this scan due to command timeout', fg='red', nl=False)
         context.obj["soft_fail"] = True
     elif isinstance(e, HttpUnauthorizedError):
         click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
