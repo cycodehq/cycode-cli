@@ -43,7 +43,8 @@ class TextPrinter(BasePrinter):
         click.secho(f"Scan update: (scan_id: {scan_details_response.id})")
         click.secho(f"Scan status: {scan_details_response.scan_status}")
         if scan_details_response.message is not None:
-            click.secho(f"Scan message: {scan_details_response.message}")
+            click.secho(f"Scan message:")
+            click.secho(f"{scan_details_response.message}")
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document
