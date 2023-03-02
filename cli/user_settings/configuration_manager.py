@@ -87,9 +87,53 @@ class ConfigurationManager:
         return int(self._get_value_from_environment_variables(SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
                                                               DEFAULT_SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS))
 
-    def get_pre_receive_max_commits_count_to_scan(self) -> int:
-        return int(self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME,
-                                                              DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT))
+    def get_pre_receive_max_commits_to_scan_count(self, command_scan_type: str) -> int:
+        max_commits = self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME)
+        if max_commits is not None:
+            return int(max_commits)
+
+        max_commits = self.local_config_file_manager.get_max_commits(command_scan_type)
+        if max_commits is not None:
+            return max_commits
+
+        max_commits = self.global_config_file_manager.get_max_commits(command_scan_type)
+        if max_commits is not None:
+            return max_commits
+
+        return DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT
+
+    def get_pre_receive_command_timeout(self, command_scan_type: str) -> int:
+        command_timeout = self._get_value_from_environment_variables(PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME)
+        if command_timeout is not None:
+            return int(command_timeout)
+
+        command_timeout = self.local_config_file_manager.get_command_timeout(command_scan_type)
+        if command_timeout is not None:
+            return command_timeout
+
+        command_timeout = self.global_config_file_manager.get_command_timeout(command_scan_type)
+        if command_timeout is not None:
+            return command_timeout
+
+        return DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS
+
+    def get_should_exclude_detections_in_deleted_lines(self, command_scan_type: str) -> bool:
+        exclude_detections_in_deleted_lines = self._get_value_from_environment_variables(
+            EXCLUDE_DETECTIONS_IN_DELETED_LINES_ENV_VAR_NAME)
+        if exclude_detections_in_deleted_lines is not None:
+            return exclude_detections_in_deleted_lines.lower() in ('true', '1')
+
+        exclude_detections_in_deleted_lines = self.local_config_file_manager \
+            .get_exclude_detections_in_deleted_lines(command_scan_type)
+        if exclude_detections_in_deleted_lines is not None:
+            return exclude_detections_in_deleted_lines
+
+        exclude_detections_in_deleted_lines = self.global_config_file_manager\
+            .get_exclude_detections_in_deleted_lines(command_scan_type)
+        if exclude_detections_in_deleted_lines is not None:
+            return exclude_detections_in_deleted_lines
+
+        return DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES
 
     @staticmethod
     def _get_value_from_environment_variables(env_var_name, default=None):
