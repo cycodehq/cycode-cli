@@ -127,13 +127,14 @@ class ScanInitializationResponseSchema(Schema):
 
 class ScanDetailsResponse(Schema):
     def __init__(self, id: str, scan_status: str = None, results_count: int = None, metadata: str = None, message: str = None,
-                 err: str = None):
+                 scan_update_at: str = None, err: str = None):
         super().__init__()
         self.id = id
         self.scan_status = scan_status
         self.detections_count = results_count
         self.metadata = metadata
         self.message = message
+        self.scan_update_at = scan_update_at
         self.err = err
 
 
