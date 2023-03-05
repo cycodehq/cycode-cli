@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import click
 import json
 import logging
@@ -9,6 +11,9 @@ from platform import platform
 from uuid import uuid4, UUID
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
+
+from halo import Halo
+
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
@@ -16,6 +21,7 @@ from cli.consts import *
 from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
+from cli.utils.scan_utils import print_click_secho
 from cli.utils.string_utils import get_content_size, is_binary_content
 from cli.utils.task_timer import TimeoutAfter
 from cli.utils import scan_utils
@@ -197,6 +203,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
 
 def scan_sca_pre_commit(context: click.Context):
+    print_click_secho(f"Scan sca pre commit")
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
@@ -206,6 +213,7 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    print_click_secho(f"Scan sca commit range")
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -243,8 +251,11 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     output_type = context.obj['output']
 
     try:
+        print_click_secho("Preparing local files")
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
-        scan_result = perform_scan(output_type, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
+
+        scan_result = perform_scan(output_type, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
+                                   is_commit_range,
                                    scan_parameters)
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
@@ -280,8 +291,10 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     try:
         scan_result = init_default_scan_result(str(scan_id))
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
+            print_click_secho("Preparing from-commit zip")
             from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
                                                                  from_documents_to_scan)
+            print_click_secho("Preparing to-commit zip")
             to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
                                                                to_documents_to_scan)
             scan_result = perform_commit_range_scan_async(context, cycode_client, from_commit_zipped_documents,
@@ -327,11 +340,16 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
+        print_click_secho(
+            f"Perform pre scan document actions")
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
+        print_click_secho(
+            f"Perform pre scan document actions is done")
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
+    print_click_secho("Zipping documents:")
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
@@ -339,7 +357,9 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
         logger.debug('adding file to zip, %s',
                      {'index': index, 'filename': document.path, 'unique_id': document.unique_id})
         zip.append(document.path, document.unique_id, document.content)
+        print_click_secho(f"{document.path}")
     zip.close()
+    print_click_secho("Zipped documents")
 
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
@@ -356,8 +376,10 @@ def validate_zip_file_size(scan_type, zip_file_size):
             raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
 
 
-def perform_scan(output_type, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
+def perform_scan(output_type, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
+                 is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
+    print_click_secho("Perform scan")
     if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
         return perform_scan_async(output_type, cycode_client, zipped_documents, scan_type, scan_parameters)
 
@@ -394,6 +416,8 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
     last_scan_update_at = None
     output_type = context.obj['output']
     end_polling_time = time.time() + polling_timeout
+    spinner = Halo(spinner='dots')
+    spinner.start("Scan in progress")
     while time.time() < end_polling_time:
         logger.debug("scan in progress")
         scan_details = cycode_client.get_scan_details(scan_id)
@@ -401,11 +425,14 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
             last_scan_update_at = scan_details.scan_update_at
             printer.print_scan_status(context, scan_details, output_type)
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
+            spinner.succeed()
             return _get_scan_result(cycode_client, scan_id, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
+            spinner.fail()
             raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
+    spinner.fail()
     raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
@@ -538,6 +565,7 @@ def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_sc
         List[Document]:
     scan_type = context.obj['scan_type']
     logger.debug("excluding irrelevant documents to scan")
+    print_click_secho("Excluding irrelevant documents to scan")
     return [document for document in documents_to_scan if
             _is_relevant_document_to_scan(scan_type, document.path, document.content)]
 
@@ -569,7 +597,7 @@ def exclude_detections_by_scan_type(scan_type: str, command_scan_type: str, dete
         return exclude_detections_in_deleted_lines(detections)
 
     if command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES \
-            and scan_type == SECRET_SCAN_TYPE\
+            and scan_type == SECRET_SCAN_TYPE \
             and configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type):
         return exclude_detections_in_deleted_lines(detections)
     return detections
@@ -617,10 +645,12 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
 
         file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
         if file_content is not None:
+            print_click_secho(f"Read file content from commit: {diff_file_path}")
             from_commit_documents.append(Document(file_path, file_content))
 
         file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
         if file_content is not None:
+            print_click_secho(f"Read file content to commit: {diff_file_path}")
             to_commit_documents.append(Document(file_path, file_content))
 
     return from_commit_documents, to_commit_documents
@@ -874,11 +904,15 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
     logger.debug("waiting for detections to be created")
     scan_persisted_detections_count = 0
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
+    spinner = Halo(spinner='dots')
+    spinner.start("Please wait until printing scan result...")
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
+            spinner.succeed()
             return
         time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
+    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     logger.debug("%i detections has been created", scan_persisted_detections_count)
 
 
@@ -955,3 +989,4 @@ def does_git_push_option_have_value(value: str) -> bool:
     option_count_env_value = os.getenv(GIT_PUSH_OPTION_COUNT_ENV_VAR_NAME, '')
     option_count = int(option_count_env_value) if option_count_env_value.isdigit() else 0
     return any(os.getenv(f'{GIT_PUSH_OPTION_ENV_VAR_PREFIX}{i}') == value for i in range(option_count))
+

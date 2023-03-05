@@ -43,13 +43,12 @@ class TextPrinter(BasePrinter):
             click.secho(f"Report URL: {self.context.obj.get('report_url')}")
 
     def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
+        click.secho("")
         update_time = parser().parse(scan_details_response.scan_update_at).time().isoformat(timespec="seconds")
         self._print_click_secho_with_time(update_time, f"Scan update: (scan_id: {scan_details_response.id})")
         self._print_click_secho_with_time(update_time, f"Scan status: {scan_details_response.scan_status}")
         if scan_details_response.message is not None:
             self._print_click_secho_with_time(update_time, f"Scan message: {scan_details_response.message}")
-        if scan_details_response.scan_status == SCAN_STATUS_COMPLETED:
-            self._print_click_secho_with_time(update_time, f"Please wait until printing scan result...")
 
     def _print_click_secho_with_time(self, update_time, message):
         click.secho(f"[{update_time}] {message}")
