@@ -391,12 +391,15 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
 
     printer = ResultsPrinter()
+    last_scan_update_at = None
     output_type = context.obj['output']
     end_polling_time = time.time() + polling_timeout
     while time.time() < end_polling_time:
         logger.debug("scan in progress")
         scan_details = cycode_client.get_scan_details(scan_id)
-        printer.print_scan_status(context, scan_details, output_type)
+        if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
+            last_scan_update_at = scan_details.scan_update_at
+            printer.print_scan_status(context, scan_details, output_type)
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_id, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
