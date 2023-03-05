@@ -1,10 +1,13 @@
 import click
 import math
 from typing import List, Optional
+
+from dateutil.parser import parser
+
 from cli.printers.base_printer import BasePrinter
 from cli.models import DocumentDetections, Detection, Document
 from cli.config import config
-from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
+from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SCAN_STATUS_COMPLETED
 from cli.utils.string_utils import obfuscate_text
 from cyclient import models
 
@@ -40,11 +43,15 @@ class TextPrinter(BasePrinter):
             click.secho(f"Report URL: {self.context.obj.get('report_url')}")
 
     def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
-        click.secho(f"Scan update: (scan_id: {scan_details_response.id})")
-        click.secho(f"Scan status: {scan_details_response.scan_status}")
+        update_time = parser.parse(scan_details_response.scan_update_at)
+
+        click.secho(f"[{update_time}] Scan update: (scan_id: {scan_details_response.id})")
+        click.secho(f"[{update_time}] Scan status: {scan_details_response.scan_status}")
         if scan_details_response.message is not None:
-            click.secho(f"Scan message:")
-            click.secho(f"{scan_details_response.message}")
+            click.secho(f"[{update_time}] Scan message: {scan_details_response.message}")
+            click.secho(f"[{update_time}] --------------------------------------------------------------")
+        if scan_details_response.scan_status == SCAN_STATUS_COMPLETED:
+            click.secho(f"[{update_time}] Please wait until printing scan result...")
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document
