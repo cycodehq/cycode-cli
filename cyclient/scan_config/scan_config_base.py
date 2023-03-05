@@ -40,7 +40,7 @@ class ScanConfigBase(ABC):
         return f"{self.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}&page_size={page_size}&page_number={page_number}"
 
     def get_scan_detections_count_controller_path(self, scan_id):
-        return f"{self.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}"
+        return f"{self.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count?scan_id={scan_id}"
 
     def get_commit_range_zipped_file_scan_controller_path(self, scan_type):
         return f"{self.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/commit-range-zipped-file"
