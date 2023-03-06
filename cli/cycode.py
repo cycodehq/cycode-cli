@@ -2,6 +2,9 @@ import logging
 
 import click
 import sys
+
+from typing import List
+
 from cli.models import Severity
 from cli.config import config
 from cli import code_scanner, __version__
@@ -68,8 +71,17 @@ NO_ISSUES_STATUS_CODE = 0
               help='Show only violations at the specified level or higher (supported for SCA scan type only).',
               type=click.Choice([e.name for e in Severity]),
               required=False)
+@click.option('--sca-scan',
+              default=None,
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str]):
     """ Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
@@ -85,6 +97,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     context.obj["output"] = output
     context.obj["client"] = get_cycode_client(client_id, secret)
     context.obj["severity_threshold"] = severity_threshold
+    _sca_scan_to_context(context, sca_scan)
 
     return 1
 
@@ -139,6 +152,11 @@ def _get_configured_credentials():
 
 def _should_fail_scan(context: click.Context):
     return scan_utils.is_scan_failed(context)
+
+
+def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]):
+    for sca_scan_option_selected in sca_scan_user_selected:
+        context.obj[sca_scan_option_selected] = True
 
 
 if __name__ == '__main__':
