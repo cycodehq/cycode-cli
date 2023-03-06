@@ -192,7 +192,7 @@ repos:
         # CYCODE_API_URL = "<cycode server url>"
         export CYCODE_CLIENT_ID="<client_id>"
         export CYCODE_CLIENT_SECRET="<client_secret>"
-        export CYCODE_API_URL="https://api.cycode.xyz"
+        export CYCODE_API_URL="https://api.cycode.com"
 
         set -e
         cycode scan pre_receive
