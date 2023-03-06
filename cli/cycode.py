@@ -155,8 +155,6 @@ def _should_fail_scan(context: click.Context):
 
 
 def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]):
-    for sca_scan_option in config['scans']['supported_sca_scans']:
-        context.obj[sca_scan_option] = None
     for sca_scan_option_selected in sca_scan_user_selected:
         context.obj[sca_scan_option_selected] = True
 

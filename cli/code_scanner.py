@@ -520,9 +520,9 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
 
 def get_default_scan_parameters(context: click.Context) -> dict:
     return {
-        "monitor": context.obj["monitor"],
-        "package_vulnerabilities": context.obj["package-vulnerabilities"],
-        "license_compliance": context.obj["license-compliance"]
+        "monitor": context.obj.get("monitor"),
+        "package_vulnerabilities": context.obj.get("package-vulnerabilities"),
+        "license_compliance": context.obj.get("license-compliance")
     }
 
 
