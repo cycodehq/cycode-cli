@@ -88,7 +88,7 @@ NO_ISSUES_STATUS_CODE = 0
               type=bool,
               required=False)
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str]):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str], monitor):
     """ Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
