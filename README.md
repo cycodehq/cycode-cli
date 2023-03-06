@@ -189,10 +189,9 @@ repos:
 
         # optional
         # Update the server URL only if you have Cycode self managed
-        # CYCODE_API_URL = "<cycode server url>"
+        # export CYCODE_API_URL = "<cycode server url>"
         export CYCODE_CLIENT_ID="<client_id>"
         export CYCODE_CLIENT_SECRET="<client_secret>"
-        export CYCODE_API_URL="https://api.cycode.com"
 
         set -e
         cycode scan pre_receive
@@ -211,12 +210,13 @@ repos:
 
 4. [Optional] Update Cycode API url (relevant only for on-prem customers) - Update `CYCODE_API_URL` in the pre-receive file.
 
-#### Install pre-recive hook gloaly (For all the repositories)
+#### Install pre-recive hook globaly (For all the repositories)
 
 1. Set the global hooks directory in the Git server instance.
-    - For GitLab Enterprise:
+    - For GitLab Enterprise (https://docs.gitlab.com/ee/administration/server_hooks.html#create-global-server-hooks-for-all-repositories) :
         - Set in `/etc/gitlab/gitlab.rb` the `gitaly['custom_hooks_dir']` value or just use the default location by uncommenting it.
         - Run `gitlab-ctl reconfigure`.
+        - Follow the steps [here](#create-the-pre-receive-hook)
 
 2. Add the pre-receive hook according to the Git server requirements.
     - For GitLab Enterprise:
