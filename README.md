@@ -166,6 +166,69 @@ repos:
 > Successful hook installation will result in the message:<br/>
 `Pre-commit installed at .git/hooks/pre-commit`
 
+## Pre-receive Hook
+
+### Prerequisites
+
+1. Install Cycode CLI on your Git server - Install the Cycode CLI by running `pip3 install cycode --user`. Check that the CLI installed successfully by running `cycode`. If you get `cycode: command not found`, you need to add the installation path to the `PATH` environment variable.
+2. Cycode service account
+
+### Instructions
+
+#### Install for a specific repository
+
+1. Find the repository location in the Git server instance.
+    - For GitLab Enterprise: [Git server hooks | GitLab](https://docs.gitlab.com/ee/administration/server_hooks.html)
+
+2. Create the pre-receive hook.
+    - Create a new file in the repository's Git hook location under the repository location you found in step 1, and name it `pre-receive`.
+    - Copy the following script to the `pre-recive` file:
+
+        ```sh
+        #!/bin/sh
+
+        # optional
+        # Update the server URL only if you have Cycode self managed
+        # CYCODE_API_URL = "<cycode server url>"
+        export CYCODE_CLIENT_ID="<client_id>"
+        export CYCODE_CLIENT_SECRET="<client_secret>"
+        export CYCODE_API_URL="https://api.cycode.xyz"
+
+        set -e
+        cycode scan pre_receive
+        ```
+
+    - Make the file executable by running `chmod +x pre-receive`.
+    - Change the file owner and owner group to `git` user:
+        - `chown git pre-receive` (change file owner).
+        - `chgrp git pre-receive` (change file group owner).
+        - Verify it by running `ls -l`. The output should be `-rwxr-xr-x 1 git git 662 Mar 2 09:15 pre-receive` (first `git` is the file's owner, second `git` is the file's group owner).
+
+3. Configure the Cycode token.
+    - There are two methods to set it:
+        - In the script above, fill in the client ID and secret.
+        - Set environment variables on the instance.
+
+4. [Optional] Configure `CYCODE_API_URL` for on-prem customers.
+
+#### Install pre-recive hook gloaly (For all the repositories)
+
+1. Set the global hooks directory in the Git server instance.
+    - For GitLab Enterprise:
+        - Set in `/etc/gitlab/gitlab.rb` the `gitaly['custom_hooks_dir']` value or just use the default location by uncommenting it.
+        - Run `gitlab-ctl reconfigure`.
+
+2. Add the pre-receive hook according to the Git server requirements.
+    - For GitLab Enterprise:
+        - Go to the directory and create a directory named `pre-receive.d`.
+        - Inside the directory, follow the steps of "Install for a specific repository" above.
+
+#### Skipping the pre-receive hook
+
+Cycode's pre-receive hook can be skipped easily by adding `-o skip-cycode-scan` to the `git push` command.
+
+> **Notice:** Verify that the option `receive.advertisePushOptions` is enabled in the instance Git configuration. For enabling it, run `git config receive.advertisePushOptions true`. It seems that in GitLab, it's enabled by default.
+
 # Cycode Command
 
 The following are the options and commands available with the Cycode CLI application:
