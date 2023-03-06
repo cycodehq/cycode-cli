@@ -248,13 +248,12 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     output_detections_count = 0
     scan_id = _get_scan_id(context)
     zipped_documents = InMemoryZip()
-    output_type = context.obj['output']
 
     try:
         print_click_secho("Preparing local files")
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
 
-        scan_result = perform_scan(output_type, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
+        scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
                                    is_commit_range,
                                    scan_parameters)
         all_detections_count, output_detections_count = \
@@ -376,12 +375,12 @@ def validate_zip_file_size(scan_type, zip_file_size):
             raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
 
 
-def perform_scan(output_type, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
+def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
                  is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
     print_click_secho("Perform scan")
     if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
-        return perform_scan_async(output_type, cycode_client, zipped_documents, scan_type, scan_parameters)
+        return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
 
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
         if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
