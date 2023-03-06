@@ -171,7 +171,7 @@ repos:
 ### Prerequisites
 
 1. Install Cycode CLI on your Git server - Install the Cycode CLI by running `pip3 install cycode --user`. Check that the CLI installed successfully by running `cycode`. If you get `cycode: command not found`, you need to add the installation path to the `PATH` environment variable.
-2. Cycode service account
+3. Cycode service account
 
 ### Instructions
 
@@ -209,7 +209,7 @@ repos:
         - In the script above, fill in the client ID and secret.
         - Set environment variables on the instance.
 
-4. [Optional] Configure `CYCODE_API_URL` for on-prem customers.
+4. [Optional] Update Cycode API url (relevant only for on-prem customers) - Update `CYCODE_API_URL` in the pre-receive file.
 
 #### Install pre-recive hook gloaly (For all the repositories)
 
