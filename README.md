@@ -216,7 +216,7 @@ repos:
     - For GitLab Enterprise (https://docs.gitlab.com/ee/administration/server_hooks.html#create-global-server-hooks-for-all-repositories) :
         - Set in `/etc/gitlab/gitlab.rb` the `gitaly['custom_hooks_dir']` value or just use the default location by uncommenting it.
         - Run `gitlab-ctl reconfigure`.
-        - Follow the steps [here](#create-the-pre-receive-hook)
+        - Follow the steps [here](#install-for-a-specific-repository)
 
 2. Add the pre-receive hook according to the Git server requirements.
     - For GitLab Enterprise:
