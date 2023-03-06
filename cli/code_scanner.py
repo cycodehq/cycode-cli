@@ -13,7 +13,7 @@ from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
-from cli.config import configuration_manager
+from cli.config import configuration_manager, config
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
@@ -43,12 +43,23 @@ start_scan_time = time.time()
                    "vulnerabilities and violations (supported for SCA scan type only).",
               type=bool,
               required=False)
+@click.option('--sca-scan',
+              default=None,
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def scan_repository(context: click.Context, path, branch, monitor):
+def scan_repository(context: click.Context, path, branch, monitor, sca_scan):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
+        context.obj["path"] = path
         context.obj["monitor"] = monitor
+        _sca_scan_to_context(context, sca_scan)
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -62,7 +73,7 @@ def scan_repository(context: click.Context, path, branch, monitor):
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=get_scan_parameters(path, monitor))
+                              scan_parameters=get_scan_parameters(context))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -78,10 +89,20 @@ def scan_repository(context: click.Context, path, branch, monitor):
               type=click.STRING,
               default="--all",
               required=False)
+@click.option('--sca-scan',
+              default=None,
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
+def scan_repository_commit_history(context: click.Context, path: str, commit_range: str, sca_scan: List[str]):
     """	Scan all the commits history in this git repository """
     try:
+        _sca_scan_to_context(context, sca_scan)
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
@@ -130,10 +151,21 @@ def scan_ci(context: click.Context):
 
 @click.command()
 @click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.option('--sca-scan',
+              default=None,
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def scan_path(context: click.Context, path):
+def scan_path(context: click.Context, path, sca_scan):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
+    context.obj["path"] = path
+    _sca_scan_to_context(context, sca_scan)
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
@@ -142,10 +174,20 @@ def scan_path(context: click.Context, path):
 
 @click.command()
 @click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
+@click.option('--sca-scan',
+              default=None,
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
 @click.pass_context
-def pre_commit_scan(context: click.Context, ignored_args: List[str]):
+def pre_commit_scan(context: click.Context, ignored_args: List[str], sca_scan: List[str]):
     """ Use this command to scan the content that was not committed yet """
     scan_type = context.obj['scan_type']
+    _sca_scan_to_context(context, sca_scan)
     if scan_type == SCA_SCAN_TYPE:
         return scan_sca_pre_commit(context)
 
@@ -197,15 +239,19 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
 
 def scan_sca_pre_commit(context: click.Context):
+    scan_parameters = get_default_scan_parameters(context)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
     return scan_commit_range_documents(context, git_head_documents, pre_committed_documents,
+                                       scan_parameters,
                                        configuration_manager.get_sca_pre_commit_timeout_in_seconds())
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    context.obj["path"] = path
+    scan_parameters = get_scan_parameters(context)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -213,10 +259,13 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
-    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
+
+    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents,
+                                       scan_parameters=scan_parameters)
 
 
 def scan_disk_files(context: click.Context, paths: List[str]):
+    scan_parameters = get_scan_parameters(context)
     scan_type = context.obj['scan_type']
     is_git_diff = False
     documents: List[Document] = []
@@ -226,7 +275,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
             documents.append(Document(path, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    return scan_documents(context, documents, is_git_diff=is_git_diff)
+    return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
@@ -508,8 +557,17 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def get_scan_parameters(path: str, monitor: bool) -> dict:
-    scan_parameters = {"monitor": monitor}
+def get_default_scan_parameters(context: click.Context) -> dict:
+    return {
+        "monitor": context.obj["monitor"],
+        "package_vulnerabilities": context.obj["package-vulnerabilities"],
+        "license_compliance": context.obj["license-compliance"]
+    }
+
+
+def get_scan_parameters(context: click.Context) -> dict:
+    path = context.obj["path"]
+    scan_parameters = get_default_scan_parameters(context)
     remote_url = try_get_git_remote_url(path)
     if remote_url:
         scan_parameters.update(remote_url)
@@ -773,9 +831,6 @@ def _handle_exception(context: click.Context, e: Exception):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
-    elif isinstance(e, TimeoutError):
-        click.secho('Cycode was unable to complete this scan due to command timeout', fg='red', nl=False)
-        context.obj["soft_fail"] = True
     elif isinstance(e, HttpUnauthorizedError):
         click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
                     'Please re-generate your token and reconfigure it by running the `cycode configure` command',
@@ -924,6 +979,14 @@ def _normalize_file_path(path: str):
     if path.startswith("./"):
         return path[2:]
     return path
+
+
+def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]):
+    for sca_scan_option in config['scans']['supported_sca_scans']:
+        context.obj[sca_scan_option] = None
+    for sca_scan_option_selected in sca_scan_user_selected:
+        context.obj[sca_scan_option_selected] = True
+
 
 
 def perform_post_pre_receive_scan_actions(context: click.Context):
