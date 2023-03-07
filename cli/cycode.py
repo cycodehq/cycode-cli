@@ -89,7 +89,7 @@ NO_ISSUES_STATUS_CODE = 0
               required=False)
 @click.option('--report',
               is_flag=True,
-              default=None,
+              default=False,
               help="When specified, the scan results will be return also report link url of scan result.",
               type=bool,
               required=False)
