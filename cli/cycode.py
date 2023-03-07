@@ -87,8 +87,14 @@ NO_ISSUES_STATUS_CODE = 0
                    "vulnerabilities and violations (supported for SCA scan type only).",
               type=bool,
               required=False)
+@click.option('--report',
+              is_flag=True,
+              default=None,
+              help="When specified, the scan results will be return also report link url of scan result.",
+              type=bool,
+              required=False)
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str], monitor):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str], monitor, report):
     """ Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
@@ -105,6 +111,7 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     context.obj["client"] = get_cycode_client(client_id, secret)
     context.obj["severity_threshold"] = severity_threshold
     context.obj["monitor"] = monitor
+    context.obj["report"] = report
     _sca_scan_to_context(context, sca_scan)
 
     return 1
