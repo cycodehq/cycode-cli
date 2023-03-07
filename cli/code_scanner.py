@@ -18,7 +18,7 @@ from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
-from cli.config import configuration_manager
+from cli.config import configuration_manager, config
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.scan_utils import print_click_secho
@@ -42,19 +42,13 @@ start_scan_time = time.time()
               help='Branch to scan, if not set scanning the default branch',
               type=str,
               required=False)
-@click.option('--monitor',
-              is_flag=True,
-              default=False,
-              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
-                   "vulnerabilities and violations (supported for SCA scan type only).",
-              type=bool,
-              required=False)
 @click.pass_context
-def scan_repository(context: click.Context, path, branch, monitor):
+def scan_repository(context: click.Context, path, branch):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
-        context.obj["monitor"] = monitor
+        context.obj["path"] = path
+        monitor = context.obj.get("monitor")
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
@@ -68,7 +62,7 @@ def scan_repository(context: click.Context, path, branch, monitor):
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=get_scan_parameters(path, monitor))
+                              scan_parameters=get_scan_parameters(context))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -140,6 +134,7 @@ def scan_ci(context: click.Context):
 def scan_path(context: click.Context, path):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
+    context.obj["path"] = path
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
@@ -204,16 +199,20 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
 def scan_sca_pre_commit(context: click.Context):
     print_click_secho(f"Scan sca pre commit")
+    scan_parameters = get_default_scan_parameters(context)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
     return scan_commit_range_documents(context, git_head_documents, pre_committed_documents,
+                                       scan_parameters,
                                        configuration_manager.get_sca_pre_commit_timeout_in_seconds())
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     print_click_secho(f"Scan sca commit range")
+    context.obj["path"] = path
+    scan_parameters = get_scan_parameters(context)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -221,10 +220,13 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
                                                            to_commit_documents, to_commit_rev)
-    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents)
+
+    return scan_commit_range_documents(context, from_commit_documents, to_commit_documents,
+                                       scan_parameters=scan_parameters)
 
 
 def scan_disk_files(context: click.Context, paths: List[str]):
+    scan_parameters = get_scan_parameters(context)
     scan_type = context.obj['scan_type']
     is_git_diff = False
     documents: List[Document] = []
@@ -234,7 +236,7 @@ def scan_disk_files(context: click.Context, paths: List[str]):
             documents.append(Document(path, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    return scan_documents(context, documents, is_git_diff=is_git_diff)
+    return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
@@ -250,11 +252,8 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     zipped_documents = InMemoryZip()
 
     try:
-        print_click_secho("Preparing local files")
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
-
-        scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
-                                   is_commit_range,
+        scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
                                    scan_parameters)
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
@@ -290,13 +289,11 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     try:
         scan_result = init_default_scan_result(str(scan_id))
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
-            print_click_secho("Preparing from-commit zip")
             from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
                                                                  from_documents_to_scan)
-            print_click_secho("Preparing to-commit zip")
             to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
                                                                to_documents_to_scan)
-            scan_result = perform_commit_range_scan_async(context, cycode_client, from_commit_zipped_documents,
+            scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
                                                           to_commit_zipped_documents, scan_type, scan_parameters,
                                                           timeout)
         all_detections_count, output_detections_count = \
@@ -339,16 +336,11 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
-        print_click_secho(
-            f"Perform pre scan document actions")
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
-        print_click_secho(
-            f"Perform pre scan document actions is done")
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
-    print_click_secho("Zipping documents:")
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
@@ -356,9 +348,7 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
         logger.debug('adding file to zip, %s',
                      {'index': index, 'filename': document.path, 'unique_id': document.unique_id})
         zip.append(document.path, document.unique_id, document.content)
-        print_click_secho(f"{document.path}")
     zip.close()
-    print_click_secho("Zipped documents")
 
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
@@ -375,12 +365,10 @@ def validate_zip_file_size(scan_type, zip_file_size):
             raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
 
 
-def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
-                 is_git_diff: bool,
+def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
-    print_click_secho("Perform scan")
     if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
-        return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
+        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
 
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
         if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
@@ -389,49 +377,38 @@ def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_typ
     return scan_result
 
 
-def perform_scan_async(context: click.Context, cycode_client, zipped_documents: InMemoryZip, scan_type: str,
+def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
                        scan_parameters: dict) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
 
-    return poll_scan_results(context, cycode_client, scan_async_result.scan_id)
+    return poll_scan_results(cycode_client, scan_async_result.scan_id)
 
 
-def perform_commit_range_scan_async(context: click.Context, cycode_client, from_commit_zipped_documents: InMemoryZip,
+def perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents: InMemoryZip,
                                     to_commit_zipped_documents: InMemoryZip, scan_type: str,
                                     scan_parameters: dict, timeout: int = None) -> ZippedFileScanResult:
     scan_async_result = \
         cycode_client.multiple_zipped_file_scan_async(from_commit_zipped_documents, to_commit_zipped_documents,
                                                       scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
-    return poll_scan_results(context, cycode_client, scan_async_result.scan_id, timeout)
+    return poll_scan_results(cycode_client, scan_async_result.scan_id, timeout)
 
 
-def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polling_timeout: int = None):
+def poll_scan_results(cycode_client, scan_id: str, polling_timeout: int = None):
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
 
-    printer = ResultsPrinter()
-    last_scan_update_at = None
-    output_type = context.obj['output']
     end_polling_time = time.time() + polling_timeout
-    spinner = Halo(spinner='dots')
-    spinner.start("Scan in progress")
     while time.time() < end_polling_time:
         logger.debug("scan in progress")
         scan_details = cycode_client.get_scan_details(scan_id)
-        if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
-            last_scan_update_at = scan_details.scan_update_at
-            printer.print_scan_status(context, scan_details, output_type)
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
-            spinner.succeed()
             return _get_scan_result(cycode_client, scan_id, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
-            spinner.fail()
             raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
@@ -541,8 +518,17 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def get_scan_parameters(path: str, monitor: bool) -> dict:
-    scan_parameters = {"monitor": monitor}
+def get_default_scan_parameters(context: click.Context) -> dict:
+    return {
+        "monitor": context.obj.get("monitor"),
+        "package_vulnerabilities": context.obj.get("package-vulnerabilities"),
+        "license_compliance": context.obj.get("license-compliance")
+    }
+
+
+def get_scan_parameters(context: click.Context) -> dict:
+    path = context.obj["path"]
+    scan_parameters = get_default_scan_parameters(context)
     remote_url = try_get_git_remote_url(path)
     if remote_url:
         scan_parameters.update(remote_url)
@@ -564,7 +550,6 @@ def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_sc
         List[Document]:
     scan_type = context.obj['scan_type']
     logger.debug("excluding irrelevant documents to scan")
-    print_click_secho("Excluding irrelevant documents to scan")
     return [document for document in documents_to_scan if
             _is_relevant_document_to_scan(scan_type, document.path, document.content)]
 
@@ -596,7 +581,7 @@ def exclude_detections_by_scan_type(scan_type: str, command_scan_type: str, dete
         return exclude_detections_in_deleted_lines(detections)
 
     if command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES \
-            and scan_type == SECRET_SCAN_TYPE \
+            and scan_type == SECRET_SCAN_TYPE\
             and configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type):
         return exclude_detections_in_deleted_lines(detections)
     return detections
@@ -644,12 +629,10 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
 
         file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
         if file_content is not None:
-            print_click_secho(f"Read file content from commit: {diff_file_path}")
             from_commit_documents.append(Document(file_path, file_content))
 
         file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
         if file_content is not None:
-            print_click_secho(f"Read file content to commit: {diff_file_path}")
             to_commit_documents.append(Document(file_path, file_content))
 
     return from_commit_documents, to_commit_documents
@@ -809,9 +792,6 @@ def _handle_exception(context: click.Context, e: Exception):
         click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
                     fg='red', nl=False)
         context.obj["soft_fail"] = True
-    elif isinstance(e, TimeoutError):
-        click.secho('Command timed out', fg='red', nl=False)
-        context.obj["soft_fail"] = True
     elif isinstance(e, HttpUnauthorizedError):
         click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
                     'Please re-generate your token and reconfigure it by running the `cycode configure` command',
@@ -903,15 +883,11 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
     logger.debug("waiting for detections to be created")
     scan_persisted_detections_count = 0
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
-    spinner = Halo(spinner='dots')
-    spinner.start("Please wait until printing scan result...")
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
-            spinner.succeed()
             return
         time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     logger.debug("%i detections has been created", scan_persisted_detections_count)
 
 
@@ -988,4 +964,3 @@ def does_git_push_option_have_value(value: str) -> bool:
     option_count_env_value = os.getenv(GIT_PUSH_OPTION_COUNT_ENV_VAR_NAME, '')
     option_count = int(option_count_env_value) if option_count_env_value.isdigit() else 0
     return any(os.getenv(f'{GIT_PUSH_OPTION_ENV_VAR_PREFIX}{i}') == value for i in range(option_count))
-
