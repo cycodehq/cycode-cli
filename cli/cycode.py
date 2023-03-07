@@ -1,16 +1,20 @@
 import logging
-import sys
 
 import click
+import sys
 
-from cli import code_scanner, __version__
-from cli.auth.auth_command import authenticate
-from cli.config import config
+from typing import List
+
 from cli.models import Severity
-from cli.user_settings.configuration_manager import ConfigurationManager
-from cli.user_settings.credentials_manager import CredentialsManager
-from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
+from cli.config import config
+from cli import code_scanner, __version__
 from cyclient import logger
+from cyclient.scan_client import ScanClient
+from cli.user_settings.credentials_manager import CredentialsManager
+from cli.user_settings.configuration_manager import ConfigurationManager
+from cli.user_settings.user_settings_commands import set_credentials, add_exclusions
+from cli.auth.auth_command import authenticate
+from cli.utils import scan_utils
 from cyclient.scan_config.scan_config_creator import create_scan_client
 
 CONTEXT = dict()
@@ -23,7 +27,8 @@ NO_ISSUES_STATUS_CODE = 0
         "repository": code_scanner.scan_repository,
         "commit_history": code_scanner.scan_repository_commit_history,
         "path": code_scanner.scan_path,
-        "pre_commit": code_scanner.pre_commit_scan
+        "pre_commit": code_scanner.pre_commit_scan,
+        "pre_receive": code_scanner.pre_receive_scan
     },
 )
 @click.option('--scan-type', '-t', default="secret",
@@ -67,13 +72,35 @@ NO_ISSUES_STATUS_CODE = 0
               help='Show only violations at the specified level or higher (supported for SCA scan type only).',
               type=click.Choice([e.name for e in Severity]),
               required=False)
+@click.option('--sca-scan',
+              default=None,
+              help="""
+              \b
+              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
+              the default is both
+              """,
+              multiple=True,
+              type=click.Choice(config['scans']['supported_sca_scans']))
+@click.option('--monitor',
+              is_flag=True,
+              default=False,
+              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
+                   "vulnerabilities and violations (supported for SCA scan type only).",
+              type=bool,
+              required=False)
+@click.option('--report',
+              is_flag=True,
+              default=False,
+              help="When specified, the scan results will be return also report link url of scan result.",
+              type=bool,
+              required=False)
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str], monitor, report):
     """ Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret
     else:
-        context.obj["show_secret"] = config["result_printer"]["show_secret"]
+        context.obj["show_secret"] = config["result_printer"]["default"]["show_secret"]
 
     if soft_fail:
         context.obj["soft_fail"] = soft_fail
@@ -84,6 +111,9 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     context.obj["output"] = output
     context.obj["client"] = get_cycode_client(client_id, secret)
     context.obj["severity_threshold"] = severity_threshold
+    context.obj["monitor"] = monitor
+    context.obj["report"] = report
+    _sca_scan_to_context(context, sca_scan)
 
     return 1
 
@@ -137,9 +167,12 @@ def _get_configured_credentials():
 
 
 def _should_fail_scan(context: click.Context):
-    did_fail = context.obj.get("did_fail")
-    issue_detected = context.obj.get("issue_detected")
-    return did_fail or issue_detected
+    return scan_utils.is_scan_failed(context)
+
+
+def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]):
+    for sca_scan_option_selected in sca_scan_user_selected:
+        context.obj[sca_scan_option_selected] = True
 
 
 if __name__ == '__main__':

@@ -5,6 +5,17 @@ scans:
     - iac
     - sca
     - sast
+  supported_sca_scans:
+    - package-vulnerabilities
+    - license-compliance
 result_printer:
-  lines_to_display: 3
-  show_secret: False
+  default:
+    lines_to_display: 3
+    show_secret: False
+  secret:
+    pre_receive:
+      lines_to_display: 1
+      show_secret: False
+    commit_history:
+      lines_to_display: 1
+      show_secret: False
