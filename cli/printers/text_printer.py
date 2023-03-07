@@ -10,6 +10,7 @@ from cli.config import config
 from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SCAN_STATUS_COMPLETED
 from cli.utils.string_utils import obfuscate_text
 from cyclient import models, logger
+from cyclient.models import ScanDetailsResponse
 
 
 class TextPrinter(BasePrinter):
@@ -42,7 +43,7 @@ class TextPrinter(BasePrinter):
         if self.context.obj.get('report_url'):
             click.secho(f"Report URL: {self.context.obj.get('report_url')}")
 
-    def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
+    def print_scan_details(self, scan_details_response: ScanDetailsResponse):
         self._audit_info_log(f"Scan update: (scan_id: {scan_details_response.id})")
         self._audit_info_log(f"Scan status: {scan_details_response.scan_status}")
         if scan_details_response.message is not None:

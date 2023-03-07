@@ -22,7 +22,7 @@ class JsonPrinter(BasePrinter):
         json_result = self._get_json_result(detections_dict)
         click.secho(json_result)
 
-    def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
+    def print_scan_details(self, scan_details_response: models.ScanDetailsResponse):
         result = {
             'scan_id': scan_details_response.id,
             'status': scan_details_response.scan_status

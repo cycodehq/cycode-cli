@@ -17,5 +17,5 @@ class BasePrinter(ABC):
         pass
 
     @abstractmethod
-    def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
+    def print_scan_details(self, scan_details_response: models.ScanDetailsResponse):
         pass
