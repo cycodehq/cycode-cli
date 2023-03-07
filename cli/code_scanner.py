@@ -37,21 +37,13 @@ start_scan_time = time.time()
               help='Branch to scan, if not set scanning the default branch',
               type=str,
               required=False)
-@click.option('--monitor',
-              is_flag=True,
-              default=False,
-              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
-                   "vulnerabilities and violations (supported for SCA scan type only).",
-              type=bool,
-              required=False)
 @click.pass_context
-def scan_repository(context: click.Context, path, branch, monitor):
+def scan_repository(context: click.Context, path, branch):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
         context.obj["path"] = path
-        context.obj["monitor"] = monitor
-
+        monitor = context.obj.get("monitor")
         scan_type = context.obj["scan_type"]
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
