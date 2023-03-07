@@ -9,7 +9,7 @@ from cli.models import DocumentDetections, Detection, Document
 from cli.config import config
 from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SCAN_STATUS_COMPLETED
 from cli.utils.string_utils import obfuscate_text
-from cyclient import models
+from cyclient import models, logger
 
 
 class TextPrinter(BasePrinter):
@@ -43,15 +43,13 @@ class TextPrinter(BasePrinter):
             click.secho(f"Report URL: {self.context.obj.get('report_url')}")
 
     def print_scan_status(self, scan_details_response: models.ScanDetailsResponse):
-        click.secho("")
-        update_time = parser().parse(scan_details_response.scan_update_at).time().isoformat(timespec="seconds")
-        self._print_click_secho_with_time(update_time, f"Scan update: (scan_id: {scan_details_response.id})")
-        self._print_click_secho_with_time(update_time, f"Scan status: {scan_details_response.scan_status}")
+        self._audit_info_log(f"Scan update: (scan_id: {scan_details_response.id})")
+        self._audit_info_log(f"Scan status: {scan_details_response.scan_status}")
         if scan_details_response.message is not None:
-            self._print_click_secho_with_time(update_time, f"Scan message: {scan_details_response.message}")
+            self._audit_info_log(f"Scan message: {scan_details_response.message}")
 
-    def _print_click_secho_with_time(self, update_time, message):
-        click.secho(f"[{update_time}] {message}")
+    def _audit_info_log(self, message):
+        logger.info(message)
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document

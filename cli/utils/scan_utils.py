@@ -2,6 +2,8 @@ from datetime import datetime
 
 import click
 
+from cyclient import logger
+
 
 def is_scan_failed(context: click.Context):
     did_fail = context.obj.get("did_fail")
@@ -9,6 +11,5 @@ def is_scan_failed(context: click.Context):
     return did_fail or issue_detected
 
 
-def print_click_secho(message: str):
-    time = datetime.now().time().isoformat(timespec="seconds")
-    click.secho(f"[{time}] {message}")
+def print_audit(message: str):
+    logger.info(message)
