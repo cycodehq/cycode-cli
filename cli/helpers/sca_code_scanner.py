@@ -1,15 +1,14 @@
-import datetime
 import os
-import click
 from typing import List, Optional
+
+import click
 from git import Repo, GitCommandError
 
-from cli.utils.scan_utils import print_audit
-from cli.utils.shell_executor import shell
+from cli.consts import *
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths, get_file_content
+from cli.utils.shell_executor import shell
 from cyclient import logger
-from cli.consts import *
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
@@ -84,13 +83,13 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
                                {'filename': document.path})
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME), '', is_git_diff))
-                print_audit(
+                logger.info(
                     f"Failed to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
             else:
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME),
                              gradle_dependencies_tree, is_git_diff))
-                print_audit(f"Succeeded to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
+                logger.info(f"Succeeded to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
 
     documents_to_scan.extend(documents_to_add)
 
