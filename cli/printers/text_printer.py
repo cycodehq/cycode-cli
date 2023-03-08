@@ -1,16 +1,13 @@
-import click
 import math
 from typing import List, Optional
 
-from dateutil.parser import parser
+import click
 
-from cli.printers.base_printer import BasePrinter
-from cli.models import DocumentDetections, Detection, Document
 from cli.config import config
-from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SCAN_STATUS_COMPLETED
+from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
+from cli.models import DocumentDetections, Detection, Document
+from cli.printers.base_printer import BasePrinter
 from cli.utils.string_utils import obfuscate_text
-from cyclient import models, logger
-from cyclient.models import ScanDetailsResponse
 
 
 class TextPrinter(BasePrinter):
@@ -42,15 +39,6 @@ class TextPrinter(BasePrinter):
 
         if self.context.obj.get('report_url'):
             click.secho(f"Report URL: {self.context.obj.get('report_url')}")
-
-    def print_scan_details(self, scan_details_response: ScanDetailsResponse):
-        self._audit_info_log(f"Scan update: (scan_id: {scan_details_response.id})")
-        self._audit_info_log(f"Scan status: {scan_details_response.scan_status}")
-        if scan_details_response.message is not None:
-            self._audit_info_log(f"Scan message: {scan_details_response.message}")
-
-    def _audit_info_log(self, message):
-        logger.info(message)
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document
