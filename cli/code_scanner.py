@@ -417,7 +417,6 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
     spinner = Halo(spinner='dots')
     spinner.start("Scan in progress")
     while time.time() < end_polling_time:
-        logger.debug("scan in progress")
         scan_details = cycode_client.get_scan_details(scan_id)
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
             last_scan_update_at = scan_details.scan_update_at
