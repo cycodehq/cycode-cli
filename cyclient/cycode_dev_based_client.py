@@ -17,5 +17,5 @@ class CycodeDevBasedClient(CycodeClientBase):
 
         return headers
 
-    def append_to_endpoind(self):
-        return ":"
+    def build_full_url(self, url, endpoint):
+        return f"{url}:{endpoint}"
