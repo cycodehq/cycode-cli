@@ -197,7 +197,6 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
 
 def scan_sca_pre_commit(context: click.Context):
-    logger.info(f"Scan sca pre commit")
     scan_parameters = get_default_scan_parameters(context)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
@@ -209,7 +208,6 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
-    logger.info(f"Scan sca commit range")
     context.obj["path"] = path
     scan_parameters = get_scan_parameters(context)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
@@ -355,7 +353,6 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
         logger.debug('adding file to zip, %s',
                      {'index': index, 'filename': document.path, 'unique_id': document.unique_id})
         zip.append(document.path, document.unique_id, document.content)
-        logger.info(document.path)
     zip.close()
     logger.info("Zipped documents")
 
@@ -377,7 +374,6 @@ def validate_zip_file_size(scan_type, zip_file_size):
 def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
                  is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
-    logger.info("Perform scan")
     if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
         return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
 

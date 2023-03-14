@@ -83,13 +83,13 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
                                {'filename': document.path})
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME), '', is_git_diff))
-                logger.info(
+                logger.debug(
                     f"Failed to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
             else:
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME),
                              gradle_dependencies_tree, is_git_diff))
-                logger.info(f"Succeeded to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
+                logger.debug(f"Succeeded to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
 
     documents_to_scan.extend(documents_to_add)
 
