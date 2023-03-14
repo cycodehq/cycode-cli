@@ -251,7 +251,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     zipped_documents = InMemoryZip()
 
     try:
-        logger.info("Preparing local files")
+        logger.debug("Preparing local files")
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
 
         scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
@@ -291,10 +291,10 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     try:
         scan_result = init_default_scan_result(str(scan_id))
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
-            logger.info("Preparing from-commit zip")
+            logger.debug("Preparing from-commit zip")
             from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
                                                                  from_documents_to_scan)
-            logger.info("Preparing to-commit zip")
+            logger.debug("Preparing to-commit zip")
             to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
                                                                to_documents_to_scan)
             scan_result = perform_commit_range_scan_async(context, cycode_client, from_commit_zipped_documents,
@@ -340,16 +340,14 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
-        logger.info(
+        logger.debug(
             f"Perform pre scan document actions")
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
-        logger.info(
-            f"Perform pre scan document actions is done")
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
-    logger.info("Zipping documents:")
+
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
@@ -658,12 +656,10 @@ def get_commit_range_modified_documents(path: str, from_commit_rev: str, to_comm
 
         file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
         if file_content is not None:
-            logger.info(f"Read file content from commit: {diff_file_path}")
             from_commit_documents.append(Document(file_path, file_content))
 
         file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
         if file_content is not None:
-            logger.info(f"Read file content to commit: {diff_file_path}")
             to_commit_documents.append(Document(file_path, file_content))
 
     return from_commit_documents, to_commit_documents
