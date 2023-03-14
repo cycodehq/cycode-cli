@@ -576,7 +576,6 @@ def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_sc
         List[Document]:
     scan_type = context.obj['scan_type']
     logger.debug("excluding irrelevant documents to scan")
-    logger.info("Excluding irrelevant documents to scan")
     return [document for document in documents_to_scan if
             _is_relevant_document_to_scan(scan_type, document.path, document.content)]
 
