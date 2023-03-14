@@ -1,10 +1,8 @@
 import json
-from typing import List
-
 import click
-
-from cli.models import DocumentDetections
+from typing import List
 from cli.printers.base_printer import BasePrinter
+from cli.models import DocumentDetections
 from cyclient.models import DetectionSchema
 
 

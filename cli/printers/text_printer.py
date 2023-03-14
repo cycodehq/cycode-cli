@@ -1,12 +1,10 @@
+import click
 import math
 from typing import List, Optional
-
-import click
-
+from cli.printers.base_printer import BasePrinter
+from cli.models import DocumentDetections, Detection, Document
 from cli.config import config
 from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
-from cli.models import DocumentDetections, Detection, Document
-from cli.printers.base_printer import BasePrinter
 from cli.utils.string_utils import obfuscate_text
 
 

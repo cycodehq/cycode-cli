@@ -2,7 +2,6 @@ import click
 from typing import List
 from cli.printers import JsonPrinter, TextPrinter
 from cli.models import DocumentDetections
-from cyclient import models
 
 
 class ResultsPrinter:

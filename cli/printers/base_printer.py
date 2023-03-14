@@ -1,8 +1,6 @@
+import click
 from abc import ABC, abstractmethod
 from typing import List
-
-import click
-
 from cli.models import DocumentDetections
 
 
@@ -14,5 +12,5 @@ class BasePrinter(ABC):
         self.context = context
 
     @abstractmethod
-    def print_results(self, context: click.Context, results: List[DocumentDetections]):
+    def print_results(self, results: List[DocumentDetections]):
         pass
