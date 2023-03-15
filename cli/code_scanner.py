@@ -354,7 +354,6 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
                      {'index': index, 'filename': document.path, 'unique_id': document.unique_id})
         zip.append(document.path, document.unique_id, document.content)
     zip.close()
-    logger.info("Zipped documents")
 
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
