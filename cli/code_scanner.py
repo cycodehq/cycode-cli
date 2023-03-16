@@ -9,10 +9,7 @@ from platform import platform
 from uuid import uuid4, UUID
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
-<<<<<<< HEAD
 
-=======
->>>>>>> parent of 17c2efe (CM-20731 Cycode CLI - print update status to console by printer (#72))
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
@@ -259,12 +256,8 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
 
     try:
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
-<<<<<<< HEAD
-        scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
-                                   is_commit_range,
-=======
+
         scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
->>>>>>> parent of 17c2efe (CM-20731 Cycode CLI - print update status to console by printer (#72))
                                    scan_parameters)
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
