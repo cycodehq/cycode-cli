@@ -97,10 +97,18 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
 
     documents_to_scan = []
     commit_ids_to_scan = []
-    for commit in Repo(path).iter_commits(rev=commit_range):
+
+    repo = Repo(path)
+    total_commits_count = repo.git.rev_list('--count', commit_range)
+    scanned_commits_count = 0
+    logger.info(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
+    for commit in repo.iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
             logger.info(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
             break
+
+        if _should_update_progress(scanned_commits_count):
+            logger.info(f'Calculated diffs for {scanned_commits_count} out of {total_commits_count} commits')
 
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
@@ -116,8 +124,10 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
                      {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
         commit_documents_to_scan = exclude_irrelevant_documents_to_scan(context, commit_documents_to_scan)
         documents_to_scan.extend(commit_documents_to_scan)
+        scanned_commits_count += 1
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
+    logger.info('Starting to scan commit range (It may take a few minutes)')
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
@@ -251,9 +261,7 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     zipped_documents = InMemoryZip()
 
     try:
-        logger.debug("Preparing local files")
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
-
         scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
                                    is_commit_range,
                                    scan_parameters)
@@ -948,6 +956,10 @@ def _get_file_name_from_detection(detection):
 
 def _does_reach_to_max_commits_to_scan_limit(commit_ids: List, max_commits_count: Optional[int]) -> bool:
     return max_commits_count is not None and len(commit_ids) >= max_commits_count
+
+
+def _should_update_progress(scanned_commits_count: int) -> bool:
+    return scanned_commits_count and scanned_commits_count % PROGRESS_UPDATE_COMMITS_INTERVAL == 0
 
 
 def parse_commit_range(commit_range: str, path: str) -> (str, str):
