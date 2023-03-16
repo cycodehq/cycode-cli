@@ -851,7 +851,8 @@ def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, sc
             'status': 'Completed' if scan_completed else 'Error',
             'scan_command_type': command_scan_type,
             'operation_system': platform(),
-            'error_message': error_message
+            'error_message': error_message,
+            'scan_type': scan_type
         }
 
         cycode_client.report_scan_status(scan_type, scan_id, scan_status)
