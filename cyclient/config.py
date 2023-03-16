@@ -2,12 +2,10 @@ import logging
 import os
 import sys
 from urllib.parse import urlparse
-
-from cli.consts import *
 from cli.user_settings.configuration_manager import ConfigurationManager
-# set io encoding (for windows)
-from cyclient.config_dev import DEV_MODE_ENV_VAR_NAME, DEV_TENANT_ID_ENV_VAR_NAME
+from cli.consts import *
 
+# set io encoding (for windows)
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
@@ -74,6 +72,5 @@ except ValueError as e:
 
 timeout = _get_val_as_int(CYCODE_CLI_REQUEST_TIMEOUT_ENV_VAR_NAME) or _get_val_as_int(TIMEOUT_ENV_VAR_NAME)
 dev_mode = _get_val_as_bool(DEV_MODE_ENV_VAR_NAME)
-dev_tenant_id = _get_val_as_string(DEV_TENANT_ID_ENV_VAR_NAME)
 batch_size = _get_val_as_int(BATCH_SIZE_ENV_VAR_NAME)
 verbose = _get_val_as_bool(VERBOSE_ENV_VAR_NAME)

@@ -1,10 +1,8 @@
-from cyclient.scan_config.scan_config_creator import DefaultScanConfig
+from cyclient import scan_client
 
 
 def test_get_service_name():
-    default_scan_config = DefaultScanConfig()
-
-    assert default_scan_config.get_service_name('secret') == 'secret'
-    assert default_scan_config.get_service_name('iac') == 'iac'
-    assert default_scan_config.get_service_name('sca') == 'scans'
-    assert default_scan_config.get_service_name('sast') == 'scans'
+    assert scan_client.ScanClient.get_service_name('secret') == 'secret'
+    assert scan_client.ScanClient.get_service_name('iac') == 'iac'
+    assert scan_client.ScanClient.get_service_name('sca') == 'scans'
+    assert scan_client.ScanClient.get_service_name('sast') == 'scans'
