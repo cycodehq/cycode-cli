@@ -215,20 +215,21 @@ class TextPrinter(BasePrinter):
 
     def _print_table_detections(self, text_table: Texttable, detections: List[Detection], additional_column: str,
                                 additional_value_callback, title: str):
-        self._print_summary_issues(detections, title)
-        headers = PREVIEW_DETECTIONS_COMMON_HEADERS[:]
-        headers.append(additional_column)
-        text_table.header(headers)
-        header_width_size_cols = []
-        for header in headers:
-            header_width_size_cols.append(len(header))
-        text_table.set_cols_width(header_width_size_cols)
-        for detection in detections:
+        if len(detections) > 0:
+            self._print_summary_issues(detections, title)
+            headers = PREVIEW_DETECTIONS_COMMON_HEADERS[:]
+            headers.append(additional_column)
+            text_table.header(headers)
+            header_width_size_cols = []
+            for header in headers:
+                header_width_size_cols.append(len(header))
+            text_table.set_cols_width(header_width_size_cols)
+            for detection in detections:
 
-            row = self._get_common_detection_fields(detection)
-            row.append(additional_value_callback(detection))
-            text_table.add_row(row)
-        click.echo(text_table.draw())
+                row = self._get_common_detection_fields(detection)
+                row.append(additional_value_callback(detection))
+                text_table.add_row(row)
+            click.echo(text_table.draw())
 
     def _print_summary_issues(self, detections: List, title: str):
         click.echo(
