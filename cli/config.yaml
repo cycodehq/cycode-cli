@@ -5,9 +5,6 @@ scans:
     - iac
     - sca
     - sast
-  supported_sca_scans:
-    - package-vulnerabilities
-    - license-compliance
 result_printer:
   default:
     lines_to_display: 3
