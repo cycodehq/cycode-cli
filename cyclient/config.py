@@ -27,7 +27,7 @@ logging.getLogger("git.util").setLevel(logging.WARNING)
 
 # configs
 DEFAULT_CONFIGURATION = {
-    TIMEOUT_ENV_VAR_NAME: 60,
+    TIMEOUT_ENV_VAR_NAME: 300,
     LOGGING_LEVEL_ENV_VAR_NAME: logging.INFO,
     DEV_MODE_ENV_VAR_NAME: 'False',
     BATCH_SIZE_ENV_VAR_NAME: 20
