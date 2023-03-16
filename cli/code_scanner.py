@@ -106,14 +106,16 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
         commit_ids_to_scan.append(commit_id)
         parent = commit.parents[0] if commit.parents else NULL_TREE
         diff = commit.diff(parent, create_patch=True, R=True)
+        commit_documents_to_scan = []
         for blob in diff:
             doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
                            blob.diff.decode('utf-8', errors='replace'), True, unique_id=commit_id)
-            documents_to_scan.append(doc)
+            commit_documents_to_scan.append(doc)
 
-            documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-            logger.debug('Found all relevant files in commit %s',
-                         {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
+        logger.debug('Found all relevant files in commit %s',
+                     {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
+        commit_documents_to_scan = exclude_irrelevant_documents_to_scan(context, commit_documents_to_scan)
+        documents_to_scan.extend(commit_documents_to_scan)
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
@@ -602,7 +604,7 @@ def exclude_detections_by_scan_type(scan_type: str, command_scan_type: str, dete
         return exclude_detections_in_deleted_lines(detections)
 
     if command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES \
-            and scan_type == SECRET_SCAN_TYPE\
+            and scan_type == SECRET_SCAN_TYPE \
             and configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type):
         return exclude_detections_in_deleted_lines(detections)
     return detections
