@@ -50,8 +50,8 @@ COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]
 
 COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES = [PRE_RECEIVE_COMMAND_SCAN_TYPE, COMMIT_HISTORY_COMMAND_SCAN_TYPE]
 
-DEFAULT_CYCODE_API_URL = "https://api.cycode.com"
-DEFAULT_CYCODE_APP_URL = "https://app.cycode.com"
+DEFAULT_CYCODE_API_URL = "https://api.cycode.xyz"
+DEFAULT_CYCODE_APP_URL = "https://app.cycode.xyz"
 
 # env var names
 CYCODE_API_URL_ENV_VAR_NAME = "CYCODE_API_URL"
@@ -117,3 +117,10 @@ GIT_PUSH_OPTION_ENV_VAR_PREFIX = 'GIT_PUSH_OPTION_'
 
 SKIP_SCAN_FLAG = 'skip-cycode-scan'
 VERBOSE_SCAN_FLAG = 'verbose'
+
+LICENSE_COMPLIANCE_POLICY_ID = '8f681450-49e1-4f7e-85b7-0c8fe84b3a35'
+PACKAGE_VULNERABILITY_POLICY_ID = '9369d10a-9ac0-48d3-9921-5de7fe9a37a7'
+
+PREVIEW_DETECTIONS_COMMON_HEADERS = ['Severity', 'Repository', 'File Path', 'Ecosystem', 'Dependency Name',
+                                     'Direct Dependency',
+                                     'Development Dependency']

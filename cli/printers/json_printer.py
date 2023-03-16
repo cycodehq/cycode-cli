@@ -1,9 +1,11 @@
 import json
-import click
 from typing import List
-from cli.printers.base_printer import BasePrinter
+
+import click
+
 from cli.models import DocumentDetections
-from cyclient.models import DetectionSchema
+from cli.printers.base_printer import BasePrinter
+from cyclient.models import DetectionSchema, Detection
 
 
 class JsonPrinter(BasePrinter):
@@ -18,6 +20,7 @@ class JsonPrinter(BasePrinter):
         detections = [detection for document_detections in results for detection in document_detections.detections]
         detections_schema = DetectionSchema(many=True)
         detections_dict = detections_schema.dump(detections)
+        self._exclude_detection_peroperties(detections_dict)
         json_result = self._get_json_result(detections_dict)
         click.secho(json_result)
 
@@ -28,3 +31,7 @@ class JsonPrinter(BasePrinter):
         }
 
         return json.dumps(result, indent=4)
+
+    def _exclude_detection_peroperties(self, detections: List[Detection]):
+        for detection in detections:
+            detection.pop('detection_type_id', None)
