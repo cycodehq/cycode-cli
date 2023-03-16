@@ -76,8 +76,8 @@ EXCLUSIONS_BY_PACKAGE_SECTION_NAME = 'packages'
 # 1MB in bytes (in decimal)
 FILE_MAX_SIZE_LIMIT_IN_BYTES = 1000000
 
-# 10MB in bytes (in binary)
-ZIP_MAX_SIZE_LIMIT_IN_BYTES = 10485760
+# 20MB in bytes (in binary)
+ZIP_MAX_SIZE_LIMIT_IN_BYTES = 20971520
 # 200MB in bytes (in binary)
 SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES = 209715200
 
