@@ -126,13 +126,15 @@ class ScanInitializationResponseSchema(Schema):
 
 
 class ScanDetailsResponse(Schema):
-    def __init__(self, scan_status: str = None, results_count: int = None, metadata: str = None, message: str = None,
-                 err: str = None):
+    def __init__(self, id: str = None, scan_status: str = None, results_count: int = None, metadata: str = None, message: str = None,
+                 scan_update_at: str = None, err: str = None):
         super().__init__()
+        self.id = id
         self.scan_status = scan_status
         self.detections_count = results_count
         self.metadata = metadata
         self.message = message
+        self.scan_update_at = scan_update_at
         self.err = err
 
 
@@ -140,10 +142,12 @@ class ScanDetailsResponseSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
+    id = fields.String()
     scan_status = fields.String()
     results_count = fields.Integer(allow_none=True)
     metadata = fields.String(allow_none=True)
     message = fields.String(allow_none=True)
+    scan_update_at = fields.String(allow_none=True)
     err = fields.String()
 
     @post_load
