@@ -12,6 +12,8 @@ from uuid import uuid4, UUID
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 
+from halo import Halo
+
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
