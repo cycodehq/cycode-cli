@@ -1,12 +1,14 @@
 import os
-import click
 from typing import List, Optional
+
+import click
 from git import Repo, GitCommandError
-from cli.utils.shell_executor import shell
+
+from cli.consts import *
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths, get_file_content
+from cli.utils.shell_executor import shell
 from cyclient import logger
-from cli.consts import *
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
@@ -74,17 +76,20 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
     documents_to_add: List[Document] = []
     for document in documents_to_scan:
         if is_gradle_project(document):
-            gradle_dependencies_tree = try_generate_dependencies_tree(
-                get_manifest_file_path(document, is_monitor_action, project_path))
+            gradle_manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
+            gradle_dependencies_tree = try_generate_dependencies_tree(gradle_manifest_file_path)
             if gradle_dependencies_tree is None:
                 logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
                                {'filename': document.path})
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME), '', is_git_diff))
+                logger.debug(
+                    f"Failed to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
             else:
                 documents_to_add.append(
                     Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME),
                              gradle_dependencies_tree, is_git_diff))
+                logger.debug(f"Succeeded to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
 
     documents_to_scan.extend(documents_to_add)
 
