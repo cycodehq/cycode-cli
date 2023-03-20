@@ -197,10 +197,8 @@ class TextPrinter(BasePrinter):
         return detections_per_detection_type_id
 
     def _print_detection_per_detection_type_id(self, detections_per_detection_type_id: Dict[str, Detection]):
-        text_table = Texttable()
-
         for detection_type_id in list(detections_per_detection_type_id):
-            text_table.reset()
+
             detections = detections_per_detection_type_id[detection_type_id]
             if len(detections) == 0:
                 continue
@@ -211,8 +209,7 @@ class TextPrinter(BasePrinter):
                 headers = [SEVERITY_COLUMN] + headers
                 headers = headers + PREVIEW_DETECTIONS_COMMON_HEADERS[:]
                 headers.append(UPGRADE_COLUMN)
-                self._print_table_detections(text_table,
-                                             detections,
+                self._print_table_detections(detections,
                                              headers,
                                              self._get_upgrade_package_vulnerability,
                                              "Dependencies Vulnerabilities")
@@ -220,16 +217,15 @@ class TextPrinter(BasePrinter):
             if detection_type_id == LICENSE_COMPLIANCE_POLICY_ID:
                 headers = headers + PREVIEW_DETECTIONS_COMMON_HEADERS[:]
                 headers.append(LICENSE_COLUMN)
-                self._print_table_detections(text_table,
-                                             detections,
+                self._print_table_detections(detections,
                                              headers,
                                              self._get_license,
                                              "License Compliance")
 
-    def _print_table_detections(self, text_table: Texttable, detections: List[Detection], headers: List[str],
+    def _print_table_detections(self, detections: List[Detection], headers: List[str],
                                 get_row, title: str):
         self._print_summary_issues(detections, title)
-
+        text_table = Texttable()
         text_table.header(headers)
         header_width_size_cols = []
         for header in headers:
