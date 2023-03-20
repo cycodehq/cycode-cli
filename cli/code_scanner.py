@@ -10,6 +10,8 @@ from uuid import uuid4, UUID
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 
+from halo import Halo
+
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
@@ -257,10 +259,13 @@ def scan_documents(context: click.Context, documents_to_scan: List[Document], is
     zipped_documents = InMemoryZip()
 
     try:
+        logger.debug("Preparing local files")
         zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
 
-        scan_result = perform_scan(cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range,
+        scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
+                                   is_commit_range,
                                    scan_parameters)
+
         all_detections_count, output_detections_count = \
             handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
                                documents_to_scan)
@@ -295,11 +300,13 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
     try:
         scan_result = init_default_scan_result(str(scan_id))
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
+            logger.debug("Preparing from-commit zip")
             from_commit_zipped_documents = zip_documents_to_scan(scan_type, from_commit_zipped_documents,
                                                                  from_documents_to_scan)
+            logger.debug("Preparing to-commit zip")
             to_commit_zipped_documents = zip_documents_to_scan(scan_type, to_commit_zipped_documents,
                                                                to_documents_to_scan)
-            scan_result = perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents,
+            scan_result = perform_commit_range_scan_async(context, cycode_client, from_commit_zipped_documents,
                                                           to_commit_zipped_documents, scan_type, scan_parameters,
                                                           timeout)
         all_detections_count, output_detections_count = \
@@ -342,11 +349,14 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
+        logger.debug(
+            f"Perform pre scan document actions")
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
+
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
@@ -371,10 +381,11 @@ def validate_zip_file_size(scan_type, zip_file_size):
             raise ZipTooLargeError(ZIP_MAX_SIZE_LIMIT_IN_BYTES)
 
 
-def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID, is_git_diff: bool,
+def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
+                 is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
     if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
-        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
+        return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
 
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
         if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
@@ -383,40 +394,54 @@ def perform_scan(cycode_client, zipped_documents: InMemoryZip, scan_type: str, s
     return scan_result
 
 
-def perform_scan_async(cycode_client, zipped_documents: InMemoryZip, scan_type: str,
+def perform_scan_async(context: click.Context, cycode_client, zipped_documents: InMemoryZip, scan_type: str,
                        scan_parameters: dict) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
 
-    return poll_scan_results(cycode_client, scan_async_result.scan_id)
+    return poll_scan_results(context, cycode_client, scan_async_result.scan_id)
 
 
-def perform_commit_range_scan_async(cycode_client, from_commit_zipped_documents: InMemoryZip,
+def perform_commit_range_scan_async(context: click.Context, cycode_client, from_commit_zipped_documents: InMemoryZip,
                                     to_commit_zipped_documents: InMemoryZip, scan_type: str,
                                     scan_parameters: dict, timeout: int = None) -> ZippedFileScanResult:
     scan_async_result = \
         cycode_client.multiple_zipped_file_scan_async(from_commit_zipped_documents, to_commit_zipped_documents,
                                                       scan_type, scan_parameters)
     logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
-    return poll_scan_results(cycode_client, scan_async_result.scan_id, timeout)
+    return poll_scan_results(context, cycode_client, scan_async_result.scan_id, timeout)
 
 
-def poll_scan_results(cycode_client, scan_id: str, polling_timeout: int = None):
+def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polling_timeout: int = None):
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
 
+    last_scan_update_at = None
     end_polling_time = time.time() + polling_timeout
+    spinner = Halo(spinner='dots')
+    spinner.start("Scan in progress")
     while time.time() < end_polling_time:
-        logger.debug("scan in progress")
         scan_details = cycode_client.get_scan_details(scan_id)
+        if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
+            last_scan_update_at = scan_details.scan_update_at
+            print_scan_details(scan_details)
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
+            spinner.succeed()
             return _get_scan_result(cycode_client, scan_id, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
+            spinner.fail()
             raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
+    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
+
+def print_scan_details(scan_details_response: ScanDetailsResponse):
+    logger.info(f"Scan update: (scan_id: {scan_details_response.id})")
+    logger.info(f"Scan status: {scan_details_response.scan_status}")
+    if scan_details_response.message is not None:
+        logger.info(f"Scan message: {scan_details_response.message}")
 
 def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
     output_type = context.obj['output']
@@ -890,11 +915,15 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
     logger.debug("waiting for detections to be created")
     scan_persisted_detections_count = 0
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
+    spinner = Halo(spinner='dots')
+    spinner.start("Please wait until printing scan result...")
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
+            spinner.succeed()
             return
         time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
+    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     logger.debug("%i detections has been created", scan_persisted_detections_count)
 
 
