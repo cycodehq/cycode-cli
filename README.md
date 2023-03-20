@@ -182,7 +182,7 @@ repos:
 
 2. Create the pre-receive hook.
     - Create a new file in the repository's Git hook location under the repository location you found in step 1, and name it `pre-receive`.
-    - Copy the following script to the `pre-recive` file:
+    - Copy the following script to the `pre-receive` file:
 
         ```sh
         #!/bin/sh
@@ -210,7 +210,7 @@ repos:
 
 4. [Optional] Update Cycode API url (relevant only for on-prem customers) - Update `CYCODE_API_URL` in the pre-receive file.
 
-#### Install pre-recive hook globaly (For all the repositories)
+#### Install pre-receive hook globaly (For all the repositories)
 
 1. Set the global hooks directory in the Git server instance.
     - For GitLab Enterprise (https://docs.gitlab.com/ee/administration/server_hooks.html#create-global-server-hooks-for-all-repositories) :
