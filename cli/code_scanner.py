@@ -423,7 +423,7 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
         scan_details = cycode_client.get_scan_details(scan_id)
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
             last_scan_update_at = scan_details.scan_update_at
-            print_scan_details(scan_details)
+            #print_scan_details(scan_details)
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
             #spinner.succeed()
             return _get_scan_result(cycode_client, scan_id, scan_details)
