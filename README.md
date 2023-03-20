@@ -324,7 +324,7 @@ The following option is available for use with this command:
 
 | Option                    | Description |
 |---------------------------|-------------|
-| `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
+| `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~100...HEAD) |
 
 ### Commit Range Option
 
