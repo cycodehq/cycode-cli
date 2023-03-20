@@ -150,7 +150,7 @@ Perform the following steps to install the pre-commit hook:
 ```yaml
 repos:
   - repo: https://github.com/cycodehq-public/cycode-cli
-    rev: 0.1.6
+    rev: 0.2.2
     hooks:
       - id: cycode
         language_version: python3
@@ -182,7 +182,7 @@ repos:
 
 2. Create the pre-receive hook.
     - Create a new file in the repository's Git hook location under the repository location you found in step 1, and name it `pre-receive`.
-    - Copy the following script to the `pre-recive` file:
+    - Copy the following script to the `pre-receive` file:
 
         ```sh
         #!/bin/sh
@@ -210,7 +210,7 @@ repos:
 
 4. [Optional] Update Cycode API url (relevant only for on-prem customers) - Update `CYCODE_API_URL` in the pre-receive file.
 
-#### Install pre-recive hook globaly (For all the repositories)
+#### Install pre-receive hook globaly (For all the repositories)
 
 1. Set the global hooks directory in the Git server instance.
     - For GitLab Enterprise (https://docs.gitlab.com/ee/administration/server_hooks.html#create-global-server-hooks-for-all-repositories) :
@@ -257,7 +257,9 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--client-id TEXT`              | Specify a Cycode client ID for this specific scan execution   |
 | `--show-secret BOOLEAN`         | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details. |
 | `--soft-fail BOOLEAN`           | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
+| `--output json/text`            | Specify the output format of the result (json/text), the default is text. |
 | `--help`                        | Show options for given command.                                                |
+ 
 
 | Command          | Description                                                     |
 |------------------|-----------------------------------------------------------------|
@@ -324,7 +326,7 @@ The following option is available for use with this command:
 
 | Option                    | Description |
 |---------------------------|-------------|
-| `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
+| `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~100...HEAD) |
 
 ### Commit Range Option
 
