@@ -265,9 +265,9 @@ class TextPrinter(BasePrinter):
         alert = detection.detection_details.get('alert')
         row = [detection.detection_details.get('advisory_severity')]
         row.extend(self._get_common_detection_fields(detection))
-
-        row.append(f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}'
-                   if alert.get("first_patched_version") is not None else '')
+        upgrade = f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}' if alert.get(
+            "first_patched_version") is not None else ''
+        row.append(upgrade)
 
         return row
 
