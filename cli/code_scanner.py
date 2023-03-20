@@ -12,7 +12,7 @@ from uuid import uuid4, UUID
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
 
-from halo import Halo
+#from halo import Halo
 
 from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
@@ -417,22 +417,22 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
 
     last_scan_update_at = None
     end_polling_time = time.time() + polling_timeout
-    spinner = Halo(spinner='dots')
-    spinner.start("Scan in progress")
+    #spinner = Halo(spinner='dots')
+    #spinner.start("Scan in progress")
     while time.time() < end_polling_time:
         scan_details = cycode_client.get_scan_details(scan_id)
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
             last_scan_update_at = scan_details.scan_update_at
             print_scan_details(scan_details)
         if scan_details.scan_status == SCAN_STATUS_COMPLETED:
-            spinner.succeed()
+            #spinner.succeed()
             return _get_scan_result(cycode_client, scan_id, scan_details)
         if scan_details.scan_status == SCAN_STATUS_ERROR:
-            spinner.fail()
+            #spinner.fail()
             raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
+    #spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
@@ -914,15 +914,15 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
     logger.debug("waiting for detections to be created")
     scan_persisted_detections_count = 0
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
-    spinner = Halo(spinner='dots')
-    spinner.start("Please wait until printing scan result...")
+    #spinner = Halo(spinner='dots')
+    #spinner.start("Please wait until printing scan result...")
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
-            spinner.succeed()
+            #spinner.succeed()
             return
         time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
+    #spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
     logger.debug("%i detections has been created", scan_persisted_detections_count)
 
 
