@@ -257,7 +257,9 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--client-id TEXT`              | Specify a Cycode client ID for this specific scan execution   |
 | `--show-secret BOOLEAN`         | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details. |
 | `--soft-fail BOOLEAN`           | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
+| `--output json/text`            | Specify the output format of the result (json/text), the default is text. |
 | `--help`                        | Show options for given command.                                                |
+ 
 
 | Command          | Description                                                     |
 |------------------|-----------------------------------------------------------------|
