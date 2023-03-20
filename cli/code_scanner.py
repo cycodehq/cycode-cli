@@ -564,6 +564,7 @@ def get_scan_parameters(context: click.Context) -> dict:
     scan_parameters = get_default_scan_parameters(context)
     remote_url = try_get_git_remote_url(path)
     if remote_url:
+        context.obj["remote_url"] = remote_url
         scan_parameters.update(remote_url)
     return scan_parameters
 

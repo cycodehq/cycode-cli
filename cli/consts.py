@@ -123,6 +123,10 @@ VERBOSE_SCAN_FLAG = 'verbose'
 LICENSE_COMPLIANCE_POLICY_ID = '8f681450-49e1-4f7e-85b7-0c8fe84b3a35'
 PACKAGE_VULNERABILITY_POLICY_ID = '9369d10a-9ac0-48d3-9921-5de7fe9a37a7'
 
-PREVIEW_DETECTIONS_COMMON_HEADERS = ['Severity', 'Repository', 'File Path', 'Ecosystem', 'Dependency Name',
+SEVERITY_COLUMN = 'Severity'
+LICENSE_COLUMN = 'License'
+UPGRADE_COLUMN = 'Upgrade'
+REPOSITORY_COLUMN = 'Repository'
+PREVIEW_DETECTIONS_COMMON_HEADERS = ['File Path', 'Ecosystem', 'Dependency Name',
                                      'Direct Dependency',
                                      'Development Dependency']

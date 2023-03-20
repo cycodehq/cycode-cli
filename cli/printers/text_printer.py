@@ -6,7 +6,8 @@ from texttable import Texttable
 
 from cli.config import config
 from cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, LICENSE_COMPLIANCE_POLICY_ID, \
-    PACKAGE_VULNERABILITY_POLICY_ID, PREVIEW_DETECTIONS_COMMON_HEADERS
+    PACKAGE_VULNERABILITY_POLICY_ID, PREVIEW_DETECTIONS_COMMON_HEADERS, SEVERITY_COLUMN, LICENSE_COLUMN, UPGRADE_COLUMN, \
+    REPOSITORY_COLUMN
 from cli.models import DocumentDetections, Detection, Document
 from cli.printers.base_printer import BasePrinter
 from cli.utils.string_utils import obfuscate_text
@@ -200,45 +201,51 @@ class TextPrinter(BasePrinter):
 
         for detection_type_id in list(detections_per_detection_type_id):
             text_table.reset()
+            detections = detections_per_detection_type_id[detection_type_id]
+            if len(detections) == 0:
+                continue
+
+            headers = [REPOSITORY_COLUMN] if self._is_repository() else []
+
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
+                headers = [SEVERITY_COLUMN] + headers
+                headers = headers + PREVIEW_DETECTIONS_COMMON_HEADERS[:]
+                headers.append(UPGRADE_COLUMN)
                 self._print_table_detections(text_table,
-                                             detections_per_detection_type_id[detection_type_id],
-                                             'Upgrade',
+                                             detections,
+                                             headers,
                                              self._get_upgrade_package_vulnerability,
                                              "Dependencies Vulnerabilities")
+
             if detection_type_id == LICENSE_COMPLIANCE_POLICY_ID:
+                headers = headers + PREVIEW_DETECTIONS_COMMON_HEADERS[:]
+                headers.append(LICENSE_COLUMN)
                 self._print_table_detections(text_table,
-                                             detections_per_detection_type_id[detection_type_id],
-                                             'License',
+                                             detections,
+                                             headers,
                                              self._get_license,
                                              "License Compliance")
 
-    def _print_table_detections(self, text_table: Texttable, detections: List[Detection], additional_column: str,
-                                additional_value_callback, title: str):
-        if len(detections) > 0:
-            self._print_summary_issues(detections, title)
-            headers = PREVIEW_DETECTIONS_COMMON_HEADERS[:]
-            headers.append(additional_column)
-            text_table.header(headers)
-            header_width_size_cols = []
-            for header in headers:
-                header_width_size_cols.append(len(header))
-            text_table.set_cols_width(header_width_size_cols)
-            for detection in detections:
+    def _print_table_detections(self, text_table: Texttable, detections: List[Detection], headers: List[str],
+                                get_row, title: str):
+        self._print_summary_issues(detections, title)
 
-                row = self._get_common_detection_fields(detection)
-                row.append(additional_value_callback(detection))
-                text_table.add_row(row)
-            click.echo(text_table.draw())
+        text_table.header(headers)
+        header_width_size_cols = []
+        for header in headers:
+            header_width_size_cols.append(len(header))
+        text_table.set_cols_width(header_width_size_cols)
+        for detection in detections:
+            row = get_row(detection)
+            text_table.add_row(row)
+        click.echo(text_table.draw())
 
     def _print_summary_issues(self, detections: List, title: str):
         click.echo(
             f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
 
     def _get_common_detection_fields(self, detection: Detection):
-        return [
-            detection.detection_details.get('advisory_severity'),
-            detection.detection_details.get('repository_name'),
+        row = [
             detection.detection_details.get('file_name'),
             detection.detection_details.get('ecosystem'),
             detection.detection_details.get('package_name'),
@@ -246,9 +253,25 @@ class TextPrinter(BasePrinter):
             detection.detection_details.get('is_dev_dependency_str')
         ]
 
+        if self._is_repository():
+            row = [detection.detection_details.get('repository_name')] + row
+
+        return row
+
+    def _is_repository(self):
+        return self.context.obj.get("remote_url") is not None
+
     def _get_upgrade_package_vulnerability(self, detection: Detection):
         alert = detection.detection_details.get('alert')
-        return f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}'
+        row = [detection.detection_details.get('advisory_severity')]
+        row.extend(self._get_common_detection_fields(detection))
+
+        row.append(f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}'
+                   if alert.get("first_patched_version") is not None else '')
+
+        return row
 
     def _get_license(self, detection: Detection):
-        return f'{detection.detection_details.get("license")}'
+        row = self._get_common_detection_fields(detection)
+        row.append(f'{detection.detection_details.get("license")}')
+        return row
