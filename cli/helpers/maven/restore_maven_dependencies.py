@@ -1,9 +1,11 @@
+import os
+
 import click
 from typing import List, Dict
 
 from cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 from cli.models import Document
-from cli.utils.path_utils import get_file_dir, get_file_content
+from cli.utils.path_utils import get_file_dir, get_file_content, join_paths
 
 BUILD_MAVEN_FILE_NAME = 'pom.xml'
 MAVEN_CYCLONE_DEP_TREE_FILE_NAME = 'bom.json'
@@ -22,20 +24,27 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         return ['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]
 
     def get_lock_file_name(self) -> str:
-        return MAVEN_CYCLONE_DEP_TREE_FILE_NAME
+        return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
 
-    def try_restore_dependencies(self, manifest_file_path) -> Dict:
-        restore_dependencies = super().try_restore_dependencies(manifest_file_path)
-        if restore_dependencies.get('content') is None:
-            return {
+    def try_restore_dependencies(self, document: Document) -> Document:
+        restore_dependencies_document = super().try_restore_dependencies(document)
+        manifest_file_path = self.get_manifest_file_path(document)
+        if document.content is None:
+            restore_dependencies = {
                 'lock_file_name': MAVEN_DEP_TREE_FILE_NAME,
                 'content': super()._execute_command(
                     ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
-                     '-DoutputFile=bcde.mvndeps'],
+                     f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
                     manifest_file_path)
             }
-        else:
-            restore_dependencies['content'] = get_file_content(
-                get_file_dir(manifest_file_path) + "/" + MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
+            Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
+                     self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
+                     self.is_git_diff)
 
-        return restore_dependencies
+            if restore_dependencies.get('content') is not None:
+                restore_dependencies['content'] = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
+        else:
+            restore_dependencies_document.content = get_file_content(
+                join_paths(get_file_dir(manifest_file_path), restore_dependencies_document.path))
+
+        return restore_dependencies_document

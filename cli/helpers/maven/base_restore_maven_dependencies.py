@@ -24,25 +24,20 @@ class BaseRestoreMavenDependencies(ABC):
 
     def restore(self, document: Document):
         if self.is_project(document):
-            manifest_file_path = self.get_manifest_file_path(document, self.context.obj.get('monitor'),
-                                                             self.context.params.get('path'))
-            dependencies_tree = self.try_restore_dependencies(manifest_file_path)
-            if dependencies_tree.get('content') is None:
+
+            restore_dependencies_document = self.try_restore_dependencies(document)
+            if restore_dependencies_document.content is None:
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
-                self.documents_to_add.append(
-                    Document(self.build_dep_tree_path(document.path, dependencies_tree.get('lock_file_name')), '',
-                             self.is_git_diff))
-                logger.debug(
-                    f"Failed to generate dependencies tree on path: {manifest_file_path}")
+                # logger.debug(
+                #    f"Failed to generate dependencies tree on path: {manifest_file_path}")
             else:
-                self.documents_to_add.append(
-                    Document(self.build_dep_tree_path(document.path, dependencies_tree.get('lock_file_name')),
-                             dependencies_tree.get('content'), self.is_git_diff))
-                logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
+                logger.debug(f"Succeeded to generate dependencies tree on path: {self.get_manifest_file_path(document)}")
 
-    def get_manifest_file_path(self, document: Document, is_monitor_action: bool, project_path: str) -> str:
-        return join_paths(project_path, document.path) if is_monitor_action else document.path
+            self.documents_to_add.append(restore_dependencies_document)
+
+    def get_manifest_file_path(self, document: Document) -> str:
+        return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get('monitor') else document.path
 
     def build_dep_tree_path(self, path: str, generated_file_name: str) -> str:
         return join_paths(get_file_dir(path), generated_file_name)
@@ -59,11 +54,11 @@ class BaseRestoreMavenDependencies(ABC):
     def get_lock_file_name(self) -> str:
         pass
 
-    def try_restore_dependencies(self, manifest_file_path) -> Dict:
-        return {
-            'lock_file_name': self.get_lock_file_name(),
-            'content': self._execute_command(self.get_command(manifest_file_path), manifest_file_path)
-        }
+    def try_restore_dependencies(self, document: Document) -> Document:
+        manifest_file_path = self.get_manifest_file_path(document)
+        return Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
+                        self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
+                        self.is_git_diff)
 
     def _execute_command(self, command: List, file_name: str) -> Optional[Dict]:
         # command = ['gradle', 'dependencies', '-b', filename, '-q', '--console', 'plain']
