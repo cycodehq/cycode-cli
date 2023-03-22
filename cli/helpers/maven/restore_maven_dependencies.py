@@ -28,7 +28,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
     def try_restore_dependencies(self, document: Document) -> Document:
         restore_dependencies_document = super().try_restore_dependencies(document)
         manifest_file_path = self.get_manifest_file_path(document)
-        if document.content is not None:
+        if document.content is None:
             backup_restore_content = super()._execute_command(
                 ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
                  f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
