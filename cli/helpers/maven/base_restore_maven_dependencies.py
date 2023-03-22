@@ -29,6 +29,7 @@ class BaseRestoreMavenDependencies(ABC):
             if restore_dependencies_document.content is None:
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
+                restore_dependencies_document.content = ''
                 # logger.debug(
                 #    f"Failed to generate dependencies tree on path: {manifest_file_path}")
             else:
