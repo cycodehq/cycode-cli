@@ -74,28 +74,24 @@ NO_ISSUES_STATUS_CODE = 0
               required=False)
 @click.option('--sca-scan',
               default=None,
-              help="""
-              \b
-              Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), 
-              the default is both
-              """,
+              help="Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), the default is both",
               multiple=True,
               type=click.Choice(config['scans']['supported_sca_scans']))
 @click.option('--monitor',
               is_flag=True,
               default=False,
-              help="When specified, the scan results will be sent to Cycode platform and results will be parsed as "
-                   "vulnerabilities and violations (supported for SCA scan type only).",
+              help="When specified, the scan results will be recorded in the knowledge graph. Please note that when working in 'monitor' mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation).(supported for SCA scan type only).",
               type=bool,
               required=False)
 @click.option('--report',
               is_flag=True,
               default=False,
-              help="When specified, the scan results will be return also report link url of scan result.",
+              help="When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution",
               type=bool,
               required=False)
 @click.pass_context
-def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold, sca_scan: List[str], monitor, report):
+def code_scan(context: click.Context, scan_type, client_id, secret, show_secret, soft_fail, output, severity_threshold,
+              sca_scan: List[str], monitor, report):
     """ Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc """
     if show_secret:
         context.obj["show_secret"] = show_secret

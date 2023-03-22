@@ -34,7 +34,8 @@ setup(
                       "gitpython",
                       "arrow",
                       "colorama",
-                      "binaryornot"
+                      "binaryornot",
+                      "halo"
                       ],
     zip_safe=True,
     keywords="secret-scan cycode devops token secret security cycode code",
