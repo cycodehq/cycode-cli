@@ -1,7 +1,6 @@
-import os
+from typing import List
 
 import click
-from typing import List, Dict
 
 from cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 from cli.models import Document
