@@ -434,7 +434,7 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
             raise ScanAsyncError(f'error occurred while trying to scan zip file. {scan_details.message}')
         time.sleep(SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
+    spinner.stop_and_persist(symbol="⏰".encode('utf-8'), text='Timeout')
     raise ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
@@ -926,7 +926,7 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
             spinner.succeed()
             return
         time.sleep(DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'))
+    spinner.stop_and_persist(symbol="⏰".encode('utf-8'), text='Timeout')
     logger.debug("%i detections has been created", scan_persisted_detections_count)
 
 

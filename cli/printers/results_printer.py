@@ -1,13 +1,17 @@
 import click
 from typing import List
+
+from cli.consts import SCA_SCAN_TYPE
 from cli.printers import JsonPrinter, TextPrinter
 from cli.models import DocumentDetections
+from cli.printers.table_printer import TablePrinter
 
 
 class ResultsPrinter:
     printers = {
         'text': TextPrinter,
-        'json': JsonPrinter
+        'json': JsonPrinter,
+        'text_sca': TablePrinter
     }
 
     def print_results(self, context: click.Context, detections_results_list: List[DocumentDetections],
@@ -16,7 +20,10 @@ class ResultsPrinter:
         printer.print_results(detections_results_list)
 
     def get_printer(self, output_type: str, context: click.Context):
-        printer = self.printers.get(output_type)
+        scan_type = context.obj.get('scan_type')
+        printer = TablePrinter if scan_type is not None and scan_type == SCA_SCAN_TYPE else self.printers.get(
+            output_type)
+
         if not printer:
             raise ValueError(f'the provided output is not supported - {output_type}')
 

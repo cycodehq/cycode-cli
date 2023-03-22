@@ -35,7 +35,8 @@ setup(
                       "arrow",
                       "colorama",
                       "binaryornot",
-                      "halo"
+                      "halo",
+                      "texttable"
                       ],
     zip_safe=True,
     keywords="secret-scan cycode devops token secret security cycode code",
