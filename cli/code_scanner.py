@@ -369,6 +369,8 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
     logger.debug('finished to create zip file, %s', {'zip_creation_time': zip_creation_time})
+    with open('/Users/morsamochian/tmp/test-zip/1.zip', 'wb') as f:
+        f.write(zip.read())
     return zip
 
 

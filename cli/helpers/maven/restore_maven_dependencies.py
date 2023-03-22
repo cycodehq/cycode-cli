@@ -28,20 +28,17 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
     def try_restore_dependencies(self, document: Document) -> Document:
         restore_dependencies_document = super().try_restore_dependencies(document)
         manifest_file_path = self.get_manifest_file_path(document)
-        if document.content is None:
-            restore_dependencies = {
-                'lock_file_name': MAVEN_DEP_TREE_FILE_NAME,
-                'content': super()._execute_command(
-                    ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
-                     f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
-                    manifest_file_path)
-            }
-            Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
-                     self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
-                     self.is_git_diff)
+        if document.content is not None:
+            backup_restore_content = super()._execute_command(
+                ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
+                 f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
+                manifest_file_path)
+            restore_dependencies_document = Document(self.build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
+                                                     backup_restore_content,
+                                                     self.is_git_diff)
 
-            if restore_dependencies.get('content') is not None:
-                restore_dependencies['content'] = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
+            if restore_dependencies_document.content is not None:
+                restore_dependencies_document.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
         else:
             restore_dependencies_document.content = get_file_content(
                 join_paths(get_file_dir(manifest_file_path), restore_dependencies_document.path))
