@@ -24,21 +24,21 @@ class BaseRestoreMavenDependencies(ABC):
 
     def restore(self, document: Document):
         if self.is_project(document):
-
             restore_dependencies_document = self.try_restore_dependencies(document)
+            manifest_file_path = self.get_manifest_file_path(document)
             if restore_dependencies_document.content is None:
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
                 restore_dependencies_document.content = ''
-                # logger.debug(
-                #    f"Failed to generate dependencies tree on path: {manifest_file_path}")
+                logger.debug(
+                    f"Failed to generate dependencies tree on path: {manifest_file_path}")
             else:
-                logger.debug(f"Succeeded to generate dependencies tree on path: {self.get_manifest_file_path(document)}")
-
+                logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
             self.documents_to_add.append(restore_dependencies_document)
 
     def get_manifest_file_path(self, document: Document) -> str:
-        return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get('monitor') else document.path
+        return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get(
+            'monitor') else document.path
 
     def build_dep_tree_path(self, path: str, generated_file_name: str) -> str:
         return join_paths(get_file_dir(path), generated_file_name)
