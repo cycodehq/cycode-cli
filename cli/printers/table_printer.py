@@ -48,11 +48,7 @@ class TablePrinter(BasePrinter):
 
     def _print_detection_per_detection_type_id(self, detections_per_detection_type_id: Dict[str, Detection]):
         for detection_type_id in detections_per_detection_type_id:
-
             detections = detections_per_detection_type_id[detection_type_id]
-            if len(detections) == 0:
-                continue
-
             headers = [REPOSITORY_COLUMN] if self._is_repository() else []
 
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
