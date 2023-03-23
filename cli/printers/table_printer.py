@@ -75,10 +75,11 @@ class TablePrinter(BasePrinter):
                 for detection in detections:
                     rows.append(self._get_license(detection))
 
-            self._print_table_detections(detections,
-                                         headers,
-                                         rows,
-                                         title)
+            if len(rows) > 0:
+                self._print_table_detections(detections,
+                                             headers,
+                                             rows,
+                                             title)
 
     def _get_table_headers(self):
         headers = [REPOSITORY_COLUMN] if self._is_repository() else []
