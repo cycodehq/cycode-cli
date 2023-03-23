@@ -52,32 +52,35 @@ class TablePrinter(BasePrinter):
             headers = [REPOSITORY_COLUMN] if self._is_repository() else []
 
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
+                title = "Dependencies Vulnerabilities"
                 headers = [SEVERITY_COLUMN] + headers
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(UPGRADE_COLUMN)
-                self._print_table_detections(detections,
-                                             headers,
-                                             self._get_upgrade_package_vulnerability,
-                                             "Dependencies Vulnerabilities")
+                rows = []
+                for detection in detections:
+                    rows.append(self._get_upgrade_package_vulnerability(detection))
 
             if detection_type_id == LICENSE_COMPLIANCE_POLICY_ID:
+                title = "License Compliance"
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(LICENSE_COLUMN)
-                self._print_table_detections(detections,
-                                             headers,
-                                             self._get_license,
-                                             "License Compliance")
+                rows = []
+                for detection in detections:
+                    rows.append(self._get_license(detection))
+
+            self._print_table_detections(detections,
+                                         headers,
+                                         rows,
+                                         title)
 
     def _print_table_detections(self, detections: List[Detection], headers: List[str],
-                                get_row, title: str):
+                                rows, title: str):
         self._print_summary_issues(detections, title)
         text_table = Texttable()
         text_table.header(headers)
 
         self.set_table_width(headers, text_table)
-        for detection in detections:
-            row = get_row(detection)
-            text_table.add_row(row)
+        text_table.add_row(rows)
         click.echo(text_table.draw())
 
     def set_table_width(self, headers, text_table):
