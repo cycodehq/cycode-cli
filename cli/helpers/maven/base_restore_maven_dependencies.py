@@ -25,7 +25,6 @@ class BaseRestoreMavenDependencies(ABC):
     def restore(self, document: Document):
         if self.is_project(document):
             restore_dependencies_document = self.try_restore_dependencies(document)
-            manifest_file_path = self.get_manifest_file_path(document)
             if restore_dependencies_document is None:
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
