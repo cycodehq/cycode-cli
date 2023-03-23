@@ -47,7 +47,7 @@ class TablePrinter(BasePrinter):
         return detections_per_detection_type_id
 
     def _print_detection_per_detection_type_id(self, detections_per_detection_type_id: Dict[str, Detection]):
-        for detection_type_id in list(detections_per_detection_type_id):
+        for detection_type_id in detections_per_detection_type_id:
 
             detections = detections_per_detection_type_id[detection_type_id]
             if len(detections) == 0:
