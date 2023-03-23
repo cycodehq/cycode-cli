@@ -4,10 +4,17 @@ import click
 from texttable import Texttable
 
 from cli.consts import LICENSE_COMPLIANCE_POLICY_ID, \
-    PACKAGE_VULNERABILITY_POLICY_ID, PREVIEW_DETECTIONS_COMMON_HEADERS, SEVERITY_COLUMN, LICENSE_COLUMN, UPGRADE_COLUMN, \
-    REPOSITORY_COLUMN
+    PACKAGE_VULNERABILITY_POLICY_ID
 from cli.models import DocumentDetections, Detection
 from cli.printers.base_printer import BasePrinter
+
+SEVERITY_COLUMN = 'Severity'
+LICENSE_COLUMN = 'License'
+UPGRADE_COLUMN = 'Upgrade'
+REPOSITORY_COLUMN = 'Repository'
+PREVIEW_DETECTIONS_COMMON_HEADERS = ['File Path', 'Ecosystem', 'Dependency Name',
+                                     'Direct Dependency',
+                                     'Development Dependency']
 
 
 class TablePrinter(BasePrinter):
@@ -84,7 +91,7 @@ class TablePrinter(BasePrinter):
         text_table.header(headers)
 
         self.set_table_width(headers, text_table)
-        text_table.add_row(rows)
+        text_table.add_rows(rows)
         click.echo(text_table.draw())
 
     def set_table_width(self, headers, text_table):
