@@ -53,7 +53,7 @@ class TablePrinter(BasePrinter):
 
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
                 headers = [SEVERITY_COLUMN] + headers
-                headers = headers + PREVIEW_DETECTIONS_COMMON_HEADERS[:]
+                headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(UPGRADE_COLUMN)
                 self._print_table_detections(detections,
                                              headers,
@@ -61,7 +61,7 @@ class TablePrinter(BasePrinter):
                                              "Dependencies Vulnerabilities")
 
             if detection_type_id == LICENSE_COMPLIANCE_POLICY_ID:
-                headers = headers + PREVIEW_DETECTIONS_COMMON_HEADERS[:]
+                headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(LICENSE_COLUMN)
                 self._print_table_detections(detections,
                                              headers,
