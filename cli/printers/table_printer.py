@@ -92,7 +92,8 @@ class TablePrinter(BasePrinter):
         text_table.header(headers)
 
         self.set_table_width(headers, text_table)
-        text_table.add_rows(rows)
+        for row in rows:
+            text_table.add_row(row)
         click.echo(text_table.draw())
 
     def set_table_width(self, headers, text_table):
