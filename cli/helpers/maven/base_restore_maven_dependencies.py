@@ -26,6 +26,11 @@ class BaseRestoreMavenDependencies(ABC):
         if self.is_project(document):
             restore_dependencies_document = self.try_restore_dependencies(document)
             manifest_file_path = self.get_manifest_file_path(document)
+            if restore_dependencies_document is None:
+                logger.warning('Error occurred while trying to generate dependencies tree. %s',
+                               {'filename': document.path})
+                return
+            manifest_file_path = self.get_manifest_file_path(document)
             if restore_dependencies_document.content is None:
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
@@ -55,7 +60,7 @@ class BaseRestoreMavenDependencies(ABC):
     def get_lock_file_name(self) -> str:
         pass
 
-    def try_restore_dependencies(self, document: Document) -> Document:
+    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
         return Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
                         self._execute_command(self.get_command(manifest_file_path), manifest_file_path),

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import click
 
@@ -25,7 +25,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
 
-    def try_restore_dependencies(self, document: Document) -> Document:
+    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         restore_dependencies_document = super().try_restore_dependencies(document)
         manifest_file_path = self.get_manifest_file_path(document)
         if document.content is None:
@@ -39,6 +39,8 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
 
             if restore_dependencies_document.content is not None:
                 restore_dependencies_document.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
+            else:
+                restore_dependencies_document = None
         else:
             restore_dependencies_document.content = get_file_content(
                 join_paths(get_file_dir(manifest_file_path), restore_dependencies_document.path))
