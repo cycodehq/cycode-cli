@@ -73,14 +73,18 @@ class TablePrinter(BasePrinter):
         self._print_summary_issues(detections, title)
         text_table = Texttable()
         text_table.header(headers)
-        header_width_size_cols = []
-        for header in headers:
-            header_width_size_cols.append(len(header))
-        text_table.set_cols_width(header_width_size_cols)
+
+        self.set_table_width(headers, text_table)
         for detection in detections:
             row = get_row(detection)
             text_table.add_row(row)
         click.echo(text_table.draw())
+
+    def set_table_width(self, headers, text_table):
+        header_width_size_cols = []
+        for header in headers:
+            header_width_size_cols.append(len(header))
+        text_table.set_cols_width(header_width_size_cols)
 
     def _print_summary_issues(self, detections: List, title: str):
         click.echo(
