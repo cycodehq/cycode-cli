@@ -74,14 +74,14 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 def add_dependencies_tree_document(context: click.Context, documents_to_scan: List[Document],
                                    is_git_diff: bool = False) -> None:
     documents_to_add: List[Document] = []
-    restore_gradle_dependencies = RestoreGradleDependencies(context, documents_to_add, is_git_diff,
-                                                            BUILD_GRADLE_DEP_TREE_TIMEOUT)
-    restore_maven_dependencies = RestoreMavenDependencies(context, documents_to_add, is_git_diff,
-                                                            BUILD_GRADLE_DEP_TREE_TIMEOUT)
+    restore_dependencies_list = [
+        RestoreGradleDependencies(context, documents_to_add, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
+        RestoreMavenDependencies(context, documents_to_add, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT)
+    ]
 
-    for document in documents_to_scan:
-        restore_gradle_dependencies.restore(document)
-        restore_maven_dependencies.restore(document)
+    for restore_dependencies in restore_dependencies_list:
+        for document in documents_to_scan:
+            restore_dependencies.restore(document)
 
     documents_to_scan.extend(documents_to_add)
 
