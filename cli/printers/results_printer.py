@@ -21,11 +21,10 @@ class ResultsPrinter:
 
     def get_printer(self, output_type: str, context: click.Context):
         scan_type = context.obj.get('scan_type')
-        printer = TablePrinter if scan_type is not None and scan_type == SCA_SCAN_TYPE else self.printers.get(
-            output_type)
+        printer = TablePrinter if scan_type is not None and scan_type == SCA_SCAN_TYPE and output_type == 'text' \
+            else self.printers.get(output_type)
 
         if not printer:
             raise ValueError(f'the provided output is not supported - {output_type}')
 
         return printer(context)
-
