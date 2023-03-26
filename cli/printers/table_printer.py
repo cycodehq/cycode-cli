@@ -82,7 +82,7 @@ class TablePrinter(BasePrinter):
                                              title)
 
     def _get_table_headers(self):
-        headers = [REPOSITORY_COLUMN] if self._is_repository() else []
+        headers = [REPOSITORY_COLUMN] if self._is_git_repository() else []
         return headers
 
     def _print_table_detections(self, detections: List[Detection], headers: List[str],
@@ -115,12 +115,12 @@ class TablePrinter(BasePrinter):
             detection.detection_details.get('is_dev_dependency_str')
         ]
 
-        if self._is_repository():
+        if self._is_git_repository():
             row = [detection.detection_details.get('repository_name')] + row
 
         return row
 
-    def _is_repository(self):
+    def _is_git_repository(self):
         return self.context.obj.get("remote_url") is not None
 
     def _get_upgrade_package_vulnerability(self, detection: Detection):
