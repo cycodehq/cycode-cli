@@ -3,10 +3,11 @@ from marshmallow import Schema, fields, EXCLUDE, post_load
 
 
 class Detection(Schema):
-    def __init__(self, type: str, message: str, detection_details: dict, detection_rule_id: str):
+    def __init__(self, detection_type_id: str, type: str, message: str, detection_details: dict, detection_rule_id: str):
         super().__init__()
         self.message = message
         self.type = type
+        self.detection_type_id = detection_type_id
         self.detection_details = detection_details
         self.detection_rule_id = detection_rule_id
 
@@ -26,6 +27,7 @@ class DetectionSchema(Schema):
 
     message = fields.String()
     type = fields.String()
+    detection_type_id = fields.String()
     detection_details = fields.Dict()
     detection_rule_id = fields.String()
 
