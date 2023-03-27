@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import List, Optional, Dict
 
 import click
-from typing import List, Optional, Dict
 
 from cli.models import Document
 from cli.utils.path_utils import join_paths, get_file_dir

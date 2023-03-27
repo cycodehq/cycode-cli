@@ -102,14 +102,6 @@ def try_generate_dependencies_tree(filename: str) -> Optional[str]:
     return gradle_dependencies
 
 
-def build_dep_tree_path(path: str, generated_file_name: str) -> str:
-    return join_paths(get_file_dir(path), generated_file_name)
-
-
-def is_gradle_project(document: Document) -> bool:
-    return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
-
-
 def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
     try:
         return repo.git.show(f'{commit}:{file_path}')
