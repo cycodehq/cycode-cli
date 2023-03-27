@@ -14,9 +14,6 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 
 class BaseRestoreMavenDependencies(ABC):
-    context: click.Context
-    is_git_diff: bool
-    command_timeout: int
 
     def __init__(self, context: click.Context, is_git_diff: bool,
                  command_timeout: int):
