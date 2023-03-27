@@ -26,23 +26,11 @@ class BaseRestoreMavenDependencies(ABC):
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
 
-    def restore(self, document: Document):
+    def restore(self, document: Document) -> Optional[Document]:
+        restore_dependencies_document = None
         if self.is_project(document):
             restore_dependencies_document = self.try_restore_dependencies(document)
-            if restore_dependencies_document is None:
-                logger.warning('Error occurred while trying to generate dependencies tree. %s',
-                               {'filename': document.path})
-                return
-            manifest_file_path = self.get_manifest_file_path(document)
-            if restore_dependencies_document.content is None:
-                logger.warning('Error occurred while trying to generate dependencies tree. %s',
-                               {'filename': document.path})
-                restore_dependencies_document.content = ''
-                logger.debug(
-                    f"Failed to generate dependencies tree on path: {manifest_file_path}")
-            else:
-                logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
-            self.documents_to_add.append(restore_dependencies_document)
+        return restore_dependencies_document
 
     def get_manifest_file_path(self, document: Document) -> str:
         return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get(

@@ -81,25 +81,27 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
-            restore_dependencies.restore(document)
+            restore_dependencies_document = restore_dependencies.restore(document)
+            if restore_dependencies_document is None:
+                logger.warning('Error occurred while trying to generate dependencies tree. %s',
+                               {'filename': document.path})
+                continue
+            manifest_file_path = get_manifest_file_path(document)
+            if restore_dependencies_document.content is None:
+                logger.warning('Error occurred while trying to generate dependencies tree. %s',
+                               {'filename': document.path})
+                restore_dependencies_document.content = ''
+                logger.debug(
+                    f"Failed to generate dependencies tree on path: {manifest_file_path}")
+            else:
+                logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
+            documents_to_add.append(restore_dependencies_document)
 
     documents_to_scan.extend(documents_to_add)
 
 
 def get_manifest_file_path(document: Document, is_monitor_action: bool, project_path: str) -> str:
     return join_paths(project_path, document.path) if is_monitor_action else document.path
-
-
-def try_generate_dependencies_tree(filename: str) -> Optional[str]:
-    command = ['gradle', 'dependencies', '-b', filename, '-q', '--console', 'plain']
-    try:
-        gradle_dependencies = shell(command, BUILD_GRADLE_DEP_TREE_TIMEOUT)
-    except Exception as e:
-        logger.debug('Failed to run gradle dependencies tree shell comment. %s',
-                     {'filename': filename, 'exception': str(e)})
-        return None
-
-    return gradle_dependencies
 
 
 def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
