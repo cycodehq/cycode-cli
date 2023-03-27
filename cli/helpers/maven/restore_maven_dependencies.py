@@ -38,9 +38,9 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         return restore_dependencies_document
 
     def restore_from_secondary_command(self, document, manifest_file_path, restore_dependencies_document):
+        secondary_restore_command = create_secondary_restore_command(manifest_file_path)
         backup_restore_content = super()._execute_command(
-            ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
-             f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
+            secondary_restore_command,
             manifest_file_path)
         restore_dependencies_document = Document(build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
                                                  backup_restore_content,
@@ -51,3 +51,8 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
             restore_dependencies_document.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
 
         return restore_dependencies_document
+
+
+def create_secondary_restore_command(self, manifest_file_path):
+    return ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
+            f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}']
