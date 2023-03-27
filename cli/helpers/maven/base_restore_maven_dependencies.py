@@ -66,7 +66,6 @@ class BaseRestoreMavenDependencies(ABC):
                         self.is_git_diff)
 
     def _execute_command(self, command: List, file_name: str) -> Optional[Dict]:
-        # command = ['gradle', 'dependencies', '-b', filename, '-q', '--console', 'plain']
         try:
             dependencies = shell(command, self.command_timeout)
         except Exception as e:
