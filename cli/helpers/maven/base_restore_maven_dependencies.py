@@ -15,14 +15,12 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 class BaseRestoreMavenDependencies(ABC):
     context: click.Context
-    documents_to_add: List[Document]
     is_git_diff: bool
     command_timeout: int
 
-    def __init__(self, context: click.Context, documents_to_add: List[Document], is_git_diff: bool,
+    def __init__(self, context: click.Context, is_git_diff: bool,
                  command_timeout: int):
         self.context = context
-        self.documents_to_add = documents_to_add
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
 

@@ -12,9 +12,9 @@ MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
 
 
 class RestoreMavenDependencies(BaseRestoreMavenDependencies):
-    def __init__(self, context: click.Context, documents_to_add: List[Document], is_git_diff: bool,
+    def __init__(self, context: click.Context, is_git_diff: bool,
                  command_timeout: int):
-        super().__init__(context, documents_to_add, is_git_diff, command_timeout)
+        super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return document.path.endswith(BUILD_MAVEN_FILE_NAME)

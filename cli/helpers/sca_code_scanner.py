@@ -75,8 +75,8 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
                                    is_git_diff: bool = False) -> None:
     documents_to_add: List[Document] = []
     restore_dependencies_list = [
-        RestoreGradleDependencies(context, documents_to_add, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
-        RestoreMavenDependencies(context, documents_to_add, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT)
+        RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
+        RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT)
     ]
 
     for restore_dependencies in restore_dependencies_list:
