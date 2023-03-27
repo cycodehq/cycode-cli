@@ -83,14 +83,13 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
                 continue
-            manifest_file_path = get_manifest_file_path(document)
+
             if restore_dependencies_document.content is None:
                 logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
                 restore_dependencies_document.content = ''
-                logger.debug(
-                    f"Failed to generate dependencies tree on path: {manifest_file_path}")
             else:
+                manifest_file_path = get_manifest_file_path(document)
                 logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
             documents_to_add.append(restore_dependencies_document)
 
