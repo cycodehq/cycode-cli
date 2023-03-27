@@ -45,12 +45,12 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         restore_dependencies_document = Document(build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
                                                  backup_restore_content,
                                                  self.is_git_diff)
-        if restore_dependencies_document.content is None:
-            restore_dependencies_document = None
-        else:
-            restore_dependencies_document.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
+        restore_dependencies = None
+        if restore_dependencies_document.content is not None:
+            restore_dependencies = restore_dependencies_document
+            restore_dependencies.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
 
-        return restore_dependencies_document
+        return restore_dependencies
 
 
 def create_secondary_restore_command(self, manifest_file_path):
