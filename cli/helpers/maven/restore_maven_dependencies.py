@@ -29,20 +29,25 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         restore_dependencies_document = super().try_restore_dependencies(document)
         manifest_file_path = self.get_manifest_file_path(document)
         if document.content is None:
-            backup_restore_content = super()._execute_command(
-                ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
-                 f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
-                manifest_file_path)
-            restore_dependencies_document = Document(build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
-                                                     backup_restore_content,
-                                                     self.is_git_diff)
-
-            if restore_dependencies_document.content is not None:
-                restore_dependencies_document.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
-            else:
-                restore_dependencies_document = None
+            restore_dependencies_document = self.restore_from_secondary_command(document, manifest_file_path,
+                                                                                restore_dependencies_document)
         else:
             restore_dependencies_document.content = get_file_content(
                 join_paths(get_file_dir(manifest_file_path), restore_dependencies_document.path))
+
+        return restore_dependencies_document
+
+    def restore_from_secondary_command(self, document, manifest_file_path, restore_dependencies_document):
+        backup_restore_content = super()._execute_command(
+            ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
+             f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
+            manifest_file_path)
+        restore_dependencies_document = Document(build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
+                                                 backup_restore_content,
+                                                 self.is_git_diff)
+        if restore_dependencies_document.content is None:
+            restore_dependencies_document = None
+        else:
+            restore_dependencies_document.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
 
         return restore_dependencies_document
