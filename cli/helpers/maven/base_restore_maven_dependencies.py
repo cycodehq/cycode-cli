@@ -61,9 +61,11 @@ class BaseRestoreMavenDependencies(ABC):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        return Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
-                        self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
-                        self.is_git_diff)
+        document = Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
+                            self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
+                            self.is_git_diff)
+
+        return document
 
     def _execute_command(self, command: List, file_name: str) -> Optional[Dict]:
         try:
