@@ -74,10 +74,7 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 def add_dependencies_tree_document(context: click.Context, documents_to_scan: List[Document],
                                    is_git_diff: bool = False) -> None:
     documents_to_add: List[Document] = []
-    restore_dependencies_list = [
-        RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
-        RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT)
-    ]
+    restore_dependencies_list = restore_handlers(context, is_git_diff)
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
@@ -98,6 +95,13 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
             documents_to_add.append(restore_dependencies_document)
 
     documents_to_scan.extend(documents_to_add)
+
+
+def restore_handlers(context, is_git_diff):
+    return [
+        RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
+        RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT)
+    ]
 
 
 def get_manifest_file_path(document: Document, is_monitor_action: bool, project_path: str) -> str:
