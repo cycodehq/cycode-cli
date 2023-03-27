@@ -2,7 +2,7 @@ from typing import List, Optional
 
 import click
 
-from cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
+from cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies, build_dep_tree_path
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, get_file_content, join_paths
 
@@ -33,7 +33,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
                 ['mvn', 'dependency:tree', '-B', '-DoutputType=text', '-f', manifest_file_path,
                  f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}'],
                 manifest_file_path)
-            restore_dependencies_document = Document(self.build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
+            restore_dependencies_document = Document(build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
                                                      backup_restore_content,
                                                      self.is_git_diff)
 

@@ -9,6 +9,10 @@ from cli.utils.shell_executor import shell
 from cyclient import logger
 
 
+def build_dep_tree_path(path: str, generated_file_name: str) -> str:
+    return join_paths(get_file_dir(path), generated_file_name)
+
+
 class BaseRestoreMavenDependencies(ABC):
     context: click.Context
     documents_to_add: List[Document]
@@ -44,9 +48,6 @@ class BaseRestoreMavenDependencies(ABC):
         return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get(
             'monitor') else document.path
 
-    def build_dep_tree_path(self, path: str, generated_file_name: str) -> str:
-        return join_paths(get_file_dir(path), generated_file_name)
-
     @abstractmethod
     def is_project(self, document: Document) -> bool:
         pass
@@ -61,7 +62,7 @@ class BaseRestoreMavenDependencies(ABC):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        document = Document(self.build_dep_tree_path(document.path, self.get_lock_file_name()),
+        document = Document(build_dep_tree_path(document.path, self.get_lock_file_name()),
                             self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
                             self.is_git_diff)
         return document
