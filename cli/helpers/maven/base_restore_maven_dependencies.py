@@ -33,9 +33,7 @@ class BaseRestoreMavenDependencies(ABC):
         self.command_timeout = command_timeout
 
     def restore(self, document: Document) -> Optional[Document]:
-        restore_dependencies_document = None
-        if self.is_project(document):
-            restore_dependencies_document = self.try_restore_dependencies(document)
+        restore_dependencies_document = self.try_restore_dependencies(document)
         return restore_dependencies_document
 
     def get_manifest_file_path(self, document: Document) -> str:

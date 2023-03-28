@@ -70,6 +70,27 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
     return None
 
 
+def try_restore_dependencies(context: click.Context, documents_to_add: List[Document], restore_dependencies,
+                             document: Document):
+    if restore_dependencies.is_project(document):
+        restore_dependencies_document = restore_dependencies.restore(document)
+        if restore_dependencies_document is None:
+            logger.warning('Error occurred while trying to generate dependencies tree. %s',
+                           {'filename': document.path})
+            return
+
+        if restore_dependencies_document.content is None:
+            logger.warning('Error occurred while trying to generate dependencies tree. %s',
+                           {'filename': document.path})
+            restore_dependencies_document.content = ''
+        else:
+            is_monitor_action = context.obj.get('monitor')
+            project_path = context.params.get('path')
+            manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
+            logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
+        documents_to_add.append(restore_dependencies_document)
+
+
 def add_dependencies_tree_document(context: click.Context, documents_to_scan: List[Document],
                                    is_git_diff: bool = False) -> None:
     documents_to_add: List[Document] = []
@@ -77,22 +98,7 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
-            restore_dependencies_document = restore_dependencies.restore(document)
-            if restore_dependencies_document is None:
-                logger.warning('Error occurred while trying to generate dependencies tree. %s',
-                               {'filename': document.path})
-                continue
-
-            if restore_dependencies_document.content is None:
-                logger.warning('Error occurred while trying to generate dependencies tree. %s',
-                               {'filename': document.path})
-                restore_dependencies_document.content = ''
-            else:
-                is_monitor_action = context.obj.get('monitor')
-                project_path = context.params.get('path')
-                manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
-                logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
-            documents_to_add.append(restore_dependencies_document)
+            try_restore_dependencies(context, documents_to_add, restore_dependencies, document)
 
     documents_to_scan.extend(documents_to_add)
 
