@@ -5,9 +5,10 @@ import click
 from git import Repo, GitCommandError
 
 from cli.consts import *
+from cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependencies
+from cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths, get_file_content
-from cli.utils.shell_executor import shell
 from cyclient import logger
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
@@ -71,51 +72,38 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 def add_dependencies_tree_document(context: click.Context, documents_to_scan: List[Document],
                                    is_git_diff: bool = False) -> None:
-    is_monitor_action = context.obj.get('monitor')
-    project_path = context.params.get('path')
     documents_to_add: List[Document] = []
-    for document in documents_to_scan:
-        if is_gradle_project(document):
-            gradle_manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
-            gradle_dependencies_tree = try_generate_dependencies_tree(gradle_manifest_file_path)
-            if gradle_dependencies_tree is None:
-                logger.warning('Error occurred while trying to generate gradle dependencies tree. %s',
+    restore_dependencies_list = restore_handlers(context, is_git_diff)
+
+    for restore_dependencies in restore_dependencies_list:
+        for document in documents_to_scan:
+            restore_dependencies_document = restore_dependencies.restore(document)
+            if restore_dependencies_document is None:
+                logger.warning('Error occurred while trying to generate dependencies tree. %s',
                                {'filename': document.path})
-                documents_to_add.append(
-                    Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME), '', is_git_diff))
-                logger.debug(
-                    f"Failed to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
+                continue
+
+            if restore_dependencies_document.content is None:
+                logger.warning('Error occurred while trying to generate dependencies tree. %s',
+                               {'filename': document.path})
+                restore_dependencies_document.content = ''
             else:
-                documents_to_add.append(
-                    Document(build_dep_tree_path(document.path, BUILD_GRADLE_DEP_TREE_FILE_NAME),
-                             gradle_dependencies_tree, is_git_diff))
-                logger.debug(f"Succeeded to generate Gradle dependencies tree on path: {gradle_manifest_file_path}")
+                manifest_file_path = get_manifest_file_path(document)
+                logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
+            documents_to_add.append(restore_dependencies_document)
 
     documents_to_scan.extend(documents_to_add)
 
 
+def restore_handlers(context, is_git_diff):
+    return [
+        RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
+        RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT)
+    ]
+
+
 def get_manifest_file_path(document: Document, is_monitor_action: bool, project_path: str) -> str:
     return join_paths(project_path, document.path) if is_monitor_action else document.path
-
-
-def try_generate_dependencies_tree(filename: str) -> Optional[str]:
-    command = ['gradle', 'dependencies', '-b', filename, '-q', '--console', 'plain']
-    try:
-        gradle_dependencies = shell(command, BUILD_GRADLE_DEP_TREE_TIMEOUT)
-    except Exception as e:
-        logger.debug('Failed to run gradle dependencies tree shell comment. %s',
-                     {'filename': filename, 'exception': str(e)})
-        return None
-
-    return gradle_dependencies
-
-
-def build_dep_tree_path(path: str, generated_file_name: str) -> str:
-    return join_paths(get_file_dir(path), generated_file_name)
-
-
-def is_gradle_project(document: Document) -> bool:
-    return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
 
 
 def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
