@@ -2,7 +2,8 @@ from typing import List, Optional
 
 import click
 
-from cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies, build_dep_tree_path
+from cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies, build_dep_tree_path, \
+    execute_command
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, get_file_content, join_paths
 
@@ -39,9 +40,10 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
 
     def restore_from_secondary_command(self, document, manifest_file_path, restore_dependencies_document):
         secondary_restore_command = create_secondary_restore_command(manifest_file_path)
-        backup_restore_content = super()._execute_command(
+        backup_restore_content = execute_command(
             secondary_restore_command,
-            manifest_file_path)
+            manifest_file_path,
+            self.command_timeout)
         restore_dependencies_document = Document(build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
                                                  backup_restore_content,
                                                  self.is_git_diff)

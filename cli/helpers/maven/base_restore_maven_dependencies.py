@@ -13,6 +13,17 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
+def execute_command(command: List, file_name: str, command_timeout: int) -> Optional[Dict]:
+    try:
+        dependencies = shell(command, command_timeout)
+    except Exception as e:
+        logger.debug('Failed to restore dependencies shell comment. %s',
+                     {'filename': file_name, 'exception': str(e)})
+        return None
+
+    return dependencies
+
+
 class BaseRestoreMavenDependencies(ABC):
 
     def __init__(self, context: click.Context, is_git_diff: bool,
@@ -46,16 +57,7 @@ class BaseRestoreMavenDependencies(ABC):
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
         document = Document(build_dep_tree_path(document.path, self.get_lock_file_name()),
-                            self._execute_command(self.get_command(manifest_file_path), manifest_file_path),
+                            execute_command(self.get_command(manifest_file_path), manifest_file_path,
+                                            self.command_timeout),
                             self.is_git_diff)
         return document
-
-    def _execute_command(self, command: List, file_name: str) -> Optional[Dict]:
-        try:
-            dependencies = shell(command, self.command_timeout)
-        except Exception as e:
-            logger.debug('Failed to restore dependencies shell comment. %s',
-                         {'filename': file_name, 'exception': str(e)})
-            return None
-
-        return dependencies

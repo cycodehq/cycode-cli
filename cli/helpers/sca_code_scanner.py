@@ -9,7 +9,6 @@ from cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependenc
 from cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cli.models import Document
 from cli.utils.path_utils import get_file_dir, join_paths, get_file_content
-from cli.utils.shell_executor import shell
 from cyclient import logger
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
