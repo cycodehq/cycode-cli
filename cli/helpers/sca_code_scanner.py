@@ -88,7 +88,9 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
                                {'filename': document.path})
                 restore_dependencies_document.content = ''
             else:
-                manifest_file_path = get_manifest_file_path(document)
+                is_monitor_action = context.obj.get('monitor')
+                project_path = context.params.get('path')
+                manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
                 logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
             documents_to_add.append(restore_dependencies_document)
 
