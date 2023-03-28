@@ -34,7 +34,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
                                                                                 restore_dependencies_document)
         else:
             restore_dependencies_document.content = get_file_content(
-                join_paths(get_file_dir(manifest_file_path), restore_dependencies_document.path))
+                join_paths(get_file_dir(manifest_file_path), self.get_lock_file_name()))
 
         return restore_dependencies_document
 
