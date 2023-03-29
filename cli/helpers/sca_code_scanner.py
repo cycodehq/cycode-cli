@@ -104,7 +104,7 @@ def add_dependencies_tree_document(context: click.Context, documents_to_scan: Li
         for document in documents_to_scan:
             try_restore_dependencies(context, documents_to_add, restore_dependencies, document)
 
-    documents_to_scan.extend(documents_to_add.items())
+    documents_to_scan.extend(list(documents_to_add.values()))
 
 
 def restore_handlers(context, is_git_diff):
