@@ -1,3 +1,4 @@
+from os import path
 from typing import List, Optional
 
 import click
@@ -18,7 +19,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
-        return document.path.endswith(BUILD_MAVEN_FILE_NAME)
+        return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME
 
     def get_command(self, manifest_file_path: str) -> List[str]:
         return ['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]
@@ -34,7 +35,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
                                                                                 restore_dependencies_document)
         else:
             restore_dependencies_document.content = get_file_content(
-                join_paths(get_file_dir(manifest_file_path), restore_dependencies_document.path))
+                join_paths(get_file_dir(manifest_file_path), self.get_lock_file_name()))
 
         return restore_dependencies_document
 

@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import click
 from git import Repo, GitCommandError
@@ -88,19 +88,23 @@ def try_restore_dependencies(context: click.Context, documents_to_add: List[Docu
             project_path = context.params.get('path')
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
             logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
-        documents_to_add.append(restore_dependencies_document)
+
+        if restore_dependencies_document.path in documents_to_add:
+            logger.debug(f"Duplicate document on restore for path: {restore_dependencies_document.path}")
+        else:
+            documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
 
 
 def add_dependencies_tree_document(context: click.Context, documents_to_scan: List[Document],
                                    is_git_diff: bool = False) -> None:
-    documents_to_add: List[Document] = []
+    documents_to_add: Dict[str, Document] = {}
     restore_dependencies_list = restore_handlers(context, is_git_diff)
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
             try_restore_dependencies(context, documents_to_add, restore_dependencies, document)
 
-    documents_to_scan.extend(documents_to_add)
+    documents_to_scan.extend(list(documents_to_add.values()))
 
 
 def restore_handlers(context, is_git_diff):
