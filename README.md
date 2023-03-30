@@ -191,7 +191,7 @@ Perform the following steps to install the pre-commit hook:
 ```yaml
 repos:
   - repo: https://github.com/cycodehq-public/cycode-cli
-    rev: 0.2.2
+    rev: 0.2.3
     hooks:
       - id: cycode
         language_version: python3
