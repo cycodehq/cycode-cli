@@ -3,22 +3,22 @@ from marshmallow import Schema, fields, EXCLUDE, post_load
 
 
 class Detection(Schema):
-    def __init__(self, detection_type_id: str, type: str, message: str, detection_details: dict, detection_rule_id: str):
+    def __init__(self, detection_type_id: str, type: str, message: str, detection_details: dict,
+                 detection_rule_id: str, severity: Optional[str] = None):
         super().__init__()
         self.message = message
         self.type = type
+        self.severity = severity
         self.detection_type_id = detection_type_id
         self.detection_details = detection_details
         self.detection_rule_id = detection_rule_id
 
     def __repr__(self) -> str:
-        return (
-            "type:{0}, "
-            "message:{1}, "
-            "detection_details: {2}"
-            "detection_rule_id:{3}".format(self.type, self.message, repr(self.detection_details),
-                                           self.detection_rule_id)
-        )
+        return f'type:{self.type}, ' \
+               f'severity:{self.severity}, ' \
+               f'message:{self.message}, ' \
+               f'detection_details:{repr(self.detection_details)}, ' \
+               f'detection_rule_id:{self.detection_rule_id}'
 
 
 class DetectionSchema(Schema):
@@ -27,6 +27,8 @@ class DetectionSchema(Schema):
 
     message = fields.String()
     type = fields.String()
+    severity = fields.String(missing='High')
+    # TODO(MarshalX): Remove "missing" arg when IaC and Secrets scans will have classifications
     detection_type_id = fields.String()
     detection_details = fields.Dict()
     detection_rule_id = fields.String()
