@@ -818,33 +818,62 @@ def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
 
 
 def _handle_exception(context: click.Context, e: Exception):
-    context.obj["did_fail"] = True
-    verbose = context.obj["verbose"]
-    if verbose:
+    context.obj['did_fail'] = True
+
+    if context.obj['verbose']:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
-    if isinstance(e, (CycodeError, ScanAsyncError)):
-        click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
-                    fg='red', nl=False)
-        context.obj["soft_fail"] = True
-    elif isinstance(e, HttpUnauthorizedError):
-        click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
-                    'Please re-generate your token and reconfigure it by running the `cycode configure` command',
-                    fg='red', nl=False)
-        context.obj["soft_fail"] = True
-    elif isinstance(e, ZipTooLargeError):
-        click.secho('The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
-                    'Please try ignoring irrelevant paths using the ‘cycode ignore --by-path’ '
-                    'command and execute the scan again',
-                    fg='red', nl=False)
-        context.obj["soft_fail"] = True
-    elif isinstance(e, InvalidGitRepositoryError):
-        click.secho('The path you supplied does not correlate to a git repository. Should you still wish to scan '
-                    'this path, use: ‘cycode scan path <path>’',
-                    fg='red', nl=False)
-    elif isinstance(e, click.ClickException):
+
+    # TODO(MarshalX): Create global CLI errors database and move this; create error model
+    errors = {
+        CycodeError: {
+            'soft_fail': True,
+            'code': 'cycode_error',
+            'message': 'Cycode was unable to complete this scan. '
+                       'Please try again by executing the `cycode scan` command'
+        },
+        ScanAsyncError: {
+            'soft_fail': True,
+            'code': 'scan_error',
+            'message': 'Cycode was unable to complete this scan. '
+                       'Please try again by executing the `cycode scan` command'
+        },
+        HttpUnauthorizedError: {
+            'soft_fail': True,
+            'code': 'auth_error',
+            'message': 'Unable to authenticate to Cycode, your token is either invalid or has expired. '
+                       'Please re-generate your token and reconfigure it by running the `cycode configure` command'
+        },
+        ZipTooLargeError: {
+            'soft_fail': True,
+            'code': 'zip_too_large_error',
+            'message': 'The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
+                       'Please try ignoring irrelevant paths using the ‘cycode ignore --by-path’ command '
+                       'and execute the scan again'},
+        InvalidGitRepositoryError: {
+            'soft_fail': False,
+            'code': 'invalid_git_error',
+            'message': 'The path you supplied does not correlate to a git repository. '
+                       'Should you still wish to scan this path, use: ‘cycode scan path <path>’'
+        },
+    }
+
+    # TODO(MarshalX): Extend functionality of CLI printers and move this
+    def print_error(error_data) -> None:
+        if error_data['soft_fail']:
+            context.obj["soft_fail"] = True
+
+        if context.obj['output'] == 'text':
+            click.secho(error_data['message'], fg='red', nl=False)
+        elif context.obj['output'] == 'json':
+            click.echo(json.dumps({'error': error_data['code'], 'message': error_data['message']}))
+
+    if type(e) in errors:
+        return print_error(errors[type(e)])
+
+    if isinstance(e, click.ClickException):
         raise e
-    else:
-        raise click.ClickException(str(e))
+
+    raise click.ClickException(str(e))
 
 
 def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, scan_completed: bool,
