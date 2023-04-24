@@ -834,7 +834,7 @@ def _handle_exception(context: click.Context, e: Exception):
     if context.obj['verbose']:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
 
-    # TODO(MarshalX): Create global CLI errors database and move this; create error model
+    # TODO(MarshalX): Create global CLI errors database and move this
     errors: CliScanErrors = {
         CycodeError: CliScanError(
             soft_fail=True,
@@ -888,7 +888,7 @@ def _print_error(context: click.Context, error: CliScanError) -> None:
     if context.obj['output'] == 'text':
         click.secho(error['message'], fg='red', nl=False)
     elif context.obj['output'] == 'json':
-        click.echo(json.dumps({'error': error['code'], 'message': error['message']}))
+        click.echo(json.dumps({'error': error['code'], 'message': error['message']}, ensure_ascii=False))
 
 
 def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, scan_completed: bool,
