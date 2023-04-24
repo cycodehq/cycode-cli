@@ -1,4 +1,4 @@
-from typing import TypedDict, Type
+from typing import Type, NamedTuple
 
 import click
 import json
@@ -819,7 +819,7 @@ def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
            or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
-class CliScanError(TypedDict):
+class CliScanError(NamedTuple):
     soft_fail: bool
     code: str
     message: str
@@ -872,7 +872,7 @@ def _handle_exception(context: click.Context, e: Exception):
     if type(e) in errors:
         error = errors[type(e)]
 
-        if error['soft_fail'] is True:
+        if error.soft_fail is True:
             context.obj['soft_fail'] = True
 
         return _print_error(context, error)
@@ -886,9 +886,9 @@ def _handle_exception(context: click.Context, e: Exception):
 def _print_error(context: click.Context, error: CliScanError) -> None:
     # TODO(MarshalX): Extend functionality of CLI printers and move this
     if context.obj['output'] == 'text':
-        click.secho(error['message'], fg='red', nl=False)
+        click.secho(error.message, fg='red', nl=False)
     elif context.obj['output'] == 'json':
-        click.echo(json.dumps({'error': error['code'], 'message': error['message']}, ensure_ascii=False))
+        click.echo(json.dumps({'error': error.code, 'message': error.message}, ensure_ascii=False))
 
 
 def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, scan_completed: bool,
