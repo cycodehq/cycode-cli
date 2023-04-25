@@ -2,3 +2,8 @@ __pycache__
 /build/
 /*.egg-info/
 /dist/
+
+# coverage
+.coverage
+htmlcov
+coverage.*
