@@ -1,0 +1,41 @@
+import pytest
+import responses
+
+from cyclient.cycode_token_based_client import CycodeTokenBasedClient
+
+
+_EXPECTED_API_TOKEN = 'someJWT'
+
+_CLIENT_ID = 'b1234568-0eaa-1234-beb8-6f0c12345678'
+_CLIENT_SECRET = 'a12345a-42b2-1234-3bdd-c0130123456'
+
+
+@pytest.fixture(scope='session')
+def token_based_client() -> CycodeTokenBasedClient:
+    return CycodeTokenBasedClient(_CLIENT_ID, _CLIENT_SECRET)
+
+
+@pytest.fixture(scope='session')
+def api_token_url(token_based_client: CycodeTokenBasedClient) -> str:
+    return f'{token_based_client.api_url}/api/v1/auth/api-token'
+
+
+@pytest.fixture(scope='session')
+def api_token_response(api_token_url) -> responses.Response:
+    return responses.Response(
+        method=responses.POST,
+        url=api_token_url,
+        json={
+            'token': _EXPECTED_API_TOKEN,
+            'refresh_token': '12345678-0c68-1234-91ba-a13123456789',
+            'expires_in': 86400
+        },
+        status=200
+    )
+
+
+@pytest.fixture(scope='session')
+@responses.activate
+def api_token(token_based_client: CycodeTokenBasedClient, api_token_response: responses.Response) -> str:
+    responses.add(api_token_response)
+    return token_based_client.api_token
