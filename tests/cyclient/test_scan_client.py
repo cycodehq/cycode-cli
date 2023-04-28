@@ -146,23 +146,25 @@ def test_zipped_file_scan_bad_request_error(scan_type: str, scan_client: ScanCli
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient, api_token_response):
-    url, zip_file = zip_scan_resources(scan_type, scan_client)
+    scan_url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
 
-    responses.add(responses.POST, url, status=504)
-    timeout_response = http_client.post(url)
+    expected_status_code = 504
+
+    responses.add(responses.POST, scan_url, status=expected_status_code)
+    timeout_response = http_client.post(scan_url)
     responses.reset()
 
     timeout_error = Timeout()
     timeout_error.response = timeout_response
 
     responses.add(api_token_response)   # mock token based client
-    responses.add(method=responses.POST, url=url, body=timeout_error, status=504)
+    responses.add(method=responses.POST, url=scan_url, body=timeout_error, status=504)
 
     with pytest.raises(CycodeError) as e_info:
         scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
 
-    assert e_info.value.status_code == 504
+    assert e_info.value.status_code == expected_status_code
     assert e_info.value.error_message == 'Timeout Error'
 
 
