@@ -7,7 +7,7 @@ import responses
 from click.testing import CliRunner
 
 from cli.cycode import main_cli
-from tests.conftest import TEST_FILES_PATH
+from tests.conftest import TEST_FILES_PATH, CLI_ENV_VARS
 from tests.cyclient.test_scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url
 
 _PATH_TO_SCAN = TEST_FILES_PATH.joinpath('zip_content').absolute()
@@ -33,7 +33,8 @@ def test_passing_output_option_to_scan(output: str, scan_client: 'ScanClient', a
     responses.add(api_token_response)
     # scan report is not mocked. This raise connection error on attempt to report scan. it doesn't perform real request
 
-    result = CliRunner().invoke(main_cli, ['scan', '--soft-fail', '--output', output, 'path', str(_PATH_TO_SCAN)])
+    args = ['scan', '--soft-fail', '--output', output, 'path', str(_PATH_TO_SCAN)]
+    result = CliRunner().invoke(main_cli, args, env=CLI_ENV_VARS)
 
     except_json = output == 'json'
 

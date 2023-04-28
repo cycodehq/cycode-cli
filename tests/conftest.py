@@ -12,6 +12,11 @@ _EXPECTED_API_TOKEN = 'someJWT'
 _CLIENT_ID = 'b1234568-0eaa-1234-beb8-6f0c12345678'
 _CLIENT_SECRET = 'a12345a-42b2-1234-3bdd-c0130123456'
 
+CLI_ENV_VARS = {
+    'CYCODE_CLIENT_ID': _CLIENT_ID,
+    'CYCODE_CLIENT_SECRET': _CLIENT_SECRET
+}
+
 TEST_FILES_PATH = Path(__file__).parent.joinpath('test_files').absolute()
 
 
