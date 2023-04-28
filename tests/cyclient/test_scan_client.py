@@ -149,9 +149,7 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
 
-    expected_status_code = 504
-
-    responses.add(responses.POST, url, status=expected_status_code)
+    responses.add(responses.POST, url, status=504)
     timeout_response = http_client.post(url)
     responses.reset()
 
@@ -164,7 +162,7 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
     with pytest.raises(CycodeError) as e_info:
         scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
 
-    assert e_info.value.status_code == expected_status_code
+    assert e_info.value.status_code == 504
     assert e_info.value.error_message == 'Timeout Error'
 
 
