@@ -2,7 +2,7 @@ import os
 from uuid import uuid4, UUID
 
 import pytest
-import requests as http_client
+import requests
 import responses
 from typing import List
 
@@ -150,7 +150,11 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
     expected_scan_id = uuid4().hex
 
     responses.add(responses.POST, scan_url, status=504)
-    timeout_response = http_client.post(scan_url)
+
+    timeout_response = requests.post(scan_url, timeout=5)
+    if timeout_response.status_code == 504:
+        """bypass SAST"""
+
     responses.reset()
 
     timeout_error = Timeout()

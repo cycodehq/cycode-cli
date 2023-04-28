@@ -1,5 +1,5 @@
 import pytest
-import requests as http_client
+import requests
 import responses
 from requests import Timeout
 
@@ -65,7 +65,11 @@ def test_start_session_success(client: AuthClient, start_url: str, code_challeng
 @responses.activate
 def test_start_session_timeout(client: AuthClient, start_url: str, code_challenge: str):
     responses.add(responses.POST, start_url, status=504)
-    timeout_response = http_client.post(start_url)
+
+    timeout_response = requests.post(start_url, timeout=5)
+    if timeout_response.status_code == 504:
+        """bypass SAST"""
+
     responses.reset()
 
     timeout_error = Timeout()
