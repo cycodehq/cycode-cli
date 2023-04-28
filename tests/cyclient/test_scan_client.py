@@ -2,7 +2,7 @@ import os
 from uuid import uuid4, UUID
 
 import pytest
-import requests
+import requests as http_client
 import responses
 from typing import List
 
@@ -152,7 +152,7 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
     excepted_status_code = 504
 
     responses.add(responses.POST, url, status=excepted_status_code)
-    timeout_response = requests.post(url)
+    timeout_response = http_client.post(url)
     responses.reset()
 
     timeout_error = Timeout()
