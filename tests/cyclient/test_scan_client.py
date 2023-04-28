@@ -97,29 +97,29 @@ def test_get_service_name(scan_client: ScanClient):
 @responses.activate
 def test_zipped_file_scan(scan_type: str, scan_client: ScanClient, api_token_response):
     url, zip_file = zip_scan_resources(scan_type, scan_client)
-    excepted_scan_id = uuid4()
+    expected_scan_id = uuid4()
 
     responses.add(api_token_response)   # mock token based client
-    responses.add(get_zipped_file_scan_response(url, excepted_scan_id))
+    responses.add(get_zipped_file_scan_response(url, expected_scan_id))
 
     # TODO(MarshalX): fix wrong type hint? UUID instead of str
     zipped_file_scan_response = scan_client.zipped_file_scan(
-        scan_type, zip_file, scan_id=excepted_scan_id, scan_parameters={}
+        scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={}
     )
-    assert zipped_file_scan_response.scan_id == excepted_scan_id.hex
+    assert zipped_file_scan_response.scan_id == expected_scan_id.hex
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_unauthorized_error(scan_type: str, scan_client: ScanClient, api_token_response):
     url, zip_file = zip_scan_resources(scan_type, scan_client)
-    excepted_scan_id = uuid4().hex
+    expected_scan_id = uuid4().hex
 
     responses.add(api_token_response)   # mock token based client
     responses.add(method=responses.POST, url=url, status=401)
 
     with pytest.raises(HttpUnauthorizedError) as e_info:
-        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=excepted_scan_id, scan_parameters={})
+        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
 
     assert e_info.value.status_code == 401
 
@@ -128,30 +128,30 @@ def test_zipped_file_scan_unauthorized_error(scan_type: str, scan_client: ScanCl
 @responses.activate
 def test_zipped_file_scan_bad_request_error(scan_type: str, scan_client: ScanClient, api_token_response):
     url, zip_file = zip_scan_resources(scan_type, scan_client)
-    excepted_scan_id = uuid4().hex
+    expected_scan_id = uuid4().hex
 
-    excepted_status_code = 400
-    excepted_response_text = 'Bad Request'
+    expected_status_code = 400
+    expected_response_text = 'Bad Request'
 
     responses.add(api_token_response)   # mock token based client
-    responses.add(method=responses.POST, url=url, status=excepted_status_code, body=excepted_response_text)
+    responses.add(method=responses.POST, url=url, status=expected_status_code, body=expected_response_text)
 
     with pytest.raises(CycodeError) as e_info:
-        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=excepted_scan_id, scan_parameters={})
+        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
 
-    assert e_info.value.status_code == excepted_status_code
-    assert e_info.value.error_message == excepted_response_text
+    assert e_info.value.status_code == expected_status_code
+    assert e_info.value.error_message == expected_response_text
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient, api_token_response):
     url, zip_file = zip_scan_resources(scan_type, scan_client)
-    excepted_scan_id = uuid4().hex
+    expected_scan_id = uuid4().hex
 
-    excepted_status_code = 504
+    expected_status_code = 504
 
-    responses.add(responses.POST, url, status=excepted_status_code)
+    responses.add(responses.POST, url, status=expected_status_code)
     timeout_response = http_client.post(url)
     responses.reset()
 
@@ -162,9 +162,9 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
     responses.add(method=responses.POST, url=url, body=timeout_error, status=504)
 
     with pytest.raises(CycodeError) as e_info:
-        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=excepted_scan_id, scan_parameters={})
+        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
 
-    assert e_info.value.status_code == excepted_status_code
+    assert e_info.value.status_code == expected_status_code
     assert e_info.value.error_message == 'Timeout Error'
 
 
@@ -172,13 +172,13 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
 @responses.activate
 def test_zipped_file_scan_connection_error(scan_type: str, scan_client: ScanClient, api_token_response):
     url, zip_file = zip_scan_resources(scan_type, scan_client)
-    excepted_scan_id = uuid4().hex
+    expected_scan_id = uuid4().hex
 
     responses.add(api_token_response)   # mock token based client
     responses.add(method=responses.POST, url=url, body=ProxyError())
 
     with pytest.raises(CycodeError) as e_info:
-        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=excepted_scan_id, scan_parameters={})
+        scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
 
     assert e_info.value.status_code == 502
     assert e_info.value.error_message == 'Connection Error'
