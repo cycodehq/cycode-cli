@@ -1,13 +1,23 @@
+from pathlib import Path
+
 import pytest
 import responses
 
 from cyclient.cycode_token_based_client import CycodeTokenBasedClient
-
+from cyclient.scan_client import ScanClient
+from cyclient.scan_config.scan_config_creator import create_scan_client
 
 _EXPECTED_API_TOKEN = 'someJWT'
 
 _CLIENT_ID = 'b1234568-0eaa-1234-beb8-6f0c12345678'
 _CLIENT_SECRET = 'a12345a-42b2-1234-3bdd-c0130123456'
+
+TEST_FILES_PATH = Path(__file__).parent.joinpath('test_files').absolute()
+
+
+@pytest.fixture(scope='session')
+def scan_client() -> ScanClient:
+    return create_scan_client(_CLIENT_ID, _CLIENT_SECRET)
 
 
 @pytest.fixture(scope='session')
