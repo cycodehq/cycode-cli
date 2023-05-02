@@ -60,7 +60,7 @@ NO_ISSUES_STATUS_CODE = 0
               help='Run scan without failing, always return a non-error status code',
               type=bool,
               required=False)
-@click.option('--output', default='text',
+@click.option('--output', default=None,
               help="""
               \b
               Specify the results output (text/json), 
@@ -104,7 +104,9 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
         context.obj["soft_fail"] = config["soft_fail"]
 
     context.obj["scan_type"] = scan_type
-    context.obj["output"] = output
+    if output is not None:
+        # save backward compatability with old style command
+        context.obj["output"] = output
     context.obj["client"] = get_cycode_client(client_id, secret)
     context.obj["severity_threshold"] = severity_threshold
     context.obj["monitor"] = monitor
@@ -135,15 +137,24 @@ def finalize(context: click.Context, *args, **kwargs):
 @click.option(
     "--verbose", "-v", is_flag=True, default=False, help="Show detailed logs",
 )
+@click.option(
+    '--output',
+    default='text',
+    help='Specify the output (text/json), the default is text',
+    type=click.Choice(['text', 'json'])
+)
 @click.version_option(__version__, prog_name="cycode")
 @click.pass_context
-def main_cli(context: click.Context, verbose: bool):
+def main_cli(context: click.Context, verbose: bool, output: str):
     context.ensure_object(dict)
     configuration_manager = ConfigurationManager()
+
     verbose = verbose or configuration_manager.get_verbose_flag()
-    context.obj["verbose"] = verbose
+    context.obj['verbose'] = verbose
     log_level = logging.DEBUG if verbose else logging.INFO
     logger.setLevel(log_level)
+
+    context.obj['output'] = output
 
 
 def get_cycode_client(client_id, client_secret):

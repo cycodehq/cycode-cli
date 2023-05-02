@@ -26,14 +26,28 @@ def _is_json(plain: str) -> bool:
 
 @responses.activate
 @pytest.mark.parametrize('output', ['text', 'json'])
-def test_passing_output_option_to_scan(output: str, scan_client: 'ScanClient', api_token_response: responses.Response):
+@pytest.mark.parametrize('option_space', ['scan', 'global'])
+def test_passing_output_option(
+        output: str, option_space: str, scan_client: 'ScanClient', api_token_response: responses.Response
+):
     scan_type = 'secret'
 
     responses.add(get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client)))
     responses.add(api_token_response)
     # scan report is not mocked. This raise connection error on attempt to report scan. it doesn't perform real request
 
-    args = ['scan', '--soft-fail', '--output', output, 'path', str(_PATH_TO_SCAN)]
+    args = ['scan', '--soft-fail', 'path', str(_PATH_TO_SCAN)]
+
+    if option_space == 'global':
+        global_args = ['--output', output]
+        global_args.extend(args)
+
+        args = global_args
+    elif option_space == 'scan':
+        # test backward compatability with old style command
+        args.insert(2, '--output')
+        args.insert(3, output)
+
     result = CliRunner().invoke(main_cli, args, env=CLI_ENV_VARS)
 
     except_json = output == 'json'
