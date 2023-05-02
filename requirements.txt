@@ -11,6 +11,8 @@ gitpython==3.1.30
 mock==4.0.3
 pytest==6.2.5
 pytest-mock==3.6.1
+coverage==7.2.3
+responses==0.23.1
 binaryornot==0.4.4
 halo==0.0.31
 texttable==1.6.7
