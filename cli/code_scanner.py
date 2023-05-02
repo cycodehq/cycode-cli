@@ -1,3 +1,5 @@
+from typing import Type, NamedTuple
+
 import click
 import json
 import logging
@@ -16,7 +18,7 @@ from cli.printers import ResultsPrinter
 from cli.models import Document, DocumentDetections, Severity
 from cli.ci_integrations import get_commit_range
 from cli.consts import *
-from cli.config import configuration_manager, config
+from cli.config import configuration_manager
 from cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
 from cli.utils.string_utils import get_content_size, is_binary_content
@@ -817,34 +819,76 @@ def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
            or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
+class CliScanError(NamedTuple):
+    soft_fail: bool
+    code: str
+    message: str
+
+
+CliScanErrors = Dict[Type[Exception], CliScanError]
+
+
 def _handle_exception(context: click.Context, e: Exception):
-    context.obj["did_fail"] = True
-    verbose = context.obj["verbose"]
-    if verbose:
+    context.obj['did_fail'] = True
+
+    if context.obj['verbose']:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
-    if isinstance(e, (CycodeError, ScanAsyncError)):
-        click.secho('Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
-                    fg='red', nl=False)
-        context.obj["soft_fail"] = True
-    elif isinstance(e, HttpUnauthorizedError):
-        click.secho('Unable to authenticate to Cycode, your token is either invalid or has expired. '
-                    'Please re-generate your token and reconfigure it by running the `cycode configure` command',
-                    fg='red', nl=False)
-        context.obj["soft_fail"] = True
-    elif isinstance(e, ZipTooLargeError):
-        click.secho('The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
-                    'Please try ignoring irrelevant paths using the ‘cycode ignore --by-path’ '
-                    'command and execute the scan again',
-                    fg='red', nl=False)
-        context.obj["soft_fail"] = True
-    elif isinstance(e, InvalidGitRepositoryError):
-        click.secho('The path you supplied does not correlate to a git repository. Should you still wish to scan '
-                    'this path, use: ‘cycode scan path <path>’',
-                    fg='red', nl=False)
-    elif isinstance(e, click.ClickException):
+
+    # TODO(MarshalX): Create global CLI errors database and move this
+    errors: CliScanErrors = {
+        CycodeError: CliScanError(
+            soft_fail=True,
+            code='cycode_error',
+            message='Cycode was unable to complete this scan. '
+                    'Please try again by executing the `cycode scan` command'
+        ),
+        ScanAsyncError: CliScanError(
+            soft_fail=True,
+            code='scan_error',
+            message='Cycode was unable to complete this scan. '
+                    'Please try again by executing the `cycode scan` command'
+        ),
+        HttpUnauthorizedError: CliScanError(
+            soft_fail=True,
+            code='auth_error',
+            message='Unable to authenticate to Cycode, your token is either invalid or has expired. '
+                    'Please re-generate your token and reconfigure it by running the `cycode configure` command'
+        ),
+        ZipTooLargeError: CliScanError(
+            soft_fail=True,
+            code='zip_too_large_error',
+            message='The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
+                    'Please try ignoring irrelevant paths using the ‘cycode ignore --by-path’ command '
+                    'and execute the scan again'
+        ),
+        InvalidGitRepositoryError: CliScanError(
+            soft_fail=False,
+            code='invalid_git_error',
+            message='The path you supplied does not correlate to a git repository. '
+                    'Should you still wish to scan this path, use: ‘cycode scan path <path>’'
+        ),
+    }
+
+    if type(e) in errors:
+        error = errors[type(e)]
+
+        if error.soft_fail is True:
+            context.obj['soft_fail'] = True
+
+        return _print_error(context, error)
+
+    if isinstance(e, click.ClickException):
         raise e
-    else:
-        raise click.ClickException(str(e))
+
+    raise click.ClickException(str(e))
+
+
+def _print_error(context: click.Context, error: CliScanError) -> None:
+    # TODO(MarshalX): Extend functionality of CLI printers and move this
+    if context.obj['output'] == 'text':
+        click.secho(error.message, fg='red', nl=False)
+    elif context.obj['output'] == 'json':
+        click.echo(json.dumps({'error': error.code, 'message': error.message}, ensure_ascii=False))
 
 
 def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, scan_completed: bool,
