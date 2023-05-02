@@ -3,7 +3,7 @@ import pytest
 from click import ClickException
 from git import InvalidGitRepositoryError
 
-from cli.code_scanner import _handle_exception # noqa
+from cli.code_scanner import _handle_exception  # noqa
 from cli.exceptions import custom_exceptions
 
 
@@ -19,7 +19,8 @@ def ctx():
     (custom_exceptions.ZipTooLargeError(1000), True),
     (InvalidGitRepositoryError(), None),
 ])
-def test_handle_exception_soft_fail(ctx: click.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool):
+def test_handle_exception_soft_fail(
+        ctx: click.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool):
     with ctx:
         _handle_exception(ctx, exception)
 
