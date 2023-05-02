@@ -1,9 +1,10 @@
-import requests.exceptions
-from requests import Response
 from typing import Optional
+
+from requests import Response
+
 from .cycode_client import CycodeClient
 from . import models
-from cli.exceptions.custom_exceptions import CycodeError
+from cli.exceptions.custom_exceptions import NetworkError, HttpUnauthorizedError
 
 
 class AuthClient:
@@ -12,26 +13,21 @@ class AuthClient:
     def __init__(self):
         self.cycode_client = CycodeClient()
 
-    def start_session(self, code_challenge: str):
-        path = f"{self.AUTH_CONTROLLER_PATH}/start"
+    def start_session(self, code_challenge: str) -> models.AuthenticationSession:
+        path = f'{self.AUTH_CONTROLLER_PATH}/start'
         body = {'code_challenge': code_challenge}
-        try:
-            response = self.cycode_client.post(url_path=path, body=body)
-            return self.parse_start_session_response(response)
-        except requests.exceptions.Timeout as e:
-            raise CycodeError(504, e.response.text)
-        except requests.exceptions.HTTPError as e:
-            raise CycodeError(e.response.status_code, e.response.text)
+        response = self.cycode_client.post(url_path=path, body=body)
+        return self.parse_start_session_response(response)
 
     def get_api_token(self, session_id: str, code_verifier: str) -> Optional[models.ApiTokenGenerationPollingResponse]:
-        path = f"{self.AUTH_CONTROLLER_PATH}/token"
+        path = f'{self.AUTH_CONTROLLER_PATH}/token'
         body = {'session_id': session_id, 'code_verifier': code_verifier}
         try:
             response = self.cycode_client.post(url_path=path, body=body)
             return self.parse_api_token_polling_response(response)
-        except requests.exceptions.HTTPError as e:
+        except (NetworkError, HttpUnauthorizedError) as e:
             return self.parse_api_token_polling_response(e.response)
-        except Exception as e:
+        except Exception:
             return None
 
     @staticmethod
@@ -42,5 +38,5 @@ class AuthClient:
     def parse_api_token_polling_response(response: Response) -> Optional[models.ApiTokenGenerationPollingResponse]:
         try:
             return models.ApiTokenGenerationPollingResponseSchema().load(response.json())
-        except Exception as e:
+        except Exception:
             return None

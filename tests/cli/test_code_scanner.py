@@ -2,6 +2,7 @@ import click
 import pytest
 from click import ClickException
 from git import InvalidGitRepositoryError
+from requests import Response
 
 from cli.code_scanner import _handle_exception  # noqa
 from cli.exceptions import custom_exceptions
@@ -13,9 +14,9 @@ def ctx():
 
 
 @pytest.mark.parametrize('exception, expected_soft_fail', [
-    (custom_exceptions.CycodeError(400, 'msg'), True),
+    (custom_exceptions.NetworkError(400, 'msg', Response()), True),
     (custom_exceptions.ScanAsyncError('msg'), True),
-    (custom_exceptions.HttpUnauthorizedError('msg'), True),
+    (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
     (custom_exceptions.ZipTooLargeError(1000), True),
     (InvalidGitRepositoryError(), None),
 ])

@@ -836,7 +836,7 @@ def _handle_exception(context: click.Context, e: Exception):
 
     # TODO(MarshalX): Create global CLI errors database and move this
     errors: CliScanErrors = {
-        CycodeError: CliScanError(
+        NetworkError: CliScanError(
             soft_fail=True,
             code='cycode_error',
             message='Cycode was unable to complete this scan. '

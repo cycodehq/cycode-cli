@@ -84,6 +84,7 @@ class AuthManager:
             'code_challenge': code_challenge,
             'session_id': session_id
         }
+        # TODO(MarshalX). Use auth_client instead and don't depend on "requests" lib here
         request = Request(url=login_url, params=query_params)
         return request.prepare().url
 
