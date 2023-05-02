@@ -60,7 +60,7 @@ def _print_result(context: click.Context, content: dict, color: str) -> None:
     if context.obj['output'] == 'text':
         return click.secho(content['message'], fg=color)
 
-    return click.echo(json.dumps({'result': content['success']}))
+    return click.echo(json.dumps({'result': content['success'], 'message': content['message']}))
 
 
 def _handle_exception(context: click.Context, e: Exception):

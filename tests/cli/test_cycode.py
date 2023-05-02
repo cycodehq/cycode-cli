@@ -39,7 +39,10 @@ def test_passing_output_option(
     args = ['scan', '--soft-fail', 'path', str(_PATH_TO_SCAN)]
 
     if option_space == 'global':
-        args = [*['--output', output], *args]
+        global_args = ['--output', output]
+        global_args.extend(args)
+
+        args = global_args
     elif option_space == 'scan':
         # test backward compatability with old style command
         args.insert(2, '--output')
