@@ -20,6 +20,7 @@ class CycodeTokenBasedClient(CycodeClient):
 
     @property
     def api_token(self) -> str:
+        # TODO(MarshalX): This property performs HTTP request to refresh the token. This must be the method.
         with self.lock:
             self.refresh_api_token_if_needed()
             return self._api_token

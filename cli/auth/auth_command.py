@@ -1,8 +1,8 @@
-import json
-
 import click
 import traceback
 
+from cli.models import CliResult, CliErrors, CliError
+from cli.printers import print_cli_result, print_cli_error
 from cli.auth.auth_manager import AuthManager
 from cli.user_settings.credentials_manager import CredentialsManager
 from cli.exceptions.custom_exceptions import AuthProcessError, NetworkError, HttpUnauthorizedError
@@ -19,10 +19,12 @@ def authenticate(context: click.Context):
         return
 
     try:
-        logger.debug("starting authentication process")
+        logger.debug('Starting authentication process')
+
         auth_manager = AuthManager()
         auth_manager.authenticate()
-        click.echo("Successfully logged into cycode")
+
+        print_cli_result(context.obj['output'], CliResult(success=True, message='Successfully logged into cycode'))
     except Exception as e:
         _handle_exception(context, e)
 
@@ -31,49 +33,45 @@ def authenticate(context: click.Context):
 @click.pass_context
 def authorization_check(context: click.Context):
     """ Check your machine associating CLI with your cycode account """
-    passed_auth_check_args = {'context': context, 'content': {
-        'success': True,
-        'message': 'You are authorized'
-    }, 'color': 'green'}
-    failed_auth_check_args = {'context': context, 'content': {
-        'success': False,
-        'message': 'You are not authorized'
-    }, 'color': 'red'}
+    output = context.obj['output']
+
+    passed_auth_check_res = CliResult(success=True, message='You are authorized')
+    failed_auth_check_res = CliResult(success=False, message='You are not authorized')
 
     client_id, client_secret = CredentialsManager().get_credentials()
     if not client_id or not client_secret:
-        return _print_result(**failed_auth_check_args)
+        return print_cli_result(output, failed_auth_check_res)
 
     try:
-        # TODO(MarshalX): This property performs HTTP request to refresh the token. This must be the method.
         if CycodeTokenBasedClient(client_id, client_secret).api_token:
-            return _print_result(**passed_auth_check_args)
+            return print_cli_result(output, passed_auth_check_res)
     except (NetworkError, HttpUnauthorizedError):
         if context.obj['verbose']:
             click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
 
-        return _print_result(**failed_auth_check_args)
-
-
-def _print_result(context: click.Context, content: dict, color: str) -> None:
-    # the current impl of printers supports only results of scans
-    if context.obj['output'] == 'text':
-        return click.secho(content['message'], fg=color)
-
-    return click.echo(json.dumps({'result': content['success'], 'message': content['message']}))
+        return print_cli_result(output, failed_auth_check_res)
 
 
 def _handle_exception(context: click.Context, e: Exception):
-    verbose = context.obj["verbose"]
-    if verbose:
+    if context.obj['verbose']:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
-    if isinstance(e, AuthProcessError):
-        click.secho('Authentication failed. Please try again later using the command `cycode auth`',
-                    fg='red', nl=False)
-    elif isinstance(e, NetworkError):
-        click.secho('Authentication failed. Please try again later using the command `cycode auth`',
-                    fg='red', nl=False)
-    elif isinstance(e, click.ClickException):
+
+    errors: CliErrors = {
+        AuthProcessError: CliError(
+            code='auth_error',
+            message='Authentication failed. Please try again later using the command `cycode auth`'
+        ),
+        NetworkError: CliError(
+            code='cycode_error',
+            message='Authentication failed. Please try again later using the command `cycode auth`'
+        ),
+    }
+
+    error = errors.get(type(e))
+    if error:
+        return print_cli_error(context.obj['output'], error)
+
+    if isinstance(e, click.ClickException):
         raise e
-    else:
-        raise click.ClickException(str(e))
+
+    raise click.ClickException(str(e))

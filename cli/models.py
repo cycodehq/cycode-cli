@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import List
+from typing import List, NamedTuple, Dict, Type
+
 from cyclient.models import Detection
 
 
@@ -43,3 +44,17 @@ class Severity(Enum):
             return None
 
         return Severity[name].value
+
+
+class CliError(NamedTuple):
+    code: str
+    message: str
+    soft_fail: bool = False
+
+
+CliErrors = Dict[Type[Exception], CliError]
+
+
+class CliResult(NamedTuple):
+    success: bool
+    message: str
