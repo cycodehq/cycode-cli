@@ -11,14 +11,14 @@ from cycode.cli.exceptions.custom_exceptions import CycodeError
 
 @pytest.fixture(scope='module')
 def code_challenge() -> str:
-    from cli.auth.auth_manager import AuthManager
+    from cycode.cli.auth.auth_manager import AuthManager
     code_challenge, _ = AuthManager()._generate_pkce_code_pair()
     return code_challenge
 
 
 @pytest.fixture(scope='module')
 def code_verifier() -> str:
-    from cli.auth.auth_manager import AuthManager
+    from cycode.cli.auth.auth_manager import AuthManager
     _, code_verifier = AuthManager()._generate_pkce_code_pair()
     return code_verifier
 
