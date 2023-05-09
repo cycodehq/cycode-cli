@@ -1,5 +1,6 @@
 import os
-from cli import code_scanner
+
+from cycode.cli import code_scanner
 from tests.conftest import TEST_FILES_PATH
 
 

@@ -1,5 +1,5 @@
-from cyclient import config
-from cyclient.cycode_client import CycodeClient
+from cycode.cyclient import config
+from cycode.cyclient.cycode_client import CycodeClient
 
 
 def test_init_values_from_config():

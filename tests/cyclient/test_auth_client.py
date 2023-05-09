@@ -3,10 +3,10 @@ import requests
 import responses
 from requests import Timeout
 
-from cyclient.auth_client import AuthClient
-from cyclient.models import AuthenticationSession, ApiTokenGenerationPollingResponse, \
+from cycode.cyclient.auth_client import AuthClient
+from cycode.cyclient.models import AuthenticationSession, ApiTokenGenerationPollingResponse, \
     ApiTokenGenerationPollingResponseSchema
-from cli.exceptions.custom_exceptions import CycodeError
+from cycode.cli.exceptions.custom_exceptions import CycodeError
 
 
 @pytest.fixture(scope='module')
