@@ -25,4 +25,4 @@ jobs:
         run: poetry install
 
       - name: Run Tests
-        run: pytest
+        run: poetry run pytest
