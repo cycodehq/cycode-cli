@@ -1,22 +1,25 @@
 FROM python:3.8.16-alpine3.17 as base
 WORKDIR /usr/cycode/app
+RUN apk add git=2.38.5-r0
 
 FROM base as builder
 ENV POETRY_VERSION=1.4.2
 
 # deps are required to build cffi
 RUN apk add --no-cache --virtual .build-deps gcc libffi-dev musl-dev &&  \
-    pip install "poetry==$POETRY_VERSION" &&  \
+    pip install "poetry==$POETRY_VERSION" "poetry-dynamic-versioning[plugin]" &&  \
     apk del .build-deps gcc libffi-dev musl-dev
 
 COPY pyproject.toml poetry.lock README.md ./
+# to be able to automatically detect version from Git Tag
+COPY .git ./.git
+# src
 COPY cycode ./cycode
 RUN poetry config virtualenvs.in-project true && \
     poetry install --only=main --no-root && \
     poetry build
 
 FROM base as final
-RUN apk add git=2.38.5-r0
 COPY --from=builder /usr/cycode/app/dist ./
 RUN pip install --no-cache-dir cycode*.whl
 
