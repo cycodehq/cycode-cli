@@ -7,7 +7,7 @@ ENV POETRY_VERSION=1.4.2
 
 # deps are required to build cffi
 RUN apk add --no-cache --virtual .build-deps gcc=12.2.1_git20220924-r4 libffi-dev=3.4.4-r0 musl-dev=1.2.3-r4 &&  \
-    pip install "poetry==$POETRY_VERSION" "poetry-dynamic-versioning[plugin]" &&  \
+    pip install --no-cache-dir "poetry==$POETRY_VERSION" "poetry-dynamic-versioning[plugin]" &&  \
     apk del .build-deps gcc libffi-dev musl-dev
 
 COPY pyproject.toml poetry.lock README.md ./
@@ -16,7 +16,7 @@ COPY .git ./.git
 # src
 COPY cycode ./cycode
 RUN poetry config virtualenvs.in-project true && \
-    poetry install --only=main --no-root && \
+    poetry --no-cache install --only=main --no-root && \
     poetry build
 
 FROM base as final
