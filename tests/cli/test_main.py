@@ -13,7 +13,7 @@ from tests.cyclient.test_scan_client import get_zipped_file_scan_response, get_z
 _PATH_TO_SCAN = TEST_FILES_PATH.joinpath('zip_content').absolute()
 
 if TYPE_CHECKING:
-    from cyclient.scan_client import ScanClient
+    from cycode.cyclient.scan_client import ScanClient
 
 
 def _is_json(plain: str) -> bool:
