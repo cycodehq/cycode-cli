@@ -29,11 +29,11 @@ jobs:
       run: |
         curl -sSL https://install.python-poetry.org | python - -y
 
-    - name: Install Poetry Plugin
-      run: pip install --no-cache-dir poetry-dynamic-versioning[plugin]
-
     - name: Update PATH
       run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install Poetry Plugin
+      run: poetry self add "poetry-dynamic-versioning[plugin]"
 
     - name: Check Pre-Release Version
       id: check-version
