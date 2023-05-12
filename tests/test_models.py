@@ -1,4 +1,4 @@
-from cyclient.models import ResourcesCollection, InternalMetadata, K8SResource
+from cycode.cyclient.models import ResourcesCollection, InternalMetadata, K8SResource
 from tests import PODS_MOCK
 
 

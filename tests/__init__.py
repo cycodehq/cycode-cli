@@ -1,4 +1,4 @@
-from cyclient.models import K8SResource
+from cycode.cyclient.models import K8SResource
 
 PODS_MOCK = [
     K8SResource('pod_name_1', 'pod', 'default', {}),

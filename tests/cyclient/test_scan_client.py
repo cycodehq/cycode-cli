@@ -9,12 +9,12 @@ from typing import List
 from requests import Timeout
 from requests.exceptions import ProxyError
 
-from cli.config import config
-from cli.zip_file import InMemoryZip
-from cli.models import Document
-from cli.code_scanner import zip_documents_to_scan
-from cli.exceptions.custom_exceptions import HttpUnauthorizedError, CycodeError
-from cyclient.scan_client import ScanClient
+from cycode.cli.config import config
+from cycode.cli.zip_file import InMemoryZip
+from cycode.cli.models import Document
+from cycode.cli.code_scanner import zip_documents_to_scan
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, CycodeError
+from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import TEST_FILES_PATH
 
 

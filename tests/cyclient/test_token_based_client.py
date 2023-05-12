@@ -1,7 +1,7 @@
 import arrow
 import responses
 
-from cyclient.cycode_token_based_client import CycodeTokenBasedClient
+from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from ..conftest import _EXPECTED_API_TOKEN
 
 

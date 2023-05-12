@@ -1,5 +1,6 @@
-from cyclient import config, __version__
-from cyclient.cycode_client_base import CycodeClientBase
+from cycode import __version__
+from cycode.cyclient import config
+from cycode.cyclient.cycode_client_base import CycodeClientBase
 
 
 def test_mandatory_headers():
