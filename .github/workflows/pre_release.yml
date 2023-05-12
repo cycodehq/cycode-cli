@@ -33,6 +33,7 @@ jobs:
     - name: Check Pre-Release Version
       id: check-version
       run: |
+        echo "::debug::Package version: $(poetry version --short)"
         [[ "$(poetry version --short)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || echo prerelease=true >> $GITHUB_OUTPUT
 
     - name: Exit if not Pre-Release Version
