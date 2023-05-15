@@ -50,8 +50,11 @@ responses = ">=0.23.1,<0.24.0"
 # poetry self add "poetry-dynamic-versioning[plugin]"
 [tool.poetry-dynamic-versioning]
 enable = true
+strict = true
+bump = true
+metadata = false
 vcs = "git"
-style = "semver"
+style = "pep440"
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
