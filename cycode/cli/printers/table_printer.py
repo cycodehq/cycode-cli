@@ -12,6 +12,7 @@ SEVERITY_COLUMN = 'Severity'
 LICENSE_COLUMN = 'License'
 UPGRADE_COLUMN = 'Upgrade'
 REPOSITORY_COLUMN = 'Repository'
+CVE_COLUMN = 'CVE'
 PREVIEW_DETECTIONS_COMMON_HEADERS = ['File Path', 'Ecosystem', 'Dependency Name',
                                      'Direct Dependency',
                                      'Development Dependency']
@@ -42,7 +43,8 @@ class TablePrinter(BasePrinter):
         if self.context.obj.get('report_url'):
             click.secho(f"Report URL: {self.context.obj.get('report_url')}")
 
-    def _extract_detections_per_detection_type_id(self, results: List[DocumentDetections]):
+    @staticmethod
+    def _extract_detections_per_detection_type_id(results: List[DocumentDetections]):
         detections_per_detection_type_id = {}
 
         for document_detection in results:
@@ -57,13 +59,15 @@ class TablePrinter(BasePrinter):
         for detection_type_id in detections_per_detection_type_id:
             detections = detections_per_detection_type_id[detection_type_id]
             headers = self._get_table_headers()
+            rows = []
+            title = ""
 
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
                 title = "Dependencies Vulnerabilities"
                 headers = [SEVERITY_COLUMN] + headers
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
+                headers.append(CVE_COLUMN)
                 headers.append(UPGRADE_COLUMN)
-                rows = []
                 for detection in detections:
                     rows.append(self._get_upgrade_package_vulnerability(detection))
 
@@ -71,7 +75,6 @@ class TablePrinter(BasePrinter):
                 title = "License Compliance"
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(LICENSE_COLUMN)
-                rows = []
                 for detection in detections:
                     rows.append(self._get_license(detection))
 
@@ -96,13 +99,15 @@ class TablePrinter(BasePrinter):
             text_table.add_row(row)
         click.echo(text_table.draw())
 
-    def set_table_width(self, headers, text_table):
+    @staticmethod
+    def set_table_width(headers, text_table):
         header_width_size_cols = []
         for header in headers:
             header_width_size_cols.append(len(header))
         text_table.set_cols_width(header_width_size_cols)
 
-    def _print_summary_issues(self, detections: List, title: str):
+    @staticmethod
+    def _print_summary_issues(detections: List, title: str):
         click.echo(
             f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
 
@@ -112,7 +117,8 @@ class TablePrinter(BasePrinter):
             detection.detection_details.get('ecosystem'),
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
-            detection.detection_details.get('is_dev_dependency_str')
+            detection.detection_details.get('is_dev_dependency_str'),
+            detection.detection_details.get('vulnerability_id')
         ]
 
         if self._is_git_repository():
