@@ -7,8 +7,12 @@ on:
       - "CM-22808-Build-CLI-executable"
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, ] #windows-latest ]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
@@ -35,5 +39,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cycode-cli-linux
+          name: cycode-cli-${{ matrix.os }}
           path: dist
