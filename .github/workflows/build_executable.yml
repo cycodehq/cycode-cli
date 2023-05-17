@@ -38,6 +38,10 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
 
+      - name: Update PATH on Windows
+        if: matrix.os == 'windows-latest'
+        run: Add-Content $env:GITHUB_PATH "%APPDATA%\Python\Scripts"
+
       - name: Install dependencies
         run: poetry install
 
