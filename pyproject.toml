@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cycode"
-version = "0.2.4.dev8" # placeholder. Will be filled automatically on poetry build from Git Tag
+version = "0.0.0" # placeholder. Will be filled automatically on poetry build from Git Tag
 description = "Perform secrets/iac scans for your sources using Cycode's engine"
 keywords=["secret-scan", "cycode", "devops", "token", "secret", "security", "cycode", "code"]
 authors = ["Cycode <support@cycode.com>"]
@@ -49,7 +49,7 @@ responses = ">=0.23.1,<0.24.0"
 
 # poetry self add "poetry-dynamic-versioning[plugin]"
 [tool.poetry-dynamic-versioning]
-enable = false
+enable = true
 strict = true
 bump = true
 metadata = false
