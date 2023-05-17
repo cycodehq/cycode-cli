@@ -68,7 +68,6 @@ class TablePrinter(BasePrinter):
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(CVE_COLUMN)
                 headers.append(UPGRADE_COLUMN)
-                rows = []
                 for detection in detections:
                     rows.append(self._get_upgrade_package_vulnerability(detection))
 
@@ -76,7 +75,6 @@ class TablePrinter(BasePrinter):
                 title = "License Compliance"
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(LICENSE_COLUMN)
-                rows = []
                 for detection in detections:
                     rows.append(self._get_license(detection))
 
@@ -114,16 +112,13 @@ class TablePrinter(BasePrinter):
             f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
 
     def _get_common_detection_fields(self, detection: Detection):
-        cve = detection.detection_details.get('vulnerability_id')
-        if cve is None:
-            cve = ''
         row = [
             detection.detection_details.get('file_name'),
             detection.detection_details.get('ecosystem'),
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
             detection.detection_details.get('is_dev_dependency_str'),
-            cve
+            detection.detection_details.get('vulnerability_id')
         ]
 
         if self._is_git_repository():
