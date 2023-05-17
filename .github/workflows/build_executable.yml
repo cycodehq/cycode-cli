@@ -32,3 +32,8 @@ jobs:
 
       - name: Test executable
         run: ./dist/cycode --version
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: cycode-cli-linux
+          path: dist
