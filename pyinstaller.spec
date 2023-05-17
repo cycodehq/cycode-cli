@@ -10,18 +10,15 @@ INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
 with open(INIT_FILE_PATH, 'r', encoding='UTF-8') as file:
     prev_content = file.read()
 
-new_content = """
 import dunamai as _dunamai
-__version__ = _dunamai.get_version('cycode', first_choice=_dunamai.Version.from_git).serialize(
+VERSION_PLACEHOLDER = '0.0.0'
+CLI_VERSION = _dunamai.get_version('cycode', first_choice=_dunamai.Version.from_git).serialize(
     metadata=False, bump=True, style=_dunamai.Style.Pep440
 )
-"""
 
-# write the code to get version from Git Tag in runtime
-# the code will be compiled once during creation of the bundle
-# the value of __version__ will be frozen
+# write version from Git Tag to freeze the value and don't depend on Git
 with open(INIT_FILE_PATH, 'w', encoding='UTF-8') as file:
-    file.write(new_content)
+    file.write(prev_content.replace(VERSION_PLACEHOLDER, CLI_VERSION))
 
 a = Analysis(
     ['cycode/cli/main.py'],
