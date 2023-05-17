@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
 
@@ -20,10 +21,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.7
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.7'
 
       - name: Setup Poetry
         uses: snok/install-poetry@v1
