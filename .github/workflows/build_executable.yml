@@ -15,6 +15,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -36,12 +40,7 @@ jobs:
         run: poetry run pyinstaller pyinstaller.spec
 
       - name: Test executable
-        if: ${{ !startsWith(matrix.os, 'windows') }}
         run: ./dist/cycode --version
-
-      - name: Test executable on Windows
-        if: ${{ startsWith(matrix.os, 'windows') }}
-        run: Invoke-expression -command ".\dist\cycode.exe --version"
 
       - uses: actions/upload-artifact@v3
         with:
