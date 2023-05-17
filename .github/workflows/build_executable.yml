@@ -3,14 +3,15 @@ name: Build executable version of CLI
 on:
   push:
     branches:
-#      - main
+      #      - main
       - "CM-22808-Build-CLI-executable"
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, ] #windows-latest ]
+#        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ windows-latest ]
 
     runs-on: ${{ matrix.os }}
 
@@ -26,10 +27,16 @@ jobs:
           python-version: '3.7'
 
       - name: Setup Poetry
+        if: matrix.os != 'windows-latest'
         run: curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python
 
       - name: Update PATH
+        if: matrix.os != 'windows-latest'
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup Poetry on Windows
+        if: matrix.os == 'windows-latest'
+        run: (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
 
       - name: Install dependencies
         run: poetry install
@@ -38,7 +45,12 @@ jobs:
         run: poetry run pyinstaller pyinstaller.spec
 
       - name: Test executable
+        if: matrix.os != 'windows-latest'
         run: ./dist/cycode --version
+
+      - name: Test executable on Windows
+        if: matrix.os == 'windows-latest'
+        run: & .\dist\cycode --version
 
       - uses: actions/upload-artifact@v3
         with:
