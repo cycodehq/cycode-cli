@@ -143,7 +143,6 @@ def test_get_api_token_success_completed(client: AuthClient, token_url: str, cod
 
 @responses.activate
 def test_get_api_token_http_error_valid_response(client: AuthClient, token_url: str, code_verifier: str):
-    # TODO(MarshalX): ask Michal about such cases or dive into code of platform
     expected_status = 'Pending'
     expected_api_token = None
 

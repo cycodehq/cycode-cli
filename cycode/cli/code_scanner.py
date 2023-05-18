@@ -12,7 +12,7 @@ from sys import getsizeof
 
 from halo import Halo
 
-from cycode.cli.printers import ResultsPrinter, print_cli_error
+from cycode.cli.printers import ConsolePrinter
 from cycode.cli.models import Document, DocumentDetections, Severity, CliError, CliErrors
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.consts import *
@@ -444,14 +444,15 @@ def print_scan_details(scan_details_response: ScanDetailsResponse):
     if scan_details_response.message is not None:
         logger.info(f"Scan message: {scan_details_response.message}")
 
-def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
-    output_type = context.obj['output']
-    printer = ResultsPrinter()
-    printer.print_results(context, document_detections_list, output_type)
+
+def print_results(context: click.Context, document_detections_list: List[DocumentDetections]) -> None:
+    printer = ConsolePrinter(context)
+    printer.print_scan_results(document_detections_list)
 
 
-def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: List[Document]) -> \
-        List[DocumentDetections]:
+def enrich_scan_result(
+        scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
+) -> List[DocumentDetections]:
     logger.debug('enriching scan result')
     document_detections_list = []
     for detections_per_file in scan_result.detections_per_file:
@@ -863,7 +864,7 @@ def _handle_exception(context: click.Context, e: Exception):
         if error.soft_fail is True:
             context.obj['soft_fail'] = True
 
-        return print_cli_error(context.obj['output'], error)
+        return ConsolePrinter(context).print_error(error)
 
     if isinstance(e, click.ClickException):
         raise e

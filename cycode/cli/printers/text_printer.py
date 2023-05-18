@@ -4,7 +4,7 @@ from typing import List, Optional
 import click
 
 from cycode.cli.printers.base_printer import BasePrinter
-from cycode.cli.models import DocumentDetections, Detection, Document
+from cycode.cli.models import DocumentDetections, Detection, Document, CliResult, CliError
 from cycode.cli.config import config
 from cycode.cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
 from cycode.cli.utils.string_utils import obfuscate_text
@@ -15,19 +15,24 @@ class TextPrinter(BasePrinter):
     WHITE_COLOR_NAME = 'white'
     GREEN_COLOR_NAME = 'green'
 
-    scan_id: str
-    scan_type: str
-    command_scan_type: str
-    show_secret: bool = False
-
     def __init__(self, context: click.Context):
         super().__init__(context)
-        self.scan_id = context.obj.get('scan_id')
-        self.scan_type = context.obj.get('scan_type')
-        self.command_scan_type = context.info_name
-        self.show_secret = context.obj.get('show_secret', False)
+        self.scan_id: str = context.obj.get('scan_id')
+        self.scan_type: str = context.obj.get('scan_type')
+        self.command_scan_type: str = context.info_name
+        self.show_secret: bool = context.obj.get('show_secret', False)
 
-    def print_results(self, results: List[DocumentDetections]):
+    def print_result(self, result: CliResult) -> None:
+        color = None
+        if not result.success:
+            color = self.RED_COLOR_NAME
+
+        click.secho(result.message, fg=color)
+
+    def print_error(self, error: CliError) -> None:
+        click.secho(error.message, fg=self.RED_COLOR_NAME, nl=False)
+
+    def print_scan_results(self, results: List[DocumentDetections]):
         click.secho(f"Scan Results: (scan_id: {self.scan_id})")
 
         if not results:
@@ -37,8 +42,9 @@ class TextPrinter(BasePrinter):
         for document_detections in results:
             self._print_document_detections(document_detections)
 
-        if self.context.obj.get('report_url'):
-            click.secho(f"Report URL: {self.context.obj.get('report_url')}")
+        report_url = self.context.obj.get('report_url')
+        if report_url:
+            click.secho(f'Report URL: {report_url}')
 
     def _print_document_detections(self, document_detections: DocumentDetections):
         document = document_detections.document
@@ -54,9 +60,10 @@ class TextPrinter(BasePrinter):
         detection_commit_id = detection.detection_details.get('commit_id')
         detection_commit_id_message = f'\nCommit SHA: {detection_commit_id}' if detection_commit_id else ''
         click.echo(
-            f'⛔  Found issue of type: {click.style(detection_name, fg="bright_red", bold=True)} ' +
-            f'(rule ID: {detection.detection_rule_id}) in file: {click.format_filename(document_path)} ' +
-            f'{detection_sha_message}{detection_commit_id_message}  ⛔ ')
+            f'⛔  Found issue of type: {click.style(detection_name, fg="bright_red", bold=True)} '
+            f'(rule ID: {detection.detection_rule_id}) in file: {click.format_filename(document_path)} '
+            f'{detection_sha_message}{detection_commit_id_message}  ⛔'
+        )
 
     def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int):
         if self._is_git_diff_based_scan():
@@ -77,16 +84,19 @@ class TextPrinter(BasePrinter):
             self._print_line(document, line, line_number)
 
     def _print_detection_line(self, document: Document, line: str, line_number: int, detection_position_in_line: int,
-                              violation_length: int):
+                              violation_length: int) -> None:
         click.echo(
             f'{self._get_line_number_style(line_number)} '
-            f'{self._get_detection_line_style(line, document.is_git_diff_format, detection_position_in_line, violation_length)}')
+            f'{self._get_detection_line_style(line, document.is_git_diff_format, detection_position_in_line, violation_length)}'
+        )
 
     def _print_line(self, document: Document, line: str, line_number: int):
-        click.echo(
-            f'{self._get_line_number_style(line_number)} {self._get_line_style(line, document.is_git_diff_format)}')
+        line_no = self._get_line_number_style(line_number)
+        line = self._get_line_style(line, document.is_git_diff_format)
 
-    def _get_detection_line_style(self, line: str, is_git_diff: bool, start_position: int, length: int):
+        click.echo(f'{line_no} {line}')
+
+    def _get_detection_line_style(self, line: str, is_git_diff: bool, start_position: int, length: int) -> str:
         line_color = self._get_line_color(line, is_git_diff)
         if self.scan_type != SECRET_SCAN_TYPE or start_position < 0 or length < 0:
             return self._get_line_style(line, is_git_diff, line_color)
@@ -94,17 +104,23 @@ class TextPrinter(BasePrinter):
         violation = line[start_position: start_position + length]
         if not self.show_secret:
             violation = obfuscate_text(violation)
+
         line_to_violation = line[0: start_position]
         line_from_violation = line[start_position + length:]
+
         return f'{self._get_line_style(line_to_violation, is_git_diff, line_color)}' \
                f'{self._get_line_style(violation, is_git_diff, line_color, underline=True)}' \
                f'{self._get_line_style(line_from_violation, is_git_diff, line_color)}'
 
-    def _get_line_style(self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False):
-        color = color or self._get_line_color(line, is_git_diff)
+    def _get_line_style(
+            self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False
+    ) -> str:
+        if color is None:
+            color = self._get_line_color(line, is_git_diff)
+
         return click.style(line, fg=color, bold=False, underline=underline)
 
-    def _get_line_color(self, line: str, is_git_diff: bool):
+    def _get_line_color(self, line: str, is_git_diff: bool) -> str:
         if not is_git_diff:
             return self.WHITE_COLOR_NAME
 
@@ -120,7 +136,8 @@ class TextPrinter(BasePrinter):
         return position - text.rfind('\n', 0, position) - 1
 
     def _get_line_number_style(self, line_number: int):
-        return f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} {click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
+        return f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} ' \
+               f'{click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
 
     def _get_lines_to_display_count(self) -> int:
         result_printer_configuration = config.get('result_printer')
