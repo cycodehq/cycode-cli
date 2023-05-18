@@ -55,7 +55,7 @@ class TablePrinter(BasePrinter):
 
     @staticmethod
     def _extract_detections_per_detection_type_id(results: List[DocumentDetections]) -> Dict[str, List[Detection]]:
-        detections_per_detection_type_id = defaultdict(lambda: [])
+        detections_per_detection_type_id = defaultdict(list)
 
         for document_detection in results:
             for detection in document_detection.detections:
