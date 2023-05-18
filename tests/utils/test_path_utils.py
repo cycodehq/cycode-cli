@@ -1,6 +1,6 @@
 import os
 
-from cli.utils.path_utils import is_sub_path
+from cycode.cli.utils.path_utils import is_sub_path
 from tests.conftest import TEST_FILES_PATH
 
 

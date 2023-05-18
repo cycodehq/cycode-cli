@@ -1,5 +1,5 @@
-from cyclient import config
-from cyclient.cycode_dev_based_client import CycodeDevBasedClient
+from cycode.cyclient import config
+from cycode.cyclient.cycode_dev_based_client import CycodeDevBasedClient
 
 
 def test_get_request_headers():

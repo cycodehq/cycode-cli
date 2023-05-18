@@ -4,8 +4,8 @@ from click import ClickException
 from git import InvalidGitRepositoryError
 from requests import Response
 
-from cli.code_scanner import _handle_exception  # noqa
-from cli.exceptions import custom_exceptions
+from cycode.cli.code_scanner import _handle_exception  # noqa
+from cycode.cli.exceptions import custom_exceptions
 
 
 @pytest.fixture()

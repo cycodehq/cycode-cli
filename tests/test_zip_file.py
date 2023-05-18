@@ -1,4 +1,4 @@
-from cli import zip_file
+from cycode.cli import zip_file
 
 
 def test_concat_unique_id_to_file_starting_with_seperator():

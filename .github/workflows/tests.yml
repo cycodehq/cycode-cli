@@ -7,18 +7,22 @@ permissions:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
+
+      - name: Setup Poetry
+        run: curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: poetry install
+
       - name: Run Tests
-        run: pytest
+        run: poetry run pytest
