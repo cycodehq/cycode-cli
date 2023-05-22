@@ -1,13 +1,25 @@
-name: Unit Tests on the lower supported Python version
+name: Unit Tests on all supported Python versions and OS
 
-on: [ push ]
+on:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   unit_tests:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10", "3.11" ]
+
+    runs-on: ${{matrix.os}}
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
@@ -16,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: ${{ matrix.python-version }}
 
       - name: Setup Poetry
         uses: snok/install-poetry@v1
