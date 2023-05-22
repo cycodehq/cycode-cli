@@ -46,7 +46,7 @@ This guide will guide you through both installation and usage.
 
 # Prerequisites
 
-- The Cycode CLI application requires Python version 3.8 or later.
+- The Cycode CLI application requires Python version 3.7 or later.
 - Use the [`cycode auth` command](#use-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, a Cycode Client ID and Client Secret Key can be acquired using the steps from the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages for details on obtaining these values.
 
