@@ -86,24 +86,24 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 2. A browser window will appear, asking you to log into Cycode (as seen below):
 
-![](./images/cycode_login.png)
+![Cycode login](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/cycode_login.png)
 
 3. Enter you login credentials on this page and log in.
 
 4. You will eventually be taken to this page, where you will be asked to choose the business group you want to authorize Cycode with (if applicable):
 
-![](./images/authorize_cli.png)
+![authorize CLI](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/authorize_cli.png)
 
 > :memo: **Note**<br/>
 > This will be the default method for authenticating with the Cycode CLI.
 
 5. Click the **Allow** button to authorize the Cycode CLI on the chosen business group.
 
-![](./images/allow_cli.png)
+![allow CLI](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/allow_cli.png)
 
 6. Once done, you will see the following screen, if it was successfully selected:
 
-![](./images/successfully_auth.png)
+![successfully auth](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/successfully_auth.png)
 
 7. In the terminal/command line screen, you will see the following when exiting the browser window:
 
@@ -160,19 +160,19 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 1. From the Control Panel, navigate to the System menu:
 
-![](./images/image1.png)
+![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/image1.png)
 
 2. Next, click Advanced system settings:
 
-![](./images/image2.png)
+![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/image2.png)
 
 3. In the System Properties window that opens, click the Environment Variables button:
 
-![](./images/image3.png)
+![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/image3.png)
 
 4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively:
 
-![](./images/image4.png)
+![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/image4.png)
 
 ## Install Pre-Commit Hook
 
@@ -191,7 +191,7 @@ Perform the following steps to install the pre-commit hook:
 ```yaml
 repos:
   - repo: https://github.com/cycodehq-public/cycode-cli
-    rev: 0.2.3
+    rev: stable
     hooks:
       - id: cycode
         language_version: python3
@@ -211,11 +211,12 @@ repos:
 
 The following are the options and commands available with the Cycode CLI application:
 
-| Option            | Description                 |
-|-------------------|-----------------------------|
-| `-v`, `--verbose` | Show detailed logs          |
-| `--version`       | Show the version and exit.  |
-| `--help`          | Show options for given command. |
+| Option                  | Description                                               |
+|-------------------------|-----------------------------------------------------------|
+| `--output [text\|json]` | Specify the output (`text`/`json`). The default is `text` |
+| `-v`, `--verbose`       | Show detailed logs                                        |
+| `--version`             | Show the version and exit.                                |
+| `--help`                | Show options for given command.                           |
 
 | Command                             | Description |
 |-------------------------------------|-------------|
@@ -235,7 +236,6 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--client-id TEXT`                   | Specify a Cycode client ID for this specific scan execution   |
 | `--show-secret BOOLEAN`              | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details. |
 | `--soft-fail BOOLEAN`                | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
-| `--output [text\|json]`              | Specify the results output (`text`/`json`). The default is `text` |
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]`  | Show only violations at the specified level or higher (supported for the SCA scan type only). |
 | `--sca-scan`                         | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both |
 | `--monitor`                          | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
@@ -360,7 +360,7 @@ Report URL: https://app.cycode.com/on-demand-scans/617ecc3d-9ff2-493e-8be8-2c1fe
 
 The report page will look something like below:
 
-![](./images/scan_details.png)
+![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/scan_details.png)
 
 ## Package Vulnerabilities Option
 
