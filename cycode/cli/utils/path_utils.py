@@ -22,8 +22,12 @@ def get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> Li
 
 
 def is_sub_path(path: str, sub_path: str) -> bool:
-    common_path = os.path.commonpath([get_absolute_path(path), get_absolute_path(sub_path)])
-    return path == common_path
+    try:
+        common_path = os.path.commonpath([get_absolute_path(path), get_absolute_path(sub_path)])
+        return path == common_path
+    except ValueError:
+        # if paths are on the different drives
+        return False
 
 
 def get_absolute_path(path: str) -> str:
