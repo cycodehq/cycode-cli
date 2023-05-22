@@ -20,10 +20,8 @@ def obfuscate_text(text: str) -> str:
 obfuscate_regex = re.compile(r"[^+\-\s]")
 
 
-"""
-get the first 1024 chars and check if its binary or not
-"""
-def is_binary_content(content: str):
+def is_binary_content(content: str) -> bool:
+    """Get the first 1024 chars and check if it's binary or not."""
     chunk = content[:1024]
     chunk_bytes = convert_string_to_bytes(chunk)
     return is_binary_string(chunk_bytes)

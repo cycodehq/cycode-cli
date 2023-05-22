@@ -1,10 +1,3 @@
-from .json_printer import JsonPrinter
-from .text_printer import TextPrinter
-from .results_printer import ResultsPrinter
+from cycode.cli.printers.console_printer import ConsolePrinter
 
-
-__all__ = [
-    'JsonPrinter',
-    'TextPrinter',
-    'ResultsPrinter'
-]
+__all__ = ['ConsolePrinter']

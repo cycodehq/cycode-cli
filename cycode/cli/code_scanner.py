@@ -1,5 +1,3 @@
-from typing import Type, NamedTuple
-
 import click
 import json
 import logging
@@ -14,8 +12,8 @@ from sys import getsizeof
 
 from halo import Halo
 
-from cycode.cli.printers import ResultsPrinter
-from cycode.cli.models import Document, DocumentDetections, Severity
+from cycode.cli.printers import ConsolePrinter
+from cycode.cli.models import Document, DocumentDetections, Severity, CliError, CliErrors
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.consts import *
 from cycode.cli.config import configuration_manager
@@ -446,14 +444,15 @@ def print_scan_details(scan_details_response: ScanDetailsResponse):
     if scan_details_response.message is not None:
         logger.info(f"Scan message: {scan_details_response.message}")
 
-def print_results(context: click.Context, document_detections_list: List[DocumentDetections]):
-    output_type = context.obj['output']
-    printer = ResultsPrinter()
-    printer.print_results(context, document_detections_list, output_type)
+
+def print_results(context: click.Context, document_detections_list: List[DocumentDetections]) -> None:
+    printer = ConsolePrinter(context)
+    printer.print_scan_results(document_detections_list)
 
 
-def enrich_scan_result(scan_result: ZippedFileScanResult, documents_to_scan: List[Document]) -> \
-        List[DocumentDetections]:
+def enrich_scan_result(
+        scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
+) -> List[DocumentDetections]:
     logger.debug('enriching scan result')
     document_detections_list = []
     for detections_per_file in scan_result.detections_per_file:
@@ -819,49 +818,39 @@ def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
            or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
-class CliScanError(NamedTuple):
-    soft_fail: bool
-    code: str
-    message: str
-
-
-CliScanErrors = Dict[Type[Exception], CliScanError]
-
-
 def _handle_exception(context: click.Context, e: Exception):
     context.obj['did_fail'] = True
 
     if context.obj['verbose']:
         click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
 
-    # TODO(MarshalX): Create global CLI errors database and move this
-    errors: CliScanErrors = {
-        NetworkError: CliScanError(
+    errors: CliErrors = {
+        NetworkError: CliError(
             soft_fail=True,
             code='cycode_error',
             message='Cycode was unable to complete this scan. '
                     'Please try again by executing the `cycode scan` command'
         ),
-        ScanAsyncError: CliScanError(
+        ScanAsyncError: CliError(
             soft_fail=True,
             code='scan_error',
             message='Cycode was unable to complete this scan. '
                     'Please try again by executing the `cycode scan` command'
         ),
-        HttpUnauthorizedError: CliScanError(
+        HttpUnauthorizedError: CliError(
             soft_fail=True,
             code='auth_error',
             message='Unable to authenticate to Cycode, your token is either invalid or has expired. '
                     'Please re-generate your token and reconfigure it by running the `cycode configure` command'
         ),
-        ZipTooLargeError: CliScanError(
+        ZipTooLargeError: CliError(
             soft_fail=True,
             code='zip_too_large_error',
             message='The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
                     'Please try ignoring irrelevant paths using the ‘cycode ignore --by-path’ command '
                     'and execute the scan again'
         ),
-        InvalidGitRepositoryError: CliScanError(
+        InvalidGitRepositoryError: CliError(
             soft_fail=False,
             code='invalid_git_error',
             message='The path you supplied does not correlate to a git repository. '
@@ -875,20 +864,12 @@ def _handle_exception(context: click.Context, e: Exception):
         if error.soft_fail is True:
             context.obj['soft_fail'] = True
 
-        return _print_error(context, error)
+        return ConsolePrinter(context).print_error(error)
 
     if isinstance(e, click.ClickException):
         raise e
 
     raise click.ClickException(str(e))
-
-
-def _print_error(context: click.Context, error: CliScanError) -> None:
-    # TODO(MarshalX): Extend functionality of CLI printers and move this
-    if context.obj['output'] == 'text':
-        click.secho(error.message, fg='red', nl=False)
-    elif context.obj['output'] == 'json':
-        click.echo(json.dumps({'error': error.code, 'message': error.message}, ensure_ascii=False))
 
 
 def _report_scan_status(context: click.Context, scan_type: str, scan_id: str, scan_completed: bool,
