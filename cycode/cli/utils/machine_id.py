@@ -100,6 +100,10 @@ def _get_machine_id() -> str:
     return mid
 
 
+def _get_hmac_hex(key: str, msg: str) -> str:
+    return hmac.new(key=key.encode(), msg=msg.encode(), digestmod=hashlib.sha256).hexdigest()
+
+
 @lru_cache(maxsize=None)
 def machine_id() -> str:
     return _get_machine_id()
@@ -108,9 +112,7 @@ def machine_id() -> str:
 @lru_cache(maxsize=None)
 def protected_machine_id(app_id: str) -> str:
     """Calculates HMAC-SHA256 of the app ID, keyed by the machine ID and returns a hex-encoded str."""
-    app_id = app_id.encode()
-    mid = _get_machine_id().encode()
-    return hmac.new(key=mid, msg=app_id, digestmod=hashlib.sha256).hexdigest()
+    return _get_hmac_hex(key=_get_machine_id(), msg=app_id)
 
 
 if __name__ == '__main__':
