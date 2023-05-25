@@ -113,13 +113,3 @@ def machine_id() -> str:
 def protected_machine_id(app_id: str) -> str:
     """Calculates HMAC-SHA256 of the app ID, keyed by the machine ID and returns a hex-encoded str."""
     return _get_hmac_hex(key=_get_machine_id(), msg=app_id)
-
-
-if __name__ == '__main__':
-    print('Machine ID:', machine_id())
-    print('Protected Machine ID:', protected_machine_id('CycodeCLI'))
-
-    for _ in range(100):
-        machine_id()
-
-    print('Cache info:', machine_id.cache_info())

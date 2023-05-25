@@ -25,3 +25,35 @@ def test_protected_machine_id_presented():
 
     assert str
     assert str is type(mid)
+
+
+def test_machine_id_cache():
+    calls_count = 100
+
+    machine_id.cache_clear()  # invalidate cache from prev tests
+
+    for _ in range(calls_count):
+        machine_id()
+
+    expected_misses = 1     # the first call calculates the value
+    expected_hits = calls_count - expected_misses
+
+    cache_info = machine_id.cache_info()
+    assert cache_info.hits == expected_hits
+    assert cache_info.misses == expected_misses
+
+
+def test_protected_machine_id_cache():
+    calls_count = 100
+
+    protected_machine_id.cache_clear()  # invalidate cache from prev tests
+
+    for _ in range(calls_count):
+        protected_machine_id(_APP_ID)
+
+    expected_misses = 1     # the first call calculates the value
+    expected_hits = calls_count - expected_misses
+
+    cache_info = protected_machine_id.cache_info()
+    assert cache_info.hits == expected_hits
+    assert cache_info.misses == expected_misses
