@@ -17,14 +17,14 @@ def test_machine_id_presented():
     mid = machine_id()
 
     assert str
-    assert str is type(mid)
+    assert isinstance(mid, str)
 
 
 def test_protected_machine_id_presented():
     mid = protected_machine_id(_APP_ID)
 
     assert str
-    assert str is type(mid)
+    assert isinstance(mid, str)
 
 
 def test_machine_id_cache():
