@@ -6,17 +6,17 @@ The MIT License (MIT)
 
 import hashlib
 import hmac
-import subprocess
 from sys import platform
 from typing import Optional
 from functools import lru_cache
 
 from cycode.cli.exceptions.custom_exceptions import CycodeError
+from cycode.cli.utils.shell_executor import shell
 
 
 def _read_cmd(cmd: str) -> Optional[str]:
     try:
-        return subprocess.run(cmd, shell=True, capture_output=True, check=True, encoding='UTF-8').stdout.strip()
+        return shell(cmd, execute_in_shell=True)
     except:  # noqa
         return None
 
