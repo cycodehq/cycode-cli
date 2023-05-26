@@ -1,7 +1,6 @@
 """Get the unique machine id of any host (without admin privileges)
 
-Based on methods from: https://github.com/denisbrodbeck/machineid
-The MIT License (MIT)
+Based on methods from: https://github.com/denisbrodbeck/machineid (The MIT License)
 """
 
 import hashlib
@@ -21,10 +20,13 @@ def _read_cmd(cmd: str) -> Optional[str]:
         return None
 
 
-def _read_registry(registry: str, key: str) -> Optional[str]:
+def _read_registry(registry: str, key: str, registry_key: Optional[int] = None) -> Optional[str]:
     import winreg
 
-    with winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE) as reg:
+    if not registry_key:
+        registry_key = winreg.HKEY_LOCAL_MACHINE
+
+    with winreg.ConnectRegistry(None, registry_key) as reg:
         with winreg.OpenKey(reg, registry) as key_object:
             try:
                 value, _ = winreg.QueryValueEx(key_object, key)
