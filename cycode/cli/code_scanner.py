@@ -730,6 +730,17 @@ def _get_package_name(detection) -> str:
     return f'{package_name}@{package_version}'
 
 
+def _is_file_relevant_for_sca_scan(filename):
+    split_path = filename.split('/')
+
+    # if any path key contains any excluded path
+    if any([i in SCA_EXCLUDED_PATHS for i in split_path]):
+        logger.debug("file is irrelevant because it is from node_modules\'s inner path, %s",
+                 {'filename': filename})
+        return False
+    return True
+
+
 def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
     if _is_subpath_of_cycode_configuration_folder(filename):
         logger.debug("file is irrelevant because it is in cycode configuration directory, %s",
@@ -755,6 +766,10 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
         logger.debug("file is irrelevant because its exceeded max size limit, %s",
                      {'filename': filename})
         return False
+
+    if scan_type == SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename):
+        return False
+
     return True
 
 
