@@ -731,7 +731,7 @@ def _get_package_name(detection) -> str:
 
 
 def _is_file_relevant_for_sca_scan(filename):
-    if any([i in filename for i in SCA_EXCLUDED_PATHS]):
+    if any([sca_excluded_path in filename for sca_excluded_path in SCA_EXCLUDED_PATHS]):
         logger.debug("file is irrelevant because it is from node_modules\'s inner path, %s",
                      {'filename': filename})
         return False
