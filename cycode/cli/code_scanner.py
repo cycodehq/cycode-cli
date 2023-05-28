@@ -731,12 +731,9 @@ def _get_package_name(detection) -> str:
 
 
 def _is_file_relevant_for_sca_scan(filename):
-    split_path = filename.split('/')
-
-    # if any path key contains any excluded path
-    if any([i in SCA_EXCLUDED_PATHS for i in split_path]):
+    if any([i in filename for i in SCA_EXCLUDED_PATHS]):
         logger.debug("file is irrelevant because it is from node_modules\'s inner path, %s",
-                 {'filename': filename})
+                     {'filename': filename})
         return False
     return True
 
@@ -829,8 +826,8 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 
 def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     return is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename) \
-           or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
-           or filename.endswith(ConfigFileManager.get_config_file_route())
+        or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
+        or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
 def _handle_exception(context: click.Context, e: Exception):
