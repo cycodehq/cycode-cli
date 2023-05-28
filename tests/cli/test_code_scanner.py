@@ -4,8 +4,9 @@ from click import ClickException
 from git import InvalidGitRepositoryError
 from requests import Response
 
-from cycode.cli.code_scanner import _handle_exception  # noqa
+from cycode.cli.code_scanner import _handle_exception, exclude_irrelevant_files  # noqa
 from cycode.cli.exceptions import custom_exceptions
+from cycode.cli.utils.path_utils import get_relevant_files_in_path
 
 
 @pytest.fixture()
@@ -58,3 +59,12 @@ def test_handle_exception_verbose(monkeypatch):
     with ctx:
         with pytest.raises(ClickException):
             _handle_exception(ctx, ValueError('test'))
+
+
+def test_skip_node_modules_on_npm_sca_scan():
+    ctx = click.Context(click.Command('path'), obj={'scan_type': 'sca'})
+
+    files_to_scan = get_relevant_files_in_path(path="./data/", exclude_patterns=["**/.git/**", "**/.cycode/**"])
+    files_to_scan = exclude_irrelevant_files(ctx, files_to_scan)
+
+    assert len(files_to_scan) is 2
