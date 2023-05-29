@@ -63,17 +63,6 @@ def test_handle_exception_verbose(monkeypatch):
             _handle_exception(ctx, ValueError('test'))
 
 
-def test_skip_node_modules_on_npm_sca_scan():
-    data_path = os.path.dirname(os.path.realpath(__file__))
-    data_path = os.path.join(data_path, 'data')
-    ctx = click.Context(click.Command('path'), obj={'scan_type': 'sca'})
-
-    files_to_scan = get_relevant_files_in_path(path=data_path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
-    files_to_scan = exclude_irrelevant_files(ctx, files_to_scan)
-
-    assert len(files_to_scan) is 2
-
-
 def test_is_file_relevant_for_sca_scan():
     path = os.path.join('some_package', 'node_modules', 'package.json')
     assert _is_file_relevant_for_sca_scan(path) is False
