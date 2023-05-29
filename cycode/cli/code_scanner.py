@@ -730,6 +730,14 @@ def _get_package_name(detection) -> str:
     return f'{package_name}@{package_version}'
 
 
+def _is_file_relevant_for_sca_scan(filename: str) -> bool:
+    if any([sca_excluded_path in filename for sca_excluded_path in SCA_EXCLUDED_PATHS]):
+        logger.debug("file is irrelevant because it is from node_modules's inner path, %s",
+                     {'filename': filename})
+        return False
+    return True
+
+
 def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
     if _is_subpath_of_cycode_configuration_folder(filename):
         logger.debug("file is irrelevant because it is in cycode configuration directory, %s",
@@ -755,6 +763,10 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
         logger.debug("file is irrelevant because its exceeded max size limit, %s",
                      {'filename': filename})
         return False
+
+    if scan_type == SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename):
+        return False
+
     return True
 
 
@@ -814,8 +826,8 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 
 def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     return is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename) \
-           or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
-           or filename.endswith(ConfigFileManager.get_config_file_route())
+        or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
+        or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
 def _handle_exception(context: click.Context, e: Exception):
