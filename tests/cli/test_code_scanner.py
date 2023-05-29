@@ -6,7 +6,7 @@ from click import ClickException
 from git import InvalidGitRepositoryError
 from requests import Response
 
-from cycode.cli.code_scanner import _handle_exception, exclude_irrelevant_files  # noqa
+from cycode.cli.code_scanner import _handle_exception, exclude_irrelevant_files, _is_file_relevant_for_sca_scan  # noqa
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.utils.path_utils import get_relevant_files_in_path
 
@@ -72,3 +72,14 @@ def test_skip_node_modules_on_npm_sca_scan():
     files_to_scan = exclude_irrelevant_files(ctx, files_to_scan)
 
     assert len(files_to_scan) is 2
+
+
+def test_is_file_relevant_for_sca_scan():
+    path = os.path.join('some_package', 'node_modules', 'package.json')
+    assert _is_file_relevant_for_sca_scan(path) is False
+    path = os.path.join('some_package', 'node_modules', 'package.lock')
+    assert _is_file_relevant_for_sca_scan(path) is False
+    path = os.path.join('some_package', 'package.json')
+    assert _is_file_relevant_for_sca_scan(path) is True
+    path = os.path.join('some_package', 'package.lock')
+    assert _is_file_relevant_for_sca_scan(path) is True
