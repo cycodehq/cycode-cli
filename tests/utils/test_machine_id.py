@@ -1,4 +1,5 @@
 from cycode.cli.utils.machine_id import _get_hmac_hex, machine_id, protected_machine_id  # noqa
+from cycode.cyclient import logger
 
 _APP_ID = 'TestsCycodeCLI'
 
@@ -16,14 +17,18 @@ def test_hmac_hex():
 def test_machine_id_presented():
     mid = machine_id()
 
-    assert str
+    logger.info(f'Machine ID: {mid}')
+
+    assert mid
     assert isinstance(mid, str)
 
 
 def test_protected_machine_id_presented():
     mid = protected_machine_id(_APP_ID)
 
-    assert str
+    logger.info(f'Protected Machine ID: {mid}')
+
+    assert mid
     assert isinstance(mid, str)
 
 
