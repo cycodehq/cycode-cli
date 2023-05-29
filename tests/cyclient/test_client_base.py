@@ -1,11 +1,10 @@
-from cycode import __version__
 from cycode.cyclient import config
-from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.cyclient.cycode_client_base import CycodeClientBase, get_cli_user_agent
 
 
 def test_mandatory_headers():
     expected_headers = {
-        'User-Agent': f'cycode-cli_{__version__}',
+        'User-Agent': get_cli_user_agent(),
     }
 
     client = CycodeClientBase(config.cycode_api_url)

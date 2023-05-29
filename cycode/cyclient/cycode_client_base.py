@@ -1,19 +1,45 @@
+import platform
+from typing import Dict
+
 from requests import Response, request, exceptions
 
 from cycode import __version__
 from . import config
-from cycode.cli.exceptions.custom_exceptions import NetworkError, HttpUnauthorizedError
+from ..cli.exceptions.custom_exceptions import NetworkError, HttpUnauthorizedError
+from ..cli.utils.machine_id import protected_machine_id
+
+
+def get_cli_user_agent() -> str:
+    """Return base User-Agent of CLI.
+
+    Example: CycodeCLI/0.2.3 (OS: Darwin; Arch: arm64; Python: 3.8.16; MID: *hash*)
+    """
+    app_name = 'CycodeCLI'
+    version = __version__
+
+    os = platform.system()
+    arch = platform.machine()
+    python_version = platform.python_version()
+
+    mid = protected_machine_id(app_name)
+
+    return f'{app_name}/{version} (OS: {os}; Arch: {arch}; Python: {python_version}; MID: {mid})'
 
 
 class CycodeClientBase:
-
-    MANDATORY_HEADERS: dict = {
-        'User-Agent': f'cycode-cli_{__version__}',
-    }
+    MANDATORY_HEADERS: Dict[str, str] = {'User-Agent': get_cli_user_agent()}
 
     def __init__(self, api_url: str):
         self.timeout = config.timeout
         self.api_url = api_url
+
+    @staticmethod
+    def reset_user_agent() -> None:
+        CycodeClientBase.MANDATORY_HEADERS['User-Agent'] = get_cli_user_agent()
+
+    @staticmethod
+    def enrich_user_agent(user_agent_suffix: str) -> None:
+        CycodeClientBase.MANDATORY_HEADERS['User-Agent'] += f' {user_agent_suffix}'
 
     def post(
             self,

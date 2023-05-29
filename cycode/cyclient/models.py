@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Dict, Optional
 from marshmallow import Schema, fields, EXCLUDE, post_load
 
@@ -282,3 +283,34 @@ class ApiTokenGenerationPollingResponseSchema(Schema):
     @post_load
     def build_dto(self, data, **kwargs):
         return ApiTokenGenerationPollingResponse(**data)
+
+
+class UserAgentOptionScheme(Schema):
+    app_name = fields.String(required=True)  # ex. vscode_extension
+    app_version = fields.String(required=True)   # ex. 0.2.3
+    env_name = fields.String(required=True)  # ex.: Visual Studio Code
+    env_version = fields.String(required=True)   # ex. 1.78.2
+
+    @post_load
+    def build_dto(self, data: dict, **_) -> 'UserAgentOption':
+        return UserAgentOption(**data)
+
+
+@dataclass
+class UserAgentOption:
+    app_name: str
+    app_version: str
+    env_name: str
+    env_version: str
+
+    @property
+    def user_agent_suffix(self) -> str:
+        """Returns suffix of User-Agent.
+
+        Example: vscode_extension (AppVersion: 0.1.2; EnvName: vscode; EnvVersion: 1.78.2)
+        """
+        return f'{self.app_name} ' \
+               f'(' \
+               f'AppVersion: {self.app_version}; ' \
+               f'EnvName: {self.env_name}; EnvVersion: {self.env_version}' \
+               f')'
