@@ -1,10 +1,12 @@
+import os
+
 import click
 import pytest
 from click import ClickException
 from git import InvalidGitRepositoryError
 from requests import Response
 
-from cycode.cli.code_scanner import _handle_exception  # noqa
+from cycode.cli.code_scanner import _handle_exception, _is_file_relevant_for_sca_scan, exclude_irrelevant_files  # noqa
 from cycode.cli.exceptions import custom_exceptions
 
 
@@ -58,3 +60,14 @@ def test_handle_exception_verbose(monkeypatch):
     with ctx:
         with pytest.raises(ClickException):
             _handle_exception(ctx, ValueError('test'))
+
+
+def test_is_file_relevant_for_sca_scan():
+    path = os.path.join('some_package', 'node_modules', 'package.json')
+    assert _is_file_relevant_for_sca_scan(path) is False
+    path = os.path.join('some_package', 'node_modules', 'package.lock')
+    assert _is_file_relevant_for_sca_scan(path) is False
+    path = os.path.join('some_package', 'package.json')
+    assert _is_file_relevant_for_sca_scan(path) is True
+    path = os.path.join('some_package', 'package.lock')
+    assert _is_file_relevant_for_sca_scan(path) is True

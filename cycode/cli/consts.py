@@ -30,6 +30,10 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
     'pipfile', 'pipfile.lock', 'requirements.txt', 'setup.py'
 ]
 
+SCA_EXCLUDED_PATHS = [
+    'node_modules'
+]
+
 PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     "crates": ["Cargo.lock", "Cargo.toml"],
     "composer": ["composer.json", "composer.lock"],
