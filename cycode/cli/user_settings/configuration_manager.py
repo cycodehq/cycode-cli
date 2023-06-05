@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Optional, Dict
+from uuid import uuid4
 
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.consts import *
@@ -77,8 +78,21 @@ class ConfigurationManager:
         config_file_manager = self.get_config_file_manager(scope)
         config_file_manager.update_base_url(base_url)
 
-    def get_config_file_manager(self, scope):
-        return self.local_config_file_manager if scope == 'local' else self.global_config_file_manager
+    def get_or_create_installation_id(self) -> str:
+        config_file_manager = self.get_config_file_manager()
+
+        installation_id = config_file_manager.get_installation_id()
+        if installation_id is None:
+            installation_id = uuid4().hex
+            config_file_manager.update_installation_id(installation_id)
+
+        return installation_id
+
+    def get_config_file_manager(self, scope: Optional[str] = None) -> ConfigFileManager:
+        if scope == 'local':
+            return self.local_config_file_manager
+
+        return self.global_config_file_manager
 
     def get_scan_polling_timeout_in_seconds(self) -> int:
         return int(self._get_value_from_environment_variables(SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,

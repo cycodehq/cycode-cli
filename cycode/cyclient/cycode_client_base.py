@@ -6,13 +6,13 @@ from requests import Response, request, exceptions
 from cycode import __version__
 from . import config
 from ..cli.exceptions.custom_exceptions import NetworkError, HttpUnauthorizedError
-from ..cli.utils.machine_id import protected_machine_id
+from ..cli.user_settings.configuration_manager import ConfigurationManager
 
 
 def get_cli_user_agent() -> str:
     """Return base User-Agent of CLI.
 
-    Example: CycodeCLI/0.2.3 (OS: Darwin; Arch: arm64; Python: 3.8.16; MID: *hash*)
+    Example: CycodeCLI/0.2.3 (OS: Darwin; Arch: arm64; Python: 3.8.16; InstallID: *uuid4*)
     """
     app_name = 'CycodeCLI'
     version = __version__
@@ -21,9 +21,9 @@ def get_cli_user_agent() -> str:
     arch = platform.machine()
     python_version = platform.python_version()
 
-    mid = protected_machine_id(app_name)
+    install_id = ConfigurationManager().get_or_create_installation_id()
 
-    return f'{app_name}/{version} (OS: {os}; Arch: {arch}; Python: {python_version}; MID: {mid})'
+    return f'{app_name}/{version} (OS: {os}; Arch: {arch}; Python: {python_version}; InstallID: {install_id})'
 
 
 class CycodeClientBase:
