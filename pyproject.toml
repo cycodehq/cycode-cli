@@ -50,6 +50,9 @@ responses = ">=0.23.1,<0.24.0"
 pyinstaller = ">=5.11.0,<5.12.0"
 dunamai = ">=1.16.1,<1.17.0"
 
+[tool.pytest.ini_options]
+log_cli = true
+
 [tool.poetry-dynamic-versioning]
 # poetry self add "poetry-dynamic-versioning[plugin]"
 enable = true

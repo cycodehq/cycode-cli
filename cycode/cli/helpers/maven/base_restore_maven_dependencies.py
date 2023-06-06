@@ -13,7 +13,7 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
-def execute_command(command: List, file_name: str, command_timeout: int) -> Optional[Dict]:
+def execute_command(command: List[str], file_name: str, command_timeout: int) -> Optional[Dict]:
     try:
         dependencies = shell(command, command_timeout)
     except Exception as e:

@@ -40,6 +40,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         return restore_dependencies_document
 
     def restore_from_secondary_command(self, document, manifest_file_path, restore_dependencies_document):
+        # TODO(MarshalX): does it even work? Missing argument
         secondary_restore_command = create_secondary_restore_command(manifest_file_path)
         backup_restore_content = execute_command(
             secondary_restore_command,

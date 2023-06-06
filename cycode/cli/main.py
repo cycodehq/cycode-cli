@@ -3,7 +3,7 @@ import logging
 import click
 import sys
 
-from typing import List
+from typing import List, Optional
 
 from cycode import __version__
 from cycode.cli.models import Severity
@@ -15,6 +15,8 @@ from cycode.cli.user_settings.user_settings_commands import set_credentials, add
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.utils import scan_utils
 from cycode.cyclient import logger
+from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.cyclient.models import UserAgentOptionScheme
 from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
 
 CONTEXT = dict()
@@ -143,9 +145,15 @@ def finalize(context: click.Context, *args, **kwargs):
     help='Specify the output (text/json), the default is text',
     type=click.Choice(['text', 'json'])
 )
+@click.option(
+    '--user-agent',
+    default=None,
+    help='Characteristic JSON object that lets servers identify the application',
+    type=str,
+)
 @click.version_option(__version__, prog_name="cycode")
 @click.pass_context
-def main_cli(context: click.Context, verbose: bool, output: str):
+def main_cli(context: click.Context, verbose: bool, output: str, user_agent: Optional[str]):
     context.ensure_object(dict)
     configuration_manager = ConfigurationManager()
 
@@ -155,6 +163,10 @@ def main_cli(context: click.Context, verbose: bool, output: str):
     logger.setLevel(log_level)
 
     context.obj['output'] = output
+
+    if user_agent:
+        user_agent_option = UserAgentOptionScheme().loads(user_agent)
+        CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
 
 
 def get_cycode_client(client_id, client_secret):
