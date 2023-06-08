@@ -121,7 +121,7 @@ class TablePrinter(BasePrinter):
         for header in headers:
             if header == CVE_COLUMN:
                 header_width_size_cols.append(len(header) * 5)
-            if header == UPGRADE_COLUMN:
+            elif header == UPGRADE_COLUMN:
                 header_width_size_cols.append(len(header) * 2)
             else:
                 header_width_size_cols.append(len(header))
