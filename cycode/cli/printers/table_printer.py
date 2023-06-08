@@ -119,12 +119,13 @@ class TablePrinter(BasePrinter):
     def set_table_width(headers: List[str], text_table: Texttable) -> None:
         header_width_size_cols = []
         for header in headers:
+            header_len = len(header)
             if header == CVE_COLUMN:
-                header_width_size_cols.append(len(header) * 5)
+                header_width_size_cols.append(header_len * 5)
             elif header == UPGRADE_COLUMN:
-                header_width_size_cols.append(len(header) * 2)
+                header_width_size_cols.append(header_len * 2)
             else:
-                header_width_size_cols.append(len(header))
+                header_width_size_cols.append(header_len)
         text_table.set_cols_width(header_width_size_cols)
 
     @staticmethod
@@ -150,8 +151,11 @@ class TablePrinter(BasePrinter):
 
     def _get_upgrade_package_vulnerability(self, detection: Detection) -> List[str]:
         alert = detection.detection_details.get('alert')
-        row = [detection.detection_details.get('advisory_severity')] + self._get_common_detection_fields(detection) + [
-            detection.detection_details.get('vulnerability_id')]
+        row = [
+            detection.detection_details.get('advisory_severity'),
+            *self._get_common_detection_fields(detection),
+            detection.detection_details.get('vulnerability_id')
+        ]
 
         upgrade = ''
         if alert.get("first_patched_version"):
