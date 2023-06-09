@@ -7,7 +7,9 @@ from cycode.cli.models import DocumentDetections, CliResult, CliError
 
 
 class BasePrinter(ABC):
-    context: click.Context
+    RED_COLOR_NAME = 'red'
+    WHITE_COLOR_NAME = 'white'
+    GREEN_COLOR_NAME = 'green'
 
     def __init__(self, context: click.Context):
         self.context = context

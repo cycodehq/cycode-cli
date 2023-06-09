@@ -211,12 +211,12 @@ repos:
 
 The following are the options and commands available with the Cycode CLI application:
 
-| Option                  | Description                                               |
-|-------------------------|-----------------------------------------------------------|
-| `--output [text\|json]` | Specify the output (`text`/`json`). The default is `text` |
-| `-v`, `--verbose`       | Show detailed logs                                        |
-| `--version`             | Show the version and exit.                                |
-| `--help`                | Show options for given command.                           |
+| Option                         | Description                                                       |
+|--------------------------------|-------------------------------------------------------------------|
+| `--output [text\|json\|table]` | Specify the output (`text`/`json`/`table`). The default is `text` |
+| `-v`, `--verbose`              | Show detailed logs                                                |
+| `--version`                    | Show the version and exit.                                        |
+| `--help`                       | Show options for given command.                                   |
 
 | Command                             | Description |
 |-------------------------------------|-------------|

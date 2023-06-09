@@ -1,10 +1,10 @@
 import click
 from typing import List, TYPE_CHECKING
 
-from cycode.cli.consts import SCA_SCAN_TYPE
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.models import DocumentDetections, CliResult, CliError
 from cycode.cli.printers.table_printer import TablePrinter
+from cycode.cli.printers.sca_table_printer import SCATablePrinter
 from cycode.cli.printers.json_printer import JsonPrinter
 from cycode.cli.printers.text_printer import TextPrinter
 
@@ -16,11 +16,15 @@ class ConsolePrinter:
     _AVAILABLE_PRINTERS = {
         'text': TextPrinter,
         'json': JsonPrinter,
-        'text_sca': TablePrinter
+        'table': TablePrinter,
+        # overrides
+        'table_sca': SCATablePrinter,
+        'text_sca': SCATablePrinter,
     }
 
     def __init__(self, context: click.Context):
         self.context = context
+        self.scan_type = self.context.obj.get('scan_type')
         self.output_type = self.context.obj.get('output')
 
         self._printer_class = self._AVAILABLE_PRINTERS.get(self.output_type)
@@ -32,11 +36,11 @@ class ConsolePrinter:
         printer.print_scan_results(detections_results_list)
 
     def _get_scan_printer(self) -> 'BasePrinter':
-        scan_type = self.context.obj.get('scan_type')
-
         printer_class = self._printer_class
-        if scan_type == SCA_SCAN_TYPE and self.output_type == 'text':
-            printer_class = TablePrinter
+
+        composite_printer = self._AVAILABLE_PRINTERS.get(f'{self.output_type}_{self.scan_type}')
+        if composite_printer:
+            printer_class = composite_printer
 
         return printer_class(self.context)
 

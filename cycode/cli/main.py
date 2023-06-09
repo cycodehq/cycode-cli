@@ -65,10 +65,10 @@ NO_ISSUES_STATUS_CODE = 0
 @click.option('--output', default=None,
               help="""
               \b
-              Specify the results output (text/json), 
+              Specify the results output (text/json/table), 
               the default is text
               """,
-              type=click.Choice(['text', 'json']))
+              type=click.Choice(['text', 'json', 'table']))
 @click.option('--severity-threshold',
               default=None,
               help='Show only violations at the specified level or higher (supported for SCA scan type only).',
@@ -142,8 +142,8 @@ def finalize(context: click.Context, *args, **kwargs):
 @click.option(
     '--output',
     default='text',
-    help='Specify the output (text/json), the default is text',
-    type=click.Choice(['text', 'json'])
+    help='Specify the output (text/json/table), the default is text',
+    type=click.Choice(['text', 'json', 'table'])
 )
 @click.option(
     '--user-agent',

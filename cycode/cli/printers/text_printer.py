@@ -7,14 +7,10 @@ from cycode.cli.printers.base_printer import BasePrinter
 from cycode.cli.models import DocumentDetections, Detection, Document, CliResult, CliError
 from cycode.cli.config import config
 from cycode.cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
-from cycode.cli.utils.string_utils import obfuscate_text
+from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
 
 
 class TextPrinter(BasePrinter):
-    RED_COLOR_NAME = 'red'
-    WHITE_COLOR_NAME = 'white'
-    GREEN_COLOR_NAME = 'green'
-
     def __init__(self, context: click.Context):
         super().__init__(context)
         self.scan_id: str = context.obj.get('scan_id')
@@ -132,9 +128,6 @@ class TextPrinter(BasePrinter):
 
         return self.WHITE_COLOR_NAME
 
-    def _get_position_in_line(self, text: str, position: int) -> int:
-        return position - text.rfind('\n', 0, position) - 1
-
     def _get_line_number_style(self, line_number: int):
         return f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} ' \
                f'{click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
@@ -158,7 +151,7 @@ class TextPrinter(BasePrinter):
         file_content = document.content
         file_lines = file_content.splitlines()
         start_line = self._get_code_segment_start_line(detection_line, code_segment_size)
-        detection_position_in_line = self._get_position_in_line(file_content, detection_position)
+        detection_position_in_line = get_position_in_line(file_content, detection_position)
 
         click.echo()
         for i in range(code_segment_size):
@@ -182,7 +175,7 @@ class TextPrinter(BasePrinter):
         git_diff_content = document.content
         git_diff_lines = git_diff_content.splitlines()
         detection_line = git_diff_lines[detection_line_number]
-        detection_position_in_line = self._get_position_in_line(git_diff_content, detection_position)
+        detection_position_in_line = get_position_in_line(git_diff_content, detection_position)
 
         click.echo()
         self._print_detection_line(document, detection_line, detection_line_number_in_original_file,
