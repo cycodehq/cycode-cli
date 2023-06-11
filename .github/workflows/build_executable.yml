@@ -20,6 +20,7 @@ jobs:
 
     steps:
       - name: Run Cimon
+        if: matrix.os == 'ubuntu-20.04'
         uses: cycodelabs/cimon-action@v0
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
