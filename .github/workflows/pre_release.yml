@@ -14,41 +14,51 @@ jobs:
       id-token: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      - name: Run Cimon
+        uses: cycodelabs/cimon-action@v0
+        with:
+          client-id: ${{ secrets.CIMON_CLIENT_ID }}
+          secret: ${{ secrets.CIMON_SECRET }}
+          prevent: true
+          fail-on-error: true
+          allowed-hosts: >
+            files.pythonhosted.org
+            install.python-poetry.org
+            pypi.org
+            upload.pypi.org
 
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.7'
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - name: Install Poetry
-      run: curl -sSL https://install.python-poetry.org | python - -y
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
 
-    - name: Update PATH
-      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Setup Poetry
+        uses: snok/install-poetry@v1
 
-    - name: Install Poetry Plugin
-      run: poetry self add "poetry-dynamic-versioning[plugin]"
+      - name: Install Poetry Plugin
+        run: poetry self add "poetry-dynamic-versioning[plugin]"
 
-    - name: Check Pre-Release Version
-      id: check-version
-      run: |
-        echo "::debug::Package version: $(poetry version --short)"
-        [[ "$(poetry version --short)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || echo prerelease=true >> $GITHUB_OUTPUT
+      - name: Check Pre-Release Version
+        id: check-version
+        run: |
+          echo "::debug::Package version: $(poetry version --short)"
+          [[ "$(poetry version --short)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || echo prerelease=true >> $GITHUB_OUTPUT
 
-    - name: Exit if not Pre-Release Version
-      if: steps.check-version.outputs.prerelease != 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh run cancel ${{ github.run_id }}
-        gh run watch ${{ github.run_id }}
+      - name: Exit if not Pre-Release Version
+        if: steps.check-version.outputs.prerelease != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run cancel ${{ github.run_id }}
+          gh run watch ${{ github.run_id }}
 
-    - name: Build package
-      run: poetry build
+      - name: Build package
+        run: poetry build
 
-    - name: Publish a Python distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish a Python distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

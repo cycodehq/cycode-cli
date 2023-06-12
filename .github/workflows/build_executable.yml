@@ -19,6 +19,19 @@ jobs:
         shell: bash
 
     steps:
+      - name: Run Cimon
+        if: matrix.os == 'ubuntu-20.04'
+        uses: cycodelabs/cimon-action@v0
+        with:
+          client-id: ${{ secrets.CIMON_CLIENT_ID }}
+          secret: ${{ secrets.CIMON_SECRET }}
+          fail-on-error: true
+          prevent: true
+          allowed-hosts: >
+            files.pythonhosted.org
+            install.python-poetry.org
+            pypi.org
+
       - name: Checkout repository
         uses: actions/checkout@v3
         with:

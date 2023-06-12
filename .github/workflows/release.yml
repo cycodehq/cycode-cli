@@ -2,7 +2,7 @@ name: Build and Publish release
 
 on:
   release:
-    types: [created]
+    types: [ created ]
 
 jobs:
   release:
@@ -13,6 +13,19 @@ jobs:
       id-token: write
 
     steps:
+      - name: Run Cimon
+        uses: cycodelabs/cimon-action@v0
+        with:
+          client-id: ${{ secrets.CIMON_CLIENT_ID }}
+          secret: ${{ secrets.CIMON_SECRET }}
+          prevent: true
+          fail-on-error: true
+          allowed-hosts: >
+            files.pythonhosted.org
+            install.python-poetry.org
+            pypi.org
+            upload.pypi.org
+
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -23,11 +36,8 @@ jobs:
         with:
           python-version: '3.7'
 
-      - name: Install Poetry
-        run: curl -sSL https://install.python-poetry.org | python - -y
-
-      - name: Update PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Setup Poetry
+        uses: snok/install-poetry@v1
 
       - name: Install Poetry Plugin
         run: poetry self add "poetry-dynamic-versioning[plugin]"
