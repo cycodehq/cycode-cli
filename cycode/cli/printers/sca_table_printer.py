@@ -5,8 +5,8 @@ import click
 from texttable import Texttable
 
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
-from cycode.cli.models import DocumentDetections, Detection, CliError, CliResult
-from cycode.cli.printers.base_printer import BasePrinter
+from cycode.cli.models import DocumentDetections, Detection
+from cycode.cli.printers.base_table_printer import BaseTablePrinter
 
 SEVERITY_COLUMN = 'Severity'
 LICENSE_COLUMN = 'License'
@@ -23,31 +23,10 @@ PREVIEW_DETECTIONS_COMMON_HEADERS = [
 ]
 
 
-class SCATablePrinter(BasePrinter):
-    def __init__(self, context: click.Context):
-        super().__init__(context)
-        self.scan_id = context.obj.get('scan_id')
-
-    def print_result(self, result: CliResult) -> None:
-        raise NotImplemented
-
-    def print_error(self, error: CliError) -> None:
-        raise NotImplemented
-
-    def print_scan_results(self, results: List[DocumentDetections]):
-        click.secho(f"Scan Results: (scan_id: {self.scan_id})")
-
-        if not results:
-            click.secho("Good job! No issues were found!!! 👏👏👏", fg=self.GREEN_COLOR_NAME)
-            return
-
+class SCATablePrinter(BaseTablePrinter):
+    def _print_results(self, results: List[DocumentDetections]) -> None:
         detections_per_detection_type_id = self._extract_detections_per_detection_type_id(results)
-
         self._print_detection_per_detection_type_id(detections_per_detection_type_id)
-
-        report_url = self.context.obj.get('report_url')
-        if report_url:
-            click.secho(f'Report URL: {report_url}')
 
     @staticmethod
     def _extract_detections_per_detection_type_id(results: List[DocumentDetections]) -> Dict[str, List[Detection]]:
@@ -141,9 +120,6 @@ class SCATablePrinter(BasePrinter):
             row = [detection.detection_details.get('repository_name')] + row
 
         return row
-
-    def _is_git_repository(self) -> bool:
-        return self.context.obj.get("remote_url") is not None
 
     def _get_upgrade_package_vulnerability(self, detection: Detection) -> List[str]:
         alert = detection.detection_details.get('alert')
