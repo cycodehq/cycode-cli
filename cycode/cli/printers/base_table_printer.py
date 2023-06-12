@@ -32,7 +32,7 @@ class Table:
         self._columns[column] = list()
 
     def set(self, column: ColumnInfo, value: str):
-        # we pash values only for existing columns what were added before
+        # we push values only for existing columns what were added before
         if column in self._columns:
             self._columns[column].append(value)
 
@@ -109,4 +109,4 @@ class BaseTablePrinter(BasePrinter, abc.ABC):
 
     @abc.abstractmethod
     def _print_results(self, results: List[DocumentDetections]) -> None:
-        raise NotImplemented
+        raise NotImplementedError
