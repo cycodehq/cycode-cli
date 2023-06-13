@@ -3,26 +3,48 @@ from typing import List
 import click
 
 from cycode.cli.printers.base_table_printer import BaseTablePrinter
-from cycode.cli.printers.column_info import ColumnInfo
+from cycode.cli.printers.table_models import ColumnInfoBuilder, ColumnWidthsConfig
 from cycode.cli.printers.table import Table
 from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
-from cycode.cli.consts import SECRET_SCAN_TYPE
+from cycode.cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE
 from cycode.cli.models import DocumentDetections, Detection, Document
 
-ISSUE_TYPE_COLUMN = ColumnInfo(name='Issue Type', index=1, width_secret=2, width_iac=4, width_sast=7)
-RULE_ID_COLUMN = ColumnInfo(name='Rule ID', index=2, width_secret=2, width_iac=3, width_sast=2)
-FILE_PATH_COLUMN = ColumnInfo(name='File Path', index=3, width_secret=2, width_iac=3, width_sast=3)
-SECRET_SHA_COLUMN = ColumnInfo(name='Secret SHA', index=3, width_secret=2)
-COMMIT_SHA_COLUMN = ColumnInfo(name='Commit SHA', index=4)
-LINE_NUMBER_COLUMN = ColumnInfo(name='Line Number', index=5)
-COLUMN_NUMBER_COLUMN = ColumnInfo(name='Column Number', index=6)
-VIOLATION_LENGTH_COLUMN = ColumnInfo(name='Violation Length', index=7)
-VIOLATION_COLUMN = ColumnInfo(name='Violation', index=8, width_secret=2)
+# Creation must have strict order. Represents the order of the columns in the table (from left to right)
+ISSUE_TYPE_COLUMN = ColumnInfoBuilder.build(name='Issue Type')
+RULE_ID_COLUMN = ColumnInfoBuilder.build(name='Rule ID')
+FILE_PATH_COLUMN = ColumnInfoBuilder.build(name='File Path')
+SECRET_SHA_COLUMN = ColumnInfoBuilder.build(name='Secret SHA')
+COMMIT_SHA_COLUMN = ColumnInfoBuilder.build(name='Commit SHA')
+LINE_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Line Number')
+COLUMN_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Column Number')
+VIOLATION_LENGTH_COLUMN = ColumnInfoBuilder.build(name='Violation Length')
+VIOLATION_COLUMN = ColumnInfoBuilder.build(name='Violation')
+
+COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
+    SECRET_SCAN_TYPE: {
+        ISSUE_TYPE_COLUMN: 2,
+        RULE_ID_COLUMN: 2,
+        FILE_PATH_COLUMN: 2,
+        SECRET_SHA_COLUMN: 2,
+        VIOLATION_COLUMN: 2,
+    },
+    INFRA_CONFIGURATION_SCAN_TYPE: {
+        ISSUE_TYPE_COLUMN: 4,
+        RULE_ID_COLUMN: 3,
+        FILE_PATH_COLUMN: 3,
+    },
+    SAST_SCAN_TYPE: {
+        ISSUE_TYPE_COLUMN: 7,
+        RULE_ID_COLUMN: 2,
+        FILE_PATH_COLUMN: 3,
+    },
+}
 
 
 class TablePrinter(BaseTablePrinter):
     def _print_results(self, results: List[DocumentDetections]) -> None:
         table = self._get_table()
+        table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
 
         for result in results:
             for detection in result.detections:
@@ -31,7 +53,7 @@ class TablePrinter(BaseTablePrinter):
         click.echo(table.get_table().draw())
 
     def _get_table(self) -> Table:
-        table = Table(self.scan_type)
+        table = Table()
 
         table.add(ISSUE_TYPE_COLUMN)
         table.add(RULE_ID_COLUMN)
