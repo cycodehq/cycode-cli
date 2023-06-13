@@ -43,3 +43,7 @@ def generate_random_string(string_len: int):
     # letters, digits, and symbols
     characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choice(characters) for _ in range(string_len))
+
+
+def get_position_in_line(text: str, position: int) -> int:
+    return position - text.rfind('\n', 0, position) - 1

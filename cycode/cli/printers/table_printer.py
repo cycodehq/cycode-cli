@@ -1,170 +1,116 @@
-from collections import defaultdict
-from typing import List, Dict
+from typing import List
 
 import click
-from texttable import Texttable
 
-from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
-from cycode.cli.models import DocumentDetections, Detection, CliError, CliResult
-from cycode.cli.printers.base_printer import BasePrinter
+from cycode.cli.printers.base_table_printer import BaseTablePrinter
+from cycode.cli.printers.table_models import ColumnInfoBuilder, ColumnWidthsConfig
+from cycode.cli.printers.table import Table
+from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
+from cycode.cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE
+from cycode.cli.models import DocumentDetections, Detection, Document
 
-SEVERITY_COLUMN = 'Severity'
-LICENSE_COLUMN = 'License'
-UPGRADE_COLUMN = 'Upgrade'
-REPOSITORY_COLUMN = 'Repository'
-CVE_COLUMN = 'CVE'
+# Creation must have strict order. Represents the order of the columns in the table (from left to right)
+ISSUE_TYPE_COLUMN = ColumnInfoBuilder.build(name='Issue Type')
+RULE_ID_COLUMN = ColumnInfoBuilder.build(name='Rule ID')
+FILE_PATH_COLUMN = ColumnInfoBuilder.build(name='File Path')
+SECRET_SHA_COLUMN = ColumnInfoBuilder.build(name='Secret SHA')
+COMMIT_SHA_COLUMN = ColumnInfoBuilder.build(name='Commit SHA')
+LINE_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Line Number')
+COLUMN_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Column Number')
+VIOLATION_LENGTH_COLUMN = ColumnInfoBuilder.build(name='Violation Length')
+VIOLATION_COLUMN = ColumnInfoBuilder.build(name='Violation')
 
-PREVIEW_DETECTIONS_COMMON_HEADERS = [
-    'File Path',
-    'Ecosystem',
-    'Dependency Name',
-    'Direct Dependency',
-    'Development Dependency'
-]
+COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
+    SECRET_SCAN_TYPE: {
+        ISSUE_TYPE_COLUMN: 2,
+        RULE_ID_COLUMN: 2,
+        FILE_PATH_COLUMN: 2,
+        SECRET_SHA_COLUMN: 2,
+        VIOLATION_COLUMN: 2,
+    },
+    INFRA_CONFIGURATION_SCAN_TYPE: {
+        ISSUE_TYPE_COLUMN: 4,
+        RULE_ID_COLUMN: 3,
+        FILE_PATH_COLUMN: 3,
+    },
+    SAST_SCAN_TYPE: {
+        ISSUE_TYPE_COLUMN: 7,
+        RULE_ID_COLUMN: 2,
+        FILE_PATH_COLUMN: 3,
+    },
+}
 
 
-class TablePrinter(BasePrinter):
-    RED_COLOR_NAME = 'red'
-    WHITE_COLOR_NAME = 'white'
-    GREEN_COLOR_NAME = 'green'
+class TablePrinter(BaseTablePrinter):
+    def _print_results(self, results: List[DocumentDetections]) -> None:
+        table = self._get_table()
+        if self.scan_type in COLUMN_WIDTHS_CONFIG:
+            table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
 
-    def __init__(self, context: click.Context):
-        super().__init__(context)
-        self.scan_id = context.obj.get('scan_id')
+        for result in results:
+            for detection in result.detections:
+                self._enrich_table_with_values(table, detection, result.document)
 
-    def print_result(self, result: CliResult) -> None:
-        raise NotImplemented
+        click.echo(table.get_table().draw())
 
-    def print_error(self, error: CliError) -> None:
-        raise NotImplemented
+    def _get_table(self) -> Table:
+        table = Table()
 
-    def print_scan_results(self, results: List[DocumentDetections]):
-        click.secho(f"Scan Results: (scan_id: {self.scan_id})")
-
-        if not results:
-            click.secho("Good job! No issues were found!!! 👏👏👏", fg=self.GREEN_COLOR_NAME)
-            return
-
-        detections_per_detection_type_id = self._extract_detections_per_detection_type_id(results)
-
-        self._print_detection_per_detection_type_id(detections_per_detection_type_id)
-
-        report_url = self.context.obj.get('report_url')
-        if report_url:
-            click.secho(f'Report URL: {report_url}')
-
-    @staticmethod
-    def _extract_detections_per_detection_type_id(results: List[DocumentDetections]) -> Dict[str, List[Detection]]:
-        detections_per_detection_type_id = defaultdict(list)
-
-        for document_detection in results:
-            for detection in document_detection.detections:
-                detections_per_detection_type_id[detection.detection_type_id].append(detection)
-
-        return detections_per_detection_type_id
-
-    def _print_detection_per_detection_type_id(
-            self, detections_per_detection_type_id: Dict[str, List[Detection]]
-    ) -> None:
-        for detection_type_id in detections_per_detection_type_id:
-            detections = detections_per_detection_type_id[detection_type_id]
-            headers = self._get_table_headers()
-
-            title = None
-            rows = []
-
-            if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
-                title = "Dependencies Vulnerabilities"
-
-                headers = [SEVERITY_COLUMN] + headers
-                headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
-                headers.append(CVE_COLUMN)
-                headers.append(UPGRADE_COLUMN)
-
-                for detection in detections:
-                    rows.append(self._get_upgrade_package_vulnerability(detection))
-            elif detection_type_id == LICENSE_COMPLIANCE_POLICY_ID:
-                title = "License Compliance"
-
-                headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
-                headers.append(LICENSE_COLUMN)
-
-                for detection in detections:
-                    rows.append(self._get_license(detection))
-
-            if rows:
-                self._print_table_detections(detections, headers, rows, title)
-
-    def _get_table_headers(self) -> list:
-        if self._is_git_repository():
-            return [REPOSITORY_COLUMN]
-
-        return []
-
-    def _print_table_detections(
-            self, detections: List[Detection], headers: List[str], rows, title: str
-    ) -> None:
-        self._print_summary_issues(detections, title)
-        text_table = Texttable()
-        text_table.header(headers)
-
-        self.set_table_width(headers, text_table)
-
-        for row in rows:
-            text_table.add_row(row)
-
-        click.echo(text_table.draw())
-
-    @staticmethod
-    def set_table_width(headers: List[str], text_table: Texttable) -> None:
-        header_width_size_cols = []
-        for header in headers:
-            header_len = len(header)
-            if header == CVE_COLUMN:
-                header_width_size_cols.append(header_len * 5)
-            elif header == UPGRADE_COLUMN:
-                header_width_size_cols.append(header_len * 2)
-            else:
-                header_width_size_cols.append(header_len)
-        text_table.set_cols_width(header_width_size_cols)
-
-    @staticmethod
-    def _print_summary_issues(detections: List, title: str) -> None:
-        click.echo(f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
-
-    def _get_common_detection_fields(self, detection: Detection) -> List[str]:
-        row = [
-            detection.detection_details.get('file_name'),
-            detection.detection_details.get('ecosystem'),
-            detection.detection_details.get('package_name'),
-            detection.detection_details.get('is_direct_dependency_str'),
-            detection.detection_details.get('is_dev_dependency_str')
-        ]
+        table.add(ISSUE_TYPE_COLUMN)
+        table.add(RULE_ID_COLUMN)
+        table.add(FILE_PATH_COLUMN)
+        table.add(LINE_NUMBER_COLUMN)
+        table.add(COLUMN_NUMBER_COLUMN)
 
         if self._is_git_repository():
-            row = [detection.detection_details.get('repository_name')] + row
+            table.add(COMMIT_SHA_COLUMN)
 
-        return row
+        if self.scan_type == SECRET_SCAN_TYPE:
+            table.add(SECRET_SHA_COLUMN)
+            table.add(VIOLATION_LENGTH_COLUMN)
+            table.add(VIOLATION_COLUMN)
 
-    def _is_git_repository(self) -> bool:
-        return self.context.obj.get("remote_url") is not None
+        return table
 
-    def _get_upgrade_package_vulnerability(self, detection: Detection) -> List[str]:
-        alert = detection.detection_details.get('alert')
-        row = [
-            detection.detection_details.get('advisory_severity'),
-            *self._get_common_detection_fields(detection),
-            detection.detection_details.get('vulnerability_id')
-        ]
+    def _enrich_table_with_values(self, table: Table, detection: Detection, document: Document) -> None:
+        self._enrich_table_with_detection_summary_values(table, detection, document)
+        self._enrich_table_with_detection_code_segment_values(table, detection, document)
 
-        upgrade = ''
-        if alert.get("first_patched_version"):
-            upgrade = f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}'
-        row.append(upgrade)
+    def _enrich_table_with_detection_summary_values(
+            self, table: Table, detection: Detection, document: Document
+    ) -> None:
+        issue_type = detection.message
+        if self.scan_type == SECRET_SCAN_TYPE:
+            issue_type = detection.type
 
-        return row
+        table.set(ISSUE_TYPE_COLUMN, issue_type)
+        table.set(RULE_ID_COLUMN, detection.detection_rule_id)
+        table.set(FILE_PATH_COLUMN, click.format_filename(document.path))
+        table.set(SECRET_SHA_COLUMN, detection.detection_details.get('sha512', ''))
+        table.set(COMMIT_SHA_COLUMN, detection.detection_details.get('commit_id', ''))
 
-    def _get_license(self, detection: Detection) -> List[str]:
-        row = self._get_common_detection_fields(detection)
-        row.append(f'{detection.detection_details.get("license")}')
-        return row
+    def _enrich_table_with_detection_code_segment_values(
+            self, table: Table, detection: Detection, document: Document
+    ) -> None:
+        detection_details = detection.detection_details
+
+        detection_line = detection_details.get('line_in_file', -1)
+        if self.scan_type == SECRET_SCAN_TYPE:
+            detection_line = detection_details.get('line', -1)
+
+        detection_column = get_position_in_line(document.content, detection_details.get('start_position', -1))
+        violation_length = detection_details.get('length', -1)
+
+        violation = ''
+        file_content_lines = document.content.splitlines()
+        if detection_line < len(file_content_lines):
+            line = file_content_lines[detection_line]
+            violation = line[detection_column: detection_column + violation_length]
+
+            if not self.show_secret:
+                violation = obfuscate_text(violation)
+
+        table.set(LINE_NUMBER_COLUMN, str(detection_line))
+        table.set(COLUMN_NUMBER_COLUMN, str(detection_column))
+        table.set(VIOLATION_LENGTH_COLUMN, f'{violation_length} chars')
+        table.set(VIOLATION_COLUMN, violation)
