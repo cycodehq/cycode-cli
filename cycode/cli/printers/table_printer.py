@@ -44,7 +44,8 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
 class TablePrinter(BaseTablePrinter):
     def _print_results(self, results: List[DocumentDetections]) -> None:
         table = self._get_table()
-        table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
+        if self.scan_type in COLUMN_WIDTHS_CONFIG:
+            table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
 
         for result in results:
             for detection in result.detections:
