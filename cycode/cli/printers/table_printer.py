@@ -2,24 +2,22 @@ from typing import List
 
 import click
 
-from cycode.cli.printers.base_table_printer import BaseTablePrinter, ColumnInfo, Table
+from cycode.cli.printers.base_table_printer import BaseTablePrinter
+from cycode.cli.printers.column_info import ColumnInfo
+from cycode.cli.printers.table import Table
 from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
 from cycode.cli.consts import SECRET_SCAN_TYPE
 from cycode.cli.models import DocumentDetections, Detection, Document
 
-# we are using indexes like 10 20 30 to have space between for future columns inserts
-
-# required
-ISSUE_TYPE_COLUMN = ColumnInfo(name='Issue Type', index=10, width_secret=2, width_iac=4, width_sast=7)
-RULE_ID_COLUMN = ColumnInfo(name='Rule ID', index=20, width_secret=2, width_iac=3, width_sast=2)
-FILE_PATH_COLUMN = ColumnInfo(name='File Path', index=30, width_secret=2, width_iac=3, width_sast=3)
-LINE_NUMBER_COLUMN = ColumnInfo(name='Line Number', index=40)
-COLUMN_NUMBER_COLUMN = ColumnInfo(name='Column Number', index=50)
-# optional
-SECRET_SHA_COLUMN = ColumnInfo(name='Secret SHA', index=31, width_secret=2)
-COMMIT_SHA_COLUMN = ColumnInfo(name='Commit SHA', index=32)
-VIOLATION_LENGTH_COLUMN = ColumnInfo(name='Violation Length', index=51)
-VIOLATION_COLUMN = ColumnInfo(name='Violation', index=52, width_secret=2)
+ISSUE_TYPE_COLUMN = ColumnInfo(name='Issue Type', index=1, width_secret=2, width_iac=4, width_sast=7)
+RULE_ID_COLUMN = ColumnInfo(name='Rule ID', index=2, width_secret=2, width_iac=3, width_sast=2)
+FILE_PATH_COLUMN = ColumnInfo(name='File Path', index=3, width_secret=2, width_iac=3, width_sast=3)
+SECRET_SHA_COLUMN = ColumnInfo(name='Secret SHA', index=3, width_secret=2)
+COMMIT_SHA_COLUMN = ColumnInfo(name='Commit SHA', index=4)
+LINE_NUMBER_COLUMN = ColumnInfo(name='Line Number', index=5)
+COLUMN_NUMBER_COLUMN = ColumnInfo(name='Column Number', index=6)
+VIOLATION_LENGTH_COLUMN = ColumnInfo(name='Violation Length', index=7)
+VIOLATION_COLUMN = ColumnInfo(name='Violation', index=8, width_secret=2)
 
 
 class TablePrinter(BaseTablePrinter):
