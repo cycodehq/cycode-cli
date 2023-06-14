@@ -1,6 +1,7 @@
 import platform
 from typing import Dict
 
+from cycode.cyclient import logger
 from requests import Response, request, exceptions
 
 from cycode import __version__
@@ -76,10 +77,14 @@ class CycodeClientBase:
     ) -> Response:
         url = self.build_full_url(self.api_url, endpoint)
 
+        logger.debug(f'Executing {method.upper()} request to {url}')
+
         try:
             response = request(
                 method=method, url=url, timeout=self.timeout, headers=self.get_request_headers(headers), **kwargs
             )
+
+            logger.debug(f'Response {response.status_code} from {url}. Content: {response.text}')
 
             response.raise_for_status()
             return response

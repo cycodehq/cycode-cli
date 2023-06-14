@@ -384,14 +384,10 @@ def validate_zip_file_size(scan_type, zip_file_size):
 def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
                  is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
-    if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
-        return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
-
-    scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
-        if is_commit_range else cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id,
-                                                               scan_parameters, is_git_diff)
-
-    return scan_result
+    if is_commit_range:
+        # FIXME from_commit and to_commit
+        return perform_commit_range_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
+    return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)     # FIXME is_git_diff
 
 
 def perform_scan_async(context: click.Context, cycode_client, zipped_documents: InMemoryZip, scan_type: str,
