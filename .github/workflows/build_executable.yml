@@ -54,6 +54,31 @@ jobs:
       - name: Test executable
         run: ./dist/cycode --version
 
+      - name: Sign macOS executable
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        env:
+          APPLE_CERT: ${{ secrets.APPLE_CERT }}
+          APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          # import certificate
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          echo -n "APPLE_CERT" | base64 --decode -o $CERTIFICATE_PATH
+
+          # create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "APPLE_KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "APPLE_KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
+          security import $CERTIFICATE_PATH -P "APPLE_CERT_PWD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # sign executable
+          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
+
       - uses: actions/upload-artifact@v3
         with:
           name: cycode-cli-${{ matrix.os }}
