@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - CM-23217-Sign-macOS-CLI-executable
 
 jobs:
   build:
@@ -89,10 +88,10 @@ jobs:
         run: |
           # create keychain profile
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_NOTARIZATION_EMAIL" --team-id "$APPLE_NOTARIZATION_TEAM_ID" --password "$APPLE_NOTARIZATION_PWD"
-          
+
           # create zip file (notarization does not support binaries)
           ditto -c -k --keepParent dist/cycode notarization.zip
-          
+
           # notarize app (this will take a while)
           xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
 
