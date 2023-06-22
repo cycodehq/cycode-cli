@@ -98,6 +98,10 @@ jobs:
           # we can't staple the app because it's executable. we should only staple app bundles like .dmg
           # xcrun stapler staple dist/cycode
 
+      - name: Test signed executable
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        run: ./dist/cycode --version
+
       - uses: actions/upload-artifact@v3
         with:
           name: cycode-cli-${{ matrix.os }}
