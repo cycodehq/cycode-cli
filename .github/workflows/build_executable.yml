@@ -53,6 +53,54 @@ jobs:
       - name: Test executable
         run: ./dist/cycode --version
 
+      - name: Sign macOS executable
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        env:
+          APPLE_CERT: ${{ secrets.APPLE_CERT }}
+          APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          # import certificate
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          echo -n "$APPLE_CERT" | base64 --decode -o $CERTIFICATE_PATH
+
+          # create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$APPLE_CERT_PWD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # sign executable
+          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
+
+      - name: Notarize macOS executable
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        env:
+          APPLE_NOTARIZATION_EMAIL: ${{ secrets.APPLE_NOTARIZATION_EMAIL }}
+          APPLE_NOTARIZATION_PWD: ${{ secrets.APPLE_NOTARIZATION_PWD }}
+          APPLE_NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
+        run: |
+          # create keychain profile
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_NOTARIZATION_EMAIL" --team-id "$APPLE_NOTARIZATION_TEAM_ID" --password "$APPLE_NOTARIZATION_PWD"
+
+          # create zip file (notarization does not support binaries)
+          ditto -c -k --keepParent dist/cycode notarization.zip
+
+          # notarize app (this will take a while)
+          xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
+
+          # we can't staple the app because it's executable. we should only staple app bundles like .dmg
+          # xcrun stapler staple dist/cycode
+
+      - name: Test signed executable
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        run: ./dist/cycode --version
+
       - uses: actions/upload-artifact@v3
         with:
           name: cycode-cli-${{ matrix.os }}
