@@ -384,7 +384,7 @@ def validate_zip_file_size(scan_type, zip_file_size):
 def perform_scan(context, cycode_client, zipped_documents: InMemoryZip, scan_type: str, scan_id: UUID,
                  is_git_diff: bool,
                  is_commit_range: bool, scan_parameters: dict):
-    if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE:
+    if scan_type == SCA_SCAN_TYPE or scan_type == SAST_SCAN_TYPE or scan_type == SECRET_SCAN_TYPE:
         return perform_scan_async(context, cycode_client, zipped_documents, scan_type, scan_parameters)
 
     scan_result = cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id) \
@@ -991,7 +991,9 @@ def _map_detections_per_file(detections) -> List[DetectionsPerFile]:
 def _get_file_name_from_detection(detection):
     if detection['category'] == "SAST":
         return detection['detection_details']['file_path']
-
+    if detection['category'] == "SecretDetection":
+        # get the full path by combining file_path and file_name
+        return f"{detection['detection_details']['file_path']}{detection['detection_details']['file_name']}"
     return detection['detection_details']['file_name']
 
 

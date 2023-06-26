@@ -7,6 +7,7 @@ from cycode.cli.zip_file import InMemoryZip
 from . import models
 from .cycode_client_base import CycodeClientBase
 from .scan_config.scan_config_base import ScanConfigBase
+from ..cli.consts import SECRET_SCAN_TYPE
 
 
 class ScanClient:
@@ -42,6 +43,8 @@ class ScanClient:
 
     def zipped_file_scan_async(self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict,
                                is_git_diff: bool = False) -> models.ScanInitializationResponse:
+        if scan_type == SECRET_SCAN_TYPE:
+            scan_type = "secrets" #the scanService endpoint is secrets and not secret
         url_path = f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{scan_type}/repository'
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
@@ -81,7 +84,6 @@ class ScanClient:
             url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}&page_size={page_size}&page_number={page_number}'
             response = self.scan_cycode_client.get(url_path=url_path).json()
             detections.extend(response)
-
             page_number += 1
             last_response_size = len(response)
 
