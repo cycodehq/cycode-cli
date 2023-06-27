@@ -19,6 +19,7 @@ from cycode.cli.consts import *
 from cycode.cli.config import configuration_manager
 from cycode.cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
+from cycode.cli.utils.scan_batch import run_scan_in_patches_parallel
 from cycode.cli.utils.string_utils import get_content_size, is_binary_content
 from cycode.cli.utils.task_timer import TimeoutAfter
 from cycode.cli.utils import scan_utils
@@ -58,8 +59,9 @@ def scan_repository(context: click.Context, path, branch):
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(context, documents_to_scan, is_git_diff=False,
-                              scan_parameters=get_scan_parameters(context))
+        return scan_documents(
+            context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context)
+        )
     except Exception as e:
         _handle_exception(context, e)
 
@@ -235,12 +237,16 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
 def scan_disk_files(context: click.Context, paths: List[str]):
     scan_parameters = get_scan_parameters(context)
     scan_type = context.obj['scan_type']
+
     is_git_diff = False
+
     documents: List[Document] = []
     for path in paths:
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-            documents.append(Document(path, content, is_git_diff))
+        with open(path, 'r', encoding='UTF-8') as f:
+            try:
+                documents.append(Document(path, f.read(), is_git_diff))
+            except UnicodeDecodeError:
+                continue
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
     return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
@@ -248,39 +254,52 @@ def scan_disk_files(context: click.Context, paths: List[str]):
 
 def scan_documents(context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False,
                    is_commit_range: bool = False, scan_parameters: dict = None):
-    cycode_client = context.obj["client"]
-    scan_type = context.obj["scan_type"]
-    severity_threshold = context.obj["severity_threshold"]
+    cycode_client = context.obj['client']
+    scan_type = context.obj['scan_type']
+    severity_threshold = context.obj['severity_threshold']
     command_scan_type = context.info_name
-    error_message = None
-    all_detections_count = 0
-    output_detections_count = 0
+
     scan_id = _get_scan_id(context)
-    zipped_documents = InMemoryZip()
 
-    try:
-        logger.debug("Preparing local files")
-        zipped_documents = zip_documents_to_scan(scan_type, zipped_documents, documents_to_scan)
+    def _scan_batch_thread_func(batch: List[Document]):
+        try:
+            logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
+            zipped_documents = zip_documents_to_scan(scan_type, InMemoryZip(), batch)
+            zip_file_size = getsizeof(zipped_documents.in_memory_zip)
 
-        scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
-                                   is_commit_range,
-                                   scan_parameters)
+            scan_result = perform_scan(context, cycode_client, zipped_documents, scan_type, scan_id, is_git_diff,
+                                       is_commit_range,
+                                       scan_parameters)
 
-        all_detections_count, output_detections_count = \
-            handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
-                               documents_to_scan)
-        scan_completed = True
-    except Exception as e:
-        _handle_exception(context, e)
-        error_message = str(e)
-        scan_completed = False
+            all_detections_count, output_detections_count, results = \
+                handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold,
+                                   batch, enable_print=False)
 
-    zip_file_size = getsizeof(zipped_documents.in_memory_zip)
-    logger.debug('Finished scan process, %s',
-                 {'all_violations_count': all_detections_count, 'relevant_violations_count': output_detections_count,
-                  'scan_id': str(scan_id), 'zip_file_size': zip_file_size})
-    _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
-                        all_detections_count, len(documents_to_scan), zip_file_size, command_scan_type, error_message)
+            scan_completed = True
+            error_message = None
+        except Exception as e:
+            _handle_exception(context, e)
+            error_message = str(e)
+            scan_completed = False
+            results = []
+            all_detections_count = output_detections_count = zip_file_size = 0
+
+        logger.debug(
+            'Finished scan process, %s',
+            {
+                'all_violations_count': all_detections_count,
+                'relevant_violations_count': output_detections_count,
+                'scan_id': str(scan_id),
+                'zip_file_size': zip_file_size
+            }
+        )
+        _report_scan_status(context, scan_type, str(scan_id), scan_completed, output_detections_count,
+                            all_detections_count, len(batch), zip_file_size, command_scan_type, error_message)
+
+        return results
+
+    aggregated_result = run_scan_in_patches_parallel(_scan_batch_thread_func, documents_to_scan)
+    print_results(context, aggregated_result)
 
 
 def scan_commit_range_documents(context: click.Context, from_documents_to_scan: List[Document],
@@ -309,7 +328,7 @@ def scan_commit_range_documents(context: click.Context, from_documents_to_scan: 
             scan_result = perform_commit_range_scan_async(context, cycode_client, from_commit_zipped_documents,
                                                           to_commit_zipped_documents, scan_type, scan_parameters,
                                                           timeout)
-        all_detections_count, output_detections_count = \
+        all_detections_count, output_detections_count, _ = \
             handle_scan_result(context, scan_result, scan_command_type, scan_type, severity_threshold,
                                to_documents_to_scan)
         scan_completed = True
@@ -332,18 +351,24 @@ def should_scan_documents(from_documents_to_scan: List[Document], to_documents_t
     return len(from_documents_to_scan) > 0 or len(to_documents_to_scan) > 0
 
 
-def handle_scan_result(context, scan_result, command_scan_type, scan_type, severity_threshold, to_documents_to_scan):
+def handle_scan_result(context, scan_result, command_scan_type, scan_type,
+                       severity_threshold, to_documents_to_scan, enable_print=True):
     document_detections_list = enrich_scan_result(scan_result, to_documents_to_scan)
     relevant_document_detections_list = exclude_irrelevant_scan_results(document_detections_list, scan_type,
                                                                         command_scan_type, severity_threshold)
     context.obj['report_url'] = scan_result.report_url
-    print_results(context, relevant_document_detections_list)
+
+    if enable_print:
+        print_results(context, relevant_document_detections_list)
+
     context.obj['issue_detected'] = len(relevant_document_detections_list) > 0
+
     all_detections_count = sum(
         [len(document_detections.detections) for document_detections in document_detections_list])
     output_detections_count = sum(
         [len(document_detections.detections) for document_detections in relevant_document_detections_list])
-    return all_detections_count, output_detections_count
+
+    return all_detections_count, output_detections_count, relevant_document_detections_list
 
 
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],

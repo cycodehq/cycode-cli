@@ -72,13 +72,15 @@ class CycodeClientBase:
             method: str,
             endpoint: str,
             headers: dict = None,
+            without_auth: bool = False,
             **kwargs
     ) -> Response:
         url = self.build_full_url(self.api_url, endpoint)
 
         try:
+            headers = self.get_request_headers(headers, without_auth=without_auth)
             response = request(
-                method=method, url=url, timeout=self.timeout, headers=self.get_request_headers(headers), **kwargs
+                method=method, url=url, timeout=self.timeout, headers=headers, **kwargs
             )
 
             response.raise_for_status()
@@ -86,7 +88,7 @@ class CycodeClientBase:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_request_headers(self, additional_headers: dict = None) -> dict:
+    def get_request_headers(self, additional_headers: dict = None, **kwargs) -> dict:
         if additional_headers is None:
             return self.MANDATORY_HEADERS.copy()
         return {**self.MANDATORY_HEADERS, **additional_headers}

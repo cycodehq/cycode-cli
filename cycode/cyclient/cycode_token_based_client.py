@@ -32,17 +32,18 @@ class CycodeTokenBasedClient(CycodeClient):
     def refresh_api_token(self) -> None:
         auth_response = self.post(
             url_path=f'api/v1/auth/api-token',
-            body={'clientId': self.client_id, 'secret': self.client_secret}
+            body={'clientId': self.client_id, 'secret': self.client_secret},
+            without_auth=True,
         )
         auth_response_data = auth_response.json()
 
         self._api_token = auth_response_data['token']
         self._expires_in = arrow.utcnow().shift(seconds=auth_response_data['expires_in'] * 0.8)
 
-    def get_request_headers(self, additional_headers: dict = None) -> dict:
+    def get_request_headers(self, additional_headers: dict = None, without_auth=False) -> dict:
         headers = super().get_request_headers(additional_headers=additional_headers)
 
-        if not self.lock.locked():
+        if not without_auth:
             headers = self._add_auth_header(headers)
 
         return headers
