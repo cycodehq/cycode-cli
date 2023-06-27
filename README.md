@@ -48,14 +48,14 @@ This guide will guide you through both installation and usage.
 
 - The Cycode CLI application requires Python version 3.7 or later.
 - Use the [`cycode auth` command](#use-auth-command) to authenticate to Cycode with the CLI
-  - Alternatively, a Cycode Client ID and Client Secret Key can be acquired using the steps from the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages for details on obtaining these values.
+  - Alternatively, you can obtain a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages, which contain details on obtaining these values.
 
 # Installation
 
-The following installation steps are applicable on both Windows and UNIX / Linux operating systems.
+The following installation steps are applicable to both Windows and UNIX / Linux operating systems.
 
 > :memo: **Note**<br/>
-> The following steps assume the use of `python3` and `pip3` for Python-related commands, but some systems may instead use the `python` and `pip` commands, depending on your Python environment’s configuration.
+> The following steps assume the use of `python3` and `pip3` for Python-related commands; however, some systems may instead use the `python` and `pip` commands, depending on your Python environment’s configuration.
 
 ## Install Cycode CLI
 
@@ -75,7 +75,7 @@ To install the Cycode CLI application on your local machine, perform the followi
    - [cycode configure](#use-configure-command)
    - Add them to your [environment variables](#add-to-environment-variables)
 
-### Use auth Command
+### Useing the Auth Command
 
 > :memo: **Note**<br/>
 > This is the **recommended** method for setting up your local machine to authenticate with Cycode CLI.
@@ -88,20 +88,20 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 ![Cycode login](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/cycode_login.png)
 
-3. Enter you login credentials on this page and log in.
+3. Enter your login credentials on this page and log in.
 
-4. You will eventually be taken to this page, where you will be asked to choose the business group you want to authorize Cycode with (if applicable):
+4. You will eventually be taken to the page below, where you'll be asked to choose the business group you want to authorize Cycode with (if applicable):
 
 ![authorize CLI](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/authorize_cli.png)
 
 > :memo: **Note**<br/>
 > This will be the default method for authenticating with the Cycode CLI.
 
-5. Click the **Allow** button to authorize the Cycode CLI on the chosen business group.
+5. Click the **Allow** button to authorize the Cycode CLI on the selected business group.
 
 ![allow CLI](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/allow_cli.png)
 
-6. Once done, you will see the following screen, if it was successfully selected:
+6. Once completed, you'll see the following screen, if it was selected successfully:
 
 ![successfully auth](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/successfully_auth.png)
 
@@ -111,10 +111,10 @@ To install the Cycode CLI application on your local machine, perform the followi
   Successfully logged into cycode
   ```
 
-### Use configure Command
+### Using the Configure Command
 
 > :memo: **Note**<br/>
-> If you already setup your Cycode client ID and client secret through the Linux or Windows environment variables, those credentials will take precedent over this method
+> If you already set up your Cycode client ID and client secret through the Linux or Windows environment variables, those credentials will take precedent over this method.
 
 1. Type the following command into your terminal/command line window:
 
@@ -139,13 +139,13 @@ To install the Cycode CLI application on your local machine, perform the followi
     cycode client secret []: c1e24929-xxxx-xxxx-xxxx-8b08c1839a2e
     ```
 
-4. If the values were entered successfully, you will see the following message:
+4. If the values were entered successfully, you'll see the following message:
 
     ```bash
     Successfully configured CLI credentials!
     ```
 
-If you go into the `.cycode` folder under you user folder, you will find these credentials were created and placed in the `credentials.yaml` file in that folder.
+If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder.
 
 ### Add to Environment Variables
 
@@ -174,9 +174,11 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 ![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/image4.png)
 
+5. Insert the cycode.exe into the path to complete the installation.
+   
 ## Install Pre-Commit Hook
 
-Cycode’s pre-commit hook can be set up within your local repository so that the Cycode CLI application will automatically identify any issues with your code before you commit it to your codebase.
+Cycode’s pre-commit hook can be set up within your local repository so that the Cycode CLI application will identify any issues with your code automatically before you commit it to your codebase.
 
 Perform the following steps to install the pre-commit hook:
 
@@ -204,10 +206,10 @@ repos:
    `pre-commit install`
 
 > :memo: **Note**<br/>
-> Successful hook installation will result in the message:<br/>
+> A successful hook installation will result in the message:<br/>
 `Pre-commit installed at .git/hooks/pre-commit`
 
-# Cycode Command
+# Cycode CLI Commands
 
 The following are the options and commands available with the Cycode CLI application:
 
@@ -251,7 +253,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 
 ## Repository Scan
 
-A repository scan examines an entire local repository for any exposed secrets or insecure misconfigurations. This more holistic scan type looks at everything: the current state of your repository and its commit history. It will look not only for currently exposed secrets within the repository but previously deleted secrets as well.
+A repository scan examines an entire local repository for any exposed secrets or insecure misconfigurations. This more holistic scan type looks at everything: the current state of your repository and its commit history. It will look not only for secrets that are currently exposed within the repository but previously deleted secrets as well.
 
 To execute a full repository scan, execute the following:
 
