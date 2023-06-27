@@ -115,7 +115,6 @@ class SCATablePrinter(BaseTablePrinter):
 
         return dependencies[0] if dependencies_len < 2 else f"{dependencies[0]} -> ... -> {dependencies[dependencies_len-1]}"
 
-
     def _get_common_detection_fields(self, detection: Detection) -> List[str]:
         dependency_paths: str | None | Any = self._shortcut_dependency_paths(detection.detection_details.get('dependency_paths')) if detection.detection_details.get('dependency_paths') is not None else 'N/A'
 
