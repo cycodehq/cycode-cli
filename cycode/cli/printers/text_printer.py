@@ -13,6 +13,7 @@ from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
 class TextPrinter(BasePrinter):
     def __init__(self, context: click.Context):
         super().__init__(context)
+        # TODO get scan_id from LocalScanResult.scan_id instead of context!
         self.scan_id: str = context.obj.get('scan_id')
         self.scan_type: str = context.obj.get('scan_type')
         self.command_scan_type: str = context.info_name
@@ -29,15 +30,17 @@ class TextPrinter(BasePrinter):
         click.secho(error.message, fg=self.RED_COLOR_NAME, nl=False)
 
     def print_scan_results(self, results: List[DocumentDetections]):
-        click.secho(f"Scan Results: (scan_id: {self.scan_id})")
+        # TODO get scan_id from LocalScanResult.scan_id instead of context!
+        click.secho(f'Scan Results: (scan_id: {self.scan_id})')
 
         if not results:
-            click.secho("Good job! No issues were found!!! 👏👏👏", fg=self.GREEN_COLOR_NAME)
+            click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return
 
         for document_detections in results:
             self._print_document_detections(document_detections)
 
+        # TODO get report_url from LocalScanResult.report_url instead of context!
         report_url = self.context.obj.get('report_url')
         if report_url:
             click.secho(f'Report URL: {report_url}')

@@ -1,11 +1,15 @@
 import os
 from multiprocessing.pool import ThreadPool
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import click
+from halo import Halo
 
 from cycode.cli.consts import SCAN_BATCH_MAX_SIZE_IN_BYTES, SCAN_BATCH_MAX_FILES_COUNT, SCAN_BATCH_SCANS_PER_CPU
-from cycode.cli.models import Document, DocumentDetections
+from cycode.cli.models import Document
+
+if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
 
 
 def split_documents_into_batches(
@@ -40,14 +44,25 @@ def run_scan_in_patches_parallel(
         documents: List[Document],
         max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
         max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
-):
+) -> List['LocalScanResult']:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
 
-    aggregated_result: List[DocumentDetections] = []
-    with ThreadPool(processes=os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU) as pool:
-        for i, result in enumerate(pool.imap(scan_function, batches), 1):
-            # TODO progress bar
-            click.secho(f"Batch {i} finished", fg="green")
-            aggregated_result.extend(result)
+    spinner = Halo(spinner='dots')
+    spinner.start('Scan in progress')
 
-    return aggregated_result
+    def _scan_function(batch: List[Document]) -> 'LocalScanResult':
+        try:
+            return scan_function(batch)
+        except Exception:
+            spinner.fail()
+            raise
+
+    local_scan_results: List['LocalScanResult'] = []
+    with ThreadPool(processes=os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU) as pool:
+        for i, result in enumerate(pool.imap(_scan_function, batches), 1):
+            # TODO progress bar
+            # click.secho(f'Batch {i} finished', fg='green')
+            local_scan_results.append(result)
+
+    spinner.succeed()
+    return local_scan_results

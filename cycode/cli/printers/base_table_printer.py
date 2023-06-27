@@ -12,6 +12,7 @@ class BaseTablePrinter(BasePrinter, abc.ABC):
     def __init__(self, context: click.Context):
         super().__init__(context)
         self.context = context
+        # TODO get scan_id from LocalScanResult.scan_id instead of context!
         self.scan_id: str = context.obj.get('scan_id')
         self.scan_type: str = context.obj.get('scan_type')
         self.show_secret: bool = context.obj.get('show_secret', False)

@@ -3,7 +3,7 @@ import logging
 import click
 import sys
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from cycode import __version__
 from cycode.cli.models import Severity
@@ -18,6 +18,9 @@ from cycode.cyclient import logger
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
 from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
+
+if TYPE_CHECKING:
+    from cycode.cyclient.scan_client import ScanClient
 
 CONTEXT = dict()
 ISSUE_DETECTED_STATUS_CODE = 1
@@ -169,7 +172,7 @@ def main_cli(context: click.Context, verbose: bool, output: str, user_agent: Opt
         CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
 
 
-def get_cycode_client(client_id, client_secret):
+def get_cycode_client(client_id: str, client_secret: str) -> 'ScanClient':
     if not client_id or not client_secret:
         client_id, client_secret = _get_configured_credentials()
         if not client_id:

@@ -11,6 +11,7 @@ from cycode.cyclient.models import DetectionSchema
 class JsonPrinter(BasePrinter):
     def __init__(self, context: click.Context):
         super().__init__(context)
+        # TODO get scan_id from LocalScanResult.scan_id instead of context!
         self.scan_id = context.obj.get('scan_id')
 
     def print_result(self, result: CliResult) -> None:
