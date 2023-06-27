@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import List, Dict
+from typing import List, Dict, Any
 
 import click
 from texttable import Texttable
@@ -19,7 +19,8 @@ PREVIEW_DETECTIONS_COMMON_HEADERS = [
     'Ecosystem',
     'Dependency Name',
     'Direct Dependency',
-    'Development Dependency'
+    'Development Dependency',
+    'Dependency Paths'
 ]
 
 
@@ -107,13 +108,24 @@ class SCATablePrinter(BaseTablePrinter):
     def _print_summary_issues(detections: List, title: str) -> None:
         click.echo(f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
 
+    @staticmethod
+    def _shortcut_dependency_paths(dependency_paths: str) -> str:
+        dependencies = dependency_paths.split(' -> ')
+        dependencies_len = len(dependencies)
+
+        return dependencies[0] if dependencies_len < 2 else f"{dependencies[0]} -> ... -> {dependencies[dependencies_len-1]}"
+
+
     def _get_common_detection_fields(self, detection: Detection) -> List[str]:
+        dependency_paths: str | None | Any = self._shortcut_dependency_paths(detection.detection_details.get('dependency_paths')) if detection.detection_details.get('dependency_paths') is not None else 'N/A'
+
         row = [
             detection.detection_details.get('file_name'),
             detection.detection_details.get('ecosystem'),
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
-            detection.detection_details.get('is_dev_dependency_str')
+            detection.detection_details.get('is_dev_dependency_str'),
+            dependency_paths
         ]
 
         if self._is_git_repository():
