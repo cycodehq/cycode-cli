@@ -49,10 +49,16 @@ def get_position_in_line(text: str, position: int) -> int:
     return position - text.rfind('\n', 0, position) - 1
 
 
-def shortcut_dependency_paths(dependency_paths: str) -> str:
-    dependencies = dependency_paths.split(' -> ')
+def shortcut_dependency_paths(dependency_paths_list: str) -> str:
+    separate_dependency_paths_list = dependency_paths_list.split(',')
+    result = ''
+    for dependency_paths in separate_dependency_paths_list:
+        dependency_paths = dependency_paths.strip().rstrip()
+        dependencies = dependency_paths.split(' -> ')
+        if len(dependencies) < 3:
+            result += dependency_paths
+        else:
+            result += f'{dependencies[0]} -> ... -> {dependencies[-1]}'
+        result += '\n\n'
 
-    if len(dependencies) < 3:
-        return dependency_paths
-
-    return f'{dependencies[0]} -> ... -> {dependencies[-1]}'
+    return result.rstrip().rstrip(',')

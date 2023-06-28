@@ -121,7 +121,7 @@ class SCATablePrinter(BaseTablePrinter):
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
             detection.detection_details.get('is_dev_dependency_str'),
-            dependency_paths,
+            dependency_paths
         ]
 
         if self._is_git_repository():
