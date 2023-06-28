@@ -112,7 +112,7 @@ class SCATablePrinter(BaseTablePrinter):
     def _shortcut_dependency_paths(dependency_paths: str) -> str:
         dependencies = dependency_paths.split(' -> ')
 
-        if len(dependencies) < 2:
+        if len(dependencies) < 3:
             return dependencies[0]
 
         return f'{dependencies[0]} -> ... -> {dependencies[-1]}'
