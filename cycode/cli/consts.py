@@ -126,3 +126,8 @@ VERBOSE_SCAN_FLAG = 'verbose'
 
 LICENSE_COMPLIANCE_POLICY_ID = '8f681450-49e1-4f7e-85b7-0c8fe84b3a35'
 PACKAGE_VULNERABILITY_POLICY_ID = '9369d10a-9ac0-48d3-9921-5de7fe9a37a7'
+
+# Shortcut dependency paths by remove all middle depndencies between direct dependency and influence/vulnerable dependency.
+# Example: A -> B -> C
+# Result: A -> ... -> C
+SCA_SHORTCUT_DEPENDENCY_PATHS = 2

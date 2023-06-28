@@ -6,6 +6,8 @@ import string
 from sys import getsizeof
 from binaryornot.check import is_binary_string
 
+from cycode.cli.consts import SCA_SHORTCUT_DEPENDENCY_PATHS
+
 
 def obfuscate_text(text: str) -> str:
     match_len = len(text)
@@ -55,7 +57,7 @@ def shortcut_dependency_paths(dependency_paths_list: str) -> str:
     for dependency_paths in separate_dependency_paths_list:
         dependency_paths = dependency_paths.strip().rstrip()
         dependencies = dependency_paths.split(' -> ')
-        if len(dependencies) < 3:
+        if len(dependencies) <= SCA_SHORTCUT_DEPENDENCY_PATHS:
             result += dependency_paths
         else:
             result += f'{dependencies[0]} -> ... -> {dependencies[-1]}'
