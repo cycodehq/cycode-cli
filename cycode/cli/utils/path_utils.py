@@ -1,11 +1,17 @@
 from typing import Iterable, List, Optional
+
+import click
 import pathspec
 import os
 from pathlib import Path
 from binaryornot.check import is_binary
+from halo import Halo
 
 
 def get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> List[str]:
+    spinner = Halo(spinner='dots')
+    spinner.start("Collecting relevant files")
+    click.echo()
     absolute_path = get_absolute_path(path)
     if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
         raise FileNotFoundError(f'the specified path was not found, path: {path}')
@@ -18,7 +24,11 @@ def get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> Li
     spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, exclude_patterns)
     exclude_file_paths = set(spec.match_files(file_paths))
 
-    return [file_path for file_path in (file_paths - exclude_file_paths) if os.path.isfile(file_path)]
+    relevant_files = [file_path for file_path in (file_paths - exclude_file_paths) if os.path.isfile(file_path)]
+
+    spinner.succeed()
+
+    return relevant_files
 
 
 def is_sub_path(path: str, sub_path: str) -> bool:

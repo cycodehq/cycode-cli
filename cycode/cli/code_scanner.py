@@ -50,11 +50,7 @@ def scan_repository(context: click.Context, path, branch):
         if monitor and scan_type != SCA_SCAN_TYPE:
             raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
 
-        documents_to_scan = [
-            Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
-                     obj.data_stream.read().decode('utf-8', errors='replace'))
-            for obj
-            in get_git_repository_tree_file_entries(path, branch)]
+        documents_to_scan = get_documents_to_scan(branch, monitor, path)
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
@@ -62,6 +58,19 @@ def scan_repository(context: click.Context, path, branch):
                               scan_parameters=get_scan_parameters(context))
     except Exception as e:
         _handle_exception(context, e)
+
+
+def get_documents_to_scan(branch, monitor, path):
+    spinner = Halo(spinner='dots')
+    spinner.start("Collecting documents for scanning")
+    click.echo()
+    documents_to_scan = [
+        Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
+                 obj.data_stream.read().decode('utf-8', errors='replace'))
+        for obj
+        in get_git_repository_tree_file_entries(path, branch)]
+    spinner.succeed()
+    return documents_to_scan
 
 
 @click.command()
@@ -348,13 +357,20 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
+    spinner = Halo(spinner='dots')
+    spinner.start("Perform pre scan documents actions")
+    click.echo()
     if scan_type == SCA_SCAN_TYPE:
         logger.debug(
             f"Perform pre scan document actions")
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
+    spinner.succeed()
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
+    spinner = Halo(spinner='dots')
+    spinner.start("Zipping documents")
+    click.echo()
     start_zip_creation_time = time.time()
 
     for index, document in enumerate(documents):
@@ -369,6 +385,8 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
     logger.debug('finished to create zip file, %s', {'zip_creation_time': zip_creation_time})
+
+    spinner.succeed()
     return zip
 
 
@@ -583,15 +601,25 @@ def try_get_git_remote_url(path: str) -> Optional[dict]:
 
 def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_scan: List[Document]) -> \
         List[Document]:
+    spinner = Halo(spinner='dots')
+    spinner.start("Excluding irrelevant documents on scanning")
+    click.echo()
     scan_type = context.obj['scan_type']
     logger.debug("excluding irrelevant documents to scan")
-    return [document for document in documents_to_scan if
-            _is_relevant_document_to_scan(scan_type, document.path, document.content)]
+    relevant_document = [document for document in documents_to_scan if
+                         _is_relevant_document_to_scan(scan_type, document.path, document.content)]
+    spinner.succeed()
+    return relevant_document
 
 
 def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
+    spinner = Halo(spinner='dots')
+    spinner.start("Excluding irrelevant files")
+    click.echo()
     scan_type = context.obj['scan_type']
-    return [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
+    relevant_files = [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
+    spinner.succeed()
+    return relevant_files
 
 
 def exclude_irrelevant_detections(scan_type: str, command_scan_type: str, severity_threshold: str, detections) -> List:
@@ -826,8 +854,8 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 
 def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     return is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename) \
-        or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
-        or filename.endswith(ConfigFileManager.get_config_file_route())
+           or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename) \
+           or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
 def _handle_exception(context: click.Context, e: Exception):
