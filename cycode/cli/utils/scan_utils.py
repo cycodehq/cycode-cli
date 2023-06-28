@@ -8,13 +8,16 @@ def is_scan_failed(context: click.Context):
     return did_fail or issue_detected
 
 
-def create_spinner_and_echo(spinner_message) -> Halo:
-    spinner = create_spinner(spinner_message)
+def create_spinner_and_echo(spinner_message, is_start_in_progress=True) -> Halo:
+    spinner = create_spinner(spinner_message, is_start_in_progress)
     click.echo()
     return spinner
 
 
-def create_spinner(spinner_message):
+def create_spinner(spinner_message, is_start_in_progress=True):
     spinner = Halo(spinner='dots')
-    spinner.start(spinner_message)
+    if is_start_in_progress:
+        spinner.start(spinner_message)
+    else:
+        spinner.succeed(spinner_message)
     return spinner
