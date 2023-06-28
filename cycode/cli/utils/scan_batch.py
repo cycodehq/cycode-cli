@@ -39,7 +39,7 @@ def split_documents_into_batches(
 
 
 class DummyProgressBar:
-    def update(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         pass
 
     def __enter__(self):
