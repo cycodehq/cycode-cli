@@ -109,9 +109,13 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
         context.obj["soft_fail"] = config["soft_fail"]
 
     context.obj["scan_type"] = scan_type
+
+    # save backward compatability with old style command
     if output is not None:
-        # save backward compatability with old style command
         context.obj["output"] = output
+        if output == "json":
+            context.obj["no_progress_meter"] = True
+
     context.obj["client"] = get_cycode_client(client_id, secret)
     context.obj["severity_threshold"] = severity_threshold
     context.obj["monitor"] = monitor
@@ -143,6 +147,9 @@ def finalize(context: click.Context, *args, **kwargs):
     "--verbose", "-v", is_flag=True, default=False, help="Show detailed logs",
 )
 @click.option(
+    '--no-progress-meter', is_flag=True, default=False, help='Do not show the progress meter',
+)
+@click.option(
     '--output',
     default='text',
     help='Specify the output (text/json/table), the default is text',
@@ -156,7 +163,7 @@ def finalize(context: click.Context, *args, **kwargs):
 )
 @click.version_option(__version__, prog_name="cycode")
 @click.pass_context
-def main_cli(context: click.Context, verbose: bool, output: str, user_agent: Optional[str]):
+def main_cli(context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]):
     context.ensure_object(dict)
     configuration_manager = ConfigurationManager()
 
@@ -166,6 +173,10 @@ def main_cli(context: click.Context, verbose: bool, output: str, user_agent: Opt
     logger.setLevel(log_level)
 
     context.obj['output'] = output
+    if output == 'json':
+        no_progress_meter = True
+
+    context.obj['no_progress_meter'] = no_progress_meter
 
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)

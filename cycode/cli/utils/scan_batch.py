@@ -38,17 +38,36 @@ def split_documents_into_batches(
     return batches
 
 
+class DummyProgressBar:
+    def update(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+    def update(self, *args, **kwargs):
+        pass
+
+
 def run_scan_in_patches_parallel(
         scan_function: Callable[[List[Document]], 'LocalScanResult'],
         documents: List[Document],
         max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
         max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
+        no_progress_meter: bool = False,
 ) -> List['LocalScanResult']:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
+    if no_progress_meter:
+        progress_bar = DummyProgressBar()
+    else:
+        progress_bar = click.progressbar(length=len(batches), label='Scan in progress', color=True)
 
     local_scan_results: List['LocalScanResult'] = []
     with ThreadPool(processes=os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU) as pool:
-        with click.progressbar(length=len(batches), label='Scan in progress') as bar:
+        with progress_bar as bar:
             for result in pool.imap(scan_function, batches):
                 local_scan_results.append(result)
                 bar.update(1)

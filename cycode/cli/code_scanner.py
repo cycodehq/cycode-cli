@@ -327,7 +327,9 @@ def scan_documents(
         scan_parameters: Optional[dict] = None
 ) -> None:
     scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
-    local_scan_results = run_scan_in_patches_parallel(scan_batch_thread_func, documents_to_scan)
+    local_scan_results = run_scan_in_patches_parallel(
+        scan_batch_thread_func, documents_to_scan, no_progress_meter=context.obj['no_progress_meter']
+    )
     set_issue_detected_by_scan_results(context, local_scan_results)
 
     for result in local_scan_results:
