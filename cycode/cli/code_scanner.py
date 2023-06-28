@@ -1,4 +1,3 @@
-import click
 import json
 import logging
 import os
@@ -6,26 +5,27 @@ import sys
 import time
 import traceback
 from platform import platform
-from uuid import uuid4, UUID
-from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
+from uuid import uuid4, UUID
 
-from halo import Halo
+import click
+from git import Repo, NULL_TREE, InvalidGitRepositoryError
 
-from cycode.cli.printers import ConsolePrinter
-from cycode.cli.models import Document, DocumentDetections, Severity, CliError, CliErrors
 from cycode.cli.ci_integrations import get_commit_range
-from cycode.cli.consts import *
 from cycode.cli.config import configuration_manager
-from cycode.cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
-    get_path_by_os, get_file_content
-from cycode.cli.utils.string_utils import get_content_size, is_binary_content
-from cycode.cli.utils.task_timer import TimeoutAfter
-from cycode.cli.utils import scan_utils
-from cycode.cli.user_settings.config_file_manager import ConfigFileManager
-from cycode.cli.zip_file import InMemoryZip
+from cycode.cli.consts import *
 from cycode.cli.exceptions.custom_exceptions import *
 from cycode.cli.helpers import sca_code_scanner
+from cycode.cli.models import Document, DocumentDetections, Severity, CliError, CliErrors
+from cycode.cli.printers import ConsolePrinter
+from cycode.cli.user_settings.config_file_manager import ConfigFileManager
+from cycode.cli.utils import scan_utils
+from cycode.cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
+    get_path_by_os, get_file_content
+from cycode.cli.utils.scan_utils import create_spinner_and_echo, create_spinner
+from cycode.cli.utils.string_utils import get_content_size, is_binary_content
+from cycode.cli.utils.task_timer import TimeoutAfter
+from cycode.cli.zip_file import InMemoryZip
 from cycode.cyclient import logger
 from cycode.cyclient.models import *
 
@@ -61,9 +61,7 @@ def scan_repository(context: click.Context, path, branch):
 
 
 def get_documents_to_scan(branch, monitor, path):
-    spinner = Halo(spinner='dots')
-    spinner.start("Collecting documents for scanning")
-    click.echo()
+    spinner = create_spinner_and_echo("Collecting documents for scanning")
     documents_to_scan = [
         Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
                  obj.data_stream.read().decode('utf-8', errors='replace'))
@@ -357,9 +355,7 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
-    spinner = Halo(spinner='dots')
-    spinner.start("Perform pre scan documents actions")
-    click.echo()
+    spinner = create_spinner_and_echo("Perform pre scan documents actions")
     if scan_type == SCA_SCAN_TYPE:
         logger.debug(
             f"Perform pre scan document actions")
@@ -368,9 +364,7 @@ def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, d
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
-    spinner = Halo(spinner='dots')
-    spinner.start("Zipping documents")
-    click.echo()
+    spinner = create_spinner_and_echo("Zipping documents")
     start_zip_creation_time = time.time()
 
     for index, document in enumerate(documents):
@@ -436,8 +430,7 @@ def poll_scan_results(context: click.Context, cycode_client, scan_id: str, polli
 
     last_scan_update_at = None
     end_polling_time = time.time() + polling_timeout
-    spinner = Halo(spinner='dots')
-    spinner.start("Scan in progress")
+    spinner = create_spinner("Scan in progress")
     while time.time() < end_polling_time:
         scan_details = cycode_client.get_scan_details(scan_id)
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
@@ -601,9 +594,7 @@ def try_get_git_remote_url(path: str) -> Optional[dict]:
 
 def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_scan: List[Document]) -> \
         List[Document]:
-    spinner = Halo(spinner='dots')
-    spinner.start("Excluding irrelevant documents on scanning")
-    click.echo()
+    spinner = create_spinner_and_echo("Excluding irrelevant documents on scanning")
     scan_type = context.obj['scan_type']
     logger.debug("excluding irrelevant documents to scan")
     relevant_document = [document for document in documents_to_scan if
@@ -613,9 +604,7 @@ def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_sc
 
 
 def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
-    spinner = Halo(spinner='dots')
-    spinner.start("Excluding irrelevant files")
-    click.echo()
+    spinner = create_spinner_and_echo("Excluding irrelevant files")
     scan_type = context.obj['scan_type']
     relevant_files = [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
     spinner.succeed()
@@ -983,8 +972,7 @@ def wait_for_detections_creation(cycode_client, scan_id: str, expected_detection
     logger.debug("waiting for detections to be created")
     scan_persisted_detections_count = 0
     end_polling_time = time.time() + DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
-    spinner = Halo(spinner='dots')
-    spinner.start("Please wait until printing scan result...")
+    spinner = create_spinner("Please wait until printing scan result...")
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
