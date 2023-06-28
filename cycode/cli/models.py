@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, NamedTuple, Dict, Type
+from typing import List, NamedTuple, Dict, Type, Optional
 
 from cycode.cyclient.models import Detection
 
@@ -62,7 +62,7 @@ class CliResult(NamedTuple):
 
 class LocalScanResult(NamedTuple):
     scan_id: str
-    report_url: str
+    report_url: Optional[str]
     document_detections: List[DocumentDetections]
     issue_detected: bool
     detections_count: int

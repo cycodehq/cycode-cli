@@ -52,7 +52,7 @@ def get_zipped_file_scan_response(url: str, scan_id: UUID = None) -> responses.R
 
     json_response = {
         'did_detect': True,
-        'scan_id': scan_id.hex,     # not always as expected due to _get_scan_id and passing scan_id to cxt of CLI
+        'scan_id': str(scan_id),     # not always as expected due to _get_scan_id and passing scan_id to cxt of CLI
         'detections_per_file': [
             {
                 'file_name': str(_ZIP_CONTENT_PATH.joinpath('secrets.py')),
@@ -86,7 +86,7 @@ def get_zipped_file_scan_response(url: str, scan_id: UUID = None) -> responses.R
 
 
 def test_get_service_name(scan_client: ScanClient):
-    # TODO(Marshal): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
+    # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
     assert scan_client.get_service_name('secret') == 'secret'
     assert scan_client.get_service_name('iac') == 'iac'
     assert scan_client.get_service_name('sca') == 'scans'
@@ -102,11 +102,10 @@ def test_zipped_file_scan(scan_type: str, scan_client: ScanClient, api_token_res
     responses.add(api_token_response)   # mock token based client
     responses.add(get_zipped_file_scan_response(url, expected_scan_id))
 
-    # TODO(MarshalX): fix wrong type hint? UUID instead of str
     zipped_file_scan_response = scan_client.zipped_file_scan(
-        scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={}
+        scan_type, zip_file, scan_id=str(expected_scan_id), scan_parameters={}
     )
-    assert zipped_file_scan_response.scan_id == expected_scan_id.hex
+    assert zipped_file_scan_response.scan_id == str(expected_scan_id)
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])

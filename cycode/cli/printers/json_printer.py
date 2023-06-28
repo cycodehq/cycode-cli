@@ -1,19 +1,17 @@
 import json
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import click
 
-from cycode.cli.models import DocumentDetections, CliResult, CliError
+from cycode.cli.models import CliResult, CliError
 from cycode.cli.printers.base_printer import BasePrinter
 from cycode.cyclient.models import DetectionSchema
 
+if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
+
 
 class JsonPrinter(BasePrinter):
-    def __init__(self, context: click.Context):
-        super().__init__(context)
-        # TODO get scan_id from LocalScanResult.scan_id instead of context!
-        self.scan_id = context.obj.get('scan_id')
-
     def print_result(self, result: CliResult) -> None:
         result = {
             'result': result.success,
@@ -30,10 +28,11 @@ class JsonPrinter(BasePrinter):
 
         click.secho(self.get_data_json(result))
 
-    def print_scan_results(self, results: List[DocumentDetections]) -> None:
+    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
         detections = []
-        for result in results:
-            detections.extend(result.detections)
+        for local_scan_result in local_scan_results:
+            for document_detections in local_scan_result.document_detections:
+                detections.extend(document_detections.detections)
 
         detections_dict = DetectionSchema(many=True).dump(detections)
 
@@ -41,7 +40,7 @@ class JsonPrinter(BasePrinter):
 
     def _get_json_scan_result(self, detections: dict) -> str:
         result = {
-            'scan_id': str(self.scan_id),
+            'scan_id': 'DEPRECATED',    # FIXME(MarshalX): we need change JSON struct to support multiple scan results
             'detections': detections
         }
 

@@ -331,12 +331,7 @@ def scan_documents(
         scan_batch_thread_func, documents_to_scan, no_progress_meter=context.obj['no_progress_meter']
     )
     set_issue_detected_by_scan_results(context, local_scan_results)
-
-    for result in local_scan_results:
-        # could be None if scan failed with exception
-        if result:
-            # TODO print aggregated results
-            print_results(context, result.document_detections)
+    print_results(context, local_scan_results)
 
 
 def scan_commit_range_documents(
@@ -381,7 +376,7 @@ def scan_commit_range_documents(
         )
         set_issue_detected_by_scan_results(context, [local_scan_result])
 
-        print_results(context, local_scan_result.document_detections)
+        print_results(context, [local_scan_result])
 
         scan_completed = True
     except Exception as e:
@@ -548,7 +543,7 @@ def poll_scan_results(
 
         time.sleep(consts.SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    # TODO support in batching
+    # TODO(MarshalX): support in batching
     # spinner.stop_and_persist(symbol="⏰".encode('utf-8'), text='Timeout')
     raise custom_exceptions.ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
@@ -563,9 +558,9 @@ def print_scan_details(scan_details_response: 'ScanDetailsResponse') -> None:
         logger.info(f'Scan message: {scan_details_response.message}')
 
 
-def print_results(context: click.Context, document_detections_list: List[DocumentDetections]) -> None:
+def print_results(context: click.Context, local_scan_results: List[LocalScanResult]) -> None:
     printer = ConsolePrinter(context)
-    printer.print_scan_results(document_detections_list)     # TODO accept LocalScanResult instead
+    printer.print_scan_results(local_scan_results)
 
 
 def get_document_detections(
@@ -626,7 +621,7 @@ def parse_pre_receive_input() -> str:
             "Pre receive input was not found. Make sure that you are using this command only in pre-receive hook")
 
     # each line represents a branch update request, handle the first one only
-    # TODO support case of multiple update branch requests
+    # TODO(MichalBor): support case of multiple update branch requests
     branch_update_details = pre_receive_input.splitlines()[0]
     return branch_update_details
 

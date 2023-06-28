@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 import click
 
@@ -9,12 +9,13 @@ from cycode.cli.config import config
 from cycode.cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
 from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
 
+if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
+
 
 class TextPrinter(BasePrinter):
     def __init__(self, context: click.Context):
         super().__init__(context)
-        # TODO get scan_id from LocalScanResult.scan_id instead of context!
-        self.scan_id: str = context.obj.get('scan_id')
         self.scan_type: str = context.obj.get('scan_type')
         self.command_scan_type: str = context.info_name
         self.show_secret: bool = context.obj.get('show_secret', False)
@@ -29,39 +30,44 @@ class TextPrinter(BasePrinter):
     def print_error(self, error: CliError) -> None:
         click.secho(error.message, fg=self.RED_COLOR_NAME, nl=False)
 
-    def print_scan_results(self, results: List[DocumentDetections]):
-        # TODO get scan_id from LocalScanResult.scan_id instead of context!
-        click.secho(f'Scan Results: (scan_id: {self.scan_id})')
-
-        if not results:
+    def print_scan_results(self, local_scan_results: List['LocalScanResult']):
+        if all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return
 
-        for document_detections in results:
-            self._print_document_detections(document_detections)
+        for local_scan_result in local_scan_results:
+            for document_detections in local_scan_result.document_detections:
+                self._print_document_detections(
+                    document_detections, local_scan_result.scan_id, local_scan_result.report_url
+                )
 
-        # TODO get report_url from LocalScanResult.report_url instead of context!
-        report_url = self.context.obj.get('report_url')
-        if report_url:
-            click.secho(f'Report URL: {report_url}')
-
-    def _print_document_detections(self, document_detections: DocumentDetections):
+    def _print_document_detections(
+            self, document_detections: DocumentDetections, scan_id: str, report_url: Optional[str]
+    ):
         document = document_detections.document
         lines_to_display = self._get_lines_to_display_count()
         for detection in document_detections.detections:
-            self._print_detection_summary(detection, document.path)
+            self._print_detection_summary(detection, document.path, scan_id, report_url)
             self._print_detection_code_segment(detection, document, lines_to_display)
 
-    def _print_detection_summary(self, detection: Detection, document_path: str):
+    def _print_detection_summary(
+            self, detection: Detection, document_path: str, scan_id: str, report_url: Optional[str]
+    ):
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
+
         detection_sha = detection.detection_details.get('sha512')
         detection_sha_message = f'\nSecret SHA: {detection_sha}' if detection_sha else ''
+
+        scan_id_message = f'\nScan ID: {scan_id}'
+        report_url_message = f'\nReport URL: {report_url}' if report_url else ''
+
         detection_commit_id = detection.detection_details.get('commit_id')
         detection_commit_id_message = f'\nCommit SHA: {detection_commit_id}' if detection_commit_id else ''
+
         click.echo(
             f'⛔  Found issue of type: {click.style(detection_name, fg="bright_red", bold=True)} '
             f'(rule ID: {detection.detection_rule_id}) in file: {click.format_filename(document_path)} '
-            f'{detection_sha_message}{detection_commit_id_message}  ⛔'
+            f'{detection_sha_message}{scan_id_message}{report_url_message}{detection_commit_id_message}  ⛔'
         )
 
     def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int):

@@ -60,4 +60,4 @@ def test_passing_output_option(
         output = json.loads(result.output)
         assert 'scan_id' in output
     else:
-        assert 'Scan Results' in result.output
+        assert 'Scan ID' in result.output

@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import click
 
-from cycode.cli.models import DocumentDetections, CliResult, CliError
+from cycode.cli.models import CliResult, CliError
+
+if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
 
 
 class BasePrinter(ABC):
@@ -15,7 +18,7 @@ class BasePrinter(ABC):
         self.context = context
 
     @abstractmethod
-    def print_scan_results(self, results: List[DocumentDetections]) -> None:
+    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
         pass
 
     @abstractmethod
