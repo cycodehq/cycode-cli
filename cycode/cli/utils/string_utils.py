@@ -47,3 +47,13 @@ def generate_random_string(string_len: int):
 
 def get_position_in_line(text: str, position: int) -> int:
     return position - text.rfind('\n', 0, position) - 1
+
+
+@staticmethod
+def shortcut_dependency_paths(dependency_paths: str) -> str:
+    dependencies = dependency_paths.split(' -> ')
+
+    if len(dependencies) < 3:
+        return dependency_paths
+
+    return f'{dependencies[0]} -> ... -> {dependencies[-1]}'
