@@ -7,6 +7,7 @@ from texttable import Texttable
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
 from cycode.cli.models import DocumentDetections, Detection
 from cycode.cli.printers.base_table_printer import BaseTablePrinter
+from cycode.cli.utils.string_utils import shortcut_dependency_paths
 
 SEVERITY_COLUMN = 'Severity'
 LICENSE_COLUMN = 'License'
@@ -108,20 +109,11 @@ class SCATablePrinter(BaseTablePrinter):
     def _print_summary_issues(detections: List, title: str) -> None:
         click.echo(f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
 
-    @staticmethod
-    def _shortcut_dependency_paths(dependency_paths: str) -> str:
-        dependencies = dependency_paths.split(' -> ')
-
-        if len(dependencies) < 2:
-            return dependencies[0]
-
-        return f'{dependencies[0]} -> ... -> {dependencies[-1]}'
-
     def _get_common_detection_fields(self, detection: Detection) -> List[str]:
         dependency_paths = 'N/A'
         dependency_paths_raw = detection.detection_details.get('dependency_paths')
         if dependency_paths_raw:
-            dependency_paths = self._shortcut_dependency_paths(dependency_paths_raw)
+            dependency_paths = shortcut_dependency_paths(dependency_paths_raw)
 
         row = [
             detection.detection_details.get('file_name'),
@@ -129,7 +121,7 @@ class SCATablePrinter(BaseTablePrinter):
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
             detection.detection_details.get('is_dev_dependency_str'),
-            dependency_paths,
+            dependency_paths
         ]
 
         if self._is_git_repository():
