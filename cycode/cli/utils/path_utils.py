@@ -9,6 +9,7 @@ from cycode.cli.utils.scan_utils import create_spinner_and_echo
 
 
 def get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> List[str]:
+    spinner = create_spinner_and_echo("Collecting files")
     absolute_path = get_absolute_path(path)
     if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
         raise FileNotFoundError(f'the specified path was not found, path: {path}')
@@ -21,7 +22,7 @@ def get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> Li
     spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, exclude_patterns)
     exclude_file_paths = set(spec.match_files(file_paths))
     relevant_files = [file_path for file_path in (file_paths - exclude_file_paths) if os.path.isfile(file_path)]
-    create_spinner_and_echo("Collecting files", False)
+    spinner.succeed()
 
     return relevant_files
 

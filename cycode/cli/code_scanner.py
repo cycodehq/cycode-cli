@@ -61,12 +61,13 @@ def scan_repository(context: click.Context, path, branch):
 
 
 def get_documents_to_scan(branch, monitor, path):
+    spinner = create_spinner_and_echo("Collecting files")
     documents_to_scan = [
         Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
                  obj.data_stream.read().decode('utf-8', errors='replace'))
         for obj
         in get_git_repository_tree_file_entries(path, branch)]
-    create_spinner_and_echo("Collecting files", False)
+    spinner.succeed()
     return documents_to_scan
 
 
@@ -355,15 +356,17 @@ def handle_scan_result(context, scan_result, command_scan_type, scan_type, sever
 def perform_pre_scan_documents_actions(context: click.Context, scan_type: str, documents_to_scan: List[Document],
                                        is_git_diff: bool = False):
     if scan_type == SCA_SCAN_TYPE:
+        spinner = create_spinner_and_echo("Performing pre scan operations")
         logger.debug(
             f"Perform pre scan document actions")
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
-    create_spinner_and_echo("Performing pre scan operations", False)
+        spinner.succeed()
+
 
 
 def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Document]):
     start_zip_creation_time = time.time()
-
+    spinner = create_spinner_and_echo("Zipping documents")
     for index, document in enumerate(documents):
         zip_file_size = getsizeof(zip.in_memory_zip)
         validate_zip_file_size(scan_type, zip_file_size)
@@ -376,8 +379,8 @@ def zip_documents_to_scan(scan_type: str, zip: InMemoryZip, documents: List[Docu
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
     logger.debug('finished to create zip file, %s', {'zip_creation_time': zip_creation_time})
+    spinner.succeed()
 
-    create_spinner_and_echo("Zipping documents", False)
     return zip
 
 
@@ -591,18 +594,20 @@ def try_get_git_remote_url(path: str) -> Optional[dict]:
 
 def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_scan: List[Document]) -> \
         List[Document]:
+    spinner = create_spinner_and_echo("Excluding irrelevant files")
     scan_type = context.obj['scan_type']
     logger.debug("excluding irrelevant documents to scan")
     relevant_document = [document for document in documents_to_scan if
                          _is_relevant_document_to_scan(scan_type, document.path, document.content)]
-    create_spinner_and_echo("Excluding irrelevant files", False)
+    spinner.succeed()
     return relevant_document
 
 
 def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
+    spinner = create_spinner_and_echo("Excluding irrelevant files")
     scan_type = context.obj['scan_type']
     relevant_files = [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
-    create_spinner_and_echo("Excluding irrelevant files", False)
+    spinner.succeed()
     return relevant_files
 
 
