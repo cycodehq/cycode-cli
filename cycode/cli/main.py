@@ -6,6 +6,7 @@ import sys
 from typing import List, Optional, TYPE_CHECKING
 
 from cycode import __version__
+from cycode.cli.consts import NO_ISSUES_STATUS_CODE, ISSUE_DETECTED_STATUS_CODE
 from cycode.cli.models import Severity
 from cycode.cli.config import config
 from cycode.cli import code_scanner
@@ -14,6 +15,7 @@ from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.utils import scan_utils
+from cycode.cli.utils.progress_bar import get_progress_bar
 from cycode.cyclient import logger
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
@@ -23,8 +25,6 @@ if TYPE_CHECKING:
     from cycode.cyclient.scan_client import ScanClient
 
 CONTEXT = dict()
-ISSUE_DETECTED_STATUS_CODE = 1
-NO_ISSUES_STATUS_CODE = 0
 
 
 @click.group(
@@ -120,18 +120,30 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
     context.obj["severity_threshold"] = severity_threshold
     context.obj["monitor"] = monitor
     context.obj["report"] = report
+
     _sca_scan_to_context(context, sca_scan)
+
+    context.obj["progress_bar"] = get_progress_bar(hidden=context.obj["no_progress_meter"])
+    context.obj["progress_bar"].start()
 
     return 1
 
 
 @code_scan.result_callback()
 @click.pass_context
-def finalize(context: click.Context, *args, **kwargs):
-    if context.obj["soft_fail"]:
+def finalize(context: click.Context, *_, **__):
+    progress_bar = context.obj.get('progress_bar')
+    if progress_bar:
+        progress_bar.stop()
+
+    if context.obj['soft_fail']:
         sys.exit(0)
 
-    sys.exit(ISSUE_DETECTED_STATUS_CODE if _should_fail_scan(context) else NO_ISSUES_STATUS_CODE)
+    exit_code = NO_ISSUES_STATUS_CODE
+    if _should_fail_scan(context):
+        exit_code = ISSUE_DETECTED_STATUS_CODE
+
+    sys.exit(exit_code)
 
 
 @click.group(

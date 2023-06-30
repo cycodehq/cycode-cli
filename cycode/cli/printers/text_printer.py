@@ -28,7 +28,7 @@ class TextPrinter(BasePrinter):
         click.secho(result.message, fg=color)
 
     def print_error(self, error: CliError) -> None:
-        click.secho(error.message, fg=self.RED_COLOR_NAME, nl=False)
+        click.secho(error.message, fg=self.RED_COLOR_NAME)
 
     def print_scan_results(self, local_scan_results: List['LocalScanResult']):
         if all(result.issue_detected == 0 for result in local_scan_results):

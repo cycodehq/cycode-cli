@@ -11,13 +11,13 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Dict, Tuple
 
 from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
-from halo import Halo
 
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.models import Document, DocumentDetections, Severity, CliError, CliErrors, LocalScanResult
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
+from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.scan_utils import set_issue_detected
 from cycode.cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
@@ -47,26 +47,39 @@ start_scan_time = time.time()
               type=str,
               required=False)
 @click.pass_context
-def scan_repository(context: click.Context, path, branch):
+def scan_repository(context: click.Context, path: str, branch: str):
     """ Scan git repository including its history """
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
-        context.obj["path"] = path
-        monitor = context.obj.get("monitor")
-        scan_type = context.obj["scan_type"]
-        if monitor and scan_type != consts.SCA_SCAN_TYPE:
-            raise click.ClickException(f"Monitor flag is currently supported for SCA scan type only")
 
-        documents_to_scan = [
-            Document(obj.path if monitor else get_path_by_os(os.path.join(path, obj.path)),
-                     obj.data_stream.read().decode('utf-8', errors='replace'))
-            for obj
-            in get_git_repository_tree_file_entries(path, branch)]
+        scan_type = context.obj['scan_type']
+        monitor = context.obj.get('monitor')
+        if monitor and scan_type != consts.SCA_SCAN_TYPE:
+            raise click.ClickException(f'Monitor flag is currently supported for SCA scan type only')
+
+        progress_bar = context.obj['progress_bar']
+
+        file_entries = list(get_git_repository_tree_file_entries(path, branch))
+        progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
+
+        documents_to_scan = []
+        for file in file_entries:
+            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+
+            if monitor:
+                path = file.path
+            else:
+                path = get_path_by_os(os.path.join(path, file.path))
+
+            documents_to_scan.append(Document(path, file.data_stream.read().decode('UTF-8', errors='replace')))
+
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-        perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, False)
+
+        perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, is_git_diff=False)
+
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         return scan_documents(
-            context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context)
+            context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context, path)
         )
     except Exception as e:
         _handle_exception(context, e)
@@ -94,9 +107,9 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 
 
 def scan_commit_range(context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None):
-    scan_type = context.obj["scan_type"]
+    scan_type = context.obj['scan_type']
     if scan_type not in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
-        raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
+        raise click.ClickException(f'Commit range scanning for {str.upper(scan_type)} is not supported')
 
     if scan_type == consts.SCA_SCAN_TYPE:
         return scan_sca_commit_range(context, path, commit_range)
@@ -105,16 +118,20 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     commit_ids_to_scan = []
 
     repo = Repo(path)
-    total_commits_count = repo.git.rev_list('--count', commit_range)
+    total_commits_count = int(repo.git.rev_list('--count', commit_range))
+    logger.debug(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
+
+    progress_bar = context.obj['progress_bar']
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
+
     scanned_commits_count = 0
-    logger.info(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
     for commit in repo.iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
-            logger.info(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
+            logger.debug(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
+            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
             break
 
-        if _should_update_progress(scanned_commits_count):
-            logger.info(f'Calculated diffs for {scanned_commits_count} out of {total_commits_count} commits')
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
@@ -122,18 +139,29 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
         diff = commit.diff(parent, create_patch=True, R=True)
         commit_documents_to_scan = []
         for blob in diff:
-            doc = Document(get_path_by_os(os.path.join(path, get_diff_file_path(blob))),
-                           blob.diff.decode('utf-8', errors='replace'), True, unique_id=commit_id)
-            commit_documents_to_scan.append(doc)
+            blob_path = get_path_by_os(os.path.join(path, get_diff_file_path(blob)))
+            commit_documents_to_scan.append(Document(
+                path=blob_path,
+                content=blob.diff.decode('UTF-8', errors='replace'),
+                is_git_diff_format=True,
+                unique_id=commit_id
+            ))
 
-        logger.debug('Found all relevant files in commit %s',
-                     {'path': path, 'commit_range': commit_range, 'commit_id': commit_id})
-        commit_documents_to_scan = exclude_irrelevant_documents_to_scan(context, commit_documents_to_scan)
-        documents_to_scan.extend(commit_documents_to_scan)
+        logger.debug(
+            'Found all relevant files in commit %s',
+            {
+                'path': path,
+                'commit_range': commit_range,
+                'commit_id': commit_id
+            }
+        )
+
+        documents_to_scan.extend(exclude_irrelevant_documents_to_scan(context, commit_documents_to_scan))
         scanned_commits_count += 1
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
-    logger.info('Starting to scan commit range (It may take a few minutes)')
+    logger.debug('Starting to scan commit range (It may take a few minutes)')
+
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
@@ -151,25 +179,32 @@ def scan_ci(context: click.Context):
 def scan_path(context: click.Context, path):
     """	Scan the files in the path supplied in the command """
     logger.debug('Starting path scan process, %s', {'path': path})
-    context.obj["path"] = path
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
-    return scan_disk_files(context, files_to_scan)
+    return scan_disk_files(context, path, files_to_scan)
 
 
 @click.command()
-@click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
+@click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     """ Use this command to scan the content that was not committed yet """
     scan_type = context.obj['scan_type']
+    progress_bar = context.obj['progress_bar']
+
     if scan_type == consts.SCA_SCAN_TYPE:
         return scan_sca_pre_commit(context)
 
-    diff_files = Repo(os.getcwd()).index.diff("HEAD", create_patch=True, R=True)
-    documents_to_scan = [Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file))
-                         for file in diff_files]
+    diff_files = Repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
+
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
+
+    documents_to_scan = []
+    for file in diff_files:
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
+
     documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
@@ -182,7 +217,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
     try:
         scan_type = context.obj['scan_type']
         if scan_type != consts.SECRET_SCAN_TYPE:
-            raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
+            raise click.ClickException(f'Commit range scanning for {scan_type.upper()} is not supported')
 
         if should_skip_pre_receive_scan():
             logger.info(
@@ -198,13 +233,15 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
         timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
         with TimeoutAfter(timeout):
             if scan_type not in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
-                raise click.ClickException(f"Commit range scanning for {str.upper(scan_type)} is not supported")
+                raise click.ClickException(f'Commit range scanning for {scan_type.upper()} is not supported')
 
             branch_update_details = parse_pre_receive_input()
             commit_range = calculate_pre_receive_commit_range(branch_update_details)
             if not commit_range:
-                logger.info('No new commits found for pushed branch, %s',
-                            {'branch_update_details': branch_update_details})
+                logger.info(
+                    'No new commits found for pushed branch, %s',
+                    {'branch_update_details': branch_update_details}
+                )
                 return
 
             max_commits_to_scan = configuration_manager.get_pre_receive_max_commits_to_scan_count(command_scan_type)
@@ -226,8 +263,7 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
-    context.obj["path"] = path
-    scan_parameters = get_scan_parameters(context)
+    scan_parameters = get_scan_parameters(context, path)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = \
         get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
@@ -240,17 +276,22 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
                                        scan_parameters=scan_parameters)
 
 
-def scan_disk_files(context: click.Context, paths: List[str]):
-    scan_parameters = get_scan_parameters(context)
+def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str]):
+    scan_parameters = get_scan_parameters(context, path)
     scan_type = context.obj['scan_type']
+    progress_bar = context.obj['progress_bar']
 
     is_git_diff = False
 
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(files_to_scan))
+
     documents: List[Document] = []
-    for path in paths:
-        with open(path, 'r', encoding='UTF-8') as f:
+    for file in files_to_scan:
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+
+        with open(file, 'r', encoding='UTF-8') as f:
             try:
-                documents.append(Document(path, f.read(), is_git_diff))
+                documents.append(Document(file, f.read(), is_git_diff))
             except UnicodeDecodeError:
                 continue
 
@@ -264,14 +305,15 @@ def set_issue_detected_by_scan_results(context: click.Context, scan_results: Lis
 
 def _get_scan_documents_thread_func(
         context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
-) -> Callable[[List[Document]], LocalScanResult]:
+) -> Callable[[List[Document]], Tuple[CliError, LocalScanResult]]:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
+    progress_bar = context.obj['progress_bar']
     command_scan_type = context.info_name
 
-    def _scan_batch_thread_func(batch: List[Document]) -> LocalScanResult:
-        local_scan_result = error_message = None
+    def _scan_batch_thread_func(batch: List[Document]) -> Tuple[CliError, LocalScanResult]:
+        local_scan_result = error = error_message = None
         detections_count = relevant_detections_count = zip_file_size = 0
 
         scan_id = str(_get_scan_id())
@@ -292,7 +334,7 @@ def _get_scan_documents_thread_func(
 
             scan_completed = True
         except Exception as e:
-            _handle_exception(context, e)
+            error = _handle_exception(context, e, return_exception=True)
             error_message = str(e)
 
         if local_scan_result:
@@ -314,7 +356,7 @@ def _get_scan_documents_thread_func(
             detections_count, len(batch), zip_file_size, command_scan_type, error_message
         )
 
-        return local_scan_result
+        return error, local_scan_result
 
     return _scan_batch_thread_func
 
@@ -324,14 +366,31 @@ def scan_documents(
         documents_to_scan: List[Document],
         is_git_diff: bool = False,
         is_commit_range: bool = False,
-        scan_parameters: Optional[dict] = None
+        scan_parameters: Optional[dict] = None,
 ) -> None:
+    progress_bar = context.obj['progress_bar']
+
     scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
-    local_scan_results = run_scan_in_patches_parallel(
-        scan_batch_thread_func, documents_to_scan, no_progress_meter=context.obj['no_progress_meter']
+    errors, local_scan_results = run_scan_in_patches_parallel(
+        scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
+
+    progress_bar.set_section_length(ProgressBarSection.GENERATE_REPORT, 1)
+    progress_bar.update(ProgressBarSection.GENERATE_REPORT)
+    progress_bar.stop()
+
     set_issue_detected_by_scan_results(context, local_scan_results)
     print_results(context, local_scan_results)
+
+    if context.obj['output'] == 'json':
+        # TODO(MarshalX): we can't just print JSON formatted errors here
+        #  because we should return only one root json structure per scan
+        #  could be added later to "print_results" function if we wish to display detailed errors in UI
+        return
+
+    for batch_no, error in errors.items():
+        click.echo(f'Error in #{batch_no} part of the scan: ', nl=False)
+        ConsolePrinter(context).print_error(error)
 
 
 def scan_commit_range_documents(
@@ -534,7 +593,7 @@ def poll_scan_results(
 
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
             last_scan_update_at = scan_details.scan_update_at
-            print_scan_details(scan_details)
+            print_debug_scan_details(scan_details)
 
         if scan_details.scan_status == consts.SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_id, scan_details)
@@ -543,19 +602,15 @@ def poll_scan_results(
 
         time.sleep(consts.SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-    # TODO(MarshalX): support in batching
-    # spinner.stop_and_persist(symbol="⏰".encode('utf-8'), text='Timeout')
     raise custom_exceptions.ScanAsyncError(f'Failed to complete scan after {polling_timeout} seconds')
 
 
-def print_scan_details(scan_details_response: 'ScanDetailsResponse') -> None:
-    click.echo()
-
-    logger.info(f'Scan update: (scan_id: {scan_details_response.id})')
-    logger.info(f'Scan status: {scan_details_response.scan_status}')
+def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> None:
+    logger.debug(f'Scan update: (scan_id: {scan_details_response.id})')
+    logger.debug(f'Scan status: {scan_details_response.scan_status}')
 
     if scan_details_response.message:
-        logger.info(f'Scan message: {scan_details_response.message}')
+        logger.debug(f'Scan message: {scan_details_response.message}')
 
 
 def print_results(context: click.Context, local_scan_results: List[LocalScanResult]) -> None:
@@ -615,6 +670,7 @@ def parse_pre_receive_input() -> str:
 
     :return: first branch update details (input's first line)
     """
+    # FIXME(MarshalX): this blocks main thread forever if called outside of pre-receive hook
     pre_receive_input = sys.stdin.read().strip()
     if not pre_receive_input:
         raise ValueError(
@@ -683,12 +739,12 @@ def get_default_scan_parameters(context: click.Context) -> dict:
     }
 
 
-def get_scan_parameters(context: click.Context) -> dict:
-    path = context.obj["path"]
+def get_scan_parameters(context: click.Context, path: str) -> dict:
     scan_parameters = get_default_scan_parameters(context)
     remote_url = try_get_git_remote_url(path)
     if remote_url:
-        context.obj["remote_url"] = remote_url
+        # TODO(MarshalX): remove hardcode
+        context.obj['remote_url'] = remote_url
         scan_parameters.update(remote_url)
     return scan_parameters
 
@@ -707,15 +763,27 @@ def try_get_git_remote_url(path: str) -> Optional[dict]:
 def exclude_irrelevant_documents_to_scan(
         context: click.Context, documents_to_scan: List[Document]
 ) -> List[Document]:
+    logger.debug('Excluding irrelevant documents to scan')
+
     scan_type = context.obj['scan_type']
-    logger.debug("excluding irrelevant documents to scan")
-    return [document for document in documents_to_scan if
-            _is_relevant_document_to_scan(scan_type, document.path, document.content)]
+
+    relevant_documents = []
+    for document in documents_to_scan:
+        if _is_relevant_document_to_scan(scan_type, document.path, document.content):
+            relevant_documents.append(document)
+
+    return relevant_documents
 
 
 def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
     scan_type = context.obj['scan_type']
-    return [filename for filename in filenames if _is_relevant_file_to_scan(scan_type, filename)]
+
+    relevant_files = []
+    for filename in filenames:
+        if _is_relevant_file_to_scan(scan_type, filename):
+            relevant_files.append(filename)
+
+    return relevant_files
 
 
 def exclude_irrelevant_detections(
@@ -980,11 +1048,11 @@ def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
         or filename.endswith(ConfigFileManager.get_config_file_route())
 
 
-def _handle_exception(context: click.Context, e: Exception) -> None:
+def _handle_exception(context: click.Context, e: Exception, *, return_exception: bool = False) -> Optional[CliError]:
     context.obj['did_fail'] = True
 
     if context.obj['verbose']:
-        click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
+        click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
     errors: CliErrors = {
         custom_exceptions.NetworkError: CliError(
@@ -1026,7 +1094,14 @@ def _handle_exception(context: click.Context, e: Exception) -> None:
         if error.soft_fail is True:
             context.obj['soft_fail'] = True
 
-        return ConsolePrinter(context).print_error(error)
+        if return_exception:
+            return error
+
+        ConsolePrinter(context).print_error(error)
+        return
+
+    if return_exception:
+        return CliError(code='unknown_error', message=str(e))
 
     if isinstance(e, click.ClickException):
         raise e
@@ -1110,20 +1185,20 @@ def wait_for_detections_creation(cycode_client: 'ScanClient', scan_id: str, expe
     logger.debug('Waiting for detections to be created')
 
     scan_persisted_detections_count = 0
-    end_polling_time = time.time() + consts.DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
+    polling_timeout = consts.DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
+    end_polling_time = time.time() + polling_timeout
 
-    spinner = Halo(spinner='dots')
-    spinner.start('Please wait until printing scan result...')
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
         if scan_persisted_detections_count == expected_detections_count:
-            spinner.succeed()
             return
 
         time.sleep(consts.DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
 
-    spinner.stop_and_persist(symbol="⏰".encode('utf-8'), text='Timeout')
     logger.debug('%i detections has been created', scan_persisted_detections_count)
+    raise custom_exceptions.ScanAsyncError(
+        f'Failed to wait for detections to be created after {polling_timeout} seconds'
+    )
 
 
 def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
@@ -1159,10 +1234,6 @@ def _does_reach_to_max_commits_to_scan_limit(commit_ids: List[str], max_commits_
         return False
 
     return len(commit_ids) >= max_commits_count
-
-
-def _should_update_progress(scanned_commits_count: int) -> bool:
-    return scanned_commits_count and scanned_commits_count % consts.PROGRESS_UPDATE_COMMITS_INTERVAL == 0
 
 
 def parse_commit_range(commit_range: str, path: str) -> Tuple[str, str]:

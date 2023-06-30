@@ -1,14 +1,14 @@
 import os
 from multiprocessing.pool import ThreadPool
-from typing import List, TYPE_CHECKING, Callable
-
-import click
+from typing import List, TYPE_CHECKING, Callable, Tuple, Dict
 
 from cycode.cli.consts import SCAN_BATCH_MAX_SIZE_IN_BYTES, SCAN_BATCH_MAX_FILES_COUNT, SCAN_BATCH_SCANS_PER_CPU
 from cycode.cli.models import Document
+from cycode.cli.utils.progress_bar import ProgressBarSection
 
 if TYPE_CHECKING:
-    from cycode.cli.models import LocalScanResult
+    from cycode.cli.models import LocalScanResult, CliError
+    from cycode.cli.utils.progress_bar import BaseProgressBar
 
 
 def split_documents_into_batches(
@@ -38,38 +38,31 @@ def split_documents_into_batches(
     return batches
 
 
-class DummyProgressBar:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        pass
-
-    def update(self, *args, **kwargs):
-        pass
-
-
 def run_scan_in_patches_parallel(
-        scan_function: Callable[[List[Document]], 'LocalScanResult'],
+        scan_function: Callable[[List[Document]], Tuple['CliError', 'LocalScanResult']],
         documents: List[Document],
+        progress_bar: 'BaseProgressBar',
         max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
         max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
-        no_progress_meter: bool = False,
-) -> List['LocalScanResult']:
+) -> Tuple[Dict[int, 'CliError'], List['LocalScanResult']]:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
-    if no_progress_meter:
-        progress_bar = DummyProgressBar()
-    else:
-        progress_bar = click.progressbar(length=len(batches), label='Scan in progress', color=True)
+    progress_bar.set_section_length(ProgressBarSection.SCAN, len(batches))  # * 3
+    # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:
+    # 1. scan creation
+    # 2. scan completion
+    # 3. detection creation
+    # it's not possible yet because not all scan types moved to polling mechanism
+    # the progress bar could be significant improved (be more dynamic)
 
     local_scan_results: List['LocalScanResult'] = []
+    cli_errors: Dict[int, 'CliError'] = {}
     with ThreadPool(processes=os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU) as pool:
-        with progress_bar as bar:
-            for result in pool.imap(scan_function, batches):
+        for batch_no, (err, result) in enumerate(pool.imap(scan_function, batches), 1):
+            if result:
                 local_scan_results.append(result)
-                bar.update(1)
+            if err:
+                cli_errors[batch_no] = err
 
-    return local_scan_results
+            progress_bar.update(ProgressBarSection.SCAN)
+
+    return cli_errors, local_scan_results

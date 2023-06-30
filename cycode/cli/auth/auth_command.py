@@ -48,14 +48,14 @@ def authorization_check(context: click.Context):
             return printer.print_result(passed_auth_check_res)
     except (NetworkError, HttpUnauthorizedError):
         if context.obj['verbose']:
-            click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
+            click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
         return printer.print_result(failed_auth_check_res)
 
 
 def _handle_exception(context: click.Context, e: Exception):
     if context.obj['verbose']:
-        click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
+        click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
     errors: CliErrors = {
         AuthProcessError: CliError(
