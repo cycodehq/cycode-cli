@@ -58,10 +58,9 @@ class TablePrinter(BaseTablePrinter):
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
                 report_url = local_scan_result.report_url if local_scan_result.report_url else 'N/A'
-                table.set(REPORT_URL_COLUMN, report_url)
-                table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
-
                 for detection in document_detections.detections:
+                    table.set(REPORT_URL_COLUMN, report_url)
+                    table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
         click.echo(table.get_table().draw())

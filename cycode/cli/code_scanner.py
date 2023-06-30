@@ -309,7 +309,6 @@ def _get_scan_documents_thread_func(
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
-    progress_bar = context.obj['progress_bar']
     command_scan_type = context.info_name
 
     def _scan_batch_thread_func(batch: List[Document]) -> Tuple[CliError, LocalScanResult]:
@@ -598,7 +597,9 @@ def poll_scan_results(
         if scan_details.scan_status == consts.SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_id, scan_details)
         elif scan_details.scan_status == consts.SCAN_STATUS_ERROR:
-            raise custom_exceptions.ScanAsyncError(f'Error occurred while trying to scan zip file. {scan_details.message}')
+            raise custom_exceptions.ScanAsyncError(
+                f'Error occurred while trying to scan zip file. {scan_details.message}'
+            )
 
         time.sleep(consts.SCAN_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
@@ -722,7 +723,7 @@ def get_diff_file_content(file):
     return file.diff.decode('utf-8', errors='replace')
 
 
-def should_process_git_object(obj, depth):
+def should_process_git_object(obj, _: int) -> bool:
     return obj.type == 'blob' and obj.size > 0
 
 
