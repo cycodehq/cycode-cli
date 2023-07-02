@@ -4,11 +4,14 @@ from typing import NamedTuple, Dict, TYPE_CHECKING, Optional
 
 import click
 
+from cycode.cyclient.config import get_logger
 from cycode.cli.utils.enum_utils import AutoCountEnum
-from cycode.cyclient import logger
 
 if TYPE_CHECKING:
     from click._termui_impl import ProgressBar
+
+
+logger = get_logger('progress bar')
 
 
 class ProgressBarSection(AutoCountEnum):
@@ -141,7 +144,7 @@ class CompositeProgressBar(BaseProgressBar):
             self.__exit__(None, None, None)
 
     def set_section_length(self, section: 'ProgressBarSection', length: int) -> None:
-        logger.debug(f'[PROGRESS_BAR] set_section_length: {section} {length}')
+        logger.debug(f'set_section_length: {section} {length}')
         self._section_lengths[section] = length
 
         if length == 0:
@@ -154,7 +157,7 @@ class CompositeProgressBar(BaseProgressBar):
     def _increment_section_value(self, section: 'ProgressBarSection', value: int) -> None:
         self._section_values[section] = self._section_values.get(section, 0) + value
         logger.debug(
-            f'[PROGRESS_BAR] _increment_section_value: {section} +{value}. '
+            f'_increment_section_value: {section} +{value}. '
             f'{self._section_values[section]}/{self._section_lengths[section]}'
         )
 
@@ -177,7 +180,7 @@ class CompositeProgressBar(BaseProgressBar):
         if cur_val >= max_val:
             next_section = _PROGRESS_BAR_SECTIONS[self._current_section.section.next()]
             logger.debug(
-                f'[PROGRESS_BAR] _update_current_section: {self._current_section.section} -> {next_section.section}'
+                f'_update_current_section: {self._current_section.section} -> {next_section.section}'
             )
 
             self._current_section = next_section

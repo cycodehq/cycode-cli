@@ -30,6 +30,7 @@ from cycode.cli.zip_file import InMemoryZip
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.helpers import sca_code_scanner
 from cycode.cyclient import logger
+from cycode.cli.utils.progress_bar import logger as progress_bar_logger
 from cycode.cyclient.models import ZippedFileScanResult, Detection, DetectionsPerFile, DetectionSchema
 
 if TYPE_CHECKING:
@@ -305,13 +306,13 @@ def set_issue_detected_by_scan_results(context: click.Context, scan_results: Lis
 
 def _get_scan_documents_thread_func(
         context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
-) -> Callable[[List[Document]], Tuple[CliError, LocalScanResult]]:
+) -> Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]]:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
     command_scan_type = context.info_name
 
-    def _scan_batch_thread_func(batch: List[Document]) -> Tuple[CliError, LocalScanResult]:
+    def _scan_batch_thread_func(batch: List[Document]) -> Tuple[str, CliError, LocalScanResult]:
         local_scan_result = error = error_message = None
         detections_count = relevant_detections_count = zip_file_size = 0
 
@@ -355,7 +356,7 @@ def _get_scan_documents_thread_func(
             detections_count, len(batch), zip_file_size, command_scan_type, error_message
         )
 
-        return error, local_scan_result
+        return scan_id, error, local_scan_result
 
     return _scan_batch_thread_func
 
@@ -387,8 +388,8 @@ def scan_documents(
         #  could be added later to "print_results" function if we wish to display detailed errors in UI
         return
 
-    for batch_no, error in errors.items():
-        click.echo(f'Error in #{batch_no} part of the scan: ', nl=False)
+    for (batch_no, scan_id), error in errors.items():
+        click.echo(f'Error in #{batch_no} part of the scan (scan_id: {scan_id}): ', nl=False)
         ConsolePrinter(context).print_error(error)
 
 
@@ -1191,12 +1192,17 @@ def wait_for_detections_creation(cycode_client: 'ScanClient', scan_id: str, expe
 
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
+        logger.debug(
+            f'Excepted {expected_detections_count} detections, got {scan_persisted_detections_count} detections '
+            f'({expected_detections_count - scan_persisted_detections_count} more; '
+            f'{round(end_polling_time - time.time())} seconds left)'
+        )
         if scan_persisted_detections_count == expected_detections_count:
             return
 
         time.sleep(consts.DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
 
-    logger.debug('%i detections has been created', scan_persisted_detections_count)
+    logger.debug(f'{scan_persisted_detections_count} detections has been created')
     raise custom_exceptions.ScanAsyncError(
         f'Failed to wait for detections to be created after {polling_timeout} seconds'
     )
@@ -1264,7 +1270,9 @@ def perform_post_pre_receive_scan_actions(context: click.Context) -> None:
 
 def enable_verbose_mode(context: click.Context) -> None:
     context.obj['verbose'] = True
+    # TODO(MarshalX): rework setting the log level for loggers
     logger.setLevel(logging.DEBUG)
+    progress_bar_logger.setLevel(logging.DEBUG)
 
 
 def is_verbose_mode_requested_in_pre_receive_scan() -> bool:

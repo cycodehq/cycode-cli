@@ -2,7 +2,8 @@ import os
 from multiprocessing.pool import ThreadPool
 from typing import List, TYPE_CHECKING, Callable, Tuple, Dict
 
-from cycode.cli.consts import SCAN_BATCH_MAX_SIZE_IN_BYTES, SCAN_BATCH_MAX_FILES_COUNT, SCAN_BATCH_SCANS_PER_CPU
+from cycode.cli.consts import SCAN_BATCH_MAX_SIZE_IN_BYTES, SCAN_BATCH_MAX_FILES_COUNT, SCAN_BATCH_SCANS_PER_CPU, \
+    SCAN_BATCH_MAX_PARALLEL_SCANS
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import ProgressBarSection
 
@@ -38,13 +39,17 @@ def split_documents_into_batches(
     return batches
 
 
+def _get_threads_count() -> int:
+    return min(os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU, SCAN_BATCH_MAX_PARALLEL_SCANS)
+
+
 def run_scan_in_patches_parallel(
-        scan_function: Callable[[List[Document]], Tuple['CliError', 'LocalScanResult']],
+        scan_function: Callable[[List[Document]], Tuple[str, 'CliError', 'LocalScanResult']],
         documents: List[Document],
         progress_bar: 'BaseProgressBar',
         max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
         max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
-) -> Tuple[Dict[int, 'CliError'], List['LocalScanResult']]:
+) -> Tuple[Dict[Tuple[int, str], 'CliError'], List['LocalScanResult']]:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
     progress_bar.set_section_length(ProgressBarSection.SCAN, len(batches))  # * 3
     # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:
@@ -55,13 +60,13 @@ def run_scan_in_patches_parallel(
     # the progress bar could be significant improved (be more dynamic)
 
     local_scan_results: List['LocalScanResult'] = []
-    cli_errors: Dict[int, 'CliError'] = {}
-    with ThreadPool(processes=os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU) as pool:
-        for batch_no, (err, result) in enumerate(pool.imap(scan_function, batches), 1):
+    cli_errors: Dict[Tuple[int, str], 'CliError'] = {}
+    with ThreadPool(processes=_get_threads_count()) as pool:
+        for batch_no, (scan_id, err, result) in enumerate(pool.imap(scan_function, batches), 1):
             if result:
                 local_scan_results.append(result)
             if err:
-                cli_errors[batch_no] = err
+                cli_errors[(batch_no, scan_id)] = err
 
             progress_bar.update(ProgressBarSection.SCAN)
 
