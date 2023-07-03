@@ -382,14 +382,22 @@ def scan_documents(
     set_issue_detected_by_scan_results(context, local_scan_results)
     print_results(context, local_scan_results)
 
+    if not errors:
+        return
+
     if context.obj['output'] == 'json':
         # TODO(MarshalX): we can't just print JSON formatted errors here
         #  because we should return only one root json structure per scan
         #  could be added later to "print_results" function if we wish to display detailed errors in UI
         return
 
-    for (batch_no, scan_id), error in errors.items():
-        click.echo(f'Error in #{batch_no} part of the scan (scan_id: {scan_id}): ', nl=False)
+    click.secho(
+        'Unfortunately, Cycode was unable to complete the full scan. '
+        'Please note that not all results may be available:',
+        fg='red'
+    )
+    for scan_id, error in errors.items():
+        click.echo(f'- {scan_id}: ', nl=False)
         ConsolePrinter(context).print_error(error)
 
 

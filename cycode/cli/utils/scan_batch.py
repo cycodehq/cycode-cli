@@ -49,7 +49,7 @@ def run_scan_in_patches_parallel(
         progress_bar: 'BaseProgressBar',
         max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
         max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
-) -> Tuple[Dict[Tuple[int, str], 'CliError'], List['LocalScanResult']]:
+) -> Tuple[Dict[str, 'CliError'], List['LocalScanResult']]:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
     progress_bar.set_section_length(ProgressBarSection.SCAN, len(batches))  # * 3
     # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:
@@ -57,16 +57,16 @@ def run_scan_in_patches_parallel(
     # 2. scan completion
     # 3. detection creation
     # it's not possible yet because not all scan types moved to polling mechanism
-    # the progress bar could be significant improved (be more dynamic)
+    # the progress bar could be significant improved (be more dynamic) in the future
 
     local_scan_results: List['LocalScanResult'] = []
-    cli_errors: Dict[Tuple[int, str], 'CliError'] = {}
+    cli_errors: Dict[str, 'CliError'] = {}
     with ThreadPool(processes=_get_threads_count()) as pool:
-        for batch_no, (scan_id, err, result) in enumerate(pool.imap(scan_function, batches), 1):
+        for scan_id, err, result in pool.imap(scan_function, batches):
             if result:
                 local_scan_results.append(result)
             if err:
-                cli_errors[(batch_no, scan_id)] = err
+                cli_errors[scan_id] = err
 
             progress_bar.update(ProgressBarSection.SCAN)
 
