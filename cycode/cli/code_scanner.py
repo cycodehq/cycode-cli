@@ -36,6 +36,7 @@ from cycode.cyclient.models import ZippedFileScanResult, Detection, DetectionsPe
 if TYPE_CHECKING:
     from cycode.cyclient.scan_client import ScanClient
     from cycode.cyclient.models import ScanDetailsResponse
+    from cycode.cli.utils.progress_bar import BaseProgressBar
 
 start_scan_time = time.time()
 
@@ -109,6 +110,8 @@ def scan_repository_commit_history(context: click.Context, path: str, commit_ran
 
 def scan_commit_range(context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None):
     scan_type = context.obj['scan_type']
+    progress_bar = context.obj['progress_bar']
+
     if scan_type not in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
         raise click.ClickException(f'Commit range scanning for {str.upper(scan_type)} is not supported')
 
@@ -122,7 +125,6 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     total_commits_count = int(repo.git.rev_list('--count', commit_range))
     logger.debug(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
 
-    progress_bar = context.obj['progress_bar']
     progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
     scanned_commits_count = 0
@@ -254,7 +256,7 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
 def scan_sca_pre_commit(context: click.Context):
     scan_parameters = get_default_scan_parameters(context)
-    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents()
+    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(context.obj['progress_bar'])
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
@@ -264,10 +266,13 @@ def scan_sca_pre_commit(context: click.Context):
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+    progress_bar = context.obj['progress_bar']
+
     scan_parameters = get_scan_parameters(context, path)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
-    from_commit_documents, to_commit_documents = \
-        get_commit_range_modified_documents(path, from_commit_rev, to_commit_rev)
+    from_commit_documents, to_commit_documents = get_commit_range_modified_documents(
+        progress_bar, path, from_commit_rev, to_commit_rev
+    )
     from_commit_documents = exclude_irrelevant_documents_to_scan(context, from_commit_documents)
     to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(path, from_commit_documents, from_commit_rev,
@@ -412,6 +417,7 @@ def scan_commit_range_documents(
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
     scan_command_type = context.info_name
+    progress_bar = context.obj['progress_bar']
 
     local_scan_result = error_message = None
     scan_completed = False
@@ -421,6 +427,8 @@ def scan_commit_range_documents(
     to_commit_zipped_documents = InMemoryZip()
 
     try:
+        progress_bar.set_section_length(ProgressBarSection.SCAN, 1)
+
         scan_result = init_default_scan_result(scan_id)
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
             logger.debug('Preparing from-commit zip')
@@ -438,10 +446,16 @@ def scan_commit_range_documents(
                 scan_type, scan_parameters, timeout
             )
 
+        progress_bar.update(ProgressBarSection.SCAN)
+        progress_bar.set_section_length(ProgressBarSection.GENERATE_REPORT, 1)
+
         local_scan_result = create_local_scan_result(
             scan_result, to_documents_to_scan, scan_command_type, scan_type, severity_threshold
         )
         set_issue_detected_by_scan_results(context, [local_scan_result])
+
+        progress_bar.update(ProgressBarSection.GENERATE_REPORT)
+        progress_bar.stop()
 
         print_results(context, [local_scan_result])
 
@@ -844,13 +858,16 @@ def _exclude_detections_by_exclusions_configuration(detections: List[Detection],
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
 
 
-def get_pre_commit_modified_documents() -> Tuple[List[Document], List[Document]]:
+def get_pre_commit_modified_documents(progress_bar: 'BaseProgressBar') -> Tuple[List[Document], List[Document]]:
     git_head_documents = []
     pre_committed_documents = []
 
     repo = Repo(os.getcwd())
     diff_files = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
     for file in diff_files:
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+
         diff_file_path = get_diff_file_path(file)
         file_path = get_path_by_os(diff_file_path)
 
@@ -866,7 +883,7 @@ def get_pre_commit_modified_documents() -> Tuple[List[Document], List[Document]]
 
 
 def get_commit_range_modified_documents(
-        path: str, from_commit_rev: str, to_commit_rev: str
+        progress_bar: 'BaseProgressBar',  path: str, from_commit_rev: str, to_commit_rev: str
 ) -> Tuple[List[Document], List[Document]]:
     from_commit_documents = []
     to_commit_documents = []
@@ -877,7 +894,10 @@ def get_commit_range_modified_documents(
     modified_files_diff = [
         change for change in diff if change.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
     ]
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(modified_files_diff))
     for blob in modified_files_diff:
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(diff_file_path)
 
