@@ -1,4 +1,4 @@
-name: Black
+name: Black (code formatter)
 
 on: [ pull_request, push ]
 
