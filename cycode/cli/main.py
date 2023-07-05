@@ -1,23 +1,22 @@
 import logging
+import sys
+from typing import TYPE_CHECKING, List, Optional
 
 import click
-import sys
-
-from typing import List, Optional, TYPE_CHECKING
 
 from cycode import __version__
-from cycode.cli.consts import NO_ISSUES_STATUS_CODE, ISSUE_DETECTED_STATUS_CODE
-from cycode.cli.models import Severity
-from cycode.cli.config import config
 from cycode.cli import code_scanner
-from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-from cycode.cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cycode.cli.auth.auth_command import authenticate
+from cycode.cli.config import config
+from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE
+from cycode.cli.models import Severity
+from cycode.cli.user_settings.configuration_manager import ConfigurationManager
+from cycode.cli.user_settings.credentials_manager import CredentialsManager
+from cycode.cli.user_settings.user_settings_commands import add_exclusions, set_credentials
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.progress_bar import get_progress_bar
-from cycode.cyclient import logger
 from cycode.cli.utils.progress_bar import logger as progress_bar_logger
+from cycode.cyclient import logger
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
 from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
@@ -25,25 +24,25 @@ from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
 if TYPE_CHECKING:
     from cycode.cyclient.scan_client import ScanClient
 
-CONTEXT = dict()
+CONTEXT = {}
 
 
 @click.group(
     commands={
-        "repository": code_scanner.scan_repository,
-        "commit_history": code_scanner.scan_repository_commit_history,
-        "path": code_scanner.scan_path,
-        "pre_commit": code_scanner.pre_commit_scan,
-        "pre_receive": code_scanner.pre_receive_scan,
+        'repository': code_scanner.scan_repository,
+        'commit_history': code_scanner.scan_repository_commit_history,
+        'path': code_scanner.scan_path,
+        'pre_commit': code_scanner.pre_commit_scan,
+        'pre_receive': code_scanner.pre_receive_scan,
     },
 )
 @click.option(
     '--scan-type',
     '-t',
-    default="secret",
+    default='secret',
     help="""
               \b
-              Specify the scan you wish to execute (secret/iac/sca), 
+              Specify the scan you wish to execute (secret/iac/sca),
               the default is secret
               """,
     type=click.Choice(config['scans']['supported_scans']),
@@ -78,7 +77,7 @@ CONTEXT = dict()
     default=None,
     help="""
               \b
-              Specify the results output (text/json/table), 
+              Specify the results output (text/json/table),
               the default is text
               """,
     type=click.Choice(['text', 'json', 'table']),
@@ -93,7 +92,7 @@ CONTEXT = dict()
 @click.option(
     '--sca-scan',
     default=None,
-    help="Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), the default is both",
+    help='Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), the default is both',
     multiple=True,
     type=click.Choice(config['scans']['supported_sca_scans']),
 )
@@ -109,7 +108,7 @@ CONTEXT = dict()
     '--report',
     is_flag=True,
     default=False,
-    help="When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution",
+    help='When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution',
     type=bool,
     required=False,
 )
@@ -129,32 +128,32 @@ def code_scan(
 ):
     """Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc"""
     if show_secret:
-        context.obj["show_secret"] = show_secret
+        context.obj['show_secret'] = show_secret
     else:
-        context.obj["show_secret"] = config["result_printer"]["default"]["show_secret"]
+        context.obj['show_secret'] = config['result_printer']['default']['show_secret']
 
     if soft_fail:
-        context.obj["soft_fail"] = soft_fail
+        context.obj['soft_fail'] = soft_fail
     else:
-        context.obj["soft_fail"] = config["soft_fail"]
+        context.obj['soft_fail'] = config['soft_fail']
 
-    context.obj["scan_type"] = scan_type
+    context.obj['scan_type'] = scan_type
 
     # save backward compatability with old style command
     if output is not None:
-        context.obj["output"] = output
-        if output == "json":
-            context.obj["no_progress_meter"] = True
+        context.obj['output'] = output
+        if output == 'json':
+            context.obj['no_progress_meter'] = True
 
-    context.obj["client"] = get_cycode_client(client_id, secret)
-    context.obj["severity_threshold"] = severity_threshold
-    context.obj["monitor"] = monitor
-    context.obj["report"] = report
+    context.obj['client'] = get_cycode_client(client_id, secret)
+    context.obj['severity_threshold'] = severity_threshold
+    context.obj['monitor'] = monitor
+    context.obj['report'] = report
 
     _sca_scan_to_context(context, sca_scan)
 
-    context.obj["progress_bar"] = get_progress_bar(hidden=context.obj["no_progress_meter"])
-    context.obj["progress_bar"].start()
+    context.obj['progress_bar'] = get_progress_bar(hidden=context.obj['no_progress_meter'])
+    context.obj['progress_bar'].start()
 
     return 1
 
@@ -177,15 +176,15 @@ def finalize(context: click.Context, *_, **__):
 
 
 @click.group(
-    commands={"scan": code_scan, "configure": set_credentials, "ignore": add_exclusions, "auth": authenticate},
+    commands={'scan': code_scan, 'configure': set_credentials, 'ignore': add_exclusions, 'auth': authenticate},
     context_settings=CONTEXT,
 )
 @click.option(
-    "--verbose",
-    "-v",
+    '--verbose',
+    '-v',
     is_flag=True,
     default=False,
-    help="Show detailed logs",
+    help='Show detailed logs',
 )
 @click.option(
     '--no-progress-meter',
@@ -205,7 +204,7 @@ def finalize(context: click.Context, *_, **__):
     help='Characteristic JSON object that lets servers identify the application',
     type=str,
 )
-@click.version_option(__version__, prog_name="cycode")
+@click.version_option(__version__, prog_name='cycode')
 @click.pass_context
 def main_cli(context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]):
     context.ensure_object(dict)
@@ -233,9 +232,9 @@ def get_cycode_client(client_id: str, client_secret: str) -> 'ScanClient':
     if not client_id or not client_secret:
         client_id, client_secret = _get_configured_credentials()
         if not client_id:
-            raise click.ClickException("Cycode client id needed.")
+            raise click.ClickException('Cycode client id needed.')
         if not client_secret:
-            raise click.ClickException("Cycode client secret is needed.")
+            raise click.ClickException('Cycode client secret is needed.')
 
     return create_scan_client(client_id, client_secret)
 

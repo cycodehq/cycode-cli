@@ -1,18 +1,18 @@
 import os
 from multiprocessing.pool import ThreadPool
-from typing import List, TYPE_CHECKING, Callable, Tuple, Dict
+from typing import TYPE_CHECKING, Callable, Dict, List, Tuple
 
 from cycode.cli.consts import (
-    SCAN_BATCH_MAX_SIZE_IN_BYTES,
     SCAN_BATCH_MAX_FILES_COUNT,
-    SCAN_BATCH_SCANS_PER_CPU,
     SCAN_BATCH_MAX_PARALLEL_SCANS,
+    SCAN_BATCH_MAX_SIZE_IN_BYTES,
+    SCAN_BATCH_SCANS_PER_CPU,
 )
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import ProgressBarSection
 
 if TYPE_CHECKING:
-    from cycode.cli.models import LocalScanResult, CliError
+    from cycode.cli.models import CliError, LocalScanResult
     from cycode.cli.utils.progress_bar import BaseProgressBar
 
 

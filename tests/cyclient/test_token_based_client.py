@@ -2,7 +2,7 @@ import arrow
 import responses
 
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
-from ..conftest import _EXPECTED_API_TOKEN
+from tests.conftest import _EXPECTED_API_TOKEN
 
 
 @responses.activate

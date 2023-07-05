@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Dict, Optional
 from uuid import uuid4
 
-from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.consts import *
+from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 
 
 class ConfigurationManager:

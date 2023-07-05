@@ -9,7 +9,7 @@ def test_mandatory_headers():
 
     client = CycodeClientBase(config.cycode_api_url)
 
-    assert client.MANDATORY_HEADERS == expected_headers
+    assert expected_headers == client.MANDATORY_HEADERS
 
 
 def test_get_request_headers():

@@ -1,7 +1,7 @@
 from mock import Mock
 
-from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.consts import DEFAULT_CYCODE_API_URL
+from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 
 """
 we check for base url in the three places, in the following order:

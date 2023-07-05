@@ -1,11 +1,12 @@
-import click
 import traceback
 
-from cycode.cli.models import CliResult, CliErrors, CliError
-from cycode.cli.printers import ConsolePrinter
+import click
+
 from cycode.cli.auth.auth_manager import AuthManager
+from cycode.cli.exceptions.custom_exceptions import AuthProcessError, HttpUnauthorizedError, NetworkError
+from cycode.cli.models import CliError, CliErrors, CliResult
+from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cli.exceptions.custom_exceptions import AuthProcessError, NetworkError, HttpUnauthorizedError
 from cycode.cyclient import logger
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 

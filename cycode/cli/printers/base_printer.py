@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import click
 
-from cycode.cli.models import CliResult, CliError
+from cycode.cli.models import CliError, CliResult
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult

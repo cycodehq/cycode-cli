@@ -1,18 +1,18 @@
 from enum import Enum
-from typing import List, NamedTuple, Dict, Type, Optional
+from typing import Dict, List, NamedTuple, Optional, Type
 
 from cycode.cyclient.models import Detection
 
 
 class Document:
-    def __init__(self, path: str, content: str, is_git_diff_format: bool = False, unique_id: str = None):
+    def __init__(self, path: str, content: str, is_git_diff_format: bool = False, unique_id: Optional[str] = None):
         self.path = path
         self.content = content
         self.is_git_diff_format = is_git_diff_format
         self.unique_id = unique_id
 
     def __repr__(self) -> str:
-        return "path:{0}, " "content:{1}".format(self.path, self.content)
+        return 'path:{0}, content:{1}'.format(self.path, self.content)
 
 
 class DocumentDetections:
@@ -21,7 +21,7 @@ class DocumentDetections:
         self.detections = detections
 
     def __repr__(self) -> str:
-        return "document:{0}, " "detections:{1}".format(self.document, self.detections)
+        return 'document:{0}, detections:{1}'.format(self.document, self.detections)
 
 
 class Severity(Enum):

@@ -1,11 +1,11 @@
-from threading import Thread, Event
 from _thread import interrupt_main
-from typing import Optional, Callable, List, Dict, Type
+from threading import Event, Thread
 from types import TracebackType
+from typing import Callable, Dict, List, Optional, Type
 
 
 class FunctionContext:
-    def __init__(self, function: Callable, args: List = None, kwargs: Dict = None):
+    def __init__(self, function: Callable, args: Optional[List] = None, kwargs: Optional[Dict] = None):
         self.function = function
         self.args = args or []
         self.kwargs = kwargs or {}
@@ -74,7 +74,7 @@ class TimeoutAfter:
         # catch the exception of interrupt_main before exiting
         # the with statement and throw timeout error instead
         if exc_type == KeyboardInterrupt:
-            raise TimeoutError(f"Task timed out after {self.timeout} seconds")
+            raise TimeoutError(f'Task timed out after {self.timeout} seconds')
 
     def timeout_function(self):
         interrupt_main()

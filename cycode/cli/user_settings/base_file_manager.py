@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
-from cycode.cli.utils.yaml_utils import update_file, read_file
+
+from cycode.cli.utils.yaml_utils import read_file, update_file
 
 
 class BaseFileManager(ABC):

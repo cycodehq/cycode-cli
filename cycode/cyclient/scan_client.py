@@ -4,6 +4,7 @@ from typing import List
 from requests import Response
 
 from cycode.cli.zip_file import InMemoryZip
+
 from . import models
 from .cycode_client_base import CycodeClientBase
 from .scan_config.scan_config_base import ScanConfigBase
@@ -138,3 +139,4 @@ class ScanClient:
             return 'iac'
         elif scan_type == 'sca' or scan_type == 'sast':
             return 'scans'
+        return None

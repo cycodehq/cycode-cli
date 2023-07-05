@@ -1,13 +1,14 @@
 import platform
-from typing import Dict
+from typing import Dict, Optional
 
-from cycode.cyclient import logger
-from requests import Response, request, exceptions
+from requests import Response, exceptions, request
 
 from cycode import __version__
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
+from cycode.cli.user_settings.configuration_manager import ConfigurationManager
+from cycode.cyclient import logger
+
 from . import config
-from ..cli.exceptions.custom_exceptions import NetworkError, HttpUnauthorizedError
-from ..cli.user_settings.configuration_manager import ConfigurationManager
 
 
 def get_cli_user_agent() -> str:
@@ -42,17 +43,17 @@ class CycodeClientBase:
     def enrich_user_agent(user_agent_suffix: str) -> None:
         CycodeClientBase.MANDATORY_HEADERS['User-Agent'] += f' {user_agent_suffix}'
 
-    def post(self, url_path: str, body: dict = None, headers: dict = None, **kwargs) -> Response:
+    def post(self, url_path: str, body: Optional[dict] = None, headers: Optional[dict] = None, **kwargs) -> Response:
         return self._execute(method='post', endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def put(self, url_path: str, body: dict = None, headers: dict = None, **kwargs) -> Response:
+    def put(self, url_path: str, body: Optional[dict] = None, headers: Optional[dict] = None, **kwargs) -> Response:
         return self._execute(method='put', endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def get(self, url_path: str, headers: dict = None, **kwargs) -> Response:
+    def get(self, url_path: str, headers: Optional[dict] = None, **kwargs) -> Response:
         return self._execute(method='get', endpoint=url_path, headers=headers, **kwargs)
 
     def _execute(
-        self, method: str, endpoint: str, headers: dict = None, without_auth: bool = False, **kwargs
+        self, method: str, endpoint: str, headers: Optional[dict] = None, without_auth: bool = False, **kwargs
     ) -> Response:
         url = self.build_full_url(self.api_url, endpoint)
         logger.debug(f'Executing {method.upper()} request to {url}')
@@ -68,7 +69,7 @@ class CycodeClientBase:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_request_headers(self, additional_headers: dict = None, **kwargs) -> dict:
+    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> dict:
         if additional_headers is None:
             return self.MANDATORY_HEADERS.copy()
         return {**self.MANDATORY_HEADERS, **additional_headers}

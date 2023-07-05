@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 import click
 
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import join_paths, get_file_dir
+from cycode.cli.utils.path_utils import get_file_dir, join_paths
 from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 
@@ -30,8 +30,7 @@ class BaseRestoreMavenDependencies(ABC):
         self.command_timeout = command_timeout
 
     def restore(self, document: Document) -> Optional[Document]:
-        restore_dependencies_document = self.try_restore_dependencies(document)
-        return restore_dependencies_document
+        return self.try_restore_dependencies(document)
 
     def get_manifest_file_path(self, document: Document) -> str:
         return (
@@ -54,9 +53,8 @@ class BaseRestoreMavenDependencies(ABC):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        document = Document(
+        return Document(
             build_dep_tree_path(document.path, self.get_lock_file_name()),
             execute_command(self.get_command(manifest_file_path), manifest_file_path, self.command_timeout),
             self.is_git_diff,
         )
-        return document

@@ -1,13 +1,12 @@
 import json
-
-import pytest
 from typing import TYPE_CHECKING
 
+import pytest
 import responses
 from click.testing import CliRunner
 
 from cycode.cli.main import main_cli
-from tests.conftest import TEST_FILES_PATH, CLI_ENV_VARS
+from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH
 from tests.cyclient.test_scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url
 
 _PATH_TO_SCAN = TEST_FILES_PATH.joinpath('zip_content').absolute()

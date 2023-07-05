@@ -36,21 +36,19 @@ def test_handle_exception_soft_fail(
 
 
 def test_handle_exception_unhandled_error(ctx: click.Context):
-    with ctx:
-        with pytest.raises(ClickException):
-            _handle_exception(ctx, ValueError('test'))
+    with ctx, pytest.raises(ClickException):
+        _handle_exception(ctx, ValueError('test'))
 
-            assert ctx.obj.get('did_fail') is True
-            assert ctx.obj.get('soft_fail') is None
+        assert ctx.obj.get('did_fail') is True
+        assert ctx.obj.get('soft_fail') is None
 
 
 def test_handle_exception_click_error(ctx: click.Context):
-    with ctx:
-        with pytest.raises(ClickException):
-            _handle_exception(ctx, click.ClickException('test'))
+    with ctx, pytest.raises(ClickException):
+        _handle_exception(ctx, click.ClickException('test'))
 
-            assert ctx.obj.get('did_fail') is True
-            assert ctx.obj.get('soft_fail') is None
+        assert ctx.obj.get('did_fail') is True
+        assert ctx.obj.get('soft_fail') is None
 
 
 def test_handle_exception_verbose(monkeypatch):
@@ -61,9 +59,8 @@ def test_handle_exception_verbose(monkeypatch):
 
     monkeypatch.setattr(click, 'secho', mock_secho)
 
-    with ctx:
-        with pytest.raises(ClickException):
-            _handle_exception(ctx, ValueError('test'))
+    with ctx, pytest.raises(ClickException):
+        _handle_exception(ctx, ValueError('test'))
 
 
 def test_is_file_relevant_for_sca_scan():

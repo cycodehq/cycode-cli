@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from enum import auto
-from typing import NamedTuple, Dict, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, NamedTuple, Optional
 
 import click
 
-from cycode.cyclient.config import get_logger
 from cycode.cli.utils.enum_utils import AutoCountEnum
+from cycode.cyclient.config import get_logger
 
 if TYPE_CHECKING:
     from click._termui_impl import ProgressBar
@@ -16,7 +16,6 @@ logger = get_logger('progress bar')
 
 class ProgressBarSection(AutoCountEnum):
     PREPARE_LOCAL_FILES = auto()
-    # UPLOAD_FILES = auto()
     SCAN = auto()
     GENERATE_REPORT = auto()
 
@@ -42,7 +41,6 @@ _PROGRESS_BAR_SECTIONS = {
     ),
     # TODO(MarshalX): could be added in the future
     # ProgressBarSection.UPLOAD_FILES: ProgressBarSectionInfo(
-    #     ProgressBarSection.UPLOAD_FILES, 'Upload files', start_percent=5, stop_percent=10
     # ),
     ProgressBarSection.SCAN: ProgressBarSectionInfo(
         ProgressBarSection.SCAN, 'Scan in progress', start_percent=5, stop_percent=95
@@ -221,8 +219,8 @@ def get_progress_bar(*, hidden: bool) -> BaseProgressBar:
 
 if __name__ == '__main__':
     # TODO(MarshalX): cover with tests and remove this code
-    import time
     import random
+    import time
 
     bar = get_progress_bar(hidden=False)
     bar.start()
@@ -231,7 +229,7 @@ if __name__ == '__main__':
         section_capacity = random.randint(500, 1000)
         bar.set_section_length(bar_section, section_capacity)
 
-        for i in range(section_capacity):
+        for _i in range(section_capacity):
             time.sleep(0.01)
             bar.update(bar_section)
 

@@ -1,14 +1,14 @@
 import os
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 import click
-from git import Repo, GitCommandError
+from git import GitCommandError, Repo
 
 from cycode.cli.consts import *
 from cycode.cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_dir, join_paths, get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cyclient import logger
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
@@ -43,7 +43,7 @@ def add_ecosystem_related_files_if_exists(
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
-            logger.debug("failed to resolve project file ecosystem: %s", doc.path)
+            logger.debug('failed to resolve project file ecosystem: %s', doc.path)
             continue
         documents_to_add = get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo)
         documents.extend(documents_to_add)
@@ -96,10 +96,10 @@ def try_restore_dependencies(
             is_monitor_action = context.obj.get('monitor')
             project_path = context.params.get('path')
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
-            logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
+            logger.debug(f'Succeeded to generate dependencies tree on path: {manifest_file_path}')
 
         if restore_dependencies_document.path in documents_to_add:
-            logger.debug(f"Duplicate document on restore for path: {restore_dependencies_document.path}")
+            logger.debug(f'Duplicate document on restore for path: {restore_dependencies_document.path}')
         else:
             documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
 

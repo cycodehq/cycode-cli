@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import List, Dict, Optional
-from marshmallow import Schema, fields, EXCLUDE, post_load
+from typing import Dict, List, Optional
+
+from marshmallow import EXCLUDE, Schema, fields, post_load
 
 
 class Detection(Schema):
@@ -26,7 +27,7 @@ class Detection(Schema):
             f'type:{self.type}, '
             f'severity:{self.severity}, '
             f'message:{self.message}, '
-            f'detection_details:{repr(self.detection_details)}, '
+            f'detection_details:{self.detection_details!r}, '
             f'detection_rule_id:{self.detection_rule_id}'
         )
 
@@ -75,8 +76,8 @@ class ZippedFileScanResult(Schema):
         did_detect: bool,
         detections_per_file: List[DetectionsPerFile],
         report_url: Optional[str] = None,
-        scan_id: str = None,
-        err: str = None,
+        scan_id: Optional[str] = None,
+        err: Optional[str] = None,
     ):
         super().__init__()
         self.did_detect = did_detect
@@ -102,7 +103,7 @@ class ZippedFileScanResultSchema(Schema):
 
 
 class ScanResult(Schema):
-    def __init__(self, did_detect: bool, scan_id: str = None, detections: List[Detection] = None, err: str = None):
+    def __init__(self, did_detect: bool, scan_id: Optional[str] = None, detections: Optional[List[Detection]] = None, err: Optional[str] = None):
         super().__init__()
         self.did_detect = did_detect
         self.scan_id = scan_id
@@ -125,7 +126,7 @@ class ScanResultSchema(Schema):
 
 
 class ScanInitializationResponse(Schema):
-    def __init__(self, scan_id: str = None, err: str = None):
+    def __init__(self, scan_id: Optional[str] = None, err: Optional[str] = None):
         super().__init__()
         self.scan_id = scan_id
         self.err = err
@@ -146,13 +147,13 @@ class ScanInitializationResponseSchema(Schema):
 class ScanDetailsResponse(Schema):
     def __init__(
         self,
-        id: str = None,
-        scan_status: str = None,
-        results_count: int = None,
-        metadata: str = None,
-        message: str = None,
-        scan_update_at: str = None,
-        err: str = None,
+        id: Optional[str] = None,
+        scan_status: Optional[str] = None,
+        results_count: Optional[int] = None,
+        metadata: Optional[str] = None,
+        message: Optional[str] = None,
+        scan_update_at: Optional[str] = None,
+        err: Optional[str] = None,
     ):
         super().__init__()
         self.id = id
@@ -246,7 +247,7 @@ class OwnerReference:
         self.kind = kind
 
     def __str__(self):
-        return "Name: {0}, Kind: {1}".format(self.name, self.kind)
+        return 'Name: {0}, Kind: {1}'.format(self.name, self.kind)
 
 
 class AuthenticationSession(Schema):

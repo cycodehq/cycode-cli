@@ -16,17 +16,17 @@ sys.stderr.reconfigure(encoding='utf-8')
 logging.basicConfig(
     stream=sys.stdout,
     level=logging.DEBUG,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
 )
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("werkzeug").setLevel(logging.WARNING)
-logging.getLogger("schedule").setLevel(logging.WARNING)
-logging.getLogger("kubernetes").setLevel(logging.WARNING)
-logging.getLogger("binaryornot").setLevel(logging.WARNING)
-logging.getLogger("chardet").setLevel(logging.WARNING)
-logging.getLogger("git.cmd").setLevel(logging.WARNING)
-logging.getLogger("git.util").setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
+logging.getLogger('schedule').setLevel(logging.WARNING)
+logging.getLogger('kubernetes').setLevel(logging.WARNING)
+logging.getLogger('binaryornot').setLevel(logging.WARNING)
+logging.getLogger('chardet').setLevel(logging.WARNING)
+logging.getLogger('git.cmd').setLevel(logging.WARNING)
+logging.getLogger('git.util').setLevel(logging.WARNING)
 
 # configs
 DEFAULT_CONFIGURATION = {
@@ -42,7 +42,7 @@ configuration = dict(DEFAULT_CONFIGURATION, **os.environ)
 def get_logger(logger_name=None):
     logger = logging.getLogger(logger_name)
     level = _get_val_as_string(LOGGING_LEVEL_ENV_VAR_NAME)
-    level = level if level in logging._nameToLevel.keys() else int(level)
+    level = level if level in logging._nameToLevel else int(level)
     logger.setLevel(level)
 
     return logger
@@ -62,7 +62,7 @@ def _get_val_as_int(key):
     return int(val) if val is not None else None
 
 
-logger = get_logger("cycode cli")
+logger = get_logger('cycode cli')
 
 configuration_manager = ConfigurationManager()
 

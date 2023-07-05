@@ -1,11 +1,11 @@
 from typing import Tuple
 
-from ..config import dev_mode
-from ..config_dev import DEV_CYCODE_API_URL
-from ..cycode_dev_based_client import CycodeDevBasedClient
-from ..cycode_token_based_client import CycodeTokenBasedClient
-from ..scan_client import ScanClient
-from ..scan_config.scan_config_base import DefaultScanConfig, DevScanConfig
+from cycode.cyclient.config import dev_mode
+from cycode.cyclient.config_dev import DEV_CYCODE_API_URL
+from cycode.cyclient.cycode_dev_based_client import CycodeDevBasedClient
+from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
+from cycode.cyclient.scan_client import ScanClient
+from cycode.cyclient.scan_config.scan_config_base import DefaultScanConfig, DevScanConfig
 
 
 def create_scan_client(client_id: str, client_secret: str) -> ScanClient:

@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
 
-from cycode.cli.utils.yaml_utils import read_file
 from cycode.cli.config import CYCODE_CLIENT_ID_ENV_VAR_NAME, CYCODE_CLIENT_SECRET_ENV_VAR_NAME
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
+from cycode.cli.utils.yaml_utils import read_file
 
 
 class CredentialsManager(BaseFileManager):
@@ -39,7 +39,7 @@ class CredentialsManager(BaseFileManager):
     def update_credentials_file(self, client_id: str, client_secret: str):
         credentials = {self.CLIENT_ID_FIELD_NAME: client_id, self.CLIENT_SECRET_FIELD_NAME: client_secret}
 
-        filename = self.get_filename()
+        self.get_filename()
         self.write_content_to_file(credentials)
 
     def get_filename(self) -> str:

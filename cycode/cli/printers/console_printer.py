@@ -1,11 +1,12 @@
+from typing import TYPE_CHECKING, List
+
 import click
-from typing import List, TYPE_CHECKING
 
 from cycode.cli.exceptions.custom_exceptions import CycodeError
-from cycode.cli.models import CliResult, CliError
-from cycode.cli.printers.table_printer import TablePrinter
-from cycode.cli.printers.sca_table_printer import SCATablePrinter
+from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.json_printer import JsonPrinter
+from cycode.cli.printers.sca_table_printer import SCATablePrinter
+from cycode.cli.printers.table_printer import TablePrinter
 from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:

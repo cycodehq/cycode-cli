@@ -23,6 +23,7 @@ class DevScanConfig(ScanConfigBase):
             return '5026'
         elif scan_type == 'sca' or scan_type == 'sast':
             return '5004'
+        return None
 
     def get_scans_prefix(self):
         return '5004'
@@ -39,6 +40,7 @@ class DefaultScanConfig(ScanConfigBase):
             return 'iac'
         elif scan_type == 'sca' or scan_type == 'sast':
             return 'scans'
+        return None
 
     def get_scans_prefix(self):
         return 'scans'

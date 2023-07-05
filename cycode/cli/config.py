@@ -1,8 +1,7 @@
 import os
 
-from cycode.cli.utils.yaml_utils import read_file
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-
+from cycode.cli.utils.yaml_utils import read_file
 
 relative_path = os.path.dirname(__file__)
 config_file_path = os.path.join(relative_path, 'config.yaml')

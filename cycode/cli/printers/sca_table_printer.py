@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import List, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List
 
 import click
 from texttable import Texttable
@@ -59,7 +59,7 @@ class SCATablePrinter(BaseTablePrinter):
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
                 title = 'Dependencies Vulnerabilities'
 
-                headers = [SEVERITY_COLUMN] + headers
+                headers = [SEVERITY_COLUMN, *headers]
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(CVE_COLUMN)
                 headers.append(UPGRADE_COLUMN)
@@ -129,7 +129,7 @@ class SCATablePrinter(BaseTablePrinter):
         ]
 
         if self._is_git_repository():
-            row = [detection.detection_details.get('repository_name')] + row
+            row = [detection.detection_details.get('repository_name'), *row]
 
         return row
 
