@@ -9,6 +9,7 @@ if __version__ == '0.0.1.dev1':
     # One benefit of it is that we could pass the version with a special suffix to mark pre-commit hook usage.
 
     import os
+
     version_filepath = os.path.join(os.path.dirname(__file__), 'pre-commit-hook-version')
     with open(version_filepath, 'r', encoding='UTF-8') as f:
         __version__ = f.read().strip()
