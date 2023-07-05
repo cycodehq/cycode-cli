@@ -33,7 +33,7 @@ jobs:
         run: poetry install
 
       - name: Check code style of package
-        run: black --check cycode
+        run: poetry run black --check cycode
 
       - name: Check code style of tests
-        run: black --check tests
+        run: poetry run black --check tests
