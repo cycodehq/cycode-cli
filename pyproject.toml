@@ -59,7 +59,7 @@ log_cli = true
 [tool.poetry-dynamic-versioning]
 # poetry self add "poetry-dynamic-versioning[plugin]"
 enable = true
-strict = true
+strict = false
 bump = true
 metadata = false
 vcs = "git"
