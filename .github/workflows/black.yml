@@ -15,6 +15,7 @@ jobs:
           prevent: true
           allowed-hosts: >
             files.pythonhosted.org
+            install.python-poetry.org
             pypi.org
 
       - name: Checkout repository
