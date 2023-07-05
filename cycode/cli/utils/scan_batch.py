@@ -43,7 +43,7 @@ def _get_threads_count() -> int:
     return min(os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU, SCAN_BATCH_MAX_PARALLEL_SCANS)
 
 
-def run_scan_in_patches_parallel(
+def run_parallel_batched_scan(
         scan_function: Callable[[List[Document]], Tuple[str, 'CliError', 'LocalScanResult']],
         documents: List[Document],
         progress_bar: 'BaseProgressBar',

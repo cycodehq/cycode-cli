@@ -21,7 +21,7 @@ from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.scan_utils import set_issue_detected
 from cycode.cli.utils.path_utils import is_sub_path, is_binary_file, get_file_size, get_relevant_files_in_path, \
     get_path_by_os, get_file_content
-from cycode.cli.utils.scan_batch import run_scan_in_patches_parallel
+from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.string_utils import get_content_size, is_binary_content
 from cycode.cli.utils.task_timer import TimeoutAfter
 from cycode.cli.utils import scan_utils
@@ -376,7 +376,7 @@ def scan_documents(
     progress_bar = context.obj['progress_bar']
 
     scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
-    errors, local_scan_results = run_scan_in_patches_parallel(
+    errors, local_scan_results = run_parallel_batched_scan(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
 
