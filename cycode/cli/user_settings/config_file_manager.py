@@ -46,26 +46,19 @@ class ConfigFileManager(BaseFileManager):
         return self._get_value_from_command_scan_type_configuration(command_scan_type, self.COMMAND_TIMEOUT_FIELD_NAME)
 
     def get_exclude_detections_in_deleted_lines(self, command_scan_type) -> Optional[bool]:
-        return self._get_value_from_command_scan_type_configuration(command_scan_type,
-                                                                    self.EXCLUDE_DETECTIONS_IN_DELETED_LINES)
+        return self._get_value_from_command_scan_type_configuration(
+            command_scan_type, self.EXCLUDE_DETECTIONS_IN_DELETED_LINES
+        )
 
     def update_base_url(self, base_url: str):
-        update_data = {
-            self.ENVIRONMENT_SECTION_NAME: {
-                self.API_URL_FIELD_NAME: base_url
-            }
-        }
+        update_data = {self.ENVIRONMENT_SECTION_NAME: {self.API_URL_FIELD_NAME: base_url}}
         self.write_content_to_file(update_data)
 
     def get_installation_id(self) -> Optional[str]:
         return self._get_value_from_environment_section(self.INSTALLATION_ID_FIELD_NAME)
 
     def update_installation_id(self, installation_id: str) -> None:
-        update_data = {
-            self.ENVIRONMENT_SECTION_NAME: {
-                self.INSTALLATION_ID_FIELD_NAME: installation_id
-            }
-        }
+        update_data = {self.ENVIRONMENT_SECTION_NAME: {self.INSTALLATION_ID_FIELD_NAME: installation_id}}
         self.write_content_to_file(update_data)
 
     def add_exclusion(self, scan_type, exclusion_type, new_exclusion):
@@ -75,13 +68,7 @@ class ConfigFileManager(BaseFileManager):
 
         exclusions.append(new_exclusion)
 
-        update_data = {
-            self.EXCLUSIONS_SECTION_NAME: {
-                scan_type: {
-                    exclusion_type: exclusions
-                }
-            }
-        }
+        update_data = {self.EXCLUSIONS_SECTION_NAME: {scan_type: {exclusion_type: exclusions}}}
         self.write_content_to_file(update_data)
 
     def get_config_directory_path(self) -> str:

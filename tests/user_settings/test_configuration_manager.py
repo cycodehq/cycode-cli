@@ -16,8 +16,9 @@ GLOBAL_CONFIG_BASE_URL_VALUE = 'url_from_global_config_file'
 
 def test_get_base_url_from_environment_variable(mocker):
     # Arrange
-    configuration_manager = _configure_mocks(mocker, ENV_VARS_BASE_URL_VALUE, LOCAL_CONFIG_FILE_BASE_URL_VALUE,
-                                             GLOBAL_CONFIG_BASE_URL_VALUE)
+    configuration_manager = _configure_mocks(
+        mocker, ENV_VARS_BASE_URL_VALUE, LOCAL_CONFIG_FILE_BASE_URL_VALUE, GLOBAL_CONFIG_BASE_URL_VALUE
+    )
 
     # Act
     result = configuration_manager.get_cycode_api_url()
@@ -28,8 +29,9 @@ def test_get_base_url_from_environment_variable(mocker):
 
 def test_get_base_url_from_local_config(mocker):
     # Arrange
-    configuration_manager = _configure_mocks(mocker, None, LOCAL_CONFIG_FILE_BASE_URL_VALUE,
-                                             GLOBAL_CONFIG_BASE_URL_VALUE)
+    configuration_manager = _configure_mocks(
+        mocker, None, LOCAL_CONFIG_FILE_BASE_URL_VALUE, GLOBAL_CONFIG_BASE_URL_VALUE
+    )
 
     # Act
     result = configuration_manager.get_cycode_api_url()
@@ -60,12 +62,12 @@ def test_get_base_url_not_configured(mocker):
     assert result == DEFAULT_CYCODE_API_URL
 
 
-def _configure_mocks(mocker,
-                     expected_env_var_base_url,
-                     expected_local_config_file_base_url,
-                     expected_global_config_file_base_url):
-    mocker.patch.object(ConfigurationManager, 'get_api_url_from_environment_variables',
-                        return_value=expected_env_var_base_url)
+def _configure_mocks(
+    mocker, expected_env_var_base_url, expected_local_config_file_base_url, expected_global_config_file_base_url
+):
+    mocker.patch.object(
+        ConfigurationManager, 'get_api_url_from_environment_variables', return_value=expected_env_var_base_url
+    )
     configuration_manager = ConfigurationManager()
     configuration_manager.local_config_file_manager = Mock()
     configuration_manager.local_config_file_manager.get_api_url.return_value = expected_local_config_file_base_url

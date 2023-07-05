@@ -13,7 +13,7 @@ from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 @click.group(invoke_without_command=True)
 @click.pass_context
 def authenticate(context: click.Context):
-    """ Authenticates your machine to associate CLI with your cycode account """
+    """Authenticates your machine to associate CLI with your cycode account"""
     if context.invoked_subcommand is not None:
         # if it is a subcommand do nothing
         return
@@ -33,7 +33,7 @@ def authenticate(context: click.Context):
 @authenticate.command(name='check')
 @click.pass_context
 def authorization_check(context: click.Context):
-    """ Check your machine associating CLI with your cycode account """
+    """Check your machine associating CLI with your cycode account"""
     printer = ConsolePrinter(context)
 
     passed_auth_check_res = CliResult(success=True, message='You are authorized')
@@ -59,12 +59,10 @@ def _handle_exception(context: click.Context, e: Exception):
 
     errors: CliErrors = {
         AuthProcessError: CliError(
-            code='auth_error',
-            message='Authentication failed. Please try again later using the command `cycode auth`'
+            code='auth_error', message='Authentication failed. Please try again later using the command `cycode auth`'
         ),
         NetworkError: CliError(
-            code='cycode_error',
-            message='Authentication failed. Please try again later using the command `cycode auth`'
+            code='cycode_error', message='Authentication failed. Please try again later using the command `cycode auth`'
         ),
     }
 

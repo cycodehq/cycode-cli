@@ -7,7 +7,6 @@ from cycode.cli.user_settings.base_file_manager import BaseFileManager
 
 
 class CredentialsManager(BaseFileManager):
-
     HOME_PATH: str = Path.home()
     CYCODE_HIDDEN_DIRECTORY: str = '.cycode'
     FILE_NAME: str = 'credentials.yaml'
@@ -38,10 +37,7 @@ class CredentialsManager(BaseFileManager):
         return client_id, client_secret
 
     def update_credentials_file(self, client_id: str, client_secret: str):
-        credentials = {
-            self.CLIENT_ID_FIELD_NAME: client_id,
-            self.CLIENT_SECRET_FIELD_NAME: client_secret
-        }
+        credentials = {self.CLIENT_ID_FIELD_NAME: client_id, self.CLIENT_SECRET_FIELD_NAME: client_secret}
 
         filename = self.get_filename()
         self.write_content_to_file(credentials)

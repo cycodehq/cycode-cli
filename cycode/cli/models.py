@@ -12,10 +12,7 @@ class Document:
         self.unique_id = unique_id
 
     def __repr__(self) -> str:
-        return (
-            "path:{0}, "
-            "content:{1}".format(self.path, self.content)
-        )
+        return "path:{0}, " "content:{1}".format(self.path, self.content)
 
 
 class DocumentDetections:
@@ -24,10 +21,7 @@ class DocumentDetections:
         self.detections = detections
 
     def __repr__(self) -> str:
-        return (
-            "document:{0}, "
-            "detections:{1}".format(self.document, self.detections)
-        )
+        return "document:{0}, " "detections:{1}".format(self.document, self.detections)
 
 
 class Severity(Enum):

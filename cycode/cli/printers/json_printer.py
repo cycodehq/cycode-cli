@@ -13,18 +13,12 @@ if TYPE_CHECKING:
 
 class JsonPrinter(BasePrinter):
     def print_result(self, result: CliResult) -> None:
-        result = {
-            'result': result.success,
-            'message': result.message
-        }
+        result = {'result': result.success, 'message': result.message}
 
         click.secho(self.get_data_json(result))
 
     def print_error(self, error: CliError) -> None:
-        result = {
-            'error': error.code,
-            'message': error.message
-        }
+        result = {'error': error.code, 'message': error.message}
 
         click.secho(self.get_data_json(result))
 
@@ -40,8 +34,8 @@ class JsonPrinter(BasePrinter):
 
     def _get_json_scan_result(self, detections: dict) -> str:
         result = {
-            'scan_id': 'DEPRECATED',    # FIXME(MarshalX): we need change JSON struct to support multiple scan results
-            'detections': detections
+            'scan_id': 'DEPRECATED',  # FIXME(MarshalX): we need change JSON struct to support multiple scan results
+            'detections': detections,
         }
 
         return self.get_data_json(result)

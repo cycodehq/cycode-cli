@@ -42,7 +42,7 @@ class TextPrinter(BasePrinter):
                 )
 
     def _print_document_detections(
-            self, document_detections: DocumentDetections, scan_id: str, report_url: Optional[str]
+        self, document_detections: DocumentDetections, scan_id: str, report_url: Optional[str]
     ):
         document = document_detections.document
         lines_to_display = self._get_lines_to_display_count()
@@ -51,7 +51,7 @@ class TextPrinter(BasePrinter):
             self._print_detection_code_segment(detection, document, lines_to_display)
 
     def _print_detection_summary(
-            self, detection: Detection, document_path: str, scan_id: str, report_url: Optional[str]
+        self, detection: Detection, document_path: str, scan_id: str, report_url: Optional[str]
     ):
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
 
@@ -81,15 +81,23 @@ class TextPrinter(BasePrinter):
         start_line = detection_line - math.ceil(code_segment_size / 2)
         return 0 if start_line < 0 else start_line
 
-    def _print_line_of_code_segment(self, document: Document, line: str, line_number: int,
-                                    detection_position_in_line: int, violation_length: int, is_detection_line: bool):
+    def _print_line_of_code_segment(
+        self,
+        document: Document,
+        line: str,
+        line_number: int,
+        detection_position_in_line: int,
+        violation_length: int,
+        is_detection_line: bool,
+    ):
         if is_detection_line:
             self._print_detection_line(document, line, line_number, detection_position_in_line, violation_length)
         else:
             self._print_line(document, line, line_number)
 
-    def _print_detection_line(self, document: Document, line: str, line_number: int, detection_position_in_line: int,
-                              violation_length: int) -> None:
+    def _print_detection_line(
+        self, document: Document, line: str, line_number: int, detection_position_in_line: int, violation_length: int
+    ) -> None:
         click.echo(
             f'{self._get_line_number_style(line_number)} '
             f'{self._get_detection_line_style(line, document.is_git_diff_format, detection_position_in_line, violation_length)}'
@@ -106,19 +114,21 @@ class TextPrinter(BasePrinter):
         if self.scan_type != SECRET_SCAN_TYPE or start_position < 0 or length < 0:
             return self._get_line_style(line, is_git_diff, line_color)
 
-        violation = line[start_position: start_position + length]
+        violation = line[start_position : start_position + length]
         if not self.show_secret:
             violation = obfuscate_text(violation)
 
-        line_to_violation = line[0: start_position]
-        line_from_violation = line[start_position + length:]
+        line_to_violation = line[0:start_position]
+        line_from_violation = line[start_position + length :]
 
-        return f'{self._get_line_style(line_to_violation, is_git_diff, line_color)}' \
-               f'{self._get_line_style(violation, is_git_diff, line_color, underline=True)}' \
-               f'{self._get_line_style(line_from_violation, is_git_diff, line_color)}'
+        return (
+            f'{self._get_line_style(line_to_violation, is_git_diff, line_color)}'
+            f'{self._get_line_style(violation, is_git_diff, line_color, underline=True)}'
+            f'{self._get_line_style(line_from_violation, is_git_diff, line_color)}'
+        )
 
     def _get_line_style(
-            self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False
+        self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False
     ) -> str:
         if color is None:
             color = self._get_line_color(line, is_git_diff)
@@ -138,13 +148,16 @@ class TextPrinter(BasePrinter):
         return self.WHITE_COLOR_NAME
 
     def _get_line_number_style(self, line_number: int):
-        return f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} ' \
-               f'{click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
+        return (
+            f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} '
+            f'{click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
+        )
 
     def _get_lines_to_display_count(self) -> int:
         result_printer_configuration = config.get('result_printer')
-        lines_to_display_of_scan = result_printer_configuration.get(self.scan_type, {}) \
-            .get(self.command_scan_type, {}).get('lines_to_display')
+        lines_to_display_of_scan = (
+            result_printer_configuration.get(self.scan_type, {}).get(self.command_scan_type, {}).get('lines_to_display')
+        )
         if lines_to_display_of_scan:
             return lines_to_display_of_scan
 
@@ -152,8 +165,11 @@ class TextPrinter(BasePrinter):
 
     def _print_detection_from_file(self, detection: Detection, document: Document, code_segment_size: int):
         detection_details = detection.detection_details
-        detection_line = detection_details.get('line', -1) if self.scan_type == SECRET_SCAN_TYPE else \
-            detection_details.get('line_in_file', -1)
+        detection_line = (
+            detection_details.get('line', -1)
+            if self.scan_type == SECRET_SCAN_TYPE
+            else detection_details.get('line_in_file', -1)
+        )
         detection_position = detection_details.get('start_position', -1)
         violation_length = detection_details.get('length', -1)
 
@@ -170,8 +186,14 @@ class TextPrinter(BasePrinter):
 
             current_line = file_lines[current_line_index]
             is_detection_line = current_line_index == detection_line
-            self._print_line_of_code_segment(document, current_line, current_line_index + 1, detection_position_in_line,
-                                             violation_length, is_detection_line)
+            self._print_line_of_code_segment(
+                document,
+                current_line,
+                current_line_index + 1,
+                detection_position_in_line,
+                violation_length,
+                is_detection_line,
+            )
         click.echo()
 
     def _print_detection_from_git_diff(self, detection: Detection, document: Document):
@@ -187,8 +209,13 @@ class TextPrinter(BasePrinter):
         detection_position_in_line = get_position_in_line(git_diff_content, detection_position)
 
         click.echo()
-        self._print_detection_line(document, detection_line, detection_line_number_in_original_file,
-                                   detection_position_in_line, violation_length)
+        self._print_detection_line(
+            document,
+            detection_line,
+            detection_line_number_in_original_file,
+            detection_position_in_line,
+            violation_length,
+        )
         click.echo()
 
     def _is_git_diff_based_scan(self):

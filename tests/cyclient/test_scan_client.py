@@ -52,7 +52,7 @@ def get_zipped_file_scan_response(url: str, scan_id: UUID = None) -> responses.R
 
     json_response = {
         'did_detect': True,
-        'scan_id': str(scan_id),     # not always as expected due to _get_scan_id and passing scan_id to cxt of CLI
+        'scan_id': str(scan_id),  # not always as expected due to _get_scan_id and passing scan_id to cxt of CLI
         'detections_per_file': [
             {
                 'file_name': str(_ZIP_CONTENT_PATH.joinpath('secrets.py')),
@@ -73,13 +73,13 @@ def get_zipped_file_scan_response(url: str, scan_id: UUID = None) -> responses.R
                             'file_path': str(_ZIP_CONTENT_PATH),
                             'file_name': 'secrets.py',
                             'file_extension': '.py',
-                            'should_resolve_upon_branch_deletion': False
-                        }
+                            'should_resolve_upon_branch_deletion': False,
+                        },
                     }
-                ]
+                ],
             }
         ],
-        'report_url': None
+        'report_url': None,
     }
 
     return responses.Response(method=responses.POST, url=url, json=json_response, status=200)
@@ -99,7 +99,7 @@ def test_zipped_file_scan(scan_type: str, scan_client: ScanClient, api_token_res
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4()
 
-    responses.add(api_token_response)   # mock token based client
+    responses.add(api_token_response)  # mock token based client
     responses.add(get_zipped_file_scan_response(url, expected_scan_id))
 
     zipped_file_scan_response = scan_client.zipped_file_scan(
@@ -114,7 +114,7 @@ def test_zipped_file_scan_unauthorized_error(scan_type: str, scan_client: ScanCl
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
 
-    responses.add(api_token_response)   # mock token based client
+    responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=url, status=401)
 
     with pytest.raises(HttpUnauthorizedError) as e_info:
@@ -132,7 +132,7 @@ def test_zipped_file_scan_bad_request_error(scan_type: str, scan_client: ScanCli
     expected_status_code = 400
     expected_response_text = 'Bad Request'
 
-    responses.add(api_token_response)   # mock token based client
+    responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=url, status=expected_status_code, body=expected_response_text)
 
     with pytest.raises(CycodeError) as e_info:
@@ -159,7 +159,7 @@ def test_zipped_file_scan_timeout_error(scan_type: str, scan_client: ScanClient,
     timeout_error = Timeout()
     timeout_error.response = timeout_response
 
-    responses.add(api_token_response)   # mock token based client
+    responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=scan_url, body=timeout_error, status=504)
 
     with pytest.raises(CycodeError) as e_info:
@@ -175,7 +175,7 @@ def test_zipped_file_scan_connection_error(scan_type: str, scan_client: ScanClie
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
 
-    responses.add(api_token_response)   # mock token based client
+    responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=url, body=ProxyError())
 
     with pytest.raises(CycodeError) as e_info:

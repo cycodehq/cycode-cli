@@ -179,9 +179,7 @@ class CompositeProgressBar(BaseProgressBar):
         cur_val = self._section_values.get(self._current_section.section, 0)
         if cur_val >= max_val:
             next_section = _PROGRESS_BAR_SECTIONS[self._current_section.section.next()]
-            logger.debug(
-                f'_update_current_section: {self._current_section.section} -> {next_section.section}'
-            )
+            logger.debug(f'_update_current_section: {self._current_section.section} -> {next_section.section}')
 
             self._current_section = next_section
             self._current_section_value = 0

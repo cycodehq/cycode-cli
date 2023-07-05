@@ -80,11 +80,7 @@ class AuthManager:
     def _build_login_url(self, code_challenge: str, session_id: str):
         app_url = self.configuration_manager.get_cycode_app_url()
         login_url = f'{app_url}/account/sign-in'
-        query_params = {
-            'source': 'cycode_cli',
-            'code_challenge': code_challenge,
-            'session_id': session_id
-        }
+        query_params = {'source': 'cycode_cli', 'code_challenge': code_challenge, 'session_id': session_id}
         # TODO(MarshalX). Use auth_client instead and don't depend on "requests" lib here
         request = Request(url=login_url, params=query_params)
         return request.prepare().url
@@ -95,9 +91,12 @@ class AuthManager:
         return code_challenge, code_verifier
 
     def _is_api_token_process_completed(self, api_token_polling_response: ApiTokenGenerationPollingResponse) -> bool:
-        return api_token_polling_response is not None \
-               and api_token_polling_response.status == self.COMPLETED_POLLING_STATUS
+        return (
+            api_token_polling_response is not None
+            and api_token_polling_response.status == self.COMPLETED_POLLING_STATUS
+        )
 
     def _is_api_token_process_failed(self, api_token_polling_response: ApiTokenGenerationPollingResponse) -> bool:
-        return api_token_polling_response is not None \
-               and api_token_polling_response.status == self.FAILED_POLLING_STATUS
+        return (
+            api_token_polling_response is not None and api_token_polling_response.status == self.FAILED_POLLING_STATUS
+        )

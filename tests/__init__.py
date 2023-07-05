@@ -23,7 +23,7 @@ POD_MOCK = {
                 "kind": "Deployment",
                 "name": "nginx-deployment",
             }
-        ]
+        ],
     }
 }
 

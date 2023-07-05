@@ -7,32 +7,75 @@ INFRA_CONFIGURATION_SCAN_TYPE = 'iac'
 SCA_SCAN_TYPE = "sca"
 SAST_SCAN_TYPE = "sast"
 
-INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
-    '.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile'
-]
+INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = ['.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile']
 
 SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = [
-    '.7z', '.bmp', '.bz2', '.dmg', '.exe', '.gif', '.gz', '.ico', '.jar', '.jpg', '.jpeg', '.png', '.rar',
-    '.realm', '.s7z', '.svg', '.tar', '.tif', '.tiff', '.webp', '.zi', '.lock', '.css', '.less', '.dll',
-    '.enc', '.deb', '.obj', '.model'
+    '.7z',
+    '.bmp',
+    '.bz2',
+    '.dmg',
+    '.exe',
+    '.gif',
+    '.gz',
+    '.ico',
+    '.jar',
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.rar',
+    '.realm',
+    '.s7z',
+    '.svg',
+    '.tar',
+    '.tif',
+    '.tiff',
+    '.webp',
+    '.zi',
+    '.lock',
+    '.css',
+    '.less',
+    '.dll',
+    '.enc',
+    '.deb',
+    '.obj',
+    '.model',
 ]
 
 SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
-    'cargo.lock', 'cargo.toml',
-    'composer.json', 'composer.lock',
-    'go.sum', 'go.mod', 'gopkg.lock',
-    'pom.xml', 'build.gradle', 'gradle.lockfile', 'build.gradle.kts',
-    'package.json', 'package-lock.json', 'yarn.lock', 'npm-shrinkwrap.json',
-    'packages.config', 'project.assets.json', 'packages.lock.json', 'nuget.config', '.csproj',
-    'gemfile', 'gemfile.lock',
-    'build.sbt', 'build.scala', 'build.sbt.lock',
-    'pyproject.toml', 'poetry.lock',
-    'pipfile', 'pipfile.lock', 'requirements.txt', 'setup.py'
+    'cargo.lock',
+    'cargo.toml',
+    'composer.json',
+    'composer.lock',
+    'go.sum',
+    'go.mod',
+    'gopkg.lock',
+    'pom.xml',
+    'build.gradle',
+    'gradle.lockfile',
+    'build.gradle.kts',
+    'package.json',
+    'package-lock.json',
+    'yarn.lock',
+    'npm-shrinkwrap.json',
+    'packages.config',
+    'project.assets.json',
+    'packages.lock.json',
+    'nuget.config',
+    '.csproj',
+    'gemfile',
+    'gemfile.lock',
+    'build.sbt',
+    'build.scala',
+    'build.sbt.lock',
+    'pyproject.toml',
+    'poetry.lock',
+    'pipfile',
+    'pipfile.lock',
+    'requirements.txt',
+    'setup.py',
 ]
 
-SCA_EXCLUDED_PATHS = [
-    'node_modules'
-]
+SCA_EXCLUDED_PATHS = ['node_modules']
 
 PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     "crates": ["Cargo.lock", "Cargo.toml"],
@@ -47,7 +90,7 @@ PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     "pypi_poetry": ["pyproject.toml", "poetry.lock"],
     "pypi_pipenv": ["Pipfile", "Pipfile.lock"],
     "pypi_requirements": ["requirements.txt"],
-    "pypi_setup": ["setup.py"]
+    "pypi_setup": ["setup.py"],
 }
 
 COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]

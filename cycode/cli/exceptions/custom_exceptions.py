@@ -13,8 +13,10 @@ class NetworkError(CycodeError):
         super().__init__(self.error_message)
 
     def __str__(self):
-        return f'error occurred during the request. status code: {self.status_code}, error message: ' \
-               f'{self.error_message}'
+        return (
+            f'error occurred during the request. status code: {self.status_code}, error message: '
+            f'{self.error_message}'
+        )
 
 
 class ScanAsyncError(CycodeError):

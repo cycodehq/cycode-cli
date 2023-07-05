@@ -4,14 +4,18 @@ import responses
 from requests import Timeout
 
 from cycode.cyclient.auth_client import AuthClient
-from cycode.cyclient.models import AuthenticationSession, ApiTokenGenerationPollingResponse, \
-    ApiTokenGenerationPollingResponseSchema
+from cycode.cyclient.models import (
+    AuthenticationSession,
+    ApiTokenGenerationPollingResponse,
+    ApiTokenGenerationPollingResponseSchema,
+)
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 
 
 @pytest.fixture(scope='module')
 def code_challenge() -> str:
     from cycode.cli.auth.auth_manager import AuthManager
+
     code_challenge, _ = AuthManager()._generate_pkce_code_pair()
     return code_challenge
 
@@ -19,6 +23,7 @@ def code_challenge() -> str:
 @pytest.fixture(scope='module')
 def code_verifier() -> str:
     from cycode.cli.auth.auth_manager import AuthManager
+
     _, code_verifier = AuthManager()._generate_pkce_code_pair()
     return code_verifier
 
@@ -31,18 +36,12 @@ def auth_client() -> AuthClient:
 @pytest.fixture(scope='module', name='start_url')
 def auth_start_url(client: AuthClient) -> str:
     # TODO(MarshalX): create database of constants of endpoints. remove hardcoded paths
-    return client.cycode_client.build_full_url(
-        client.cycode_client.api_url,
-        f'{client.AUTH_CONTROLLER_PATH}/start'
-    )
+    return client.cycode_client.build_full_url(client.cycode_client.api_url, f'{client.AUTH_CONTROLLER_PATH}/start')
 
 
 @pytest.fixture(scope='module', name='token_url')
 def auth_token_url(client: AuthClient) -> str:
-    return client.cycode_client.build_full_url(
-        client.cycode_client.api_url,
-        f'{client.AUTH_CONTROLLER_PATH}/token'
-    )
+    return client.cycode_client.build_full_url(client.cycode_client.api_url, f'{client.AUTH_CONTROLLER_PATH}/token')
 
 
 _SESSION_ID = '4cff1234-a209-47ed-ab2f-85676912345c'
@@ -121,8 +120,8 @@ def test_get_api_token_success_completed(client: AuthClient, token_url: str, cod
             'secret': 'a123450a-42b2-4ad5-8bdd-c0130123456',
             'description': 'cycode cli api token',
             'createdByUserId': None,
-            'createdAt': '2023-04-26T11:38:54+00:00'
-        }
+            'createdAt': '2023-04-26T11:38:54+00:00',
+        },
     }
     expected_response = ApiTokenGenerationPollingResponseSchema().load(expected_json)
 
