@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, ClassVar, Dict, List
 
 import click
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class ConsolePrinter:
-    _AVAILABLE_PRINTERS = {
+    _AVAILABLE_PRINTERS: ClassVar[Dict[str, 'BasePrinter']] = {
         'text': TextPrinter,
         'json': JsonPrinter,
         'table': TablePrinter,

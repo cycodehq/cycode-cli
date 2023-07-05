@@ -28,7 +28,7 @@ class Severity(Enum):
     INFO = -1
     LOW = 0
     MEDIUM = 1
-    MODERATE = 1
+    MODERATE = 1  # noqa: PIE796. TODO(MarshalX): rework. should not be Enum
     HIGH = 2
     CRITICAL = 3
 

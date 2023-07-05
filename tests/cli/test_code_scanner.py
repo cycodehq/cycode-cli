@@ -6,7 +6,7 @@ from click import ClickException
 from git import InvalidGitRepositoryError
 from requests import Response
 
-from cycode.cli.code_scanner import _handle_exception, _is_file_relevant_for_sca_scan, exclude_irrelevant_files  # noqa
+from cycode.cli.code_scanner import _handle_exception, _is_file_relevant_for_sca_scan
 from cycode.cli.exceptions import custom_exceptions
 
 

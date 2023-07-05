@@ -103,7 +103,13 @@ class ZippedFileScanResultSchema(Schema):
 
 
 class ScanResult(Schema):
-    def __init__(self, did_detect: bool, scan_id: Optional[str] = None, detections: Optional[List[Detection]] = None, err: Optional[str] = None):
+    def __init__(
+        self,
+        did_detect: bool,
+        scan_id: Optional[str] = None,
+        detections: Optional[List[Detection]] = None,
+        err: Optional[str] = None,
+    ):
         super().__init__()
         self.did_detect = did_detect
         self.scan_id = scan_id

@@ -35,6 +35,8 @@ CONTEXT = {}
         'pre_commit': code_scanner.pre_commit_scan,
         'pre_receive': code_scanner.pre_receive_scan,
     },
+    short_help='Scan content for secrets/IaC/sca/SAST violations. '
+    'You need to specify which scan type: ci/commit_history/path/repository/etc',
 )
 @click.option(
     '--scan-type',
@@ -100,7 +102,9 @@ CONTEXT = {}
     '--monitor',
     is_flag=True,
     default=False,
-    help="When specified, the scan results will be recorded in the knowledge graph. Please note that when working in 'monitor' mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation).(supported for SCA scan type only).",
+    help="When specified, the scan results will be recorded in the knowledge graph. "
+    "Please note that when working in 'monitor' mode, the knowledge graph "
+    "will not be updated as a result of SCM events (Push, Repo creation).(supported for SCA scan type only).",
     type=bool,
     required=False,
 )
@@ -108,7 +112,8 @@ CONTEXT = {}
     '--report',
     is_flag=True,
     default=False,
-    help='When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution',
+    help='When specified, a violations report will be generated. '
+    'A URL link to the report will be printed as an output to the command execution',
     type=bool,
     required=False,
 )
@@ -126,7 +131,6 @@ def code_scan(
     monitor,
     report,
 ):
-    """Scan content for secrets/IaC/sca/SAST violations, You need to specify which scan type: ci/commit_history/path/repository/etc"""
     if show_secret:
         context.obj['show_secret'] = show_secret
     else:

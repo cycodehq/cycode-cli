@@ -4,8 +4,8 @@ from typing import Optional
 
 import click
 
+from cycode.cli import consts
 from cycode.cli.config import config, configuration_manager
-from cycode.cli.consts import *
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.utils.path_utils import get_absolute_path
 from cycode.cli.utils.string_utils import hash_string_to_sha256, obfuscate_text
@@ -21,9 +21,10 @@ CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE = (
 credentials_manager = CredentialsManager()
 
 
-@click.command()
+@click.command(
+    short_help='Initial command to authenticate your CLI client with Cycode using client ID and client secret'
+)
 def set_credentials():
-    """Initial command to authenticate your CLI client with Cycode using client ID and client secret"""
     click.echo(f'Update credentials in file ({credentials_manager.get_filename()})')
     current_client_id, current_client_secret = credentials_manager.get_credentials_from_file()
     client_id = _get_client_id_input(current_client_id)
@@ -89,31 +90,30 @@ def add_exclusions(
     if not by_value and not by_sha and not by_path and not by_rule and not by_package:
         raise click.ClickException('ignore by type is missing')
 
+    if any(by is not None for by in [by_value, by_sha]) and scan_type != consts.SECRET_SCAN_TYPE:
+        raise click.ClickException('this exclude is supported only for secret scan type')
+
     if by_value is not None:
-        if scan_type != SECRET_SCAN_TYPE:
-            raise click.ClickException('exclude by value is supported only for secret scan type')
-        exclusion_type = EXCLUSIONS_BY_VALUE_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_VALUE_SECTION_NAME
         exclusion_value = hash_string_to_sha256(by_value)
     elif by_sha is not None:
-        if scan_type != SECRET_SCAN_TYPE:
-            raise click.ClickException('exclude by sha is supported only for secret scan type')
-        exclusion_type = EXCLUSIONS_BY_SHA_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_SHA_SECTION_NAME
         exclusion_value = by_sha
     elif by_path is not None:
         absolute_path = get_absolute_path(by_path)
         if not _is_path_to_ignore_exists(absolute_path):
             raise click.ClickException('the provided path to ignore by is not exist')
-        exclusion_type = EXCLUSIONS_BY_PATH_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_PATH_SECTION_NAME
         exclusion_value = get_absolute_path(absolute_path)
     elif by_package is not None:
-        if scan_type != SCA_SCAN_TYPE:
+        if scan_type != consts.SCA_SCAN_TYPE:
             raise click.ClickException('exclude by package is supported only for sca scan type')
         if not _is_package_pattern_valid(by_package):
             raise click.ClickException('wrong package pattern. should be name@version.')
-        exclusion_type = EXCLUSIONS_BY_PACKAGE_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_PACKAGE_SECTION_NAME
         exclusion_value = by_package
     else:
-        exclusion_type = EXCLUSIONS_BY_RULE_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_RULE_SECTION_NAME
         exclusion_value = by_rule
 
     configuration_scope = 'global' if is_global else 'local'

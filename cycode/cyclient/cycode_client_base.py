@@ -1,5 +1,5 @@
 import platform
-from typing import Dict, Optional
+from typing import ClassVar, Dict, Optional
 
 from requests import Response, exceptions, request
 
@@ -29,7 +29,7 @@ def get_cli_user_agent() -> str:
 
 
 class CycodeClientBase:
-    MANDATORY_HEADERS: Dict[str, str] = {'User-Agent': get_cli_user_agent()}
+    MANDATORY_HEADERS: ClassVar[Dict[str, str]] = {'User-Agent': get_cli_user_agent()}
 
     def __init__(self, api_url: str):
         self.timeout = config.timeout
@@ -80,7 +80,8 @@ class CycodeClientBase:
     def _handle_exception(self, e: Exception):
         if isinstance(e, exceptions.Timeout):
             raise NetworkError(504, 'Timeout Error', e.response)
-        elif isinstance(e, exceptions.HTTPError):
+
+        if isinstance(e, exceptions.HTTPError):
             self._handle_http_exception(e)
         elif isinstance(e, exceptions.ConnectionError):
             raise NetworkError(502, 'Connection Error', e.response)

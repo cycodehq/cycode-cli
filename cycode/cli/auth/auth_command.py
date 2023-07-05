@@ -11,12 +11,13 @@ from cycode.cyclient import logger
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
 
-@click.group(invoke_without_command=True)
+@click.group(
+    invoke_without_command=True, short_help='Authenticates your machine to associate CLI with your cycode account'
+)
 @click.pass_context
 def authenticate(context: click.Context):
-    """Authenticates your machine to associate CLI with your cycode account"""
     if context.invoked_subcommand is not None:
-        # if it is a subcommand do nothing
+        # if it is a subcommand, do nothing
         return
 
     try:

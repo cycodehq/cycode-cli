@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 start_scan_time = time.time()
 
 
-@click.command()
+@click.command(short_help='Scan git repository including its history')
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.option(
     '--branch',
@@ -59,7 +59,6 @@ start_scan_time = time.time()
 )
 @click.pass_context
 def scan_repository(context: click.Context, path: str, branch: str):
-    """Scan git repository including its history"""
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
 
@@ -93,7 +92,7 @@ def scan_repository(context: click.Context, path: str, branch: str):
         _handle_exception(context, e)
 
 
-@click.command()
+@click.command(short_help='Scan all the commits history in this git repository')
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.option(
     '--commit_range',
@@ -105,7 +104,6 @@ def scan_repository(context: click.Context, path: str, branch: str):
 )
 @click.pass_context
 def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
-    """Scan all the commits history in this git repository"""
     try:
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
@@ -171,19 +169,19 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
-@click.command()
+@click.command(
+    short_help='Execute scan in a CI environment which relies on the '
+    'CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables'
+)
 @click.pass_context
 def scan_ci(context: click.Context):
-    """Execute scan in a CI environment which relies on the
-    CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables"""
     return scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
-@click.command()
+@click.command(short_help='Scan the files in the path supplied in the command')
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.pass_context
 def scan_path(context: click.Context, path):
-    """Scan the files in the path supplied in the command"""
     logger.debug('Starting path scan process, %s', {'path': path})
     files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
@@ -191,11 +189,10 @@ def scan_path(context: click.Context, path):
     return scan_disk_files(context, path, files_to_scan)
 
 
-@click.command()
+@click.command(short_help='Use this command to scan the content that was not committed yet')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]):
-    """Use this command to scan the content that was not committed yet"""
     scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
@@ -215,11 +212,10 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-@click.command()
+@click.command(short_help='Use this command to scan commits on the server side before pushing them to the repository')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_receive_scan(context: click.Context, ignored_args: List[str]):
-    """Use this command to scan commits on the server side before pushing them to the repository"""
     try:
         scan_type = context.obj['scan_type']
         if scan_type != consts.SECRET_SCAN_TYPE:
@@ -646,7 +642,8 @@ def poll_scan_results(
 
         if scan_details.scan_status == consts.SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_id, scan_details)
-        elif scan_details.scan_status == consts.SCAN_STATUS_ERROR:
+
+        if scan_details.scan_status == consts.SCAN_STATUS_ERROR:
             raise custom_exceptions.ScanAsyncError(
                 f'Error occurred while trying to scan zip file. {scan_details.message}'
             )
@@ -765,7 +762,7 @@ def get_diff_file_path(file):
 
 
 def get_diff_file_content(file):
-    return file.diff.decode('utf-8', errors='replace')
+    return file.diff.decode('UTF-8', errors='replace')
 
 
 def should_process_git_object(obj, _: int) -> bool:
@@ -838,7 +835,6 @@ def exclude_irrelevant_detections(
     return _exclude_detections_by_severity(relevant_detections, scan_type, severity_threshold)
 
 
-
 def _exclude_detections_by_severity(
     detections: List[Detection], scan_type: str, severity_threshold: str
 ) -> List[Detection]:
@@ -861,9 +857,12 @@ def _exclude_detections_by_scan_type(
         return exclude_detections_in_deleted_lines(detections)
 
     exclude_in_deleted_lines = configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type)
-    if command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES:
-        if scan_type == consts.SECRET_SCAN_TYPE and exclude_in_deleted_lines:
-            return exclude_detections_in_deleted_lines(detections)
+    if (
+        command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
+        and scan_type == consts.SECRET_SCAN_TYPE
+        and exclude_in_deleted_lines
+    ):
+        return exclude_detections_in_deleted_lines(detections)
 
     return detections
 
@@ -1063,7 +1062,8 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
             filename.endswith(supported_file_extension)
             for supported_file_extension in consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES
         )
-    elif scan_type == consts.SCA_SCAN_TYPE:
+
+    if scan_type == consts.SCA_SCAN_TYPE:
         return any(
             filename.endswith(supported_file) for supported_file in consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES
         )

@@ -56,6 +56,7 @@ def _get_section_length(section: 'ProgressBarSection') -> int:
 
 
 class BaseProgressBar(ABC):
+    @abstractmethod
     def __init__(self, *args, **kwargs):
         pass
 
@@ -226,7 +227,7 @@ if __name__ == '__main__':
     bar.start()
 
     for bar_section in ProgressBarSection:
-        section_capacity = random.randint(500, 1000)
+        section_capacity = random.randint(500, 1000)  # noqa: S311
         bar.set_section_length(bar_section, section_capacity)
 
         for _i in range(section_capacity):

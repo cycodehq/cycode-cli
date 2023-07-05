@@ -98,10 +98,11 @@ class TextPrinter(BasePrinter):
     def _print_detection_line(
         self, document: Document, line: str, line_number: int, detection_position_in_line: int, violation_length: int
     ) -> None:
-        click.echo(
-            f'{self._get_line_number_style(line_number)} '
-            f'{self._get_detection_line_style(line, document.is_git_diff_format, detection_position_in_line, violation_length)}'
+        detection_line = self._get_detection_line_style(
+            line, document.is_git_diff_format, detection_position_in_line, violation_length
         )
+
+        click.echo(f'{self._get_line_number_style(line_number)} {detection_line}')
 
     def _print_line(self, document: Document, line: str, line_number: int):
         line_no = self._get_line_number_style(line_number)

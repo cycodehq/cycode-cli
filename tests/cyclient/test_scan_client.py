@@ -29,7 +29,8 @@ def zip_scan_resources(scan_type: str, scan_client: ScanClient):
 def get_zipped_file_scan_url(scan_type: str, scan_client: ScanClient) -> str:
     api_url = scan_client.scan_cycode_client.api_url
     # TODO(MarshalX): create method in the scan client to build this url
-    return f'{api_url}/{scan_client.scan_config.get_service_name(scan_type)}/{scan_client.SCAN_CONTROLLER_PATH}/zipped-file'
+    service_url = f'{api_url}/{scan_client.scan_config.get_service_name(scan_type)}'
+    return f'{service_url}/{scan_client.SCAN_CONTROLLER_PATH}/zipped-file'
 
 
 def get_test_zip_file(scan_type: str) -> InMemoryZip:

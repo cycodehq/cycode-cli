@@ -35,7 +35,7 @@ def get_content_size(content: str):
 
 
 def convert_string_to_bytes(content: str):
-    return bytes(content, 'utf-8')
+    return bytes(content, 'UTF-8')
 
 
 def hash_string_to_sha256(content: str):
@@ -45,7 +45,7 @@ def hash_string_to_sha256(content: str):
 def generate_random_string(string_len: int):
     # letters, digits, and symbols
     characters = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(characters) for _ in range(string_len))
+    return ''.join(random.choice(characters) for _ in range(string_len))  # noqa: S311
 
 
 def get_position_in_line(text: str, position: int) -> int:

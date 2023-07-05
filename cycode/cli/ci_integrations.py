@@ -49,12 +49,12 @@ def gitlab_range():
 def get_commit_range():
     if os.getenv('GITHUB_ACTIONS'):
         return github_action_range()
-    elif os.getenv('CIRCLECI'):
+    if os.getenv('CIRCLECI'):
         return circleci_range()
-    elif os.getenv('GITLAB_CI'):
+    if os.getenv('GITLAB_CI'):
         return gitlab_range()
-    else:
-        raise click.ClickException('CI framework is not supported')
+
+    raise click.ClickException('CI framework is not supported')
 
 
 NO_COMMITS = '0000000000000000000000000000000000000000'
