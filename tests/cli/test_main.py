@@ -34,7 +34,9 @@ def test_passing_output_option(
 
     responses.add(get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client)))
     responses.add(api_token_response)
-    # scan report is not mocked. This raise connection error on attempt to report scan. it doesn't perform real request
+    # Scan report is not mocked.
+    # This raises connection error on the attempt to report scan.
+    # It doesn't perform real request
 
     args = ['scan', '--soft-fail', 'path', str(_PATH_TO_SCAN)]
 
@@ -58,4 +60,4 @@ def test_passing_output_option(
         output = json.loads(result.output)
         assert 'scan_id' in output
     else:
-        assert 'Scan Results' in result.output
+        assert 'Scan ID' in result.output

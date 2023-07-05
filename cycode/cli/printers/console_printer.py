@@ -2,13 +2,14 @@ import click
 from typing import List, TYPE_CHECKING
 
 from cycode.cli.exceptions.custom_exceptions import CycodeError
-from cycode.cli.models import DocumentDetections, CliResult, CliError
+from cycode.cli.models import CliResult, CliError
 from cycode.cli.printers.table_printer import TablePrinter
 from cycode.cli.printers.sca_table_printer import SCATablePrinter
 from cycode.cli.printers.json_printer import JsonPrinter
 from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
     from cycode.cli.printers.base_printer import BasePrinter
 
 
@@ -31,9 +32,9 @@ class ConsolePrinter:
         if self._printer_class is None:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
 
-    def print_scan_results(self, detections_results_list: List[DocumentDetections]) -> None:
+    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
         printer = self._get_scan_printer()
-        printer.print_scan_results(detections_results_list)
+        printer.print_scan_results(local_scan_results)
 
     def _get_scan_printer(self) -> 'BasePrinter':
         printer_class = self._printer_class

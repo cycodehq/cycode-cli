@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, AnyStr
 import pathspec
 import os
 from pathlib import Path
@@ -65,10 +65,10 @@ def join_paths(path: str, filename: str) -> str:
     return os.path.join(path, filename)
 
 
-def get_file_content(file_path: str) -> Optional[str]:
+def get_file_content(file_path: str) -> Optional[AnyStr]:
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, 'r', encoding='UTF-8') as f:
             content = f.read()
         return content
-    except FileNotFoundError:
+    except (FileNotFoundError, UnicodeDecodeError):
         return None

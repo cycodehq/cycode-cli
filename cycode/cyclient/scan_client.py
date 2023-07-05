@@ -38,6 +38,7 @@ class ScanClient:
             data={'scan_id': scan_id, 'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
             files=files
         )
+
         return self.parse_zipped_file_scan_response(response)
 
     def zipped_file_scan_async(self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict,
@@ -72,14 +73,20 @@ class ScanClient:
         return models.ScanDetailsResponseSchema().load(response.json())
 
     def get_scan_detections(self, scan_id: str) -> List[dict]:
-        detections = []
-        page_number = 0
-        page_size = 200
-        last_response_size = 0
+        url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}'
+        params = {'scan_id': scan_id}
 
+        page_size = 200
+
+        detections = []
+
+        page_number = 0
+        last_response_size = 0
         while page_number == 0 or last_response_size == page_size:
-            url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}?scan_id={scan_id}&page_size={page_size}&page_number={page_number}'
-            response = self.scan_cycode_client.get(url_path=url_path).json()
+            params['page_size'] = page_size
+            params['page_number'] = page_number
+
+            response = self.scan_cycode_client.get(url_path=url_path, params=params).json()
             detections.extend(response)
 
             page_number += 1

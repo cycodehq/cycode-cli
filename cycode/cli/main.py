@@ -3,9 +3,10 @@ import logging
 import click
 import sys
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from cycode import __version__
+from cycode.cli.consts import NO_ISSUES_STATUS_CODE, ISSUE_DETECTED_STATUS_CODE
 from cycode.cli.models import Severity
 from cycode.cli.config import config
 from cycode.cli import code_scanner
@@ -14,14 +15,17 @@ from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.user_settings_commands import set_credentials, add_exclusions
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.utils import scan_utils
+from cycode.cli.utils.progress_bar import get_progress_bar
 from cycode.cyclient import logger
+from cycode.cli.utils.progress_bar import logger as progress_bar_logger
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
 from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
 
+if TYPE_CHECKING:
+    from cycode.cyclient.scan_client import ScanClient
+
 CONTEXT = dict()
-ISSUE_DETECTED_STATUS_CODE = 1
-NO_ISSUES_STATUS_CODE = 0
 
 
 @click.group(
@@ -106,25 +110,41 @@ def code_scan(context: click.Context, scan_type, client_id, secret, show_secret,
         context.obj["soft_fail"] = config["soft_fail"]
 
     context.obj["scan_type"] = scan_type
+
+    # save backward compatability with old style command
     if output is not None:
-        # save backward compatability with old style command
         context.obj["output"] = output
+        if output == "json":
+            context.obj["no_progress_meter"] = True
+
     context.obj["client"] = get_cycode_client(client_id, secret)
     context.obj["severity_threshold"] = severity_threshold
     context.obj["monitor"] = monitor
     context.obj["report"] = report
+
     _sca_scan_to_context(context, sca_scan)
+
+    context.obj["progress_bar"] = get_progress_bar(hidden=context.obj["no_progress_meter"])
+    context.obj["progress_bar"].start()
 
     return 1
 
 
 @code_scan.result_callback()
 @click.pass_context
-def finalize(context: click.Context, *args, **kwargs):
-    if context.obj["soft_fail"]:
+def finalize(context: click.Context, *_, **__):
+    progress_bar = context.obj.get('progress_bar')
+    if progress_bar:
+        progress_bar.stop()
+
+    if context.obj['soft_fail']:
         sys.exit(0)
 
-    sys.exit(ISSUE_DETECTED_STATUS_CODE if _should_fail_scan(context) else NO_ISSUES_STATUS_CODE)
+    exit_code = NO_ISSUES_STATUS_CODE
+    if _should_fail_scan(context):
+        exit_code = ISSUE_DETECTED_STATUS_CODE
+
+    sys.exit(exit_code)
 
 
 @click.group(
@@ -140,6 +160,9 @@ def finalize(context: click.Context, *args, **kwargs):
     "--verbose", "-v", is_flag=True, default=False, help="Show detailed logs",
 )
 @click.option(
+    '--no-progress-meter', is_flag=True, default=False, help='Do not show the progress meter',
+)
+@click.option(
     '--output',
     default='text',
     help='Specify the output (text/json/table), the default is text',
@@ -153,23 +176,29 @@ def finalize(context: click.Context, *args, **kwargs):
 )
 @click.version_option(__version__, prog_name="cycode")
 @click.pass_context
-def main_cli(context: click.Context, verbose: bool, output: str, user_agent: Optional[str]):
+def main_cli(context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]):
     context.ensure_object(dict)
     configuration_manager = ConfigurationManager()
 
     verbose = verbose or configuration_manager.get_verbose_flag()
     context.obj['verbose'] = verbose
+    # TODO(MarshalX): rework setting the log level for loggers
     log_level = logging.DEBUG if verbose else logging.INFO
     logger.setLevel(log_level)
+    progress_bar_logger.setLevel(log_level)
 
     context.obj['output'] = output
+    if output == 'json':
+        no_progress_meter = True
+
+    context.obj['no_progress_meter'] = no_progress_meter
 
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
         CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
 
 
-def get_cycode_client(client_id, client_secret):
+def get_cycode_client(client_id: str, client_secret: str) -> 'ScanClient':
     if not client_id or not client_secret:
         client_id, client_secret = _get_configured_credentials()
         if not client_id:

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import click
 
@@ -7,7 +7,10 @@ from cycode.cli.printers.table_models import ColumnInfoBuilder, ColumnWidthsConf
 from cycode.cli.printers.table import Table
 from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
 from cycode.cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE
-from cycode.cli.models import DocumentDetections, Detection, Document
+from cycode.cli.models import Detection, Document
+
+if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
 
 # Creation must have strict order. Represents the order of the columns in the table (from left to right)
 ISSUE_TYPE_COLUMN = ColumnInfoBuilder.build(name='Issue Type')
@@ -19,6 +22,8 @@ LINE_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Line Number')
 COLUMN_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Column Number')
 VIOLATION_LENGTH_COLUMN = ColumnInfoBuilder.build(name='Violation Length')
 VIOLATION_COLUMN = ColumnInfoBuilder.build(name='Violation')
+SCAN_ID_COLUMN = ColumnInfoBuilder.build(name='Scan ID')
+REPORT_URL_COLUMN = ColumnInfoBuilder.build(name='Report URL')
 
 COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
     SECRET_SCAN_TYPE: {
@@ -27,29 +32,36 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
         FILE_PATH_COLUMN: 2,
         SECRET_SHA_COLUMN: 2,
         VIOLATION_COLUMN: 2,
+        SCAN_ID_COLUMN: 2,
     },
     INFRA_CONFIGURATION_SCAN_TYPE: {
         ISSUE_TYPE_COLUMN: 4,
         RULE_ID_COLUMN: 3,
         FILE_PATH_COLUMN: 3,
+        SCAN_ID_COLUMN: 2,
     },
     SAST_SCAN_TYPE: {
         ISSUE_TYPE_COLUMN: 7,
         RULE_ID_COLUMN: 2,
         FILE_PATH_COLUMN: 3,
+        SCAN_ID_COLUMN: 2,
     },
 }
 
 
 class TablePrinter(BaseTablePrinter):
-    def _print_results(self, results: List[DocumentDetections]) -> None:
+    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         table = self._get_table()
         if self.scan_type in COLUMN_WIDTHS_CONFIG:
             table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
 
-        for result in results:
-            for detection in result.detections:
-                self._enrich_table_with_values(table, detection, result.document)
+        for local_scan_result in local_scan_results:
+            for document_detections in local_scan_result.document_detections:
+                report_url = local_scan_result.report_url if local_scan_result.report_url else 'N/A'
+                for detection in document_detections.detections:
+                    table.set(REPORT_URL_COLUMN, report_url)
+                    table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
+                    self._enrich_table_with_values(table, detection, document_detections.document)
 
         click.echo(table.get_table().draw())
 
@@ -61,6 +73,8 @@ class TablePrinter(BaseTablePrinter):
         table.add(FILE_PATH_COLUMN)
         table.add(LINE_NUMBER_COLUMN)
         table.add(COLUMN_NUMBER_COLUMN)
+        table.add(SCAN_ID_COLUMN)
+        table.add(REPORT_URL_COLUMN)
 
         if self._is_git_repository():
             table.add(COMMIT_SHA_COLUMN)
