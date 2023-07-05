@@ -17,17 +17,14 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
     try:
         dependencies = shell(command, command_timeout)
     except Exception as e:
-        logger.debug('Failed to restore dependencies shell comment. %s',
-                     {'filename': file_name, 'exception': str(e)})
+        logger.debug('Failed to restore dependencies shell comment. %s', {'filename': file_name, 'exception': str(e)})
         return None
 
     return dependencies
 
 
 class BaseRestoreMavenDependencies(ABC):
-
-    def __init__(self, context: click.Context, is_git_diff: bool,
-                 command_timeout: int):
+    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int):
         self.context = context
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
@@ -37,8 +34,11 @@ class BaseRestoreMavenDependencies(ABC):
         return restore_dependencies_document
 
     def get_manifest_file_path(self, document: Document) -> str:
-        return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get(
-            'monitor') else document.path
+        return (
+            join_paths(self.context.params.get('path'), document.path)
+            if self.context.obj.get('monitor')
+            else document.path
+        )
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:
@@ -54,8 +54,9 @@ class BaseRestoreMavenDependencies(ABC):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        document = Document(build_dep_tree_path(document.path, self.get_lock_file_name()),
-                            execute_command(self.get_command(manifest_file_path), manifest_file_path,
-                                            self.command_timeout),
-                            self.is_git_diff)
+        document = Document(
+            build_dep_tree_path(document.path, self.get_lock_file_name()),
+            execute_command(self.get_command(manifest_file_path), manifest_file_path, self.command_timeout),
+            self.is_git_diff,
+        )
         return document

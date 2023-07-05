@@ -12,16 +12,18 @@ from cycode.cli.consts import *
 from cycode.cyclient import logger
 
 CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE = 'Successfully configured CLI credentials!'
-CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE = 'Note that the credentials that already exist in environment' \
-                                                       ' variables (CYCODE_CLIENT_ID and CYCODE_CLIENT_SECRET) take' \
-                                                       ' precedent over these credentials; either update or remove ' \
-                                                       'the environment variables.'
+CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE = (
+    'Note that the credentials that already exist in environment'
+    ' variables (CYCODE_CLIENT_ID and CYCODE_CLIENT_SECRET) take'
+    ' precedent over these credentials; either update or remove '
+    'the environment variables.'
+)
 credentials_manager = CredentialsManager()
 
 
 @click.command()
 def set_credentials():
-    """ Initial command to authenticate your CLI client with Cycode using client ID and client secret """
+    """Initial command to authenticate your CLI client with Cycode using client ID and client secret"""
     click.echo(f'Update credentials in file ({credentials_manager.get_filename()})')
     current_client_id, current_client_secret = credentials_manager.get_credentials_from_file()
     client_id = _get_client_id_input(current_client_id)
@@ -35,28 +37,55 @@ def set_credentials():
 
 
 @click.command()
-@click.option("--by-value", type=click.STRING, required=False,
-              help="Ignore a specific value while scanning for secrets")
-@click.option("--by-sha", type=click.STRING, required=False,
-              help='Ignore a specific SHA512 representation of a string while scanning for secrets')
-@click.option("--by-path", type=click.STRING, required=False,
-              help='Avoid scanning a specific path. Need to specify scan type ')
-@click.option("--by-rule", type=click.STRING, required=False,
-              help='Ignore scanning a specific secret rule ID/IaC rule ID. Need to specify scan type.')
-@click.option("--by-package", type=click.STRING, required=False,
-              help='Ignore scanning a specific package version while running SCA scan. expected pattern - name@version')
-@click.option('--scan-type', '-t', default='secret',
-              help="""
+@click.option(
+    "--by-value", type=click.STRING, required=False, help="Ignore a specific value while scanning for secrets"
+)
+@click.option(
+    "--by-sha",
+    type=click.STRING,
+    required=False,
+    help='Ignore a specific SHA512 representation of a string while scanning for secrets',
+)
+@click.option(
+    "--by-path", type=click.STRING, required=False, help='Avoid scanning a specific path. Need to specify scan type '
+)
+@click.option(
+    "--by-rule",
+    type=click.STRING,
+    required=False,
+    help='Ignore scanning a specific secret rule ID/IaC rule ID. Need to specify scan type.',
+)
+@click.option(
+    "--by-package",
+    type=click.STRING,
+    required=False,
+    help='Ignore scanning a specific package version while running SCA scan. expected pattern - name@version',
+)
+@click.option(
+    '--scan-type',
+    '-t',
+    default='secret',
+    help="""
               \b
               Specify the scan you wish to execute (secrets/iac), 
               the default is secrets
               """,
-              type=click.Choice(config['scans']['supported_scans']), required=False)
-@click.option('--global', '-g', 'is_global', is_flag=True, default=False, required=False,
-              help='Add an ignore rule and update it in the global .cycode config file')
-def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str,
-                   is_global: bool):
-    """ Ignore a specific value, path or rule ID """
+    type=click.Choice(config['scans']['supported_scans']),
+    required=False,
+)
+@click.option(
+    '--global',
+    '-g',
+    'is_global',
+    is_flag=True,
+    default=False,
+    required=False,
+    help='Add an ignore rule and update it in the global .cycode config file',
+)
+def add_exclusions(
+    by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str, is_global: bool
+):
+    """Ignore a specific value, path or rule ID"""
     if not by_value and not by_sha and not by_path and not by_rule and not by_package:
         raise click.ClickException("ignore by type is missing")
 
@@ -88,24 +117,29 @@ def add_exclusions(by_value: str, by_sha: str, by_path: str, by_rule: str, by_pa
         exclusion_value = by_rule
 
     configuration_scope = 'global' if is_global else 'local'
-    logger.debug('Adding ignore rule, %s',
-                 {'configuration_scope': configuration_scope, 'exclusion_type': exclusion_type,
-                  'exclusion_value': exclusion_value})
+    logger.debug(
+        'Adding ignore rule, %s',
+        {
+            'configuration_scope': configuration_scope,
+            'exclusion_type': exclusion_type,
+            'exclusion_value': exclusion_value,
+        },
+    )
     configuration_manager.add_exclusion(configuration_scope, scan_type, exclusion_type, exclusion_value)
 
 
 def _get_client_id_input(current_client_id: str) -> str:
-    new_client_id = click.prompt(f'cycode client id [{_obfuscate_credential(current_client_id)}]',
-                                 default='',
-                                 show_default=False)
+    new_client_id = click.prompt(
+        f'cycode client id [{_obfuscate_credential(current_client_id)}]', default='', show_default=False
+    )
 
     return current_client_id if not new_client_id else new_client_id
 
 
 def _get_client_secret_input(current_client_secret: str) -> str:
-    new_client_secret = click.prompt(f'cycode client secret [{_obfuscate_credential(current_client_secret)}]',
-                                     default='',
-                                     show_default=False)
+    new_client_secret = click.prompt(
+        f'cycode client secret [{_obfuscate_credential(current_client_secret)}]', default='', show_default=False
+    )
     return current_client_secret if not new_client_secret else new_client_secret
 
 
@@ -121,8 +155,9 @@ def _are_credentials_exist_in_environment_variables():
     return client_id is not None or client_secret is not None
 
 
-def _should_update_credentials(current_client_id: str, current_client_secret: str, new_client_id: str,
-                               new_client_secret: str) -> bool:
+def _should_update_credentials(
+    current_client_id: str, current_client_secret: str, new_client_id: str, new_client_secret: str
+) -> bool:
     return current_client_id != new_client_id or current_client_secret != new_client_secret
 
 

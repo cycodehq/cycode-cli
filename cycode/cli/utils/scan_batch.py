@@ -2,8 +2,12 @@ import os
 from multiprocessing.pool import ThreadPool
 from typing import List, TYPE_CHECKING, Callable, Tuple, Dict
 
-from cycode.cli.consts import SCAN_BATCH_MAX_SIZE_IN_BYTES, SCAN_BATCH_MAX_FILES_COUNT, SCAN_BATCH_SCANS_PER_CPU, \
-    SCAN_BATCH_MAX_PARALLEL_SCANS
+from cycode.cli.consts import (
+    SCAN_BATCH_MAX_SIZE_IN_BYTES,
+    SCAN_BATCH_MAX_FILES_COUNT,
+    SCAN_BATCH_SCANS_PER_CPU,
+    SCAN_BATCH_MAX_PARALLEL_SCANS,
+)
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import ProgressBarSection
 
@@ -13,9 +17,9 @@ if TYPE_CHECKING:
 
 
 def split_documents_into_batches(
-        documents: List[Document],
-        max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
-        max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
+    documents: List[Document],
+    max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
+    max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
 ) -> List[List[Document]]:
     batches = []
 
@@ -44,11 +48,11 @@ def _get_threads_count() -> int:
 
 
 def run_parallel_batched_scan(
-        scan_function: Callable[[List[Document]], Tuple[str, 'CliError', 'LocalScanResult']],
-        documents: List[Document],
-        progress_bar: 'BaseProgressBar',
-        max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
-        max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
+    scan_function: Callable[[List[Document]], Tuple[str, 'CliError', 'LocalScanResult']],
+    documents: List[Document],
+    progress_bar: 'BaseProgressBar',
+    max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
+    max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
 ) -> Tuple[Dict[str, 'CliError'], List['LocalScanResult']]:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
     progress_bar.set_section_length(ProgressBarSection.SCAN, len(batches))  # * 3

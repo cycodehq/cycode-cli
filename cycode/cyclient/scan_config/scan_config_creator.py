@@ -14,8 +14,7 @@ def create_scan_client(client_id: str, client_secret: str) -> ScanClient:
     else:
         scan_cycode_client, scan_config = create_scan(client_id, client_secret)
 
-    return ScanClient(scan_cycode_client=scan_cycode_client,
-                      scan_config=scan_config)
+    return ScanClient(scan_cycode_client=scan_cycode_client, scan_config=scan_config)
 
 
 def create_scan(client_id: str, client_secret: str) -> Tuple[CycodeTokenBasedClient, DefaultScanConfig]:

@@ -7,7 +7,6 @@ Send requests with api token
 
 
 class CycodeDevBasedClient(CycodeClientBase):
-
     def __init__(self, api_url):
         super().__init__(api_url)
 

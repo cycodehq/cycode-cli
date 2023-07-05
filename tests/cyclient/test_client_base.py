@@ -8,7 +8,7 @@ def test_mandatory_headers():
     }
 
     client = CycodeClientBase(config.cycode_api_url)
-    
+
     assert client.MANDATORY_HEADERS == expected_headers
 
 
@@ -21,9 +21,7 @@ def test_get_request_headers():
 def test_get_request_headers_with_additional():
     client = CycodeClientBase(config.cycode_api_url)
 
-    additional_headers = {
-        'Authorize': 'Token test'
-    }
+    additional_headers = {'Authorize': 'Token test'}
     expected_headers = {**client.MANDATORY_HEADERS, **additional_headers}
 
     assert client.get_request_headers(additional_headers) == expected_headers

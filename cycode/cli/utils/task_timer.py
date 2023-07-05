@@ -5,7 +5,6 @@ from types import TracebackType
 
 
 class FunctionContext:
-
     def __init__(self, function: Callable, args: List = None, kwargs: Dict = None):
         self.function = function
         self.args = args or []
@@ -20,8 +19,8 @@ class TimerThread(Thread):
         timeout - the amount of time to count until timeout in seconds
         quit_function (Mandatory) - function to perform when reaching to timeout
     """
-    def __init__(self, timeout: int,
-                 quit_function: FunctionContext):
+
+    def __init__(self, timeout: int, quit_function: FunctionContext):
         Thread.__init__(self)
         self._timeout = timeout
         self._quit_function = quit_function
@@ -56,8 +55,8 @@ class TimeoutAfter:
         quit_function (Optional) - function to perform when reaching to timeout,
                                    the default option is to interrupt main thread
     """
-    def __init__(self, timeout: int,
-                 quit_function: Optional[FunctionContext] = None):
+
+    def __init__(self, timeout: int, quit_function: Optional[FunctionContext] = None):
         self.timeout = timeout
         self._quit_function = quit_function or FunctionContext(function=self.timeout_function)
         self.timer = TimerThread(timeout, quit_function=self._quit_function)
@@ -66,8 +65,9 @@ class TimeoutAfter:
         if self.timeout:
             self.timer.start()
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException],
-                 exc_tb: Optional[TracebackType]) -> None:
+    def __exit__(
+        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
+    ) -> None:
         if self.timeout:
             self.timer.stop()
 

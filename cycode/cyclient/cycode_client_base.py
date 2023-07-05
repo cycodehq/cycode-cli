@@ -42,48 +42,24 @@ class CycodeClientBase:
     def enrich_user_agent(user_agent_suffix: str) -> None:
         CycodeClientBase.MANDATORY_HEADERS['User-Agent'] += f' {user_agent_suffix}'
 
-    def post(
-            self,
-            url_path: str,
-            body: dict = None,
-            headers: dict = None,
-            **kwargs
-    ) -> Response:
+    def post(self, url_path: str, body: dict = None, headers: dict = None, **kwargs) -> Response:
         return self._execute(method='post', endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def put(
-            self,
-            url_path: str,
-            body: dict = None,
-            headers: dict = None,
-            **kwargs
-    ) -> Response:
+    def put(self, url_path: str, body: dict = None, headers: dict = None, **kwargs) -> Response:
         return self._execute(method='put', endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def get(
-            self,
-            url_path: str,
-            headers: dict = None,
-            **kwargs
-    ) -> Response:
+    def get(self, url_path: str, headers: dict = None, **kwargs) -> Response:
         return self._execute(method='get', endpoint=url_path, headers=headers, **kwargs)
 
     def _execute(
-            self,
-            method: str,
-            endpoint: str,
-            headers: dict = None,
-            without_auth: bool = False,
-            **kwargs
+        self, method: str, endpoint: str, headers: dict = None, without_auth: bool = False, **kwargs
     ) -> Response:
         url = self.build_full_url(self.api_url, endpoint)
         logger.debug(f'Executing {method.upper()} request to {url}')
 
         try:
             headers = self.get_request_headers(headers, without_auth=without_auth)
-            response = request(
-                method=method, url=url, timeout=self.timeout, headers=headers, **kwargs
-            )
+            response = request(method=method, url=url, timeout=self.timeout, headers=headers, **kwargs)
 
             logger.debug(f'Response {response.status_code} from {url}. Content: {response.text}')
 

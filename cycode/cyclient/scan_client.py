@@ -28,42 +28,51 @@ class ScanClient:
         response = self.scan_cycode_client.post(url_path=url_path, files=files)
         return self.parse_scan_response(response)
 
-    def zipped_file_scan(self, scan_type: str, zip_file: InMemoryZip, scan_id: str, scan_parameters: dict,
-                         is_git_diff: bool = False) -> models.ZippedFileScanResult:
+    def zipped_file_scan(
+        self, scan_type: str, zip_file: InMemoryZip, scan_id: str, scan_parameters: dict, is_git_diff: bool = False
+    ) -> models.ZippedFileScanResult:
         url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/zipped-file'
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
 
         response = self.scan_cycode_client.post(
             url_path=url_path,
             data={'scan_id': scan_id, 'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
-            files=files
+            files=files,
         )
 
         return self.parse_zipped_file_scan_response(response)
 
-    def zipped_file_scan_async(self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict,
-                               is_git_diff: bool = False) -> models.ScanInitializationResponse:
+    def zipped_file_scan_async(
+        self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False
+    ) -> models.ScanInitializationResponse:
         url_path = f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{scan_type}/repository'
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
             url_path=url_path,
             data={'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
-            files=files
+            files=files,
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
-    def multiple_zipped_file_scan_async(self, from_commit_zip_file: InMemoryZip, to_commit_zip_file: InMemoryZip,
-                                        scan_type: str, scan_parameters: dict,
-                                        is_git_diff: bool = False) -> models.ScanInitializationResponse:
-        url_path = f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{scan_type}/repository/commit-range'
+    def multiple_zipped_file_scan_async(
+        self,
+        from_commit_zip_file: InMemoryZip,
+        to_commit_zip_file: InMemoryZip,
+        scan_type: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
+    ) -> models.ScanInitializationResponse:
+        url_path = (
+            f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{scan_type}/repository/commit-range'
+        )
         files = {
             'file_from_commit': ('multiple_files_scan.zip', from_commit_zip_file.read()),
-            'file_to_commit': ('multiple_files_scan.zip', to_commit_zip_file.read())
+            'file_to_commit': ('multiple_files_scan.zip', to_commit_zip_file.read()),
         }
         response = self.scan_cycode_client.post(
             url_path=url_path,
             data={'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
-            files=files
+            files=files,
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
@@ -100,9 +109,11 @@ class ScanClient:
         return response.json().get('count', 0)
 
     def commit_range_zipped_file_scan(
-            self, scan_type: str, zip_file: InMemoryZip, scan_id: str
+        self, scan_type: str, zip_file: InMemoryZip, scan_id: str
     ) -> models.ZippedFileScanResult:
-        url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/commit-range-zipped-file'
+        url_path = (
+            f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/commit-range-zipped-file'
+        )
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(url_path=url_path, data={'scan_id': scan_id}, files=files)
         return self.parse_zipped_file_scan_response(response)

@@ -31,9 +31,7 @@ def test_api_token_expired(token_based_client: CycodeTokenBasedClient, api_token
 
 
 def test_get_request_headers(token_based_client: CycodeTokenBasedClient, api_token: str):
-    token_based_headers = {
-        'Authorization': f'Bearer {_EXPECTED_API_TOKEN}'
-    }
+    token_based_headers = {'Authorization': f'Bearer {_EXPECTED_API_TOKEN}'}
     expected_headers = {**token_based_client.MANDATORY_HEADERS, **token_based_headers}
 
     assert token_based_client.get_request_headers() == expected_headers

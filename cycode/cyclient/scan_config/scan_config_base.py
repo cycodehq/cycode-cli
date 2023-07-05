@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class ScanConfigBase(ABC):
-
     @abstractmethod
     def get_service_name(self, scan_type):
         pass
@@ -17,7 +16,6 @@ class ScanConfigBase(ABC):
 
 
 class DevScanConfig(ScanConfigBase):
-
     def get_service_name(self, scan_type):
         if scan_type == 'secret':
             return '5025'
@@ -34,7 +32,6 @@ class DevScanConfig(ScanConfigBase):
 
 
 class DefaultScanConfig(ScanConfigBase):
-
     def get_service_name(self, scan_type):
         if scan_type == 'secret':
             return 'secret'

@@ -28,6 +28,6 @@ class InMemoryZip(object):
 def concat_unique_id(filename: str, unique_id: str) -> str:
     if filename.startswith(os.sep):
         # remove leading slash to join path correctly
-        filename = filename[len(os.sep):]
+        filename = filename[len(os.sep) :]
 
     return os.path.join(unique_id, filename)

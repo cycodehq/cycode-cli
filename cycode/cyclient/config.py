@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 from cycode.cli.consts import *
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
+
 # set io encoding (for windows)
 from .config_dev import DEV_MODE_ENV_VAR_NAME, DEV_TENANT_ID_ENV_VAR_NAME
 
@@ -16,7 +17,7 @@ logging.basicConfig(
     stream=sys.stdout,
     level=logging.DEBUG,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
@@ -32,7 +33,7 @@ DEFAULT_CONFIGURATION = {
     TIMEOUT_ENV_VAR_NAME: 300,
     LOGGING_LEVEL_ENV_VAR_NAME: logging.INFO,
     DEV_MODE_ENV_VAR_NAME: 'False',
-    BATCH_SIZE_ENV_VAR_NAME: 20
+    BATCH_SIZE_ENV_VAR_NAME: 20,
 }
 
 configuration = dict(DEFAULT_CONFIGURATION, **os.environ)

@@ -15,15 +15,19 @@ def ctx():
     return click.Context(click.Command('path'), obj={'verbose': False, 'output': 'text'})
 
 
-@pytest.mark.parametrize('exception, expected_soft_fail', [
-    (custom_exceptions.NetworkError(400, 'msg', Response()), True),
-    (custom_exceptions.ScanAsyncError('msg'), True),
-    (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
-    (custom_exceptions.ZipTooLargeError(1000), True),
-    (InvalidGitRepositoryError(), None),
-])
+@pytest.mark.parametrize(
+    'exception, expected_soft_fail',
+    [
+        (custom_exceptions.NetworkError(400, 'msg', Response()), True),
+        (custom_exceptions.ScanAsyncError('msg'), True),
+        (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
+        (custom_exceptions.ZipTooLargeError(1000), True),
+        (InvalidGitRepositoryError(), None),
+    ],
+)
 def test_handle_exception_soft_fail(
-        ctx: click.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool):
+    ctx: click.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool
+):
     with ctx:
         _handle_exception(ctx, exception)
 

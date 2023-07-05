@@ -4,8 +4,15 @@ from marshmallow import Schema, fields, EXCLUDE, post_load
 
 
 class Detection(Schema):
-    def __init__(self, detection_type_id: str, type: str, message: str, detection_details: dict,
-                 detection_rule_id: str, severity: Optional[str] = None):
+    def __init__(
+        self,
+        detection_type_id: str,
+        type: str,
+        message: str,
+        detection_details: dict,
+        detection_rule_id: str,
+        severity: Optional[str] = None,
+    ):
         super().__init__()
         self.message = message
         self.type = type
@@ -15,11 +22,13 @@ class Detection(Schema):
         self.detection_rule_id = detection_rule_id
 
     def __repr__(self) -> str:
-        return f'type:{self.type}, ' \
-               f'severity:{self.severity}, ' \
-               f'message:{self.message}, ' \
-               f'detection_details:{repr(self.detection_details)}, ' \
-               f'detection_rule_id:{self.detection_rule_id}'
+        return (
+            f'type:{self.type}, '
+            f'severity:{self.severity}, '
+            f'message:{self.message}, '
+            f'detection_details:{repr(self.detection_details)}, '
+            f'detection_rule_id:{self.detection_rule_id}'
+        )
 
 
 class DetectionSchema(Schema):
@@ -61,8 +70,14 @@ class DetectionsPerFileSchema(Schema):
 
 
 class ZippedFileScanResult(Schema):
-    def __init__(self, did_detect: bool, detections_per_file: List[DetectionsPerFile], report_url: Optional[str] = None,
-                 scan_id: str = None, err: str = None):
+    def __init__(
+        self,
+        did_detect: bool,
+        detections_per_file: List[DetectionsPerFile],
+        report_url: Optional[str] = None,
+        scan_id: str = None,
+        err: str = None,
+    ):
         super().__init__()
         self.did_detect = did_detect
         self.detections_per_file = detections_per_file
@@ -78,8 +93,7 @@ class ZippedFileScanResultSchema(Schema):
     did_detect = fields.Boolean()
     scan_id = fields.String()
     report_url = fields.String(allow_none=True)
-    detections_per_file = fields.List(
-        fields.Nested(DetectionsPerFileSchema))
+    detections_per_file = fields.List(fields.Nested(DetectionsPerFileSchema))
     err = fields.String()
 
     @post_load
@@ -102,8 +116,7 @@ class ScanResultSchema(Schema):
 
     did_detect = fields.Boolean()
     scan_id = fields.String()
-    detections = fields.List(
-        fields.Nested(DetectionSchema), required=False, allow_none=True)
+    detections = fields.List(fields.Nested(DetectionSchema), required=False, allow_none=True)
     err = fields.String()
 
     @post_load
@@ -131,8 +144,16 @@ class ScanInitializationResponseSchema(Schema):
 
 
 class ScanDetailsResponse(Schema):
-    def __init__(self, id: str = None, scan_status: str = None, results_count: int = None, metadata: str = None, message: str = None,
-                 scan_update_at: str = None, err: str = None):
+    def __init__(
+        self,
+        id: str = None,
+        scan_status: str = None,
+        results_count: int = None,
+        metadata: str = None,
+        message: str = None,
+        scan_update_at: str = None,
+        err: str = None,
+    ):
         super().__init__()
         self.id = id
         self.scan_status = scan_status
@@ -287,9 +308,9 @@ class ApiTokenGenerationPollingResponseSchema(Schema):
 
 class UserAgentOptionScheme(Schema):
     app_name = fields.String(required=True)  # ex. vscode_extension
-    app_version = fields.String(required=True)   # ex. 0.2.3
+    app_version = fields.String(required=True)  # ex. 0.2.3
     env_name = fields.String(required=True)  # ex.: Visual Studio Code
-    env_version = fields.String(required=True)   # ex. 1.78.2
+    env_version = fields.String(required=True)  # ex. 1.78.2
 
     @post_load
     def build_dto(self, data: dict, **_) -> 'UserAgentOption':
@@ -309,8 +330,10 @@ class UserAgentOption:
 
         Example: vscode_extension (AppVersion: 0.1.2; EnvName: vscode; EnvVersion: 1.78.2)
         """
-        return f'{self.app_name} ' \
-               f'(' \
-               f'AppVersion: {self.app_version}; ' \
-               f'EnvName: {self.env_name}; EnvVersion: {self.env_version}' \
-               f')'
+        return (
+            f'{self.app_name} '
+            f'('
+            f'AppVersion: {self.app_version}; '
+            f'EnvName: {self.env_name}; EnvVersion: {self.env_version}'
+            f')'
+        )

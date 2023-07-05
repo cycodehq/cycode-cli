@@ -35,7 +35,7 @@ class SCATablePrinter(BaseTablePrinter):
 
     @staticmethod
     def _extract_detections_per_detection_type_id(
-            local_scan_results: List['LocalScanResult']
+        local_scan_results: List['LocalScanResult'],
     ) -> Dict[str, List[Detection]]:
         detections_per_detection_type_id = defaultdict(list)
 
@@ -47,7 +47,7 @@ class SCATablePrinter(BaseTablePrinter):
         return detections_per_detection_type_id
 
     def _print_detection_per_detection_type_id(
-            self, detections_per_detection_type_id: Dict[str, List[Detection]]
+        self, detections_per_detection_type_id: Dict[str, List[Detection]]
     ) -> None:
         for detection_type_id in detections_per_detection_type_id:
             detections = detections_per_detection_type_id[detection_type_id]
@@ -84,9 +84,7 @@ class SCATablePrinter(BaseTablePrinter):
 
         return []
 
-    def _print_table_detections(
-            self, detections: List[Detection], headers: List[str], rows, title: str
-    ) -> None:
+    def _print_table_detections(self, detections: List[Detection], headers: List[str], rows, title: str) -> None:
         self._print_summary_issues(detections, title)
         text_table = Texttable()
         text_table.header(headers)
@@ -127,7 +125,7 @@ class SCATablePrinter(BaseTablePrinter):
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
             detection.detection_details.get('is_dev_dependency_str'),
-            dependency_paths
+            dependency_paths,
         ]
 
         if self._is_git_repository():
@@ -140,7 +138,7 @@ class SCATablePrinter(BaseTablePrinter):
         row = [
             detection.detection_details.get('advisory_severity'),
             *self._get_common_detection_fields(detection),
-            detection.detection_details.get('vulnerability_id')
+            detection.detection_details.get('vulnerability_id'),
         ]
 
         upgrade = ''
