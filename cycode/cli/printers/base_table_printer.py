@@ -1,11 +1,11 @@
 import abc
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import click
 
-from cycode.cli.printers.text_printer import TextPrinter
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.base_printer import BasePrinter
+from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult

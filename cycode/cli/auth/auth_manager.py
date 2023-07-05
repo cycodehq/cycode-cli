@@ -1,23 +1,24 @@
 import time
 import webbrowser
-from requests import Request
 from typing import Optional
 
+from requests import Request
+
 from cycode.cli.exceptions.custom_exceptions import AuthProcessError
-from cycode.cli.utils.string_utils import generate_random_string, hash_string_to_sha256
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
+from cycode.cli.utils.string_utils import generate_random_string, hash_string_to_sha256
+from cycode.cyclient import logger
 from cycode.cyclient.auth_client import AuthClient
 from cycode.cyclient.models import ApiToken, ApiTokenGenerationPollingResponse
-from cycode.cyclient import logger
 
 
 class AuthManager:
     CODE_VERIFIER_LENGTH = 101
     POLLING_WAIT_INTERVAL_IN_SECONDS = 3
     POLLING_TIMEOUT_IN_SECONDS = 180
-    FAILED_POLLING_STATUS = "Error"
-    COMPLETED_POLLING_STATUS = "Completed"
+    FAILED_POLLING_STATUS = 'Error'
+    COMPLETED_POLLING_STATUS = 'Completed'
 
     configuration_manager: ConfigurationManager
     credentials_manager: CredentialsManager
@@ -56,7 +57,7 @@ class AuthManager:
     def get_api_token(self, session_id: str, code_verifier: str) -> Optional[ApiToken]:
         api_token = self.get_api_token_polling(session_id, code_verifier)
         if api_token is None:
-            raise AuthProcessError("getting api token is completed, but the token is missing")
+            raise AuthProcessError('getting api token is completed, but the token is missing')
         return api_token
 
     def get_api_token_polling(self, session_id: str, code_verifier: str) -> Optional[ApiToken]:

@@ -1,9 +1,10 @@
 import json
-from typing import List
+from typing import List, Optional
 
 from requests import Response
 
 from cycode.cli.zip_file import InMemoryZip
+
 from . import models
 from .cycode_client_base import CycodeClientBase
 from .scan_config.scan_config_base import ScanConfigBase
@@ -24,7 +25,7 @@ class ScanClient:
 
     def file_scan(self, scan_type: str, path: str) -> models.ScanResult:
         url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}'
-        files = {'file': open(path, 'rb')}
+        files = {'file': open(path, 'rb')}  # noqa: SIM115 requests lib should care about closing
         response = self.scan_cycode_client.post(url_path=url_path, files=files)
         return self.parse_scan_response(response)
 
@@ -104,8 +105,8 @@ class ScanClient:
         return detections
 
     def get_scan_detections_count(self, scan_id: str) -> int:
-        url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count?scan_id={scan_id}'
-        response = self.scan_cycode_client.get(url_path=url_path)
+        url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count'
+        response = self.scan_cycode_client.get(url_path=url_path, params={'scan_id': scan_id})
         return response.json().get('count', 0)
 
     def commit_range_zipped_file_scan(
@@ -131,10 +132,12 @@ class ScanClient:
         return models.ZippedFileScanResultSchema().load(response.json())
 
     @staticmethod
-    def get_service_name(scan_type: str) -> str:
+    def get_service_name(scan_type: str) -> Optional[str]:
         if scan_type == 'secret':
             return 'secret'
-        elif scan_type == 'iac':
+        if scan_type == 'iac':
             return 'iac'
-        elif scan_type == 'sca' or scan_type == 'sast':
+        if scan_type == 'sca' or scan_type == 'sast':
             return 'scans'
+
+        return None

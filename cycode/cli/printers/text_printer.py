@@ -1,13 +1,13 @@
 import math
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 import click
 
-from cycode.cli.printers.base_printer import BasePrinter
-from cycode.cli.models import DocumentDetections, Detection, Document, CliResult, CliError
 from cycode.cli.config import config
-from cycode.cli.consts import SECRET_SCAN_TYPE, COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
-from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
+from cycode.cli.consts import COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SECRET_SCAN_TYPE
+from cycode.cli.models import CliError, CliResult, Detection, Document, DocumentDetections
+from cycode.cli.printers.base_printer import BasePrinter
+from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
@@ -98,10 +98,11 @@ class TextPrinter(BasePrinter):
     def _print_detection_line(
         self, document: Document, line: str, line_number: int, detection_position_in_line: int, violation_length: int
     ) -> None:
-        click.echo(
-            f'{self._get_line_number_style(line_number)} '
-            f'{self._get_detection_line_style(line, document.is_git_diff_format, detection_position_in_line, violation_length)}'
+        detection_line = self._get_detection_line_style(
+            line, document.is_git_diff_format, detection_position_in_line, violation_length
         )
+
+        click.echo(f'{self._get_line_number_style(line_number)} {detection_line}')
 
     def _print_line(self, document: Document, line: str, line_number: int):
         line_no = self._get_line_number_style(line_number)

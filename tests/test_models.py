@@ -1,14 +1,14 @@
-from cycode.cyclient.models import ResourcesCollection, InternalMetadata, K8SResource
+from cycode.cyclient.models import InternalMetadata, K8SResource, ResourcesCollection
 from tests import PODS_MOCK
 
 
 def test_batch_resources_to_json():
     batch = ResourcesCollection('pod', 'default', PODS_MOCK, 77777)
     json_dict = batch.to_json()
-    assert 'resources' in json_dict.keys()
-    assert 'namespace' in json_dict.keys()
-    assert 'total_count' in json_dict.keys()
-    assert 'type' in json_dict.keys()
+    assert 'resources' in json_dict
+    assert 'namespace' in json_dict
+    assert 'total_count' in json_dict
+    assert 'type' in json_dict
     assert json_dict['total_count'] == 77777
     assert json_dict['type'] == 'pod'
     assert json_dict['namespace'] == 'default'

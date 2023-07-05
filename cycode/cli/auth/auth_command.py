@@ -1,21 +1,23 @@
-import click
 import traceback
 
-from cycode.cli.models import CliResult, CliErrors, CliError
-from cycode.cli.printers import ConsolePrinter
+import click
+
 from cycode.cli.auth.auth_manager import AuthManager
+from cycode.cli.exceptions.custom_exceptions import AuthProcessError, HttpUnauthorizedError, NetworkError
+from cycode.cli.models import CliError, CliErrors, CliResult
+from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cli.exceptions.custom_exceptions import AuthProcessError, NetworkError, HttpUnauthorizedError
 from cycode.cyclient import logger
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
 
-@click.group(invoke_without_command=True)
+@click.group(
+    invoke_without_command=True, short_help='Authenticates your machine to associate CLI with your cycode account'
+)
 @click.pass_context
 def authenticate(context: click.Context):
-    """Authenticates your machine to associate CLI with your cycode account"""
     if context.invoked_subcommand is not None:
-        # if it is a subcommand do nothing
+        # if it is a subcommand, do nothing
         return
 
     try:

@@ -1,14 +1,14 @@
-import re
 import os.path
+import re
 from typing import Optional
 
 import click
 
-from cycode.cli.utils.string_utils import obfuscate_text, hash_string_to_sha256
-from cycode.cli.utils.path_utils import get_absolute_path
+from cycode.cli import consts
+from cycode.cli.config import config, configuration_manager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cli.config import configuration_manager, config
-from cycode.cli.consts import *
+from cycode.cli.utils.path_utils import get_absolute_path
+from cycode.cli.utils.string_utils import hash_string_to_sha256, obfuscate_text
 from cycode.cyclient import logger
 
 CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE = 'Successfully configured CLI credentials!'
@@ -21,9 +21,10 @@ CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE = (
 credentials_manager = CredentialsManager()
 
 
-@click.command()
+@click.command(
+    short_help='Initial command to authenticate your CLI client with Cycode using client ID and client secret'
+)
 def set_credentials():
-    """Initial command to authenticate your CLI client with Cycode using client ID and client secret"""
     click.echo(f'Update credentials in file ({credentials_manager.get_filename()})')
     current_client_id, current_client_secret = credentials_manager.get_credentials_from_file()
     client_id = _get_client_id_input(current_client_id)
@@ -38,25 +39,25 @@ def set_credentials():
 
 @click.command()
 @click.option(
-    "--by-value", type=click.STRING, required=False, help="Ignore a specific value while scanning for secrets"
+    '--by-value', type=click.STRING, required=False, help='Ignore a specific value while scanning for secrets'
 )
 @click.option(
-    "--by-sha",
+    '--by-sha',
     type=click.STRING,
     required=False,
     help='Ignore a specific SHA512 representation of a string while scanning for secrets',
 )
 @click.option(
-    "--by-path", type=click.STRING, required=False, help='Avoid scanning a specific path. Need to specify scan type '
+    '--by-path', type=click.STRING, required=False, help='Avoid scanning a specific path. Need to specify scan type '
 )
 @click.option(
-    "--by-rule",
+    '--by-rule',
     type=click.STRING,
     required=False,
     help='Ignore scanning a specific secret rule ID/IaC rule ID. Need to specify scan type.',
 )
 @click.option(
-    "--by-package",
+    '--by-package',
     type=click.STRING,
     required=False,
     help='Ignore scanning a specific package version while running SCA scan. expected pattern - name@version',
@@ -67,7 +68,7 @@ def set_credentials():
     default='secret',
     help="""
               \b
-              Specify the scan you wish to execute (secrets/iac), 
+              Specify the scan you wish to execute (secrets/iac),
               the default is secrets
               """,
     type=click.Choice(config['scans']['supported_scans']),
@@ -87,33 +88,32 @@ def add_exclusions(
 ):
     """Ignore a specific value, path or rule ID"""
     if not by_value and not by_sha and not by_path and not by_rule and not by_package:
-        raise click.ClickException("ignore by type is missing")
+        raise click.ClickException('ignore by type is missing')
+
+    if any(by is not None for by in [by_value, by_sha]) and scan_type != consts.SECRET_SCAN_TYPE:
+        raise click.ClickException('this exclude is supported only for secret scan type')
 
     if by_value is not None:
-        if scan_type != SECRET_SCAN_TYPE:
-            raise click.ClickException("exclude by value is supported only for secret scan type")
-        exclusion_type = EXCLUSIONS_BY_VALUE_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_VALUE_SECTION_NAME
         exclusion_value = hash_string_to_sha256(by_value)
     elif by_sha is not None:
-        if scan_type != SECRET_SCAN_TYPE:
-            raise click.ClickException("exclude by sha is supported only for secret scan type")
-        exclusion_type = EXCLUSIONS_BY_SHA_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_SHA_SECTION_NAME
         exclusion_value = by_sha
     elif by_path is not None:
         absolute_path = get_absolute_path(by_path)
         if not _is_path_to_ignore_exists(absolute_path):
-            raise click.ClickException("the provided path to ignore by is not exist")
-        exclusion_type = EXCLUSIONS_BY_PATH_SECTION_NAME
+            raise click.ClickException('the provided path to ignore by is not exist')
+        exclusion_type = consts.EXCLUSIONS_BY_PATH_SECTION_NAME
         exclusion_value = get_absolute_path(absolute_path)
     elif by_package is not None:
-        if scan_type != SCA_SCAN_TYPE:
-            raise click.ClickException("exclude by package is supported only for sca scan type")
+        if scan_type != consts.SCA_SCAN_TYPE:
+            raise click.ClickException('exclude by package is supported only for sca scan type')
         if not _is_package_pattern_valid(by_package):
-            raise click.ClickException("wrong package pattern. should be name@version.")
-        exclusion_type = EXCLUSIONS_BY_PACKAGE_SECTION_NAME
+            raise click.ClickException('wrong package pattern. should be name@version.')
+        exclusion_type = consts.EXCLUSIONS_BY_PACKAGE_SECTION_NAME
         exclusion_value = by_package
     else:
-        exclusion_type = EXCLUSIONS_BY_RULE_SECTION_NAME
+        exclusion_type = consts.EXCLUSIONS_BY_RULE_SECTION_NAME
         exclusion_value = by_rule
 
     configuration_scope = 'global' if is_global else 'local'
@@ -133,14 +133,14 @@ def _get_client_id_input(current_client_id: str) -> str:
         f'cycode client id [{_obfuscate_credential(current_client_id)}]', default='', show_default=False
     )
 
-    return current_client_id if not new_client_id else new_client_id
+    return new_client_id if new_client_id else current_client_id
 
 
 def _get_client_secret_input(current_client_secret: str) -> str:
     new_client_secret = click.prompt(
         f'cycode client secret [{_obfuscate_credential(current_client_secret)}]', default='', show_default=False
     )
-    return current_client_secret if not new_client_secret else new_client_secret
+    return new_client_secret if new_client_secret else current_client_secret
 
 
 def _get_credentials_update_result_message():
@@ -170,4 +170,4 @@ def _is_path_to_ignore_exists(path: str) -> bool:
 
 
 def _is_package_pattern_valid(package: str) -> bool:
-    return re.search("^[^@]+@[^@]+$", package) is not None
+    return re.search('^[^@]+@[^@]+$', package) is not None

@@ -1,14 +1,14 @@
 import os
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 import click
-from git import Repo, GitCommandError
+from git import GitCommandError, Repo
 
-from cycode.cli.consts import *
+from cycode.cli import consts
 from cycode.cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_dir, join_paths, get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cyclient import logger
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
@@ -33,7 +33,7 @@ def perform_pre_hook_range_scan_actions(
     git_head_documents: List[Document], pre_committed_documents: List[Document]
 ) -> None:
     repo = Repo(os.getcwd())
-    add_ecosystem_related_files_if_exists(git_head_documents, repo, GIT_HEAD_COMMIT_REV)
+    add_ecosystem_related_files_if_exists(git_head_documents, repo, consts.GIT_HEAD_COMMIT_REV)
     add_ecosystem_related_files_if_exists(pre_committed_documents)
 
 
@@ -43,7 +43,7 @@ def add_ecosystem_related_files_if_exists(
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
-            logger.debug("failed to resolve project file ecosystem: %s", doc.path)
+            logger.debug('failed to resolve project file ecosystem: %s', doc.path)
             continue
         documents_to_add = get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo)
         documents.extend(documents_to_add)
@@ -53,7 +53,7 @@ def get_doc_ecosystem_related_project_files(
     doc: Document, documents: List[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional[Repo]
 ) -> List[Document]:
     documents_to_add: List[Document] = []
-    for ecosystem_project_file in PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
+    for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
             file_content = (
@@ -73,7 +73,7 @@ def is_project_file_exists_in_documents(documents: List[Document], file: str) ->
 
 
 def get_project_file_ecosystem(document: Document) -> Optional[str]:
-    for ecosystem, project_files in PROJECT_FILES_BY_ECOSYSTEM_MAP.items():
+    for ecosystem, project_files in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.items():
         for project_file in project_files:
             if document.path.endswith(project_file):
                 return ecosystem
@@ -96,10 +96,10 @@ def try_restore_dependencies(
             is_monitor_action = context.obj.get('monitor')
             project_path = context.params.get('path')
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
-            logger.debug(f"Succeeded to generate dependencies tree on path: {manifest_file_path}")
+            logger.debug(f'Succeeded to generate dependencies tree on path: {manifest_file_path}')
 
         if restore_dependencies_document.path in documents_to_add:
-            logger.debug(f"Duplicate document on restore for path: {restore_dependencies_document.path}")
+            logger.debug(f'Duplicate document on restore for path: {restore_dependencies_document.path}')
         else:
             documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
 

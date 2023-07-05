@@ -1,13 +1,13 @@
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import click
 
-from cycode.cli.printers.base_table_printer import BaseTablePrinter
-from cycode.cli.printers.table_models import ColumnInfoBuilder, ColumnWidthsConfig
-from cycode.cli.printers.table import Table
-from cycode.cli.utils.string_utils import obfuscate_text, get_position_in_line
-from cycode.cli.consts import SECRET_SCAN_TYPE, INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE
+from cycode.cli.consts import INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE, SECRET_SCAN_TYPE
 from cycode.cli.models import Detection, Document
+from cycode.cli.printers.base_table_printer import BaseTablePrinter
+from cycode.cli.printers.table import Table
+from cycode.cli.printers.table_models import ColumnInfoBuilder, ColumnWidthsConfig
+from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult

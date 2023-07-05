@@ -1,8 +1,8 @@
 import os
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
-from cycode.cli.user_settings.base_file_manager import BaseFileManager
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
+from cycode.cli.user_settings.base_file_manager import BaseFileManager
 
 
 class ConfigFileManager(BaseFileManager):
@@ -36,8 +36,7 @@ class ConfigFileManager(BaseFileManager):
 
     def get_exclusions_by_scan_type(self, scan_type) -> Dict:
         exclusions_section = self._get_section(self.EXCLUSIONS_SECTION_NAME)
-        scan_type_exclusions = exclusions_section.get(scan_type, {})
-        return scan_type_exclusions
+        return exclusions_section.get(scan_type, {})
 
     def get_max_commits(self, command_scan_type) -> Optional[int]:
         return self._get_value_from_command_scan_type_configuration(command_scan_type, self.MAX_COMMITS_FIELD_NAME)
@@ -87,8 +86,7 @@ class ConfigFileManager(BaseFileManager):
 
     def _get_value_from_environment_section(self, field_name: str):
         environment_section = self._get_section(self.ENVIRONMENT_SECTION_NAME)
-        value = environment_section.get(field_name)
-        return value
+        return environment_section.get(field_name)
 
     def _get_scan_configuration_by_scan_type(self, command_scan_type: str) -> Dict:
         scan_section = self._get_section(self.SCAN_SECTION_NAME)
@@ -96,8 +94,7 @@ class ConfigFileManager(BaseFileManager):
 
     def _get_value_from_command_scan_type_configuration(self, command_scan_type: str, field_name: str):
         command_scan_type_configuration = self._get_scan_configuration_by_scan_type(command_scan_type)
-        value = command_scan_type_configuration.get(field_name)
-        return value
+        return command_scan_type_configuration.get(field_name)
 
     def _get_section(self, section_name: str) -> Dict:
         file_content = self.read_file()

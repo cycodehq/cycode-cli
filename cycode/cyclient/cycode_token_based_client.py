@@ -1,4 +1,5 @@
 from threading import Lock
+from typing import Optional
 
 import arrow
 
@@ -31,7 +32,7 @@ class CycodeTokenBasedClient(CycodeClient):
 
     def refresh_api_token(self) -> None:
         auth_response = self.post(
-            url_path=f'api/v1/auth/api-token',
+            url_path='api/v1/auth/api-token',
             body={'clientId': self.client_id, 'secret': self.client_secret},
             without_auth=True,
         )
@@ -40,7 +41,7 @@ class CycodeTokenBasedClient(CycodeClient):
         self._api_token = auth_response_data['token']
         self._expires_in = arrow.utcnow().shift(seconds=auth_response_data['expires_in'] * 0.8)
 
-    def get_request_headers(self, additional_headers: dict = None, without_auth=False) -> dict:
+    def get_request_headers(self, additional_headers: Optional[dict] = None, without_auth=False) -> dict:
         headers = super().get_request_headers(additional_headers=additional_headers)
 
         if not without_auth:

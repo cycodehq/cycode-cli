@@ -17,7 +17,7 @@ def shell(
         result = subprocess.run(
             command,
             timeout=timeout,
-            shell=execute_in_shell,
+            shell=execute_in_shell,  # noqa: S603
             check=True,
             capture_output=True,
         )
@@ -25,9 +25,9 @@ def shell(
         return result.stdout.decode('UTF-8').strip()
     except subprocess.CalledProcessError as e:
         logger.debug(f'Error occurred while running shell command. Exception: {e.stderr}')
-    except subprocess.TimeoutExpired:
-        raise click.Abort(f'Command "{command}" timed out')
+    except subprocess.TimeoutExpired as e:
+        raise click.Abort(f'Command "{command}" timed out') from e
     except Exception as e:
-        raise click.ClickException(f'Unhandled exception: {e}')
+        raise click.ClickException(f'Unhandled exception: {e}') from e
 
     return None

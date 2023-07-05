@@ -1,22 +1,20 @@
 import os
-from uuid import uuid4, UUID
+from typing import List, Optional
+from uuid import UUID, uuid4
 
 import pytest
 import requests
 import responses
-from typing import List
-
 from requests import Timeout
 from requests.exceptions import ProxyError
 
-from cycode.cli.config import config
-from cycode.cli.zip_file import InMemoryZip
-from cycode.cli.models import Document
 from cycode.cli.code_scanner import zip_documents_to_scan
-from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, CycodeError
+from cycode.cli.config import config
+from cycode.cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
+from cycode.cli.models import Document
+from cycode.cli.zip_file import InMemoryZip
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import TEST_FILES_PATH
-
 
 _ZIP_CONTENT_PATH = TEST_FILES_PATH.joinpath('zip_content').absolute()
 
@@ -31,7 +29,8 @@ def zip_scan_resources(scan_type: str, scan_client: ScanClient):
 def get_zipped_file_scan_url(scan_type: str, scan_client: ScanClient) -> str:
     api_url = scan_client.scan_cycode_client.api_url
     # TODO(MarshalX): create method in the scan client to build this url
-    return f'{api_url}/{scan_client.scan_config.get_service_name(scan_type)}/{scan_client.SCAN_CONTROLLER_PATH}/zipped-file'
+    service_url = f'{api_url}/{scan_client.scan_config.get_service_name(scan_type)}'
+    return f'{service_url}/{scan_client.SCAN_CONTROLLER_PATH}/zipped-file'
 
 
 def get_test_zip_file(scan_type: str) -> InMemoryZip:
@@ -46,7 +45,7 @@ def get_test_zip_file(scan_type: str) -> InMemoryZip:
     return zip_documents_to_scan(scan_type, InMemoryZip(), test_documents)
 
 
-def get_zipped_file_scan_response(url: str, scan_id: UUID = None) -> responses.Response:
+def get_zipped_file_scan_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
 

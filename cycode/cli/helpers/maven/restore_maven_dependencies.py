@@ -9,7 +9,7 @@ from cycode.cli.helpers.maven.base_restore_maven_dependencies import (
     execute_command,
 )
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_dir, get_file_content, join_paths
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 
 BUILD_MAVEN_FILE_NAME = 'pom.xml'
 MAVEN_CYCLONE_DEP_TREE_FILE_NAME = 'bom.json'

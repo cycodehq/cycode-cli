@@ -1,4 +1,3 @@
-import click
 import json
 import logging
 import os
@@ -6,49 +5,50 @@ import sys
 import time
 import traceback
 from platform import platform
-from uuid import uuid4, UUID
-from typing import TYPE_CHECKING, Callable, List, Optional, Dict, Tuple
-
-from git import Repo, NULL_TREE, InvalidGitRepositoryError
 from sys import getsizeof
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+from uuid import UUID, uuid4
 
-from cycode.cli.printers import ConsolePrinter
-from cycode.cli.models import Document, DocumentDetections, Severity, CliError, CliErrors, LocalScanResult
-from cycode.cli.ci_integrations import get_commit_range
+import click
+from git import NULL_TREE, InvalidGitRepositoryError, Repo
+
 from cycode.cli import consts
+from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.config import configuration_manager
-from cycode.cli.utils.progress_bar import ProgressBarSection
-from cycode.cli.utils.scan_utils import set_issue_detected
-from cycode.cli.utils.path_utils import (
-    is_sub_path,
-    is_binary_file,
-    get_file_size,
-    get_relevant_files_in_path,
-    get_path_by_os,
-    get_file_content,
-)
-from cycode.cli.utils.scan_batch import run_parallel_batched_scan
-from cycode.cli.utils.string_utils import get_content_size, is_binary_content
-from cycode.cli.utils.task_timer import TimeoutAfter
-from cycode.cli.utils import scan_utils
-from cycode.cli.user_settings.config_file_manager import ConfigFileManager
-from cycode.cli.zip_file import InMemoryZip
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.helpers import sca_code_scanner
-from cycode.cyclient import logger
+from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections, LocalScanResult, Severity
+from cycode.cli.printers import ConsolePrinter
+from cycode.cli.user_settings.config_file_manager import ConfigFileManager
+from cycode.cli.utils import scan_utils
+from cycode.cli.utils.path_utils import (
+    get_file_content,
+    get_file_size,
+    get_path_by_os,
+    get_relevant_files_in_path,
+    is_binary_file,
+    is_sub_path,
+)
+from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.progress_bar import logger as progress_bar_logger
-from cycode.cyclient.models import ZippedFileScanResult, Detection, DetectionsPerFile, DetectionSchema
+from cycode.cli.utils.scan_batch import run_parallel_batched_scan
+from cycode.cli.utils.scan_utils import set_issue_detected
+from cycode.cli.utils.string_utils import get_content_size, is_binary_content
+from cycode.cli.utils.task_timer import TimeoutAfter
+from cycode.cli.zip_file import InMemoryZip
+from cycode.cyclient import logger
+from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
 
 if TYPE_CHECKING:
-    from cycode.cyclient.scan_client import ScanClient
-    from cycode.cyclient.models import ScanDetailsResponse
     from cycode.cli.utils.progress_bar import BaseProgressBar
+    from cycode.cyclient.models import ScanDetailsResponse
+    from cycode.cyclient.scan_client import ScanClient
 
 start_scan_time = time.time()
 
 
-@click.command()
-@click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.command(short_help='Scan git repository including its history')
+@click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.option(
     '--branch',
     '-b',
@@ -59,14 +59,13 @@ start_scan_time = time.time()
 )
 @click.pass_context
 def scan_repository(context: click.Context, path: str, branch: str):
-    """Scan git repository including its history"""
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
 
         scan_type = context.obj['scan_type']
         monitor = context.obj.get('monitor')
         if monitor and scan_type != consts.SCA_SCAN_TYPE:
-            raise click.ClickException(f'Monitor flag is currently supported for SCA scan type only')
+            raise click.ClickException('Monitor flag is currently supported for SCA scan type only')
 
         progress_bar = context.obj['progress_bar']
 
@@ -77,10 +76,7 @@ def scan_repository(context: click.Context, path: str, branch: str):
         for file in file_entries:
             progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
-            if monitor:
-                path = file.path
-            else:
-                path = get_path_by_os(os.path.join(path, file.path))
+            path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
 
             documents_to_scan.append(Document(path, file.data_stream.read().decode('UTF-8', errors='replace')))
 
@@ -96,19 +92,18 @@ def scan_repository(context: click.Context, path: str, branch: str):
         _handle_exception(context, e)
 
 
-@click.command()
-@click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.command(short_help='Scan all the commits history in this git repository')
+@click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.option(
-    "--commit_range",
-    "-r",
-    help='Scan a commit range in this git repository, by default cycode scans all ' 'commit history (example: HEAD~1)',
+    '--commit_range',
+    '-r',
+    help='Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1)',
     type=click.STRING,
-    default="--all",
+    default='--all',
     required=False,
 )
 @click.pass_context
 def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
-    """Scan all the commits history in this git repository"""
     try:
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         return scan_commit_range(context, path=path, commit_range=commit_range)
@@ -174,31 +169,30 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
 
 
-@click.command()
+@click.command(
+    short_help='Execute scan in a CI environment which relies on the '
+    'CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables'
+)
 @click.pass_context
 def scan_ci(context: click.Context):
-    """Execute scan in a CI environment which relies on the
-    CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables"""
     return scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
-@click.command()
-@click.argument("path", nargs=1, type=click.STRING, required=True)
+@click.command(short_help='Scan the files in the path supplied in the command')
+@click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.pass_context
 def scan_path(context: click.Context, path):
-    """Scan the files in the path supplied in the command"""
     logger.debug('Starting path scan process, %s', {'path': path})
-    files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=["**/.git/**", "**/.cycode/**"])
+    files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
     files_to_scan = exclude_irrelevant_files(context, files_to_scan)
     logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
     return scan_disk_files(context, path, files_to_scan)
 
 
-@click.command()
+@click.command(short_help='Use this command to scan the content that was not committed yet')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]):
-    """Use this command to scan the content that was not committed yet"""
     scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
@@ -218,11 +212,10 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
     return scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-@click.command()
-@click.argument("ignored_args", nargs=-1, type=click.UNPROCESSED)
+@click.command(short_help='Use this command to scan commits on the server side before pushing them to the repository')
+@click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_receive_scan(context: click.Context, ignored_args: List[str]):
-    """Use this command to scan commits on the server side before pushing them to the repository"""
     try:
         scan_type = context.obj['scan_type']
         if scan_type != consts.SECRET_SCAN_TYPE:
@@ -230,8 +223,8 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
 
         if should_skip_pre_receive_scan():
             logger.info(
-                "A scan has been skipped as per your request."
-                " Please note that this may leave your system vulnerable to secrets that have not been detected"
+                'A scan has been skipped as per your request.'
+                ' Please note that this may leave your system vulnerable to secrets that have not been detected'
             )
             return
 
@@ -556,7 +549,7 @@ def perform_pre_scan_documents_actions(
     context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
     if scan_type == consts.SCA_SCAN_TYPE:
-        logger.debug(f'Perform pre scan document actions')
+        logger.debug('Perform pre scan document actions')
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
 
 
@@ -610,7 +603,7 @@ def perform_scan_async(
     cycode_client: 'ScanClient', zipped_documents: InMemoryZip, scan_type: str, scan_parameters: dict
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
-    logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
+    logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
 
     return poll_scan_results(cycode_client, scan_async_result.scan_id)
 
@@ -621,13 +614,13 @@ def perform_commit_range_scan_async(
     to_commit_zipped_documents: InMemoryZip,
     scan_type: str,
     scan_parameters: dict,
-    timeout: int = None,
+    timeout: Optional[int] = None,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.multiple_zipped_file_scan_async(
         from_commit_zipped_documents, to_commit_zipped_documents, scan_type, scan_parameters
     )
 
-    logger.debug("scan request has been triggered successfully, scan id: %s", scan_async_result.scan_id)
+    logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
     return poll_scan_results(cycode_client, scan_async_result.scan_id, timeout)
 
 
@@ -649,7 +642,8 @@ def poll_scan_results(
 
         if scan_details.scan_status == consts.SCAN_STATUS_COMPLETED:
             return _get_scan_result(cycode_client, scan_id, scan_details)
-        elif scan_details.scan_status == consts.SCAN_STATUS_ERROR:
+
+        if scan_details.scan_status == consts.SCAN_STATUS_ERROR:
             raise custom_exceptions.ScanAsyncError(
                 f'Error occurred while trying to scan zip file. {scan_details.message}'
             )
@@ -723,13 +717,12 @@ def parse_pre_receive_input() -> str:
     pre_receive_input = sys.stdin.read().strip()
     if not pre_receive_input:
         raise ValueError(
-            "Pre receive input was not found. Make sure that you are using this command only in pre-receive hook"
+            'Pre receive input was not found. Make sure that you are using this command only in pre-receive hook'
         )
 
     # each line represents a branch update request, handle the first one only
     # TODO(MichalBor): support case of multiple update branch requests
-    branch_update_details = pre_receive_input.splitlines()[0]
-    return branch_update_details
+    return pre_receive_input.splitlines()[0]
 
 
 def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[str]:
@@ -737,13 +730,13 @@ def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[s
 
     # branch is deleted, no need to perform scan
     if end_commit == consts.EMPTY_COMMIT_SHA:
-        return
+        return None
 
     start_commit = get_oldest_unupdated_commit_for_branch(end_commit)
 
     # no new commit to update found
     if not start_commit:
-        return
+        return None
 
     return f'{start_commit}~1...{end_commit}'
 
@@ -769,7 +762,7 @@ def get_diff_file_path(file):
 
 
 def get_diff_file_content(file):
-    return file.diff.decode('utf-8', errors='replace')
+    return file.diff.decode('UTF-8', errors='replace')
 
 
 def should_process_git_object(obj, _: int) -> bool:
@@ -782,10 +775,10 @@ def get_git_repository_tree_file_entries(path: str, branch: str):
 
 def get_default_scan_parameters(context: click.Context) -> dict:
     return {
-        "monitor": context.obj.get("monitor"),
-        "report": context.obj.get("report"),
-        "package_vulnerabilities": context.obj.get("package-vulnerabilities"),
-        "license_compliance": context.obj.get("license-compliance"),
+        'monitor': context.obj.get('monitor'),
+        'report': context.obj.get('report'),
+        'package_vulnerabilities': context.obj.get('package-vulnerabilities'),
+        'license_compliance': context.obj.get('license-compliance'),
     }
 
 
@@ -839,9 +832,7 @@ def exclude_irrelevant_detections(
 ) -> List[Detection]:
     relevant_detections = _exclude_detections_by_exclusions_configuration(detections, scan_type)
     relevant_detections = _exclude_detections_by_scan_type(relevant_detections, scan_type, command_scan_type)
-    relevant_detections = _exclude_detections_by_severity(relevant_detections, scan_type, severity_threshold)
-
-    return relevant_detections
+    return _exclude_detections_by_severity(relevant_detections, scan_type, severity_threshold)
 
 
 def _exclude_detections_by_severity(
@@ -866,9 +857,12 @@ def _exclude_detections_by_scan_type(
         return exclude_detections_in_deleted_lines(detections)
 
     exclude_in_deleted_lines = configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type)
-    if command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES:
-        if scan_type == consts.SECRET_SCAN_TYPE and exclude_in_deleted_lines:
-            return exclude_detections_in_deleted_lines(detections)
+    if (
+        command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
+        and scan_type == consts.SECRET_SCAN_TYPE
+        and exclude_in_deleted_lines
+    ):
+        return exclude_detections_in_deleted_lines(detections)
 
     return detections
 
@@ -984,10 +978,7 @@ def _is_path_configured_in_exclusions(scan_type: str, file_path: str) -> bool:
     exclusions_by_path = configuration_manager.get_exclusions_by_scan_type(scan_type).get(
         consts.EXCLUSIONS_BY_PATH_SECTION_NAME, []
     )
-    for exclusion_path in exclusions_by_path:
-        if is_sub_path(exclusion_path, file_path):
-            return True
-    return False
+    return any(is_sub_path(exclusion_path, file_path) for exclusion_path in exclusions_by_path)
 
 
 def _get_package_name(detection: Detection) -> str:
@@ -1002,7 +993,7 @@ def _get_package_name(detection: Detection) -> str:
 
 
 def _is_file_relevant_for_sca_scan(filename: str) -> bool:
-    if any([sca_excluded_path in filename for sca_excluded_path in consts.SCA_EXCLUDED_PATHS]):
+    if any(sca_excluded_path in filename for sca_excluded_path in consts.SCA_EXCLUDED_PATHS):
         logger.debug("file is irrelevant because it is from node_modules's inner path, %s", {'filename': filename})
         return False
 
@@ -1011,23 +1002,23 @@ def _is_file_relevant_for_sca_scan(filename: str) -> bool:
 
 def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
     if _is_subpath_of_cycode_configuration_folder(filename):
-        logger.debug("file is irrelevant because it is in cycode configuration directory, %s", {'filename': filename})
+        logger.debug('file is irrelevant because it is in cycode configuration directory, %s', {'filename': filename})
         return False
 
     if _is_path_configured_in_exclusions(scan_type, filename):
-        logger.debug("file is irrelevant because the file path is in the ignore paths list, %s", {'filename': filename})
+        logger.debug('file is irrelevant because the file path is in the ignore paths list, %s', {'filename': filename})
         return False
 
     if not _is_file_extension_supported(scan_type, filename):
-        logger.debug("file is irrelevant because the file extension is not supported, %s", {'filename': filename})
+        logger.debug('file is irrelevant because the file extension is not supported, %s', {'filename': filename})
         return False
 
     if is_binary_file(filename):
-        logger.debug("file is irrelevant because it is binary file, %s", {'filename': filename})
+        logger.debug('file is irrelevant because it is binary file, %s', {'filename': filename})
         return False
 
     if scan_type != consts.SCA_SCAN_TYPE and _does_file_exceed_max_size_limit(filename):
-        logger.debug("file is irrelevant because its exceeded max size limit, %s", {'filename': filename})
+        logger.debug('file is irrelevant because its exceeded max size limit, %s', {'filename': filename})
         return False
 
     if scan_type == consts.SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename):
@@ -1039,26 +1030,26 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
 def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -> bool:
     if _is_subpath_of_cycode_configuration_folder(filename):
         logger.debug(
-            "document is irrelevant because it is in cycode configuration directory, %s", {'filename': filename}
+            'document is irrelevant because it is in cycode configuration directory, %s', {'filename': filename}
         )
         return False
 
     if _is_path_configured_in_exclusions(scan_type, filename):
         logger.debug(
-            "document is irrelevant because the document path is in the ignore paths list, %s", {'filename': filename}
+            'document is irrelevant because the document path is in the ignore paths list, %s', {'filename': filename}
         )
         return False
 
     if not _is_file_extension_supported(scan_type, filename):
-        logger.debug("document is irrelevant because the file extension is not supported, %s", {'filename': filename})
+        logger.debug('document is irrelevant because the file extension is not supported, %s', {'filename': filename})
         return False
 
     if is_binary_content(content):
-        logger.debug("document is irrelevant because it is binary, %s", {'filename': filename})
+        logger.debug('document is irrelevant because it is binary, %s', {'filename': filename})
         return False
 
     if scan_type != consts.SCA_SCAN_TYPE and _does_document_exceed_max_size_limit(content):
-        logger.debug("document is irrelevant because its exceeded max size limit, %s", {'filename': filename})
+        logger.debug('document is irrelevant because its exceeded max size limit, %s', {'filename': filename})
         return False
     return True
 
@@ -1071,7 +1062,8 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
             filename.endswith(supported_file_extension)
             for supported_file_extension in consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES
         )
-    elif scan_type == consts.SCA_SCAN_TYPE:
+
+    if scan_type == consts.SCA_SCAN_TYPE:
         return any(
             filename.endswith(supported_file) for supported_file in consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES
         )
@@ -1083,11 +1075,11 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
 
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
-    return consts.FILE_MAX_SIZE_LIMIT_IN_BYTES < get_file_size(filename)
+    return get_file_size(filename) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
 
 
 def _does_document_exceed_max_size_limit(content: str) -> bool:
-    return consts.FILE_MAX_SIZE_LIMIT_IN_BYTES < get_content_size(content)
+    return get_content_size(content) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
 
 
 def _get_document_by_file_name(
@@ -1137,14 +1129,14 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             soft_fail=True,
             code='zip_too_large_error',
             message='The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
-            'Please try ignoring irrelevant paths using the ‘cycode ignore --by-path’ command '
+            'Please try ignoring irrelevant paths using the `cycode ignore --by-path` command '
             'and execute the scan again',
         ),
         InvalidGitRepositoryError: CliError(
             soft_fail=False,
             code='invalid_git_error',
             message='The path you supplied does not correlate to a git repository. '
-            'Should you still wish to scan this path, use: ‘cycode scan path <path>’',
+            'Should you still wish to scan this path, use: `cycode scan path <path>`',
         ),
     }
 
@@ -1158,7 +1150,7 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             return error
 
         ConsolePrinter(context).print_error(error)
-        return
+        return None
 
     if return_exception:
         return CliError(code='unknown_error', message=str(e))
@@ -1279,14 +1271,14 @@ def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
             detection['message'] = detection['correlation_message']
             file_name = _get_file_name_from_detection(detection)
             if file_name is None:
-                logger.debug("file name is missing from detection with id %s", detection.get('id'))
+                logger.debug('file name is missing from detection with id %s', detection.get('id'))
                 continue
             if detections_per_files.get(file_name) is None:
                 detections_per_files[file_name] = [DetectionSchema().load(detection)]
             else:
                 detections_per_files[file_name].append(DetectionSchema().load(detection))
         except Exception as e:
-            logger.debug("Failed to parse detection: %s", str(e))
+            logger.debug('Failed to parse detection: %s', str(e))
             continue
 
     return [
