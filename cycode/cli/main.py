@@ -149,7 +149,7 @@ def code_scan(
         if output == 'json':
             context.obj['no_progress_meter'] = True
 
-    context.obj['client'] = get_cycode_client(client_id, secret)
+    context.obj['client'] = get_cycode_client(client_id, secret, not context.obj['show_secret'])
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report
@@ -234,7 +234,7 @@ def main_cli(
         CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
 
 
-def get_cycode_client(client_id: str, client_secret: str) -> 'ScanClient':
+def get_cycode_client(client_id: str, client_secret: str, hide_response_log: bool) -> 'ScanClient':
     if not client_id or not client_secret:
         client_id, client_secret = _get_configured_credentials()
         if not client_id:
@@ -242,7 +242,7 @@ def get_cycode_client(client_id: str, client_secret: str) -> 'ScanClient':
         if not client_secret:
             raise click.ClickException('Cycode client secret is needed.')
 
-    return create_scan_client(client_id, client_secret)
+    return create_scan_client(client_id, client_secret, hide_response_log)
 
 
 def _get_configured_credentials() -> Tuple[str, str]:
