@@ -7,9 +7,14 @@ class ScanConfigBase(ABC):
     def get_service_name(self, scan_type):
         pass
 
-    @abstractmethod
-    def get_async_scan_type(self, scan_type: str) -> str:
-        pass
+    @staticmethod
+    def get_async_scan_type(scan_type: str) -> str:
+        if scan_type == 'secret':
+            return 'Secrets'
+        if scan_type == 'iac':
+            return 'InfraConfiguration'
+
+        return scan_type.upper()
 
     @abstractmethod
     def get_scans_prefix(self):
@@ -30,9 +35,6 @@ class DevScanConfig(ScanConfigBase):
             return '5004'
         return None
 
-    def get_async_scan_type(self, scan_type: str) -> str:
-        pass
-
     def get_scans_prefix(self):
         return '5004'
 
@@ -49,13 +51,7 @@ class DefaultScanConfig(ScanConfigBase):
         if scan_type == 'sca' or scan_type == 'sast':
             return 'scans'
 
-    def get_async_scan_type(self, scan_type: str) -> str:
-        if scan_type == 'secret':
-            return 'Secrets'
-        elif scan_type == 'iac':
-            return 'InfraConfiguration'
-        else:
-            return scan_type.upper()
+        return None
 
     def get_scans_prefix(self):
         return 'scans'
