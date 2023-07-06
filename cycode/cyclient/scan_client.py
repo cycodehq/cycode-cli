@@ -11,22 +11,23 @@ from .scan_config.scan_config_base import ScanConfigBase
 
 
 class ScanClient:
-    def __init__(self, scan_cycode_client: CycodeClientBase, scan_config: ScanConfigBase) -> None:
+    def __init__(
+        self, scan_cycode_client: CycodeClientBase, scan_config: ScanConfigBase, hide_response_log: bool = True
+    ) -> None:
         self.scan_cycode_client = scan_cycode_client
         self.scan_config = scan_config
+
         self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
         self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
+
+        self._hide_response_log = hide_response_log
 
     def content_scan(self, scan_type: str, file_name: str, content: str, is_git_diff: bool = True) -> models.ScanResult:
         path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/content'
         body = {'name': file_name, 'content': content, 'is_git_diff': is_git_diff}
-        response = self.scan_cycode_client.post(url_path=path, body=body)
-        return self.parse_scan_response(response)
-
-    def file_scan(self, scan_type: str, path: str) -> models.ScanResult:
-        url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}'
-        files = {'file': open(path, 'rb')}  # noqa: SIM115 requests lib should care about closing
-        response = self.scan_cycode_client.post(url_path=url_path, files=files)
+        response = self.scan_cycode_client.post(
+            url_path=path, body=body, hide_response_content_log=self._hide_response_log
+        )
         return self.parse_scan_response(response)
 
     def zipped_file_scan(
@@ -39,6 +40,7 @@ class ScanClient:
             url_path=url_path,
             data={'scan_id': scan_id, 'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
             files=files,
+            hide_response_content_log=self._hide_response_log,
         )
 
         return self.parse_zipped_file_scan_response(response)
@@ -96,7 +98,9 @@ class ScanClient:
             params['page_size'] = page_size
             params['page_number'] = page_number
 
-            response = self.scan_cycode_client.get(url_path=url_path, params=params).json()
+            response = self.scan_cycode_client.get(
+                url_path=url_path, params=params, hide_response_content_log=self._hide_response_log
+            ).json()
             detections.extend(response)
 
             page_number += 1
@@ -116,7 +120,9 @@ class ScanClient:
             f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/commit-range-zipped-file'
         )
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
-        response = self.scan_cycode_client.post(url_path=url_path, data={'scan_id': scan_id}, files=files)
+        response = self.scan_cycode_client.post(
+            url_path=url_path, data={'scan_id': scan_id}, files=files, hide_response_content_log=self._hide_response_log
+        )
         return self.parse_zipped_file_scan_response(response)
 
     def report_scan_status(self, scan_type: str, scan_id: str, scan_status: dict) -> None:
