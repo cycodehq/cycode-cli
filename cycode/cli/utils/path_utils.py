@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import AnyStr, Iterable, List, Optional
+from typing import AnyStr, Generator, Iterable, List, Optional
 
 import pathspec
 from binaryornot.check import is_binary
@@ -49,12 +49,12 @@ def get_path_by_os(filename: str) -> str:
     return filename.replace('/', os.sep)
 
 
-def _get_all_existing_files_in_directory(path: str):
+def _get_all_existing_files_in_directory(path: str) -> Generator[Path, None, None]:
     directory = Path(path)
     return directory.rglob(r'*')
 
 
-def is_path_exists(path: str):
+def is_path_exists(path: str) -> bool:
     return os.path.exists(path)
 
 

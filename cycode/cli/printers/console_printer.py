@@ -24,7 +24,7 @@ class ConsolePrinter:
         'text_sca': SCATablePrinter,
     }
 
-    def __init__(self, context: click.Context):
+    def __init__(self, context: click.Context) -> None:
         self.context = context
         self.scan_type = self.context.obj.get('scan_type')
         self.output_type = self.context.obj.get('output')

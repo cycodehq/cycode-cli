@@ -30,19 +30,19 @@ def is_binary_content(content: str) -> bool:
     return is_binary_string(chunk_bytes)
 
 
-def get_content_size(content: str):
+def get_content_size(content: str) -> int:
     return getsizeof(content)
 
 
-def convert_string_to_bytes(content: str):
+def convert_string_to_bytes(content: str) -> bytes:
     return bytes(content, 'UTF-8')
 
 
-def hash_string_to_sha256(content: str):
+def hash_string_to_sha256(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
-def generate_random_string(string_len: int):
+def generate_random_string(string_len: int) -> str:
     # letters, digits, and symbols
     characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choice(characters) for _ in range(string_len))  # noqa: S311

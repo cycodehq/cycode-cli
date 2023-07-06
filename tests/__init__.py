@@ -28,7 +28,3 @@ POD_MOCK = {
 }
 
 K8S_POD_MOCK = K8SResource('pod-template-123xyz', 'pod', 'default', POD_MOCK)
-
-
-def list_to_str(values):
-    return ','.join([str(val) for val in values])

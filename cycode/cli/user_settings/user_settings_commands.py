@@ -24,7 +24,7 @@ credentials_manager = CredentialsManager()
 @click.command(
     short_help='Initial command to authenticate your CLI client with Cycode using client ID and client secret'
 )
-def set_credentials():
+def set_credentials() -> None:
     click.echo(f'Update credentials in file ({credentials_manager.get_filename()})')
     current_client_id, current_client_secret = credentials_manager.get_credentials_from_file()
     client_id = _get_client_id_input(current_client_id)
@@ -85,7 +85,7 @@ def set_credentials():
 )
 def add_exclusions(
     by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str, is_global: bool
-):
+) -> None:
     """Ignore a specific value, path or rule ID"""
     if not by_value and not by_sha and not by_path and not by_rule and not by_package:
         raise click.ClickException('ignore by type is missing')
@@ -143,14 +143,14 @@ def _get_client_secret_input(current_client_secret: str) -> str:
     return new_client_secret if new_client_secret else current_client_secret
 
 
-def _get_credentials_update_result_message():
+def _get_credentials_update_result_message() -> str:
     if not _are_credentials_exist_in_environment_variables():
         return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE
 
     return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE + ' ' + CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
 
 
-def _are_credentials_exist_in_environment_variables():
+def _are_credentials_exist_in_environment_variables() -> bool:
     client_id, client_secret = credentials_manager.get_credentials_from_environment_variables()
     return client_id is not None or client_secret is not None
 

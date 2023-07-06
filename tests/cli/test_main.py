@@ -28,7 +28,7 @@ def _is_json(plain: str) -> bool:
 @pytest.mark.parametrize('option_space', ['scan', 'global'])
 def test_passing_output_option(
     output: str, option_space: str, scan_client: 'ScanClient', api_token_response: responses.Response
-):
+) -> None:
     scan_type = 'secret'
 
     responses.add(get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client)))

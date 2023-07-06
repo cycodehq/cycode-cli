@@ -15,7 +15,7 @@ from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
     invoke_without_command=True, short_help='Authenticates your machine to associate CLI with your cycode account'
 )
 @click.pass_context
-def authenticate(context: click.Context):
+def authenticate(context: click.Context) -> None:
     if context.invoked_subcommand is not None:
         # if it is a subcommand, do nothing
         return
@@ -34,7 +34,7 @@ def authenticate(context: click.Context):
 
 @authenticate.command(name='check')
 @click.pass_context
-def authorization_check(context: click.Context):
+def authorization_check(context: click.Context) -> None:
     """Check your machine associating CLI with your cycode account"""
     printer = ConsolePrinter(context)
 
@@ -43,19 +43,22 @@ def authorization_check(context: click.Context):
 
     client_id, client_secret = CredentialsManager().get_credentials()
     if not client_id or not client_secret:
-        return printer.print_result(failed_auth_check_res)
+        printer.print_result(failed_auth_check_res)
+        return
 
     try:
         if CycodeTokenBasedClient(client_id, client_secret).api_token:
-            return printer.print_result(passed_auth_check_res)
+            printer.print_result(passed_auth_check_res)
+            return
     except (NetworkError, HttpUnauthorizedError):
         if context.obj['verbose']:
             click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
-        return printer.print_result(failed_auth_check_res)
+        printer.print_result(failed_auth_check_res)
+        return
 
 
-def _handle_exception(context: click.Context, e: Exception):
+def _handle_exception(context: click.Context, e: Exception) -> None:
     if context.obj['verbose']:
         click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
@@ -70,7 +73,8 @@ def _handle_exception(context: click.Context, e: Exception):
 
     error = errors.get(type(e))
     if error:
-        return ConsolePrinter(context).print_error(error)
+        ConsolePrinter(context).print_error(error)
+        return
 
     if isinstance(e, click.ClickException):
         raise e

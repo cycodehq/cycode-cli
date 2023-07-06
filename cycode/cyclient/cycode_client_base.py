@@ -31,7 +31,7 @@ def get_cli_user_agent() -> str:
 class CycodeClientBase:
     MANDATORY_HEADERS: ClassVar[Dict[str, str]] = {'User-Agent': get_cli_user_agent()}
 
-    def __init__(self, api_url: str):
+    def __init__(self, api_url: str) -> None:
         self.timeout = config.timeout
         self.api_url = api_url
 
@@ -69,7 +69,7 @@ class CycodeClientBase:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> dict:
+    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> Dict[str, str]:
         if additional_headers is None:
             return self.MANDATORY_HEADERS.copy()
         return {**self.MANDATORY_HEADERS, **additional_headers}
@@ -77,7 +77,7 @@ class CycodeClientBase:
     def build_full_url(self, url: str, endpoint: str) -> str:
         return f'{url}/{endpoint}'
 
-    def _handle_exception(self, e: Exception):
+    def _handle_exception(self, e: Exception) -> None:
         if isinstance(e, exceptions.Timeout):
             raise NetworkError(504, 'Timeout Error', e.response)
 
@@ -89,7 +89,7 @@ class CycodeClientBase:
             raise e
 
     @staticmethod
-    def _handle_http_exception(e: exceptions.HTTPError):
+    def _handle_http_exception(e: exceptions.HTTPError) -> None:
         if e.response.status_code == 401:
             raise HttpUnauthorizedError(e.response.text, e.response)
 

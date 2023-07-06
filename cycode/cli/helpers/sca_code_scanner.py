@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
 from git import GitCommandError, Repo
@@ -10,6 +10,9 @@ from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDepe
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cyclient import logger
+
+if TYPE_CHECKING:
+    from cycode.cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
@@ -39,7 +42,7 @@ def perform_pre_hook_range_scan_actions(
 
 def add_ecosystem_related_files_if_exists(
     documents: List[Document], repo: Optional[Repo] = None, commit_rev: Optional[str] = None
-):
+) -> None:
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
@@ -81,8 +84,11 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 
 def try_restore_dependencies(
-    context: click.Context, documents_to_add: List[Document], restore_dependencies, document: Document
-):
+    context: click.Context,
+    documents_to_add: Dict[str, Document],
+    restore_dependencies: 'BaseRestoreMavenDependencies',
+    document: Document,
+) -> None:
     if restore_dependencies.is_project(document):
         restore_dependencies_document = restore_dependencies.restore(document)
         if restore_dependencies_document is None:
@@ -117,7 +123,7 @@ def add_dependencies_tree_document(
     documents_to_scan.extend(list(documents_to_add.values()))
 
 
-def restore_handlers(context, is_git_diff):
+def restore_handlers(context: click.Context, is_git_diff: bool) -> List[RestoreGradleDependencies]:
     return [
         RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
         RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),

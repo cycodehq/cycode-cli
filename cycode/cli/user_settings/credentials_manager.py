@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Optional, Tuple
 
 from cycode.cli.config import CYCODE_CLIENT_ID_ENV_VAR_NAME, CYCODE_CLIENT_SECRET_ENV_VAR_NAME
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
@@ -13,19 +14,20 @@ class CredentialsManager(BaseFileManager):
     CLIENT_ID_FIELD_NAME: str = 'cycode_client_id'
     CLIENT_SECRET_FIELD_NAME: str = 'cycode_client_secret'
 
-    def get_credentials(self) -> (str, str):
+    def get_credentials(self) -> Tuple[str, str]:
         client_id, client_secret = self.get_credentials_from_environment_variables()
         if client_id is not None and client_secret is not None:
             return client_id, client_secret
 
         return self.get_credentials_from_file()
 
-    def get_credentials_from_environment_variables(self) -> (str, str):
+    @staticmethod
+    def get_credentials_from_environment_variables() -> Tuple[str, str]:
         client_id = os.getenv(CYCODE_CLIENT_ID_ENV_VAR_NAME)
         client_secret = os.getenv(CYCODE_CLIENT_SECRET_ENV_VAR_NAME)
         return client_id, client_secret
 
-    def get_credentials_from_file(self) -> (str, str):
+    def get_credentials_from_file(self) -> Tuple[Optional[str], Optional[str]]:
         credentials_filename = self.get_filename()
         try:
             file_content = read_file(credentials_filename)
@@ -36,7 +38,7 @@ class CredentialsManager(BaseFileManager):
         client_secret = file_content.get(self.CLIENT_SECRET_FIELD_NAME)
         return client_id, client_secret
 
-    def update_credentials_file(self, client_id: str, client_secret: str):
+    def update_credentials_file(self, client_id: str, client_secret: str) -> None:
         credentials = {self.CLIENT_ID_FIELD_NAME: client_id, self.CLIENT_SECRET_FIELD_NAME: client_secret}
 
         self.get_filename()

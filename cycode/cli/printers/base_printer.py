@@ -14,7 +14,7 @@ class BasePrinter(ABC):
     WHITE_COLOR_NAME = 'white'
     GREEN_COLOR_NAME = 'green'
 
-    def __init__(self, context: click.Context):
+    def __init__(self, context: click.Context) -> None:
         self.context = context
 
     @abstractmethod

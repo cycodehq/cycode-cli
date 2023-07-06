@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import click
 
@@ -13,7 +13,7 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
-def execute_command(command: List[str], file_name: str, command_timeout: int) -> Optional[Dict]:
+def execute_command(command: List[str], file_name: str, command_timeout: int) -> Optional[str]:
     try:
         dependencies = shell(command, command_timeout)
     except Exception as e:
@@ -24,7 +24,7 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
 
 
 class BaseRestoreMavenDependencies(ABC):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int):
+    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         self.context = context
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout

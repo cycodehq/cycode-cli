@@ -9,6 +9,7 @@ from cycode.cyclient.config import get_logger
 
 if TYPE_CHECKING:
     from click._termui_impl import ProgressBar
+    from click.termui import V as ProgressBarValue
 
 
 logger = get_logger('progress bar')
@@ -57,7 +58,7 @@ def _get_section_length(section: 'ProgressBarSection') -> int:
 
 class BaseProgressBar(ABC):
     @abstractmethod
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         pass
 
     @abstractmethod
@@ -86,7 +87,7 @@ class BaseProgressBar(ABC):
 
 
 class DummyProgressBar(BaseProgressBar):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def __enter__(self) -> 'DummyProgressBar':
@@ -109,7 +110,7 @@ class DummyProgressBar(BaseProgressBar):
 
 
 class CompositeProgressBar(BaseProgressBar):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._progress_bar_context_manager = click.progressbar(
             length=_PROGRESS_BAR_LENGTH,
@@ -192,7 +193,7 @@ class CompositeProgressBar(BaseProgressBar):
 
         return expected_value - self._current_section_value
 
-    def _progress_bar_item_show_func(self, _=None) -> str:
+    def _progress_bar_item_show_func(self, _: Optional['ProgressBarValue'] = None) -> str:
         return self._current_section.label
 
     def update(self, section: 'ProgressBarSection', value: int = 1) -> None:

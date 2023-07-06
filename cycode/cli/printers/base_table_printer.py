@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class BaseTablePrinter(BasePrinter, abc.ABC):
-    def __init__(self, context: click.Context):
+    def __init__(self, context: click.Context) -> None:
         super().__init__(context)
         self.context = context
         self.scan_type: str = context.obj.get('scan_type')
@@ -24,7 +24,7 @@ class BaseTablePrinter(BasePrinter, abc.ABC):
     def print_error(self, error: CliError) -> None:
         TextPrinter(self.context).print_error(error)
 
-    def print_scan_results(self, local_scan_results: List['LocalScanResult']):
+    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
         if all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return

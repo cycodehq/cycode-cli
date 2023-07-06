@@ -11,7 +11,7 @@ from .scan_config.scan_config_base import ScanConfigBase
 
 
 class ScanClient:
-    def __init__(self, scan_cycode_client: CycodeClientBase, scan_config: ScanConfigBase):
+    def __init__(self, scan_cycode_client: CycodeClientBase, scan_config: ScanConfigBase) -> None:
         self.scan_cycode_client = scan_cycode_client
         self.scan_config = scan_config
         self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
@@ -119,7 +119,7 @@ class ScanClient:
         response = self.scan_cycode_client.post(url_path=url_path, data={'scan_id': scan_id}, files=files)
         return self.parse_zipped_file_scan_response(response)
 
-    def report_scan_status(self, scan_type: str, scan_id: str, scan_status: dict):
+    def report_scan_status(self, scan_type: str, scan_id: str, scan_status: dict) -> None:
         url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/{scan_id}/status'
         self.scan_cycode_client.post(url_path=url_path, body=scan_status)
 
