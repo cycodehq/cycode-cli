@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 import click
 
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import join_paths, get_file_dir
+from cycode.cli.utils.path_utils import get_file_dir, join_paths
 from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 
@@ -17,28 +17,27 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
     try:
         dependencies = shell(command, command_timeout)
     except Exception as e:
-        logger.debug('Failed to restore dependencies shell comment. %s',
-                     {'filename': file_name, 'exception': str(e)})
+        logger.debug('Failed to restore dependencies shell comment. %s', {'filename': file_name, 'exception': str(e)})
         return None
 
     return dependencies
 
 
 class BaseRestoreMavenDependencies(ABC):
-
-    def __init__(self, context: click.Context, is_git_diff: bool,
-                 command_timeout: int):
+    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int):
         self.context = context
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
 
     def restore(self, document: Document) -> Optional[Document]:
-        restore_dependencies_document = self.try_restore_dependencies(document)
-        return restore_dependencies_document
+        return self.try_restore_dependencies(document)
 
     def get_manifest_file_path(self, document: Document) -> str:
-        return join_paths(self.context.params.get('path'), document.path) if self.context.obj.get(
-            'monitor') else document.path
+        return (
+            join_paths(self.context.params.get('path'), document.path)
+            if self.context.obj.get('monitor')
+            else document.path
+        )
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:
@@ -54,8 +53,8 @@ class BaseRestoreMavenDependencies(ABC):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        document = Document(build_dep_tree_path(document.path, self.get_lock_file_name()),
-                            execute_command(self.get_command(manifest_file_path), manifest_file_path,
-                                            self.command_timeout),
-                            self.is_git_diff)
-        return document
+        return Document(
+            build_dep_tree_path(document.path, self.get_lock_file_name()),
+            execute_command(self.get_command(manifest_file_path), manifest_file_path, self.command_timeout),
+            self.is_git_diff,
+        )

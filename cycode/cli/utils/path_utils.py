@@ -1,7 +1,8 @@
-from typing import Iterable, List, Optional
-import pathspec
 import os
 from pathlib import Path
+from typing import AnyStr, Iterable, List, Optional
+
+import pathspec
 from binaryornot.check import is_binary
 
 
@@ -50,7 +51,7 @@ def get_path_by_os(filename: str) -> str:
 
 def _get_all_existing_files_in_directory(path: str):
     directory = Path(path)
-    return directory.rglob(r"*")
+    return directory.rglob(r'*')
 
 
 def is_path_exists(path: str):
@@ -65,10 +66,9 @@ def join_paths(path: str, filename: str) -> str:
     return os.path.join(path, filename)
 
 
-def get_file_content(file_path: str) -> Optional[str]:
+def get_file_content(file_path: str) -> Optional[AnyStr]:
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return content
-    except FileNotFoundError:
+        with open(file_path, 'r', encoding='UTF-8') as f:
+            return f.read()
+    except (FileNotFoundError, UnicodeDecodeError):
         return None

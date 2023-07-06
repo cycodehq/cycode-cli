@@ -5,15 +5,18 @@ from cycode.cli.user_settings.user_settings_commands import set_credentials
 
 def test_set_credentials_no_exist_credentials_in_file(mocker):
     # Arrange
-    client_id_user_input = "new client id"
-    client_secret_user_input = "new client secret"
-    mocker.patch('cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-                 return_value=(None, None))
+    client_id_user_input = 'new client id'
+    client_secret_user_input = 'new client secret'
+    mocker.patch(
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
+        return_value=(None, None),
+    )
 
     # side effect - multiple return values, each item in the list represent return of a call
     mocker.patch('click.prompt', side_effect=[client_id_user_input, client_secret_user_input])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file')
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+    )
     click = CliRunner()
 
     # Act
@@ -25,15 +28,18 @@ def test_set_credentials_no_exist_credentials_in_file(mocker):
 
 def test_set_credentials_update_current_credentials_in_file(mocker):
     # Arrange
-    client_id_user_input = "new client id"
-    client_secret_user_input = "new client secret"
-    mocker.patch('cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-                 return_value=('client id file', 'client secret file'))
+    client_id_user_input = 'new client id'
+    client_secret_user_input = 'new client secret'
+    mocker.patch(
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
+        return_value=('client id file', 'client secret file'),
+    )
 
     # side effect - multiple return values, each item in the list represent return of a call
     mocker.patch('click.prompt', side_effect=[client_id_user_input, client_secret_user_input])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file')
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+    )
     click = CliRunner()
 
     # Act
@@ -45,15 +51,18 @@ def test_set_credentials_update_current_credentials_in_file(mocker):
 
 def test_set_credentials_update_only_client_id(mocker):
     # Arrange
-    client_id_user_input = "new client id"
+    client_id_user_input = 'new client id'
     current_client_id = 'client secret file'
-    mocker.patch('cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-                 return_value=('client id file', 'client secret file'))
+    mocker.patch(
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
+        return_value=('client id file', 'client secret file'),
+    )
 
     # side effect - multiple return values, each item in the list represent return of a call
     mocker.patch('click.prompt', side_effect=[client_id_user_input, ''])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file')
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+    )
     click = CliRunner()
 
     # Act
@@ -65,15 +74,18 @@ def test_set_credentials_update_only_client_id(mocker):
 
 def test_set_credentials_update_only_client_secret(mocker):
     # Arrange
-    client_secret_user_input = "new client secret"
+    client_secret_user_input = 'new client secret'
     current_client_id = 'client secret file'
-    mocker.patch('cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-                 return_value=(current_client_id, 'client secret file'))
+    mocker.patch(
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
+        return_value=(current_client_id, 'client secret file'),
+    )
 
     # side effect - multiple return values, each item in the list represent return of a call
     mocker.patch('click.prompt', side_effect=['', client_secret_user_input])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file')
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+    )
     click = CliRunner()
 
     # Act
@@ -85,15 +97,18 @@ def test_set_credentials_update_only_client_secret(mocker):
 
 def test_set_credentials_should_not_update_file(mocker):
     # Arrange
-    client_id_user_input = ""
-    client_secret_user_input = ""
-    mocker.patch('cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-                 return_value=('client id file', 'client secret file'))
+    client_id_user_input = ''
+    client_secret_user_input = ''
+    mocker.patch(
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
+        return_value=('client id file', 'client secret file'),
+    )
 
     # side effect - multiple return values, each item in the list represent return of a call
     mocker.patch('click.prompt', side_effect=[client_id_user_input, client_secret_user_input])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file')
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+    )
     click = CliRunner()
 
     # Act
@@ -101,4 +116,3 @@ def test_set_credentials_should_not_update_file(mocker):
 
     # Assert
     assert not mocked_update_credentials.called
-

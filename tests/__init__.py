@@ -16,14 +16,14 @@ PODS_MOCK = [
 
 POD_MOCK = {
     'metadata': {
-        "name": "pod-template-123xyz",
-        "namespace": "default",
+        'name': 'pod-template-123xyz',
+        'namespace': 'default',
         'ownerReferences': [
             {
-                "kind": "Deployment",
-                "name": "nginx-deployment",
+                'kind': 'Deployment',
+                'name': 'nginx-deployment',
             }
-        ]
+        ],
     }
 }
 
@@ -31,4 +31,4 @@ K8S_POD_MOCK = K8SResource('pod-template-123xyz', 'pod', 'default', POD_MOCK)
 
 
 def list_to_str(values):
-    return ",".join([str(val) for val in values])
+    return ','.join([str(val) for val in values])

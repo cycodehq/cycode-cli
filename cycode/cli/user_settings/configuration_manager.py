@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Dict, Optional
 from uuid import uuid4
 
+from cycode.cli import consts
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
-from cycode.cli.consts import *
 
 
 class ConfigurationManager:
@@ -28,7 +28,7 @@ class ConfigurationManager:
         if api_url is not None:
             return api_url
 
-        return DEFAULT_CYCODE_API_URL
+        return consts.DEFAULT_CYCODE_API_URL
 
     def get_cycode_app_url(self) -> str:
         app_url = self.get_app_url_from_environment_variables()
@@ -43,7 +43,7 @@ class ConfigurationManager:
         if app_url is not None:
             return app_url
 
-        return DEFAULT_CYCODE_APP_URL
+        return consts.DEFAULT_CYCODE_APP_URL
 
     def get_verbose_flag(self) -> bool:
         verbose_flag_env_var = self.get_verbose_flag_from_environment_variables()
@@ -52,13 +52,13 @@ class ConfigurationManager:
         return verbose_flag_env_var or verbose_flag_local_config or verbose_flag_global_config
 
     def get_api_url_from_environment_variables(self) -> Optional[str]:
-        return self._get_value_from_environment_variables(CYCODE_API_URL_ENV_VAR_NAME)
+        return self._get_value_from_environment_variables(consts.CYCODE_API_URL_ENV_VAR_NAME)
 
     def get_app_url_from_environment_variables(self) -> Optional[str]:
-        return self._get_value_from_environment_variables(CYCODE_APP_URL_ENV_VAR_NAME)
+        return self._get_value_from_environment_variables(consts.CYCODE_APP_URL_ENV_VAR_NAME)
 
     def get_verbose_flag_from_environment_variables(self) -> bool:
-        value = self._get_value_from_environment_variables(VERBOSE_ENV_VAR_NAME, '')
+        value = self._get_value_from_environment_variables(consts.VERBOSE_ENV_VAR_NAME, '')
         return value.lower() in ('true', '1')
 
     def get_exclusions_by_scan_type(self, scan_type) -> Dict:
@@ -95,15 +95,23 @@ class ConfigurationManager:
         return self.global_config_file_manager
 
     def get_scan_polling_timeout_in_seconds(self) -> int:
-        return int(self._get_value_from_environment_variables(SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
-                                                              DEFAULT_SCAN_POLLING_TIMEOUT_IN_SECONDS))
+        return int(
+            self._get_value_from_environment_variables(
+                consts.SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME, consts.DEFAULT_SCAN_POLLING_TIMEOUT_IN_SECONDS
+            )
+        )
 
     def get_sca_pre_commit_timeout_in_seconds(self) -> int:
-        return int(self._get_value_from_environment_variables(SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS_ENV_VAR_NAME,
-                                                              DEFAULT_SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS))
+        return int(
+            self._get_value_from_environment_variables(
+                consts.SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS_ENV_VAR_NAME, consts.DEFAULT_SCA_PRE_COMMIT_TIMEOUT_IN_SECONDS
+            )
+        )
 
     def get_pre_receive_max_commits_to_scan_count(self, command_scan_type: str) -> int:
-        max_commits = self._get_value_from_environment_variables(PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME)
+        max_commits = self._get_value_from_environment_variables(
+            consts.PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME
+        )
         if max_commits is not None:
             return int(max_commits)
 
@@ -115,10 +123,10 @@ class ConfigurationManager:
         if max_commits is not None:
             return max_commits
 
-        return DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT
+        return consts.DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT
 
     def get_pre_receive_command_timeout(self, command_scan_type: str) -> int:
-        command_timeout = self._get_value_from_environment_variables(PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME)
+        command_timeout = self._get_value_from_environment_variables(consts.PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME)
         if command_timeout is not None:
             return int(command_timeout)
 
@@ -130,25 +138,28 @@ class ConfigurationManager:
         if command_timeout is not None:
             return command_timeout
 
-        return DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS
+        return consts.DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS
 
     def get_should_exclude_detections_in_deleted_lines(self, command_scan_type: str) -> bool:
         exclude_detections_in_deleted_lines = self._get_value_from_environment_variables(
-            EXCLUDE_DETECTIONS_IN_DELETED_LINES_ENV_VAR_NAME)
+            consts.EXCLUDE_DETECTIONS_IN_DELETED_LINES_ENV_VAR_NAME
+        )
         if exclude_detections_in_deleted_lines is not None:
             return exclude_detections_in_deleted_lines.lower() in ('true', '1')
 
-        exclude_detections_in_deleted_lines = self.local_config_file_manager \
-            .get_exclude_detections_in_deleted_lines(command_scan_type)
+        exclude_detections_in_deleted_lines = self.local_config_file_manager.get_exclude_detections_in_deleted_lines(
+            command_scan_type
+        )
         if exclude_detections_in_deleted_lines is not None:
             return exclude_detections_in_deleted_lines
 
-        exclude_detections_in_deleted_lines = self.global_config_file_manager\
-            .get_exclude_detections_in_deleted_lines(command_scan_type)
+        exclude_detections_in_deleted_lines = self.global_config_file_manager.get_exclude_detections_in_deleted_lines(
+            command_scan_type
+        )
         if exclude_detections_in_deleted_lines is not None:
             return exclude_detections_in_deleted_lines
 
-        return DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES
+        return consts.DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES
 
     @staticmethod
     def _get_value_from_environment_variables(env_var_name, default=None):

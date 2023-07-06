@@ -1,4 +1,5 @@
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
+
 from texttable import Texttable
 
 if TYPE_CHECKING:
@@ -11,12 +12,12 @@ class Table:
     def __init__(self, column_infos: Optional[List['ColumnInfo']] = None):
         self._column_widths = None
 
-        self._columns: Dict['ColumnInfo', List[str]] = dict()
+        self._columns: Dict['ColumnInfo', List[str]] = {}
         if column_infos:
-            self._columns: Dict['ColumnInfo', List[str]] = {columns: list() for columns in column_infos}
+            self._columns: Dict['ColumnInfo', List[str]] = {columns: [] for columns in column_infos}
 
     def add(self, column: 'ColumnInfo') -> None:
-        self._columns[column] = list()
+        self._columns[column] = []
 
     def set(self, column: 'ColumnInfo', value: str) -> None:
         # we push values only for existing columns what were added before

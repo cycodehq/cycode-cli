@@ -31,11 +31,10 @@ click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
 marshmallow = ">=3.8.0,<3.9.0"
-pathspec = ">=0.8.0,<0.9.0"
+pathspec = ">=0.11.1,<0.12.0"
 gitpython = ">=3.1.30,<3.2.0"
 arrow = ">=0.17.0,<0.18.0"
 binaryornot = ">=0.4.4,<0.5.0"
-halo = "==0.0.31"
 texttable = ">=1.6.7,<1.7.0"
 requests = ">=2.24,<3.0"
 
@@ -50,17 +49,83 @@ responses = ">=0.23.1,<0.24.0"
 pyinstaller = ">=5.11.0,<5.12.0"
 dunamai = ">=1.16.1,<1.17.0"
 
+[tool.poetry.group.dev.dependencies]
+black = ">=23.3.0,<23.4.0"
+ruff = "0.0.277"
+
 [tool.pytest.ini_options]
 log_cli = true
 
 [tool.poetry-dynamic-versioning]
 # poetry self add "poetry-dynamic-versioning[plugin]"
 enable = true
-strict = true
+strict = false
 bump = true
 metadata = false
 vcs = "git"
 style = "pep440"
+
+[tool.black]
+line-length = 120
+skip-string-normalization=true
+target-version = ['py37']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.git
+    | \.mypy_cache
+    | .idea
+    | .pytest_cache
+    | venv
+    | htmlcov
+    | build
+    | dist
+  )/
+)
+'''
+
+[tool.ruff]
+extend-select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # Pyflakes
+    "I",  # isort
+    "C90",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "Q",  # flake8-quotes
+    "S",  # flake8-bandit
+    "ASYNC", # flake8-async
+    #    "ANN", # flake8-annotations. Enable later
+    "C",
+    "BLE",
+    "ERA",
+    "ICN",
+    "INP",
+    "ISC",
+    "NPY",
+    "PGH",
+    "PIE",
+    "RET",
+    "RSE",
+    "RUF",
+    "SIM",
+    "T20",
+    #    "TCH", # it can't be autofixed yet
+    "TID",
+    "YTT",
+]
+line-length = 120
+target-version = "py37"
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+multiline-quotes = "double"
+inline-quotes = "single"
+
+[tool.ruff.per-file-ignores]
+"tests/*.py" = ["S101", "S105"]
+"cycode/*.py" = ["BLE001"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]

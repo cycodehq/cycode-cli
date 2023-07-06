@@ -1,21 +1,23 @@
-import click
 import traceback
 
-from cycode.cli.models import CliResult, CliErrors, CliError
-from cycode.cli.printers import ConsolePrinter
+import click
+
 from cycode.cli.auth.auth_manager import AuthManager
+from cycode.cli.exceptions.custom_exceptions import AuthProcessError, HttpUnauthorizedError, NetworkError
+from cycode.cli.models import CliError, CliErrors, CliResult
+from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cli.exceptions.custom_exceptions import AuthProcessError, NetworkError, HttpUnauthorizedError
 from cycode.cyclient import logger
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
 
-@click.group(invoke_without_command=True)
+@click.group(
+    invoke_without_command=True, short_help='Authenticates your machine to associate CLI with your cycode account'
+)
 @click.pass_context
 def authenticate(context: click.Context):
-    """ Authenticates your machine to associate CLI with your cycode account """
     if context.invoked_subcommand is not None:
-        # if it is a subcommand do nothing
+        # if it is a subcommand, do nothing
         return
 
     try:
@@ -33,7 +35,7 @@ def authenticate(context: click.Context):
 @authenticate.command(name='check')
 @click.pass_context
 def authorization_check(context: click.Context):
-    """ Check your machine associating CLI with your cycode account """
+    """Check your machine associating CLI with your cycode account"""
     printer = ConsolePrinter(context)
 
     passed_auth_check_res = CliResult(success=True, message='You are authorized')
@@ -48,23 +50,21 @@ def authorization_check(context: click.Context):
             return printer.print_result(passed_auth_check_res)
     except (NetworkError, HttpUnauthorizedError):
         if context.obj['verbose']:
-            click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
+            click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
         return printer.print_result(failed_auth_check_res)
 
 
 def _handle_exception(context: click.Context, e: Exception):
     if context.obj['verbose']:
-        click.secho(f'Error: {traceback.format_exc()}', fg='red', nl=False)
+        click.secho(f'Error: {traceback.format_exc()}', fg='red')
 
     errors: CliErrors = {
         AuthProcessError: CliError(
-            code='auth_error',
-            message='Authentication failed. Please try again later using the command `cycode auth`'
+            code='auth_error', message='Authentication failed. Please try again later using the command `cycode auth`'
         ),
         NetworkError: CliError(
-            code='cycode_error',
-            message='Authentication failed. Please try again later using the command `cycode auth`'
+            code='cycode_error', message='Authentication failed. Please try again later using the command `cycode auth`'
         ),
     }
 

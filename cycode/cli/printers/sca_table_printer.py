@@ -1,12 +1,16 @@
 from collections import defaultdict
-from typing import List, Dict
+from typing import TYPE_CHECKING, Dict, List
 
 import click
 from texttable import Texttable
 
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
-from cycode.cli.models import DocumentDetections, Detection
+from cycode.cli.models import Detection
 from cycode.cli.printers.base_table_printer import BaseTablePrinter
+from cycode.cli.utils.string_utils import shortcut_dependency_paths
+
+if TYPE_CHECKING:
+    from cycode.cli.models import LocalScanResult
 
 SEVERITY_COLUMN = 'Severity'
 LICENSE_COLUMN = 'License'
@@ -19,27 +23,31 @@ PREVIEW_DETECTIONS_COMMON_HEADERS = [
     'Ecosystem',
     'Dependency Name',
     'Direct Dependency',
-    'Development Dependency'
+    'Development Dependency',
+    'Dependency Paths',
 ]
 
 
 class SCATablePrinter(BaseTablePrinter):
-    def _print_results(self, results: List[DocumentDetections]) -> None:
-        detections_per_detection_type_id = self._extract_detections_per_detection_type_id(results)
+    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+        detections_per_detection_type_id = self._extract_detections_per_detection_type_id(local_scan_results)
         self._print_detection_per_detection_type_id(detections_per_detection_type_id)
 
     @staticmethod
-    def _extract_detections_per_detection_type_id(results: List[DocumentDetections]) -> Dict[str, List[Detection]]:
+    def _extract_detections_per_detection_type_id(
+        local_scan_results: List['LocalScanResult'],
+    ) -> Dict[str, List[Detection]]:
         detections_per_detection_type_id = defaultdict(list)
 
-        for document_detection in results:
-            for detection in document_detection.detections:
-                detections_per_detection_type_id[detection.detection_type_id].append(detection)
+        for local_scan_result in local_scan_results:
+            for document_detection in local_scan_result.document_detections:
+                for detection in document_detection.detections:
+                    detections_per_detection_type_id[detection.detection_type_id].append(detection)
 
         return detections_per_detection_type_id
 
     def _print_detection_per_detection_type_id(
-            self, detections_per_detection_type_id: Dict[str, List[Detection]]
+        self, detections_per_detection_type_id: Dict[str, List[Detection]]
     ) -> None:
         for detection_type_id in detections_per_detection_type_id:
             detections = detections_per_detection_type_id[detection_type_id]
@@ -49,9 +57,9 @@ class SCATablePrinter(BaseTablePrinter):
             rows = []
 
             if detection_type_id == PACKAGE_VULNERABILITY_POLICY_ID:
-                title = "Dependencies Vulnerabilities"
+                title = 'Dependencies Vulnerabilities'
 
-                headers = [SEVERITY_COLUMN] + headers
+                headers = [SEVERITY_COLUMN, *headers]
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(CVE_COLUMN)
                 headers.append(UPGRADE_COLUMN)
@@ -59,7 +67,7 @@ class SCATablePrinter(BaseTablePrinter):
                 for detection in detections:
                     rows.append(self._get_upgrade_package_vulnerability(detection))
             elif detection_type_id == LICENSE_COMPLIANCE_POLICY_ID:
-                title = "License Compliance"
+                title = 'License Compliance'
 
                 headers.extend(PREVIEW_DETECTIONS_COMMON_HEADERS)
                 headers.append(LICENSE_COLUMN)
@@ -76,9 +84,7 @@ class SCATablePrinter(BaseTablePrinter):
 
         return []
 
-    def _print_table_detections(
-            self, detections: List[Detection], headers: List[str], rows, title: str
-    ) -> None:
+    def _print_table_detections(self, detections: List[Detection], headers: List[str], rows, title: str) -> None:
         self._print_summary_issues(detections, title)
         text_table = Texttable()
         text_table.header(headers)
@@ -108,16 +114,22 @@ class SCATablePrinter(BaseTablePrinter):
         click.echo(f'⛔ Found {len(detections)} issues of type: {click.style(title, bold=True)}')
 
     def _get_common_detection_fields(self, detection: Detection) -> List[str]:
+        dependency_paths = 'N/A'
+        dependency_paths_raw = detection.detection_details.get('dependency_paths')
+        if dependency_paths_raw:
+            dependency_paths = shortcut_dependency_paths(dependency_paths_raw)
+
         row = [
             detection.detection_details.get('file_name'),
             detection.detection_details.get('ecosystem'),
             detection.detection_details.get('package_name'),
             detection.detection_details.get('is_direct_dependency_str'),
-            detection.detection_details.get('is_dev_dependency_str')
+            detection.detection_details.get('is_dev_dependency_str'),
+            dependency_paths,
         ]
 
         if self._is_git_repository():
-            row = [detection.detection_details.get('repository_name')] + row
+            row = [detection.detection_details.get('repository_name'), *row]
 
         return row
 
@@ -126,11 +138,11 @@ class SCATablePrinter(BaseTablePrinter):
         row = [
             detection.detection_details.get('advisory_severity'),
             *self._get_common_detection_fields(detection),
-            detection.detection_details.get('vulnerability_id')
+            detection.detection_details.get('vulnerability_id'),
         ]
 
         upgrade = ''
-        if alert.get("first_patched_version"):
+        if alert.get('first_patched_version'):
             upgrade = f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}'
         row.append(upgrade)
 

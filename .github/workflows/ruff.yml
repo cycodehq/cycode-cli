@@ -1,12 +1,9 @@
-name: Unit Tests on the lower supported Python version
+name: Ruff (linter)
 
-on: [ push ]
-
-permissions:
-  contents: read
+on: [ pull_request, push ]
 
 jobs:
-  unit_tests:
+  ruff:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,10 +21,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: 3.7
 
       - name: Setup Poetry
         uses: snok/install-poetry@v1
@@ -35,5 +32,5 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Run Tests
-        run: poetry run pytest
+      - name: Run linter check
+        run: poetry run ruff check .

@@ -1,13 +1,12 @@
 import json
-
-import pytest
 from typing import TYPE_CHECKING
 
+import pytest
 import responses
 from click.testing import CliRunner
 
 from cycode.cli.main import main_cli
-from tests.conftest import TEST_FILES_PATH, CLI_ENV_VARS
+from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH
 from tests.cyclient.test_scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url
 
 _PATH_TO_SCAN = TEST_FILES_PATH.joinpath('zip_content').absolute()
@@ -28,13 +27,15 @@ def _is_json(plain: str) -> bool:
 @pytest.mark.parametrize('output', ['text', 'json'])
 @pytest.mark.parametrize('option_space', ['scan', 'global'])
 def test_passing_output_option(
-        output: str, option_space: str, scan_client: 'ScanClient', api_token_response: responses.Response
+    output: str, option_space: str, scan_client: 'ScanClient', api_token_response: responses.Response
 ):
     scan_type = 'secret'
 
     responses.add(get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client)))
     responses.add(api_token_response)
-    # scan report is not mocked. This raise connection error on attempt to report scan. it doesn't perform real request
+    # Scan report is not mocked.
+    # This raises connection error on the attempt to report scan.
+    # It doesn't perform real request
 
     args = ['scan', '--soft-fail', 'path', str(_PATH_TO_SCAN)]
 
@@ -58,4 +59,4 @@ def test_passing_output_option(
         output = json.loads(result.output)
         assert 'scan_id' in output
     else:
-        assert 'Scan Results' in result.output
+        assert 'Scan ID' in result.output
