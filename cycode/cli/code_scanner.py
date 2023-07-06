@@ -81,9 +81,8 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
             # FIXME(MarshalX): probably file could be tree or submodule too. we expect blob only
             progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
-            path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
-
-            documents_to_scan.append(Document(path, file.data_stream.read().decode('UTF-8', errors='replace')))
+            file_path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
+            documents_to_scan.append(Document(file_path, file.data_stream.read().decode('UTF-8', errors='replace')))
 
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
 
