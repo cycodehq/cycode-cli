@@ -24,7 +24,7 @@ class AuthClient:
         path = f'{self.AUTH_CONTROLLER_PATH}/token'
         body = {'session_id': session_id, 'code_verifier': code_verifier}
         try:
-            response = self.cycode_client.post(url_path=path, body=body)
+            response = self.cycode_client.post(url_path=path, body=body, hide_response_content_log=True)
             return self.parse_api_token_polling_response(response)
         except (NetworkError, HttpUnauthorizedError) as e:
             return self.parse_api_token_polling_response(e.response)

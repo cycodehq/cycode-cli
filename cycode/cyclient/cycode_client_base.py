@@ -53,7 +53,13 @@ class CycodeClientBase:
         return self._execute(method='get', endpoint=url_path, headers=headers, **kwargs)
 
     def _execute(
-        self, method: str, endpoint: str, headers: Optional[dict] = None, without_auth: bool = False, **kwargs
+        self,
+        method: str,
+        endpoint: str,
+        headers: Optional[dict] = None,
+        without_auth: bool = False,
+        hide_response_content_log: bool = False,
+        **kwargs,
     ) -> Response:
         url = self.build_full_url(self.api_url, endpoint)
         logger.debug(f'Executing {method.upper()} request to {url}')
@@ -62,7 +68,8 @@ class CycodeClientBase:
             headers = self.get_request_headers(headers, without_auth=without_auth)
             response = request(method=method, url=url, timeout=self.timeout, headers=headers, **kwargs)
 
-            logger.debug(f'Response {response.status_code} from {url}. Content: {response.text}')
+            content = 'HIDDEN' if hide_response_content_log else response.text
+            logger.debug(f'Response {response.status_code} from {url}. Content: {content}')
 
             response.raise_for_status()
             return response

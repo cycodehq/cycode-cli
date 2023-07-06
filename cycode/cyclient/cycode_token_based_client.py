@@ -35,6 +35,7 @@ class CycodeTokenBasedClient(CycodeClient):
             url_path='api/v1/auth/api-token',
             body={'clientId': self.client_id, 'secret': self.client_secret},
             without_auth=True,
+            hide_response_content_log=True,
         )
         auth_response_data = auth_response.json()
 
