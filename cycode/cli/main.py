@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import click
 
@@ -120,17 +120,17 @@ CONTEXT = {}
 @click.pass_context
 def code_scan(
     context: click.Context,
-    scan_type,
-    client_id,
-    secret,
-    show_secret,
-    soft_fail,
-    output,
-    severity_threshold,
+    scan_type: str,
+    secret: str,
+    client_id: str,
+    show_secret: bool,
+    soft_fail: bool,
+    output: str,
+    severity_threshold: str,
     sca_scan: List[str],
-    monitor,
-    report,
-):
+    monitor: bool,
+    report: bool,
+) -> int:
     if show_secret:
         context.obj['show_secret'] = show_secret
     else:
@@ -164,7 +164,7 @@ def code_scan(
 
 @code_scan.result_callback()
 @click.pass_context
-def finalize(context: click.Context, *_, **__):
+def finalize(context: click.Context, *_, **__) -> None:
     progress_bar = context.obj.get('progress_bar')
     if progress_bar:
         progress_bar.stop()
@@ -210,7 +210,9 @@ def finalize(context: click.Context, *_, **__):
 )
 @click.version_option(__version__, prog_name='cycode')
 @click.pass_context
-def main_cli(context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]):
+def main_cli(
+    context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]
+) -> None:
     context.ensure_object(dict)
     configuration_manager = ConfigurationManager()
 
@@ -243,16 +245,16 @@ def get_cycode_client(client_id: str, client_secret: str) -> 'ScanClient':
     return create_scan_client(client_id, client_secret)
 
 
-def _get_configured_credentials():
+def _get_configured_credentials() -> Tuple[str, str]:
     credentials_manager = CredentialsManager()
     return credentials_manager.get_credentials()
 
 
-def _should_fail_scan(context: click.Context):
+def _should_fail_scan(context: click.Context) -> bool:
     return scan_utils.is_scan_failed(context)
 
 
-def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]):
+def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[str]) -> None:
     for sca_scan_option_selected in sca_scan_user_selected:
         context.obj[sca_scan_option_selected] = True
 

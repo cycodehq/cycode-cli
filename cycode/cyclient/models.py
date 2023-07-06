@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
 
@@ -13,7 +13,7 @@ class Detection(Schema):
         detection_details: dict,
         detection_rule_id: str,
         severity: Optional[str] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.message = message
         self.type = type
@@ -45,12 +45,12 @@ class DetectionSchema(Schema):
     detection_rule_id = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> Detection:
         return Detection(**data)
 
 
 class DetectionsPerFile(Schema):
-    def __init__(self, file_name: str, detections: List[Detection], commit_id: Optional[str] = None):
+    def __init__(self, file_name: str, detections: List[Detection], commit_id: Optional[str] = None) -> None:
         super().__init__()
         self.file_name = file_name
         self.detections = detections
@@ -66,7 +66,7 @@ class DetectionsPerFileSchema(Schema):
     commit_id = fields.String(allow_none=True)
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'DetectionsPerFile':
         return DetectionsPerFile(**data)
 
 
@@ -78,7 +78,7 @@ class ZippedFileScanResult(Schema):
         report_url: Optional[str] = None,
         scan_id: Optional[str] = None,
         err: Optional[str] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.did_detect = did_detect
         self.detections_per_file = detections_per_file
@@ -98,7 +98,7 @@ class ZippedFileScanResultSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ZippedFileScanResult':
         return ZippedFileScanResult(**data)
 
 
@@ -109,7 +109,7 @@ class ScanResult(Schema):
         scan_id: Optional[str] = None,
         detections: Optional[List[Detection]] = None,
         err: Optional[str] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.did_detect = did_detect
         self.scan_id = scan_id
@@ -127,12 +127,12 @@ class ScanResultSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanResult':
         return ScanResult(**data)
 
 
 class ScanInitializationResponse(Schema):
-    def __init__(self, scan_id: Optional[str] = None, err: Optional[str] = None):
+    def __init__(self, scan_id: Optional[str] = None, err: Optional[str] = None) -> None:
         super().__init__()
         self.scan_id = scan_id
         self.err = err
@@ -146,7 +146,7 @@ class ScanInitializationResponseSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanInitializationResponse':
         return ScanInitializationResponse(**data)
 
 
@@ -160,7 +160,7 @@ class ScanDetailsResponse(Schema):
         message: Optional[str] = None,
         scan_update_at: Optional[str] = None,
         err: Optional[str] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.id = id
         self.scan_status = scan_status
@@ -184,12 +184,12 @@ class ScanDetailsResponseSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanDetailsResponse':
         return ScanDetailsResponse(**data)
 
 
 class K8SResource:
-    def __init__(self, name: str, resource_type: str, namespace: str, content: Dict):
+    def __init__(self, name: str, resource_type: str, namespace: str, content: Dict) -> None:
         super().__init__()
         self.name = name
         self.type = resource_type
@@ -198,23 +198,23 @@ class K8SResource:
         self.internal_metadata = None
         self.schema = K8SResourceSchema()
 
-    def to_json(self):
+    def to_json(self) -> dict:  # FIXME(MarshalX): rename to to_dict?
         return self.schema.dump(self)
 
 
 class InternalMetadata:
-    def __init__(self, root_entity_name: str, root_entity_type: str):
+    def __init__(self, root_entity_name: str, root_entity_type: str) -> None:
         super().__init__()
         self.root_entity_name = root_entity_name
         self.root_entity_type = root_entity_type
         self.schema = InternalMetadataSchema()
 
-    def to_json(self):
+    def to_json(self) -> dict:  # FIXME(MarshalX): rename to to_dict?
         return self.schema.dump(self)
 
 
 class ResourcesCollection:
-    def __init__(self, resource_type: str, namespace: str, resources: List[K8SResource], total_count: int):
+    def __init__(self, resource_type: str, namespace: str, resources: List[K8SResource], total_count: int) -> None:
         super().__init__()
         self.type = resource_type
         self.namespace = namespace
@@ -222,7 +222,7 @@ class ResourcesCollection:
         self.total_count = total_count
         self.schema = ResourcesCollectionSchema()
 
-    def to_json(self):
+    def to_json(self) -> dict:  # FIXME(MarshalX): rename to to_dict?
         return self.schema.dump(self)
 
 
@@ -247,17 +247,17 @@ class ResourcesCollectionSchema(Schema):
 
 
 class OwnerReference:
-    def __init__(self, name: str, kind: str):
+    def __init__(self, name: str, kind: str) -> None:
         super().__init__()
         self.name = name
         self.kind = kind
 
-    def __str__(self):
+    def __str__(self) -> str:
         return 'Name: {0}, Kind: {1}'.format(self.name, self.kind)
 
 
 class AuthenticationSession(Schema):
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str) -> None:
         super().__init__()
         self.session_id = session_id
 
@@ -269,12 +269,12 @@ class AuthenticationSessionSchema(Schema):
     session_id = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'AuthenticationSession':
         return AuthenticationSession(**data)
 
 
 class ApiToken(Schema):
-    def __init__(self, client_id: str, secret: str, description: str):
+    def __init__(self, client_id: str, secret: str, description: str) -> None:
         super().__init__()
         self.client_id = client_id
         self.secret = secret
@@ -290,12 +290,12 @@ class ApiTokenSchema(Schema):
     description = fields.String()
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ApiToken':
         return ApiToken(**data)
 
 
 class ApiTokenGenerationPollingResponse(Schema):
-    def __init__(self, status: str, api_token):
+    def __init__(self, status: str, api_token: 'ApiToken') -> None:
         super().__init__()
         self.status = status
         self.api_token = api_token
@@ -309,7 +309,7 @@ class ApiTokenGenerationPollingResponseSchema(Schema):
     api_token = fields.Nested(ApiTokenSchema, allow_none=True)
 
     @post_load
-    def build_dto(self, data, **kwargs):
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ApiTokenGenerationPollingResponse':
         return ApiTokenGenerationPollingResponse(**data)
 
 
@@ -320,7 +320,7 @@ class UserAgentOptionScheme(Schema):
     env_version = fields.String(required=True)  # ex. 1.78.2
 
     @post_load
-    def build_dto(self, data: dict, **_) -> 'UserAgentOption':
+    def build_dto(self, data: Dict[str, Any], **_) -> 'UserAgentOption':
         return UserAgentOption(**data)
 
 

@@ -84,7 +84,9 @@ class SCATablePrinter(BaseTablePrinter):
 
         return []
 
-    def _print_table_detections(self, detections: List[Detection], headers: List[str], rows, title: str) -> None:
+    def _print_table_detections(
+        self, detections: List[Detection], headers: List[str], rows: List[List[str]], title: str
+    ) -> None:
         self._print_summary_issues(detections, title)
         text_table = Texttable()
         text_table.header(headers)

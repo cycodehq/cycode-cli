@@ -9,7 +9,7 @@ from .cycode_client import CycodeClient
 class CycodeTokenBasedClient(CycodeClient):
     """Send requests with api token"""
 
-    def __init__(self, client_id: str, client_secret: str):
+    def __init__(self, client_id: str, client_secret: str) -> None:
         super().__init__()
         self.client_secret = client_secret
         self.client_id = client_id
@@ -41,7 +41,7 @@ class CycodeTokenBasedClient(CycodeClient):
         self._api_token = auth_response_data['token']
         self._expires_in = arrow.utcnow().shift(seconds=auth_response_data['expires_in'] * 0.8)
 
-    def get_request_headers(self, additional_headers: Optional[dict] = None, without_auth=False) -> dict:
+    def get_request_headers(self, additional_headers: Optional[dict] = None, without_auth: bool = False) -> dict:
         headers = super().get_request_headers(additional_headers=additional_headers)
 
         if not without_auth:

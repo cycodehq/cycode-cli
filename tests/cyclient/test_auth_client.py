@@ -48,7 +48,7 @@ _SESSION_ID = '4cff1234-a209-47ed-ab2f-85676912345c'
 
 
 @responses.activate
-def test_start_session_success(client: AuthClient, start_url: str, code_challenge: str):
+def test_start_session_success(client: AuthClient, start_url: str, code_challenge: str) -> None:
     responses.add(
         responses.POST,
         start_url,
@@ -62,7 +62,7 @@ def test_start_session_success(client: AuthClient, start_url: str, code_challeng
 
 
 @responses.activate
-def test_start_session_timeout(client: AuthClient, start_url: str, code_challenge: str):
+def test_start_session_timeout(client: AuthClient, start_url: str, code_challenge: str) -> None:
     responses.add(responses.POST, start_url, status=504)
 
     timeout_response = requests.post(start_url, timeout=5)
@@ -83,7 +83,7 @@ def test_start_session_timeout(client: AuthClient, start_url: str, code_challeng
 
 
 @responses.activate
-def test_start_session_http_error(client: AuthClient, start_url: str, code_challenge: str):
+def test_start_session_http_error(client: AuthClient, start_url: str, code_challenge: str) -> None:
     responses.add(responses.POST, start_url, status=401)
 
     with pytest.raises(CycodeError) as e_info:
@@ -93,7 +93,7 @@ def test_start_session_http_error(client: AuthClient, start_url: str, code_chall
 
 
 @responses.activate
-def test_get_api_token_success_pending(client: AuthClient, token_url: str, code_verifier: str):
+def test_get_api_token_success_pending(client: AuthClient, token_url: str, code_verifier: str) -> None:
     expected_status = 'Pending'
     expected_api_token = None
 
@@ -111,7 +111,7 @@ def test_get_api_token_success_pending(client: AuthClient, token_url: str, code_
 
 
 @responses.activate
-def test_get_api_token_success_completed(client: AuthClient, token_url: str, code_verifier: str):
+def test_get_api_token_success_completed(client: AuthClient, token_url: str, code_verifier: str) -> None:
     expected_status = 'Completed'
     expected_json = {
         'status': expected_status,
@@ -141,7 +141,7 @@ def test_get_api_token_success_completed(client: AuthClient, token_url: str, cod
 
 
 @responses.activate
-def test_get_api_token_http_error_valid_response(client: AuthClient, token_url: str, code_verifier: str):
+def test_get_api_token_http_error_valid_response(client: AuthClient, token_url: str, code_verifier: str) -> None:
     expected_status = 'Pending'
     expected_api_token = None
 
@@ -159,7 +159,7 @@ def test_get_api_token_http_error_valid_response(client: AuthClient, token_url: 
 
 
 @responses.activate
-def test_get_api_token_http_error_invalid_response(client: AuthClient, token_url: str, code_verifier: str):
+def test_get_api_token_http_error_invalid_response(client: AuthClient, token_url: str, code_verifier: str) -> None:
     responses.add(
         responses.POST,
         token_url,
@@ -172,7 +172,7 @@ def test_get_api_token_http_error_invalid_response(client: AuthClient, token_url
 
 
 @responses.activate
-def test_get_api_token_not_excepted_exception(client: AuthClient, token_url: str, code_verifier: str):
+def test_get_api_token_not_excepted_exception(client: AuthClient, token_url: str, code_verifier: str) -> None:
     responses.add(responses.POST, token_url, body=Timeout())
 
     api_token_polling_response = client.get_api_token(_SESSION_ID, code_verifier)

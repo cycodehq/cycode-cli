@@ -33,7 +33,7 @@ def api_token_url(token_based_client: CycodeTokenBasedClient) -> str:
 
 
 @pytest.fixture(scope='session')
-def api_token_response(api_token_url) -> responses.Response:
+def api_token_response(api_token_url: str) -> responses.Response:
     return responses.Response(
         method=responses.POST,
         url=api_token_url,

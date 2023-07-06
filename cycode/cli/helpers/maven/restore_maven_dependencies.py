@@ -17,7 +17,7 @@ MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
 
 
 class RestoreMavenDependencies(BaseRestoreMavenDependencies):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int):
+    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
@@ -43,8 +43,10 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
 
         return restore_dependencies_document
 
-    def restore_from_secondary_command(self, document, manifest_file_path, restore_dependencies_document):
-        # TODO(MarshalX): does it even work? Missing argument
+    def restore_from_secondary_command(
+        self, document: Document, manifest_file_path: str, restore_dependencies_document: Optional[Document]
+    ) -> Optional[Document]:
+        # TODO(MarshalX): does it even work? Ignored restore_dependencies_document arg
         secondary_restore_command = create_secondary_restore_command(manifest_file_path)
         backup_restore_content = execute_command(secondary_restore_command, manifest_file_path, self.command_timeout)
         restore_dependencies_document = Document(
@@ -58,7 +60,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         return restore_dependencies
 
 
-def create_secondary_restore_command(self, manifest_file_path):
+def create_secondary_restore_command(manifest_file_path: str) -> List[str]:
     return [
         'mvn',
         'dependency:tree',

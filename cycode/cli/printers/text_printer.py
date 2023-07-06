@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class TextPrinter(BasePrinter):
-    def __init__(self, context: click.Context):
+    def __init__(self, context: click.Context) -> None:
         super().__init__(context)
         self.scan_type: str = context.obj.get('scan_type')
         self.command_scan_type: str = context.info_name
@@ -30,7 +30,7 @@ class TextPrinter(BasePrinter):
     def print_error(self, error: CliError) -> None:
         click.secho(error.message, fg=self.RED_COLOR_NAME)
 
-    def print_scan_results(self, local_scan_results: List['LocalScanResult']):
+    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
         if all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return
@@ -43,7 +43,7 @@ class TextPrinter(BasePrinter):
 
     def _print_document_detections(
         self, document_detections: DocumentDetections, scan_id: str, report_url: Optional[str]
-    ):
+    ) -> None:
         document = document_detections.document
         lines_to_display = self._get_lines_to_display_count()
         for detection in document_detections.detections:
@@ -52,7 +52,7 @@ class TextPrinter(BasePrinter):
 
     def _print_detection_summary(
         self, detection: Detection, document_path: str, scan_id: str, report_url: Optional[str]
-    ):
+    ) -> None:
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
 
         detection_sha = detection.detection_details.get('sha512')
@@ -70,14 +70,15 @@ class TextPrinter(BasePrinter):
             f'{detection_sha_message}{scan_id_message}{report_url_message}{detection_commit_id_message}  ⛔'
         )
 
-    def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int):
+    def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int) -> None:
         if self._is_git_diff_based_scan():
             self._print_detection_from_git_diff(detection, document)
             return
 
         self._print_detection_from_file(detection, document, code_segment_size)
 
-    def _get_code_segment_start_line(self, detection_line: int, code_segment_size: int):
+    @staticmethod
+    def _get_code_segment_start_line(detection_line: int, code_segment_size: int) -> int:
         start_line = detection_line - math.ceil(code_segment_size / 2)
         return 0 if start_line < 0 else start_line
 
@@ -89,7 +90,7 @@ class TextPrinter(BasePrinter):
         detection_position_in_line: int,
         violation_length: int,
         is_detection_line: bool,
-    ):
+    ) -> None:
         if is_detection_line:
             self._print_detection_line(document, line, line_number, detection_position_in_line, violation_length)
         else:
@@ -104,7 +105,7 @@ class TextPrinter(BasePrinter):
 
         click.echo(f'{self._get_line_number_style(line_number)} {detection_line}')
 
-    def _print_line(self, document: Document, line: str, line_number: int):
+    def _print_line(self, document: Document, line: str, line_number: int) -> None:
         line_no = self._get_line_number_style(line_number)
         line = self._get_line_style(line, document.is_git_diff_format)
 
@@ -148,7 +149,7 @@ class TextPrinter(BasePrinter):
 
         return self.WHITE_COLOR_NAME
 
-    def _get_line_number_style(self, line_number: int):
+    def _get_line_number_style(self, line_number: int) -> str:
         return (
             f'{click.style(str(line_number), fg=self.WHITE_COLOR_NAME, bold=False)} '
             f'{click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
@@ -164,7 +165,7 @@ class TextPrinter(BasePrinter):
 
         return result_printer_configuration.get('default').get('lines_to_display')
 
-    def _print_detection_from_file(self, detection: Detection, document: Document, code_segment_size: int):
+    def _print_detection_from_file(self, detection: Detection, document: Document, code_segment_size: int) -> None:
         detection_details = detection.detection_details
         detection_line = (
             detection_details.get('line', -1)
@@ -197,7 +198,7 @@ class TextPrinter(BasePrinter):
             )
         click.echo()
 
-    def _print_detection_from_git_diff(self, detection: Detection, document: Document):
+    def _print_detection_from_git_diff(self, detection: Detection, document: Document) -> None:
         detection_details = detection.detection_details
         detection_line_number = detection_details.get('line', -1)
         detection_line_number_in_original_file = detection_details.get('line_in_file', -1)
@@ -219,5 +220,5 @@ class TextPrinter(BasePrinter):
         )
         click.echo()
 
-    def _is_git_diff_based_scan(self):
+    def _is_git_diff_based_scan(self) -> bool:
         return self.command_scan_type in COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES and self.scan_type == SECRET_SCAN_TYPE

@@ -1,14 +1,14 @@
-from typing import Dict
+from typing import Any, Dict, Hashable
 
 import yaml
 
 
-def read_file(filename: str) -> Dict:
+def read_file(filename: str) -> Dict[Hashable, Any]:
     with open(filename, 'r', encoding='UTF-8') as file:
         return yaml.safe_load(file)
 
 
-def update_file(filename: str, content: Dict):
+def update_file(filename: str, content: Dict[Hashable, Any]) -> None:
     try:
         with open(filename, 'r', encoding='UTF-8') as file:
             file_content = yaml.safe_load(file)
@@ -20,7 +20,7 @@ def update_file(filename: str, content: Dict):
         yaml.safe_dump(file_content, file)
 
 
-def _deep_update(source, overrides):
+def _deep_update(source: Dict[Hashable, Any], overrides: Dict[Hashable, Any]) -> Dict[Hashable, Any]:
     for key, value in overrides.items():
         if isinstance(value, dict) and value:
             source[key] = _deep_update(source.get(key, {}), value)

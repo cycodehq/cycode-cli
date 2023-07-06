@@ -11,7 +11,7 @@ from .cycode_client import CycodeClient
 class AuthClient:
     AUTH_CONTROLLER_PATH = 'api/v1/device-auth'
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.cycode_client = CycodeClient()
 
     def start_session(self, code_challenge: str) -> models.AuthenticationSession:

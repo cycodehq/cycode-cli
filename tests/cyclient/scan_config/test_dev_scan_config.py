@@ -1,7 +1,7 @@
 from cycode.cyclient.scan_config.scan_config_creator import DevScanConfig
 
 
-def test_get_service_name():
+def test_get_service_name() -> None:
     dev_scan_config = DevScanConfig()
 
     assert dev_scan_config.get_service_name('secret') == '5025'
@@ -10,13 +10,13 @@ def test_get_service_name():
     assert dev_scan_config.get_service_name('sast') == '5004'
 
 
-def test_get_scans_prefix():
+def test_get_scans_prefix() -> None:
     dev_scan_config = DevScanConfig()
 
     assert dev_scan_config.get_scans_prefix() == '5004'
 
 
-def test_get_detections_prefix():
+def test_get_detections_prefix() -> None:
     dev_scan_config = DevScanConfig()
 
     assert dev_scan_config.get_detections_prefix() == '5016'

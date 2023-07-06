@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from cycode.cli import consts
@@ -11,7 +11,7 @@ class ConfigurationManager:
     global_config_file_manager: ConfigFileManager
     local_config_file_manager: ConfigFileManager
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.global_config_file_manager = ConfigFileManager(Path.home())
         self.local_config_file_manager = ConfigFileManager(os.getcwd())
 
@@ -61,12 +61,12 @@ class ConfigurationManager:
         value = self._get_value_from_environment_variables(consts.VERBOSE_ENV_VAR_NAME, '')
         return value.lower() in ('true', '1')
 
-    def get_exclusions_by_scan_type(self, scan_type) -> Dict:
+    def get_exclusions_by_scan_type(self, scan_type: str) -> Dict:
         local_exclusions = self.local_config_file_manager.get_exclusions_by_scan_type(scan_type)
         global_exclusions = self.global_config_file_manager.get_exclusions_by_scan_type(scan_type)
         return self._merge_exclusions(local_exclusions, global_exclusions)
 
-    def add_exclusion(self, scope: str, scan_type: str, exclusion_type: str, value: str):
+    def add_exclusion(self, scope: str, scan_type: str, exclusion_type: str, value: str) -> None:
         config_file_manager = self.get_config_file_manager(scope)
         config_file_manager.add_exclusion(scan_type, exclusion_type, value)
 
@@ -74,7 +74,7 @@ class ConfigurationManager:
         keys = set(list(local_exclusions.keys()) + list(global_exclusions.keys()))
         return {key: local_exclusions.get(key, []) + global_exclusions.get(key, []) for key in keys}
 
-    def update_base_url(self, base_url: str, scope: str = 'local'):
+    def update_base_url(self, base_url: str, scope: str = 'local') -> None:
         config_file_manager = self.get_config_file_manager(scope)
         config_file_manager.update_base_url(base_url)
 
@@ -162,5 +162,5 @@ class ConfigurationManager:
         return consts.DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES
 
     @staticmethod
-    def _get_value_from_environment_variables(env_var_name, default=None):
+    def _get_value_from_environment_variables(env_var_name: str, default: Optional[Any] = None) -> Optional[Any]:
         return os.getenv(env_var_name, default)

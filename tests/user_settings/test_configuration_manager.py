@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING, Optional
+
 from mock import Mock
 
 from cycode.cli.consts import DEFAULT_CYCODE_API_URL
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 """
 we check for base url in the three places, in the following order:
@@ -14,7 +19,7 @@ LOCAL_CONFIG_FILE_BASE_URL_VALUE = 'url_from_local_config_file'
 GLOBAL_CONFIG_BASE_URL_VALUE = 'url_from_global_config_file'
 
 
-def test_get_base_url_from_environment_variable(mocker):
+def test_get_base_url_from_environment_variable(mocker: 'MockerFixture') -> None:
     # Arrange
     configuration_manager = _configure_mocks(
         mocker, ENV_VARS_BASE_URL_VALUE, LOCAL_CONFIG_FILE_BASE_URL_VALUE, GLOBAL_CONFIG_BASE_URL_VALUE
@@ -27,7 +32,7 @@ def test_get_base_url_from_environment_variable(mocker):
     assert result == ENV_VARS_BASE_URL_VALUE
 
 
-def test_get_base_url_from_local_config(mocker):
+def test_get_base_url_from_local_config(mocker: 'MockerFixture') -> None:
     # Arrange
     configuration_manager = _configure_mocks(
         mocker, None, LOCAL_CONFIG_FILE_BASE_URL_VALUE, GLOBAL_CONFIG_BASE_URL_VALUE
@@ -40,7 +45,7 @@ def test_get_base_url_from_local_config(mocker):
     assert result == LOCAL_CONFIG_FILE_BASE_URL_VALUE
 
 
-def test_get_base_url_from_global_config(mocker):
+def test_get_base_url_from_global_config(mocker: 'MockerFixture') -> None:
     # Arrange
     configuration_manager = _configure_mocks(mocker, None, None, GLOBAL_CONFIG_BASE_URL_VALUE)
 
@@ -51,7 +56,7 @@ def test_get_base_url_from_global_config(mocker):
     assert result == GLOBAL_CONFIG_BASE_URL_VALUE
 
 
-def test_get_base_url_not_configured(mocker):
+def test_get_base_url_not_configured(mocker: 'MockerFixture') -> None:
     # Arrange
     configuration_manager = _configure_mocks(mocker, None, None, None)
 
@@ -63,8 +68,11 @@ def test_get_base_url_not_configured(mocker):
 
 
 def _configure_mocks(
-    mocker, expected_env_var_base_url, expected_local_config_file_base_url, expected_global_config_file_base_url
-):
+    mocker: 'MockerFixture',
+    expected_env_var_base_url: Optional[str],
+    expected_local_config_file_base_url: Optional[str],
+    expected_global_config_file_base_url: Optional[str],
+) -> ConfigurationManager:
     mocker.patch.object(
         ConfigurationManager, 'get_api_url_from_environment_variables', return_value=expected_env_var_base_url
     )

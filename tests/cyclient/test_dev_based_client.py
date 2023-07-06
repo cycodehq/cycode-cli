@@ -2,7 +2,7 @@ from cycode.cyclient import config
 from cycode.cyclient.cycode_dev_based_client import CycodeDevBasedClient
 
 
-def test_get_request_headers():
+def test_get_request_headers() -> None:
     client = CycodeDevBasedClient(config.cycode_api_url)
 
     dev_based_headers = {'X-Tenant-Id': config.dev_tenant_id}
@@ -11,7 +11,7 @@ def test_get_request_headers():
     assert client.get_request_headers() == expected_headers
 
 
-def test_build_full_url():
+def test_build_full_url() -> None:
     url = config.cycode_api_url
     client = CycodeDevBasedClient(url)
 

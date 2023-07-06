@@ -3,7 +3,7 @@ import os
 import click
 
 
-def github_action_range():
+def github_action_range() -> str:
     before_sha = os.getenv('BEFORE_SHA')
     push_base_sha = os.getenv('BASE_SHA')
     pr_base_sha = os.getenv('PR_BASE_SHA')
@@ -22,7 +22,7 @@ def github_action_range():
     # if push_base_sha and push_base_sha != "null":
 
 
-def circleci_range():
+def circleci_range() -> str:
     before_sha = os.getenv('BEFORE_SHA')
     current_sha = os.getenv('CURRENT_SHA')
     commit_range = f'{before_sha}...{current_sha}'
@@ -36,7 +36,7 @@ def circleci_range():
     return f'{commit_sha}~1...'
 
 
-def gitlab_range():
+def gitlab_range() -> str:
     before_sha = os.getenv('CI_COMMIT_BEFORE_SHA')
     commit_sha = os.getenv('CI_COMMIT_SHA', 'HEAD')
 
@@ -46,7 +46,7 @@ def gitlab_range():
     return f'{commit_sha}'
 
 
-def get_commit_range():
+def get_commit_range() -> str:
     if os.getenv('GITHUB_ACTIONS'):
         return github_action_range()
     if os.getenv('CIRCLECI'):

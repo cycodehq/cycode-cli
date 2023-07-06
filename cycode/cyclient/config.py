@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from typing import Optional
 from urllib.parse import urlparse
 
 from cycode.cli import consts
@@ -39,7 +40,7 @@ DEFAULT_CONFIGURATION = {
 configuration = dict(DEFAULT_CONFIGURATION, **os.environ)
 
 
-def get_logger(logger_name=None):
+def get_logger(logger_name: Optional[str] = None) -> logging.Logger:
     logger = logging.getLogger(logger_name)
     level = _get_val_as_string(consts.LOGGING_LEVEL_ENV_VAR_NAME)
     level = level if level in logging._nameToLevel else int(level)
@@ -48,18 +49,21 @@ def get_logger(logger_name=None):
     return logger
 
 
-def _get_val_as_string(key):
+def _get_val_as_string(key: str) -> str:
     return configuration.get(key)
 
 
-def _get_val_as_bool(key, default=''):
+def _get_val_as_bool(key: str, default: str = '') -> bool:
     val = configuration.get(key, default)
     return val.lower() in ('true', '1')
 
 
-def _get_val_as_int(key):
+def _get_val_as_int(key: str) -> Optional[int]:
     val = configuration.get(key)
-    return int(val) if val is not None else None
+    if val:
+        return int(val)
+
+    return None
 
 
 logger = get_logger('cycode cli')
