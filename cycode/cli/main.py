@@ -76,6 +76,7 @@ CONTEXT = {}
 )
 @click.option(
     '--output',
+    '-o',
     default=None,
     help="""
               \b
@@ -198,6 +199,7 @@ def finalize(context: click.Context, *_, **__) -> None:
 )
 @click.option(
     '--output',
+    '-o',
     default='text',
     help='Specify the output (text/json/table), the default is text',
     type=click.Choice(['text', 'json', 'table']),
