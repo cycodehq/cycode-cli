@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -61,6 +62,7 @@ class ConfigurationManager:
         value = self._get_value_from_environment_variables(consts.VERBOSE_ENV_VAR_NAME, '')
         return value.lower() in ('true', '1')
 
+    @lru_cache(maxsize=None)  # noqa: B019
     def get_exclusions_by_scan_type(self, scan_type: str) -> Dict:
         local_exclusions = self.local_config_file_manager.get_exclusions_by_scan_type(scan_type)
         global_exclusions = self.global_config_file_manager.get_exclusions_by_scan_type(scan_type)

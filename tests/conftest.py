@@ -18,6 +18,11 @@ TEST_FILES_PATH = Path(__file__).parent.joinpath('test_files').absolute()
 
 
 @pytest.fixture(scope='session')
+def test_files_path() -> Path:
+    return TEST_FILES_PATH
+
+
+@pytest.fixture(scope='session')
 def scan_client() -> ScanClient:
     return create_scan_client(_CLIENT_ID, _CLIENT_SECRET, hide_response_log=False)
 

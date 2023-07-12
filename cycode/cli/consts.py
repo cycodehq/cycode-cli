@@ -7,9 +7,9 @@ INFRA_CONFIGURATION_SCAN_TYPE = 'iac'
 SCA_SCAN_TYPE = 'sca'
 SAST_SCAN_TYPE = 'sast'
 
-INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = ['.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile']
+INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = ('.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile')
 
-SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = [
+SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
     '.7z',
     '.bmp',
     '.bz2',
@@ -39,9 +39,9 @@ SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = [
     '.deb',
     '.obj',
     '.model',
-]
+)
 
-SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
+SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (
     'cargo.lock',
     'cargo.toml',
     'composer.json',
@@ -73,9 +73,9 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = [
     'pipfile.lock',
     'requirements.txt',
     'setup.py',
-]
+)
 
-SCA_EXCLUDED_PATHS = ['node_modules']
+SCA_EXCLUDED_PATHS = ('node_modules',)
 
 PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     'crates': ['Cargo.lock', 'Cargo.toml'],

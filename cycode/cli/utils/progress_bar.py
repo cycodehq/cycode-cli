@@ -40,9 +40,6 @@ _PROGRESS_BAR_SECTIONS = {
     ProgressBarSection.PREPARE_LOCAL_FILES: ProgressBarSectionInfo(
         ProgressBarSection.PREPARE_LOCAL_FILES, 'Prepare local files', start_percent=0, stop_percent=5
     ),
-    # TODO(MarshalX): could be added in the future
-    # ProgressBarSection.UPLOAD_FILES: ProgressBarSectionInfo(
-    # ),
     ProgressBarSection.SCAN: ProgressBarSectionInfo(
         ProgressBarSection.SCAN, 'Scan in progress', start_percent=5, stop_percent=95
     ),
