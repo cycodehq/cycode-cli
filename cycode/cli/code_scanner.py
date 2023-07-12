@@ -190,10 +190,32 @@ def scan_ci(context: click.Context) -> None:
 @click.pass_context
 def scan_path(context: click.Context, path: str) -> None:
     logger.debug('Starting path scan process, %s', {'path': path})
-    files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
-    files_to_scan = exclude_irrelevant_files(context, files_to_scan)
-    logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
-    scan_disk_files(context, path, files_to_scan)
+
+    progress_bar = context.obj['progress_bar']
+
+    all_files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
+
+    # we are double the progress bar section length because we are going to process the files twice
+    # first time to get the file list with respect of excluded patterns (excluding takes seconds to execute)
+    # second time to get the files content
+    progress_bar_section_len = len(all_files_to_scan) * 2
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, progress_bar_section_len)
+
+    relevant_files_to_scan = exclude_irrelevant_files(context, all_files_to_scan)
+
+    # after finishing the first processing (excluding),
+    # we must update the progress bar stage with respect of excluded files.
+    # now it's possible that we will not process x2 of the files count
+    # because some of them were excluded, we should subtract the excluded files count
+    # from the progress bar section length
+    excluded_files_count = len(all_files_to_scan) - len(relevant_files_to_scan)
+    progress_bar_section_len = progress_bar_section_len - excluded_files_count
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, progress_bar_section_len)
+
+    logger.debug(
+        'Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(relevant_files_to_scan)}
+    )
+    scan_disk_files(context, path, relevant_files_to_scan)
 
 
 @click.command(short_help='Use this command to scan the content that was not committed yet')
@@ -300,17 +322,15 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
 
     is_git_diff = False
 
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(files_to_scan))
-
     documents: List[Document] = []
     for file in files_to_scan:
         progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
-        with open(file, 'r', encoding='UTF-8') as f:
-            try:
-                documents.append(Document(file, f.read(), is_git_diff))
-            except UnicodeDecodeError:
-                continue
+        content = get_file_content(file)
+        if not content:
+            continue
+
+        documents.append(Document(file, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
     scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
@@ -826,11 +846,15 @@ def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_sc
 
 def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
     scan_type = context.obj['scan_type']
+    progress_bar = context.obj['progress_bar']
 
     relevant_files = []
     for filename in filenames:
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
         if _is_relevant_file_to_scan(scan_type, filename):
             relevant_files.append(filename)
+
+    is_sub_path.cache_clear()  # free up memory
 
     return relevant_files
 
@@ -1066,20 +1090,12 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     filename = filename.lower()
 
     if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        return any(
-            filename.endswith(supported_file_extension)
-            for supported_file_extension in consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES
-        )
+        return filename.endswith(consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
 
     if scan_type == consts.SCA_SCAN_TYPE:
-        return any(
-            filename.endswith(supported_file) for supported_file in consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES
-        )
+        return filename.endswith(consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)
 
-    return all(
-        not filename.endswith(file_extension_to_ignore)
-        for file_extension_to_ignore in consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE
-    )
+    return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
