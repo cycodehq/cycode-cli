@@ -43,13 +43,16 @@ def perform_pre_hook_range_scan_actions(
 def add_ecosystem_related_files_if_exists(
     documents: List[Document], repo: Optional[Repo] = None, commit_rev: Optional[str] = None
 ) -> None:
+    documents_to_add: List[Document] = []
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
             logger.debug('failed to resolve project file ecosystem: %s', doc.path)
             continue
-        documents_to_add = get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo)
-        documents.extend(documents_to_add)
+
+        documents_to_add.extend(get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo))
+
+    documents.extend(documents_to_add)
 
 
 def get_doc_ecosystem_related_project_files(
@@ -59,11 +62,10 @@ def get_doc_ecosystem_related_project_files(
     for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
-            file_content = (
-                get_file_content_from_commit(repo, commit_rev, file_to_search)
-                if repo
-                else get_file_content(file_to_search)
-            )
+            if repo:
+                file_content = get_file_content_from_commit(repo, commit_rev, file_to_search)
+            else:
+                file_content = get_file_content(file_to_search)
 
             if file_content is not None:
                 documents_to_add.append(Document(file_to_search, file_content))
