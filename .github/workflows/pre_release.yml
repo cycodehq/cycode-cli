@@ -47,6 +47,9 @@ jobs:
         if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
 
+      - name: Add Poetry to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install Poetry Plugin
         run: poetry self add "poetry-dynamic-versioning[plugin]"
 
