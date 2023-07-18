@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 from typing import TYPE_CHECKING, List, Optional, Tuple
@@ -8,7 +9,7 @@ from cycode import __version__
 from cycode.cli import code_scanner
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.config import config
-from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE
+from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, PROGRAM_NAME
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
@@ -180,8 +181,30 @@ def finalize(context: click.Context, *_, **__) -> None:
     sys.exit(exit_code)
 
 
+@click.command(short_help='Show the version and exit')
+@click.pass_context
+def version(context: click.Context) -> None:
+    output = context.obj['output']
+
+    prog = PROGRAM_NAME
+    ver = __version__
+
+    message = f'{prog}, version {ver}'
+    if output == 'json':
+        message = json.dumps({'name': prog, 'version': ver})
+
+    click.echo(message, color=context.color)
+    context.exit()
+
+
 @click.group(
-    commands={'scan': code_scan, 'configure': set_credentials, 'ignore': add_exclusions, 'auth': authenticate},
+    commands={
+        'scan': code_scan,
+        'configure': set_credentials,
+        'ignore': add_exclusions,
+        'auth': authenticate,
+        'version': version,
+    },
     context_settings=CONTEXT,
 )
 @click.option(
@@ -210,7 +233,7 @@ def finalize(context: click.Context, *_, **__) -> None:
     help='Characteristic JSON object that lets servers identify the application',
     type=str,
 )
-@click.version_option(__version__, prog_name='cycode')
+@click.version_option(__version__, prog_name=PROGRAM_NAME)
 @click.pass_context
 def main_cli(
     context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]

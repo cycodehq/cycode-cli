@@ -1,3 +1,5 @@
+PROGRAM_NAME = 'cycode'
+
 PRE_COMMIT_COMMAND_SCAN_TYPE = 'pre_commit'
 PRE_RECEIVE_COMMAND_SCAN_TYPE = 'pre_receive'
 COMMIT_HISTORY_COMMAND_SCAN_TYPE = 'commit_history'
