@@ -59,7 +59,7 @@ log_cli = true
 [tool.poetry-dynamic-versioning]
 # poetry self add "poetry-dynamic-versioning[plugin]"
 enable = true
-strict = false
+strict = true
 bump = true
 metadata = false
 vcs = "git"
@@ -134,5 +134,5 @@ inline-quotes = "single"
 "cycode/*.py" = ["BLE001"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=0.25.0"]
 build-backend = "poetry_dynamic_versioning.backend"
