@@ -211,6 +211,13 @@ def finalize(context: click.Context, *_, **__) -> None:
     type=str,
 )
 @click.version_option(__version__, prog_name='cycode')
+@click.version_option(
+    __version__,
+    '--version-json',
+    prog_name='cycode',
+    message='{"name": "%(prog)s", "version": "%(version)s"}',
+    help='Show the version in JSON and exit.',
+)
 @click.pass_context
 def main_cli(
     context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]
