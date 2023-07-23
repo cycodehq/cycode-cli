@@ -76,17 +76,6 @@ CONTEXT = {}
     required=False,
 )
 @click.option(
-    '--output',
-    '-o',
-    default=None,
-    help="""
-              \b
-              Specify the results output (text/json/table),
-              the default is text
-              """,
-    type=click.Choice(['text', 'json', 'table']),
-)
-@click.option(
     '--severity-threshold',
     default=None,
     help='Show only violations at the specified level or higher (supported for SCA scan type only).',
@@ -127,7 +116,6 @@ def code_scan(
     client_id: str,
     show_secret: bool,
     soft_fail: bool,
-    output: str,
     severity_threshold: str,
     sca_scan: List[str],
     monitor: bool,
@@ -143,15 +131,8 @@ def code_scan(
     else:
         context.obj['soft_fail'] = config['soft_fail']
 
-    context.obj['scan_type'] = scan_type
-
-    # save backward compatability with old style command
-    if output is not None:
-        context.obj['output'] = output
-        if output == 'json':
-            context.obj['no_progress_meter'] = True
-
     context.obj['client'] = get_cycode_client(client_id, secret, not context.obj['show_secret'])
+    context.obj['scan_type'] = scan_type
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report
