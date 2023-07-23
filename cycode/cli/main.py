@@ -233,7 +233,6 @@ def version(context: click.Context) -> None:
     help='Characteristic JSON object that lets servers identify the application',
     type=str,
 )
-@click.version_option(__version__, prog_name=PROGRAM_NAME)
 @click.pass_context
 def main_cli(
     context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]
