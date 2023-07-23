@@ -555,7 +555,8 @@ Ignore rules can be added to ignore specific secret values, specific SHA512 valu
 
 > :warning: **Warning**<br/>
 > Adding values to be ignored should be done with careful consideration of the values, paths, and policies to ensure that the scans will pick up true positives.
-> The following are the options available for the `cycode ignore` command:
+
+The following are the options available for the `cycode ignore` command:
 
 | Option                          | Description |
 |---------------------------------|-------------|
