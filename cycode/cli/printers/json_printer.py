@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING, List
 import click
 
 from cycode.cli.models import CliError, CliResult
-from cycode.cli.printers.base_printer import BasePrinter
+from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cyclient.models import DetectionSchema
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
 
 
-class JsonPrinter(BasePrinter):
+class JsonPrinter(PrinterBase):
     def print_result(self, result: CliResult) -> None:
         result = {'result': result.success, 'message': result.message}
 

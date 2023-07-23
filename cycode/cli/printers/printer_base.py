@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
 
 
-class BasePrinter(ABC):
+class PrinterBase(ABC):
     RED_COLOR_NAME = 'red'
     WHITE_COLOR_NAME = 'white'
     GREEN_COLOR_NAME = 'green'

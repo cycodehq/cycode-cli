@@ -5,23 +5,23 @@ import click
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.json_printer import JsonPrinter
-from cycode.cli.printers.sca_table_printer import SCATablePrinter
-from cycode.cli.printers.table_printer import TablePrinter
+from cycode.cli.printers.tables.sca_table_printer import ScaTablePrinter
+from cycode.cli.printers.tables.table_printer import TablePrinter
 from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
-    from cycode.cli.printers.base_printer import BasePrinter
+    from cycode.cli.printers.tables.table_printer_base import PrinterBase
 
 
 class ConsolePrinter:
-    _AVAILABLE_PRINTERS: ClassVar[Dict[str, 'BasePrinter']] = {
+    _AVAILABLE_PRINTERS: ClassVar[Dict[str, 'PrinterBase']] = {
         'text': TextPrinter,
         'json': JsonPrinter,
         'table': TablePrinter,
         # overrides
-        'table_sca': SCATablePrinter,
-        'text_sca': SCATablePrinter,
+        'table_sca': ScaTablePrinter,
+        'text_sca': ScaTablePrinter,
     }
 
     def __init__(self, context: click.Context) -> None:
@@ -37,7 +37,7 @@ class ConsolePrinter:
         printer = self._get_scan_printer()
         printer.print_scan_results(local_scan_results)
 
-    def _get_scan_printer(self) -> 'BasePrinter':
+    def _get_scan_printer(self) -> 'PrinterBase':
         printer_class = self._printer_class
 
         composite_printer = self._AVAILABLE_PRINTERS.get(f'{self.output_type}_{self.scan_type}')
