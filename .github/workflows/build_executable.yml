@@ -62,7 +62,7 @@ jobs:
         run: poetry run pyinstaller pyinstaller.spec
 
       - name: Test executable
-        run: ./dist/cycode --version
+        run: ./dist/cycode version
 
       - name: Sign macOS executable
         if: ${{ startsWith(matrix.os, 'macos') }}
@@ -110,7 +110,7 @@ jobs:
 
       - name: Test signed executable
         if: ${{ startsWith(matrix.os, 'macos') }}
-        run: ./dist/cycode --version
+        run: ./dist/cycode version
 
       - uses: actions/upload-artifact@v3
         with:
