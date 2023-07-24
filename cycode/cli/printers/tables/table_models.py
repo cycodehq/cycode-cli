@@ -2,12 +2,12 @@ from typing import Dict, NamedTuple
 
 
 class ColumnInfoBuilder:
-    _index = 0
+    def __init__(self) -> None:
+        self._index = 0
 
-    @staticmethod
-    def build(name: str) -> 'ColumnInfo':
-        column_info = ColumnInfo(name, ColumnInfoBuilder._index)
-        ColumnInfoBuilder._index += 1
+    def build(self, name: str) -> 'ColumnInfo':
+        column_info = ColumnInfo(name, self._index)
+        self._index += 1
         return column_info
 
 
