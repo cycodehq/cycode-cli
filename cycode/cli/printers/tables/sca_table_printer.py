@@ -42,8 +42,8 @@ COLUMN_WIDTHS_CONFIG: ColumnWidths = {
 
 class ScaTablePrinter(TablePrinterBase):
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
-        detections_per_detection_type_id = self._extract_detections_per_policy_id(local_scan_results)
-        for policy_id, detections in detections_per_detection_type_id.items():
+        detections_per_policy_id = self._extract_detections_per_policy_id(local_scan_results)
+        for policy_id, detections in detections_per_policy_id.items():
             table = self._get_table(policy_id)
             table.set_cols_width(COLUMN_WIDTHS_CONFIG)
 
