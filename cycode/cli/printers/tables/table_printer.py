@@ -4,26 +4,28 @@ import click
 
 from cycode.cli.consts import INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE, SECRET_SCAN_TYPE
 from cycode.cli.models import Detection, Document
-from cycode.cli.printers.base_table_printer import BaseTablePrinter
-from cycode.cli.printers.table import Table
-from cycode.cli.printers.table_models import ColumnInfoBuilder, ColumnWidthsConfig
+from cycode.cli.printers.tables.table import Table
+from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidthsConfig
+from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
 from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
 
-# Creation must have strict order. Represents the order of the columns in the table (from left to right)
-ISSUE_TYPE_COLUMN = ColumnInfoBuilder.build(name='Issue Type')
-RULE_ID_COLUMN = ColumnInfoBuilder.build(name='Rule ID')
-FILE_PATH_COLUMN = ColumnInfoBuilder.build(name='File Path')
-SECRET_SHA_COLUMN = ColumnInfoBuilder.build(name='Secret SHA')
-COMMIT_SHA_COLUMN = ColumnInfoBuilder.build(name='Commit SHA')
-LINE_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Line Number')
-COLUMN_NUMBER_COLUMN = ColumnInfoBuilder.build(name='Column Number')
-VIOLATION_LENGTH_COLUMN = ColumnInfoBuilder.build(name='Violation Length')
-VIOLATION_COLUMN = ColumnInfoBuilder.build(name='Violation')
-SCAN_ID_COLUMN = ColumnInfoBuilder.build(name='Scan ID')
-REPORT_URL_COLUMN = ColumnInfoBuilder.build(name='Report URL')
+column_builder = ColumnInfoBuilder()
+
+# Building must have strict order. Represents the order of the columns in the table (from left to right)
+ISSUE_TYPE_COLUMN = column_builder.build(name='Issue Type')
+RULE_ID_COLUMN = column_builder.build(name='Rule ID')
+FILE_PATH_COLUMN = column_builder.build(name='File Path')
+SECRET_SHA_COLUMN = column_builder.build(name='Secret SHA')
+COMMIT_SHA_COLUMN = column_builder.build(name='Commit SHA')
+LINE_NUMBER_COLUMN = column_builder.build(name='Line Number')
+COLUMN_NUMBER_COLUMN = column_builder.build(name='Column Number')
+VIOLATION_LENGTH_COLUMN = column_builder.build(name='Violation Length')
+VIOLATION_COLUMN = column_builder.build(name='Violation')
+SCAN_ID_COLUMN = column_builder.build(name='Scan ID')
+REPORT_URL_COLUMN = column_builder.build(name='Report URL')
 
 COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
     SECRET_SCAN_TYPE: {
@@ -49,7 +51,7 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
 }
 
 
-class TablePrinter(BaseTablePrinter):
+class TablePrinter(TablePrinterBase):
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         table = self._get_table()
         if self.scan_type in COLUMN_WIDTHS_CONFIG:
@@ -63,7 +65,7 @@ class TablePrinter(BaseTablePrinter):
                     table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
-        click.echo(table.get_table().draw())
+        self._print_table(table)
 
     def _get_table(self) -> Table:
         table = Table()
@@ -74,7 +76,6 @@ class TablePrinter(BaseTablePrinter):
         table.add(LINE_NUMBER_COLUMN)
         table.add(COLUMN_NUMBER_COLUMN)
         table.add(SCAN_ID_COLUMN)
-        table.add(REPORT_URL_COLUMN)
 
         if self._is_git_repository():
             table.add(COMMIT_SHA_COLUMN)
@@ -83,6 +84,9 @@ class TablePrinter(BaseTablePrinter):
             table.add(SECRET_SHA_COLUMN)
             table.add(VIOLATION_LENGTH_COLUMN)
             table.add(VIOLATION_COLUMN)
+
+        if self.context.obj.get('report'):
+            table.add(REPORT_URL_COLUMN)
 
         return table
 

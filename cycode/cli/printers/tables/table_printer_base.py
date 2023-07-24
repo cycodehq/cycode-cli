@@ -4,17 +4,17 @@ from typing import TYPE_CHECKING, List
 import click
 
 from cycode.cli.models import CliError, CliResult
-from cycode.cli.printers.base_printer import BasePrinter
+from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
+    from cycode.cli.printers.tables.table import Table
 
 
-class BaseTablePrinter(BasePrinter, abc.ABC):
+class TablePrinterBase(PrinterBase, abc.ABC):
     def __init__(self, context: click.Context) -> None:
         super().__init__(context)
-        self.context = context
         self.scan_type: str = context.obj.get('scan_type')
         self.show_secret: bool = context.obj.get('show_secret', False)
 
@@ -37,3 +37,7 @@ class BaseTablePrinter(BasePrinter, abc.ABC):
     @abc.abstractmethod
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         raise NotImplementedError
+
+    @staticmethod
+    def _print_table(table: 'Table') -> None:
+        click.echo(table.get_table().draw())

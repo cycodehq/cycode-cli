@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from texttable import Texttable
 
 if TYPE_CHECKING:
-    from cycode.cli.printers.table_models import ColumnInfo, ColumnWidths
+    from cycode.cli.printers.tables.table_models import ColumnInfo, ColumnWidths
 
 
 class Table:
