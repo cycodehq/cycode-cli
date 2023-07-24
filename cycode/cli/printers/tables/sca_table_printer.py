@@ -90,6 +90,7 @@ class ScaTablePrinter(TablePrinterBase):
     def _enrich_table_with_values(table: Table, detection: Detection) -> None:
         detection_details = detection.detection_details
 
+        table.set(SEVERITY_COLUMN, detection_details.get('advisory_severity'))
         table.set(REPOSITORY_COLUMN, detection_details.get('repository_name'))
 
         table.set(FILE_PATH_COLUMN, detection_details.get('file_name'))
@@ -110,7 +111,6 @@ class ScaTablePrinter(TablePrinterBase):
             upgrade = f'{alert.get("vulnerable_requirements")} -> {alert.get("first_patched_version")}'
         table.set(UPGRADE_COLUMN, upgrade)
 
-        table.set(SEVERITY_COLUMN, detection_details.get('advisory_severity'))
         table.set(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.set(LICENSE_COLUMN, detection_details.get('license'))
 
