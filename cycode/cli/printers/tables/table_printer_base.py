@@ -9,6 +9,7 @@ from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
+    from cycode.cli.printers.tables.table import Table
 
 
 class TablePrinterBase(PrinterBase, abc.ABC):
@@ -36,3 +37,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
     @abc.abstractmethod
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         raise NotImplementedError
+
+    @staticmethod
+    def _print_table(table: 'Table') -> None:
+        click.echo(table.get_table().draw())

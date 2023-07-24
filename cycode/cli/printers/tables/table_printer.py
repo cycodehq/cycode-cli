@@ -65,7 +65,7 @@ class TablePrinter(TablePrinterBase):
                     table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
-        click.echo(table.get_table().draw())
+        self._print_table(table)
 
     def _get_table(self) -> Table:
         table = Table()
@@ -76,7 +76,6 @@ class TablePrinter(TablePrinterBase):
         table.add(LINE_NUMBER_COLUMN)
         table.add(COLUMN_NUMBER_COLUMN)
         table.add(SCAN_ID_COLUMN)
-        table.add(REPORT_URL_COLUMN)
 
         if self._is_git_repository():
             table.add(COMMIT_SHA_COLUMN)
@@ -85,6 +84,9 @@ class TablePrinter(TablePrinterBase):
             table.add(SECRET_SHA_COLUMN)
             table.add(VIOLATION_LENGTH_COLUMN)
             table.add(VIOLATION_COLUMN)
+
+        if self.context.obj.get('report'):
+            table.add(REPORT_URL_COLUMN)
 
         return table
 

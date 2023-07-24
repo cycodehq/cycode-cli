@@ -51,7 +51,7 @@ class ScaTablePrinter(TablePrinterBase):
                 self._enrich_table_with_values(table, detection)
 
             self._print_summary_issues(len(detections), self._get_title(policy_id))
-            click.echo(table.get_table().draw())
+            self._print_table(table)
 
         self._print_report_urls(local_scan_results)
 
@@ -116,9 +116,12 @@ class ScaTablePrinter(TablePrinterBase):
 
     @staticmethod
     def _print_report_urls(local_scan_results: List['LocalScanResult']) -> None:
+        report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
+        if not report_urls:
+            return
+
         click.echo('Report URLs:')
-        for local_scan_result in local_scan_results:
-            report_url = local_scan_result.report_url if local_scan_result.report_url else 'N/A'
+        for report_url in report_urls:
             click.echo(f'- {report_url}')
 
     @staticmethod
