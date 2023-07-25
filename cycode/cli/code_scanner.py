@@ -72,6 +72,7 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
             raise click.ClickException('Monitor flag is currently supported for SCA scan type only')
 
         progress_bar = context.obj['progress_bar']
+        progress_bar.start()
 
         file_entries = list(get_git_repository_tree_file_entries(path, branch))
         progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
@@ -119,7 +120,9 @@ def scan_commit_range(
     context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None
 ) -> None:
     scan_type = context.obj['scan_type']
+
     progress_bar = context.obj['progress_bar']
+    progress_bar.start()
 
     if scan_type not in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
         raise click.ClickException(f'Commit range scanning for {str.upper(scan_type)} is not supported')
@@ -189,9 +192,10 @@ def scan_ci(context: click.Context) -> None:
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.pass_context
 def scan_path(context: click.Context, path: str) -> None:
-    logger.debug('Starting path scan process, %s', {'path': path})
-
     progress_bar = context.obj['progress_bar']
+    progress_bar.start()
+
+    logger.debug('Starting path scan process, %s', {'path': path})
 
     all_files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
 
@@ -223,7 +227,9 @@ def scan_path(context: click.Context, path: str) -> None:
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]) -> None:
     scan_type = context.obj['scan_type']
+
     progress_bar = context.obj['progress_bar']
+    progress_bar.start()
 
     if scan_type == consts.SCA_SCAN_TYPE:
         scan_sca_pre_commit(context)

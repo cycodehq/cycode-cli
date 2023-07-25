@@ -134,9 +134,6 @@ def code_scan(
 
     _sca_scan_to_context(context, sca_scan)
 
-    context.obj['progress_bar'] = get_progress_bar(hidden=context.obj['no_progress_meter'])
-    context.obj['progress_bar'].start()
-
     return 1
 
 
@@ -227,7 +224,7 @@ def main_cli(
     if output == 'json':
         no_progress_meter = True
 
-    context.obj['no_progress_meter'] = no_progress_meter
+    context.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter)
 
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
