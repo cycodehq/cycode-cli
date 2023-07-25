@@ -12,10 +12,11 @@ from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
 
 @click.group(
-    invoke_without_command=True, short_help='Authenticates your machine to associate CLI with your cycode account'
+    invoke_without_command=True, short_help='Authenticate your machine to associate the CLI with your Cycode account.'
 )
 @click.pass_context
 def authenticate(context: click.Context) -> None:
+    """Authenticate your machine to associate the CLI with your Cycode account."""
     if context.invoked_subcommand is not None:
         # if it is a subcommand, do nothing
         return
@@ -32,14 +33,16 @@ def authenticate(context: click.Context) -> None:
         _handle_exception(context, e)
 
 
-@authenticate.command(name='check')
+@authenticate.command(
+    name='check', short_help='Checks that your machine is associating the CLI with your Cycode account.'
+)
 @click.pass_context
 def authorization_check(context: click.Context) -> None:
-    """Check your machine associating CLI with your cycode account"""
+    """Validates that your Cycode account has permission to work with the CLI."""
     printer = ConsolePrinter(context)
 
-    passed_auth_check_res = CliResult(success=True, message='You are authorized')
-    failed_auth_check_res = CliResult(success=False, message='You are not authorized')
+    passed_auth_check_res = CliResult(success=True, message='Cycode authentication verified')
+    failed_auth_check_res = CliResult(success=False, message='Cycode authentication failed')
 
     client_id, client_secret = CredentialsManager().get_credentials()
     if not client_id or not client_secret:

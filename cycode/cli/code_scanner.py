@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 start_scan_time = time.time()
 
 
-@click.command(short_help='Scan git repository including its history')
+@click.command(short_help='Scan the git repository including its history.')
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.option(
     '--branch',
@@ -96,7 +96,7 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
         _handle_exception(context, e)
 
 
-@click.command(short_help='Scan all the commits history in this git repository')
+@click.command(short_help='Scan all the commits history in this git repository.')
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.option(
     '--commit_range',
@@ -185,7 +185,7 @@ def scan_ci(context: click.Context) -> None:
     scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
-@click.command(short_help='Scan the files in the path supplied in the command')
+@click.command(short_help='Scan the files in the path provided in the command.')
 @click.argument('path', nargs=1, type=click.STRING, required=True)
 @click.pass_context
 def scan_path(context: click.Context, path: str) -> None:
@@ -218,7 +218,7 @@ def scan_path(context: click.Context, path: str) -> None:
     scan_disk_files(context, path, relevant_files_to_scan)
 
 
-@click.command(short_help='Use this command to scan the content that was not committed yet')
+@click.command(short_help='Use this command to scan any content that was not committed yet.')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_commit_scan(context: click.Context, ignored_args: List[str]) -> None:
@@ -242,7 +242,7 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]) -> None:
     scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-@click.command(short_help='Use this command to scan commits on the server side before pushing them to the repository')
+@click.command(short_help='Use this command to scan commits on the server side before pushing them to the repository.')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_receive_scan(context: click.Context, ignored_args: List[str]) -> None:
@@ -1160,7 +1160,7 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             soft_fail=False,
             code='invalid_git_error',
             message='The path you supplied does not correlate to a git repository. '
-            'Should you still wish to scan this path, use: `cycode scan path <path>`',
+            'If you still wish to scan this path, use: `cycode scan path <path>`',
         ),
     }
 

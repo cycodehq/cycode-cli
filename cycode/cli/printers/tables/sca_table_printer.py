@@ -58,7 +58,7 @@ class ScaTablePrinter(TablePrinterBase):
     @staticmethod
     def _get_title(policy_id: str) -> str:
         if policy_id == PACKAGE_VULNERABILITY_POLICY_ID:
-            return 'Dependencies Vulnerabilities'
+            return 'Dependency Vulnerabilities'
         if policy_id == LICENSE_COMPLIANCE_POLICY_ID:
             return 'License Compliance'
 
