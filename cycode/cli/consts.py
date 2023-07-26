@@ -1,4 +1,8 @@
 PROGRAM_NAME = 'cycode'
+CLI_CONTEXT_SETTINGS = {
+    'terminal_width': 10**9,
+    'max_content_width': 10**9,
+}
 
 PRE_COMMIT_COMMAND_SCAN_TYPE = 'pre_commit'
 PRE_RECEIVE_COMMAND_SCAN_TYPE = 'pre_receive'

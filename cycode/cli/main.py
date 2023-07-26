@@ -9,7 +9,7 @@ from cycode import __version__
 from cycode.cli import code_scanner
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.config import config
-from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, PROGRAM_NAME
+from cycode.cli.consts import CLI_CONTEXT_SETTINGS, ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, PROGRAM_NAME
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
@@ -24,8 +24,6 @@ from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
 
 if TYPE_CHECKING:
     from cycode.cyclient.scan_client import ScanClient
-
-CONTEXT = {}
 
 
 @click.group(
@@ -177,7 +175,7 @@ def version(context: click.Context) -> None:
         'auth': authenticate,
         'version': version,
     },
-    context_settings=CONTEXT,
+    context_settings=CLI_CONTEXT_SETTINGS,
 )
 @click.option(
     '--verbose',
