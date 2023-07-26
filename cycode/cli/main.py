@@ -9,7 +9,7 @@ from cycode import __version__
 from cycode.cli import code_scanner
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.config import config
-from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, PROGRAM_NAME
+from cycode.cli.consts import CLI_CONTEXT_SETTINGS, ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, PROGRAM_NAME
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
@@ -25,8 +25,6 @@ from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
 if TYPE_CHECKING:
     from cycode.cyclient.scan_client import ScanClient
 
-CONTEXT = {}
-
 
 @click.group(
     commands={
@@ -36,56 +34,52 @@ CONTEXT = {}
         'pre_commit': code_scanner.pre_commit_scan,
         'pre_receive': code_scanner.pre_receive_scan,
     },
-    short_help='Scan content for secrets/IaC/sca/SAST violations. '
-    'You need to specify which scan type: ci/commit_history/path/repository/etc',
+    short_help='Scan the content for Secrets/IaC/SCA/SAST violations. '
+    'You`ll need to specify which scan type to perform: ci/commit_history/path/repository/etc.',
 )
 @click.option(
     '--scan-type',
     '-t',
     default='secret',
-    help="""
-              \b
-              Specify the scan you wish to execute (secret/iac/sca),
-              the default is secret
-              """,
+    help='Specify the type of scan you wish to execute (the default is Secrets)',
     type=click.Choice(config['scans']['supported_scans']),
 )
 @click.option(
     '--secret',
     default=None,
-    help='Specify a Cycode client secret for this specific scan execution',
+    help='Specify a Cycode client secret for this specific scan execution.',
     type=str,
     required=False,
 )
 @click.option(
     '--client-id',
     default=None,
-    help='Specify a Cycode client ID for this specific scan execution',
+    help='Specify a Cycode client ID for this specific scan execution.',
     type=str,
     required=False,
 )
 @click.option(
-    '--show-secret', is_flag=True, default=False, help='Show secrets in plain text', type=bool, required=False
+    '--show-secret', is_flag=True, default=False, help='Show Secrets in plain text.', type=bool, required=False
 )
 @click.option(
     '--soft-fail',
     is_flag=True,
     default=False,
-    help='Run scan without failing, always return a non-error status code',
+    help='Run the scan without failing; always return a non-error status code.',
     type=bool,
     required=False,
 )
 @click.option(
     '--severity-threshold',
     default=None,
-    help='Show only violations at the specified level or higher (supported for SCA scan type only).',
+    help='Show violations only for the specified level or higher (supported for SCA scan types only).',
     type=click.Choice([e.name for e in Severity]),
     required=False,
 )
 @click.option(
     '--sca-scan',
     default=None,
-    help='Specify the sca scan you wish to execute (package-vulnerabilities/license-compliance), the default is both',
+    help='Specify the type of SCA scan you wish to execute (the default is both).',
     multiple=True,
     type=click.Choice(config['scans']['supported_sca_scans']),
 )
@@ -93,9 +87,7 @@ CONTEXT = {}
     '--monitor',
     is_flag=True,
     default=False,
-    help="When specified, the scan results will be recorded in the knowledge graph. "
-    "Please note that when working in 'monitor' mode, the knowledge graph "
-    "will not be updated as a result of SCM events (Push, Repo creation).(supported for SCA scan type only).",
+    help='Used for SCA scan types only; when specified, the scan results are recorded in the Discovery module.',
     type=bool,
     required=False,
 )
@@ -103,8 +95,7 @@ CONTEXT = {}
     '--report',
     is_flag=True,
     default=False,
-    help='When specified, a violations report will be generated. '
-    'A URL link to the report will be printed as an output to the command execution',
+    help='When specified, generates a violations report. A link to the report will be displayed in the console output.',
     type=bool,
     required=False,
 )
@@ -121,6 +112,7 @@ def code_scan(
     monitor: bool,
     report: bool,
 ) -> int:
+    """Scans for Secrets, IaC, SCA or SAST violations."""
     if show_secret:
         context.obj['show_secret'] = show_secret
     else:
@@ -138,9 +130,6 @@ def code_scan(
     context.obj['report'] = report
 
     _sca_scan_to_context(context, sca_scan)
-
-    context.obj['progress_bar'] = get_progress_bar(hidden=context.obj['no_progress_meter'])
-    context.obj['progress_bar'].start()
 
     return 1
 
@@ -162,7 +151,7 @@ def finalize(context: click.Context, *_, **__) -> None:
     sys.exit(exit_code)
 
 
-@click.command(short_help='Show the version and exit')
+@click.command(short_help='Show the CLI version and exit.')
 @click.pass_context
 def version(context: click.Context) -> None:
     output = context.obj['output']
@@ -186,32 +175,32 @@ def version(context: click.Context) -> None:
         'auth': authenticate,
         'version': version,
     },
-    context_settings=CONTEXT,
+    context_settings=CLI_CONTEXT_SETTINGS,
 )
 @click.option(
     '--verbose',
     '-v',
     is_flag=True,
     default=False,
-    help='Show detailed logs',
+    help='Show detailed logs.',
 )
 @click.option(
     '--no-progress-meter',
     is_flag=True,
     default=False,
-    help='Do not show the progress meter',
+    help='Do not show the progress meter.',
 )
 @click.option(
     '--output',
     '-o',
     default='text',
-    help='Specify the output (text/json/table), the default is text',
+    help='Specify the output type (the default is text).',
     type=click.Choice(['text', 'json', 'table']),
 )
 @click.option(
     '--user-agent',
     default=None,
-    help='Characteristic JSON object that lets servers identify the application',
+    help='Characteristic JSON object that lets servers identify the application.',
     type=str,
 )
 @click.pass_context
@@ -232,7 +221,7 @@ def main_cli(
     if output == 'json':
         no_progress_meter = True
 
-    context.obj['no_progress_meter'] = no_progress_meter
+    context.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter)
 
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
