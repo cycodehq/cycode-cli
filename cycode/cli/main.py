@@ -97,8 +97,7 @@ CONTEXT = {}
     '--report',
     is_flag=True,
     default=False,
-    help='When specified, generates a violations report. '
-    'A URL link to the report will be displayed in the console output right after the SCA table.',
+    help='When specified, generates a violations report. A link to the report will be displayed in the console output.',
     type=bool,
     required=False,
 )
@@ -203,7 +202,7 @@ def version(context: click.Context) -> None:
 @click.option(
     '--user-agent',
     default=None,
-    help='Characteristic JSON object that lets servers identify the application',
+    help='Characteristic JSON object that lets servers identify the application.',
     type=str,
 )
 @click.pass_context

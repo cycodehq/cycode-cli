@@ -16,7 +16,7 @@ from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 )
 @click.pass_context
 def authenticate(context: click.Context) -> None:
-    """Authenticate your machine to associate the CLI with your Cycode account."""
+    """Authenticates your machine."""
     if context.invoked_subcommand is not None:
         # if it is a subcommand, do nothing
         return
