@@ -52,7 +52,7 @@ start_scan_time = time.time()
 
 
 @click.command(short_help='Scan the git repository including its history.')
-@click.argument('path', nargs=1, type=click.STRING, required=True)
+@click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.option(
     '--branch',
     '-b',
@@ -98,7 +98,7 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
 
 
 @click.command(short_help='Scan all the commits history in this git repository.')
-@click.argument('path', nargs=1, type=click.STRING, required=True)
+@click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.option(
     '--commit_range',
     '-r',
@@ -189,7 +189,7 @@ def scan_ci(context: click.Context) -> None:
 
 
 @click.command(short_help='Scan the files in the path provided in the command.')
-@click.argument('path', nargs=1, type=click.STRING, required=True)
+@click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.pass_context
 def scan_path(context: click.Context, path: str) -> None:
     progress_bar = context.obj['progress_bar']
