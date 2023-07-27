@@ -146,6 +146,8 @@ class CompositeProgressBar(BaseProgressBar):
 
         if length == 0:
             self._skip_section(section)
+        else:
+            self._maybe_update_current_section()
 
     def _skip_section(self, section: 'ProgressBarSection') -> None:
         self._progress_bar.update(_get_section_length(section))
