@@ -90,7 +90,7 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, is_git_diff=False)
 
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(
+        scan_documents(
             context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context, path)
         )
     except Exception as e:
@@ -419,6 +419,16 @@ def scan_documents(
     scan_parameters: Optional[dict] = None,
 ) -> None:
     progress_bar = context.obj['progress_bar']
+
+    if not documents_to_scan:
+        progress_bar.stop()
+        ConsolePrinter(context).print_error(
+            CliError(
+                code='no_relevant_files',
+                message='Error: The scan could not be completed - relevant files to scan are not found.',
+            )
+        )
+        return
 
     scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
     errors, local_scan_results = run_parallel_batched_scan(
