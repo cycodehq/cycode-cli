@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
 
@@ -18,7 +18,9 @@ class PrinterBase(ABC):
         self.context = context
 
     @abstractmethod
-    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def print_scan_results(
+        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+    ) -> None:
         pass
 
     @abstractmethod

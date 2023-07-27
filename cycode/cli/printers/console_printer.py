@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, ClassVar, Dict, List
+from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional
 
 import click
 
@@ -33,9 +33,11 @@ class ConsolePrinter:
         if self._printer_class is None:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
 
-    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def print_scan_results(
+        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+    ) -> None:
         printer = self._get_scan_printer()
-        printer.print_scan_results(local_scan_results)
+        printer.print_scan_results(local_scan_results, errors)
 
     def _get_scan_printer(self) -> 'PrinterBase':
         printer_class = self._printer_class
