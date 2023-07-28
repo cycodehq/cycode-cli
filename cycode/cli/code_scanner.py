@@ -6,7 +6,7 @@ import time
 import traceback
 from platform import platform
 from sys import getsizeof
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 import click
@@ -40,6 +40,10 @@ from cycode.cyclient import logger
 from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
 
 if TYPE_CHECKING:
+    from git import Blob, Diff
+    from git.objects.base import IndexObjUnion
+    from git.objects.tree import TraversedTreeTup
+
     from cycode.cli.utils.progress_bar import BaseProgressBar
     from cycode.cyclient.models import ScanDetailsResponse
     from cycode.cyclient.scan_client import ScanClient
@@ -47,8 +51,8 @@ if TYPE_CHECKING:
 start_scan_time = time.time()
 
 
-@click.command(short_help='Scan git repository including its history')
-@click.argument('path', nargs=1, type=click.STRING, required=True)
+@click.command(short_help='Scan the git repository including its history.')
+@click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.option(
     '--branch',
     '-b',
@@ -58,7 +62,7 @@ start_scan_time = time.time()
     required=False,
 )
 @click.pass_context
-def scan_repository(context: click.Context, path: str, branch: str):
+def scan_repository(context: click.Context, path: str, branch: str) -> None:
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
 
@@ -68,17 +72,18 @@ def scan_repository(context: click.Context, path: str, branch: str):
             raise click.ClickException('Monitor flag is currently supported for SCA scan type only')
 
         progress_bar = context.obj['progress_bar']
+        progress_bar.start()
 
         file_entries = list(get_git_repository_tree_file_entries(path, branch))
         progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
 
         documents_to_scan = []
         for file in file_entries:
+            # FIXME(MarshalX): probably file could be tree or submodule too. we expect blob only
             progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
-            path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
-
-            documents_to_scan.append(Document(path, file.data_stream.read().decode('UTF-8', errors='replace')))
+            file_path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
+            documents_to_scan.append(Document(file_path, file.data_stream.read().decode('UTF-8', errors='replace')))
 
         documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
 
@@ -92,8 +97,8 @@ def scan_repository(context: click.Context, path: str, branch: str):
         _handle_exception(context, e)
 
 
-@click.command(short_help='Scan all the commits history in this git repository')
-@click.argument('path', nargs=1, type=click.STRING, required=True)
+@click.command(short_help='Scan all the commits history in this git repository.')
+@click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.option(
     '--commit_range',
     '-r',
@@ -103,17 +108,21 @@ def scan_repository(context: click.Context, path: str, branch: str):
     required=False,
 )
 @click.pass_context
-def scan_repository_commit_history(context: click.Context, path: str, commit_range: str):
+def scan_repository_commit_history(context: click.Context, path: str, commit_range: str) -> None:
     try:
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
-        return scan_commit_range(context, path=path, commit_range=commit_range)
+        scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:
         _handle_exception(context, e)
 
 
-def scan_commit_range(context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None):
+def scan_commit_range(
+    context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None
+) -> None:
     scan_type = context.obj['scan_type']
+
     progress_bar = context.obj['progress_bar']
+    progress_bar.start()
 
     if scan_type not in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES:
         raise click.ClickException(f'Commit range scanning for {str.upper(scan_type)} is not supported')
@@ -166,7 +175,8 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
     logger.debug('Starting to scan commit range (It may take a few minutes)')
 
-    return scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
+    scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
+    return None
 
 
 @click.command(
@@ -174,30 +184,56 @@ def scan_commit_range(context: click.Context, path: str, commit_range: str, max_
     'CYCODE_TOKEN and CYCODE_REPO_LOCATION environment variables'
 )
 @click.pass_context
-def scan_ci(context: click.Context):
-    return scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
+def scan_ci(context: click.Context) -> None:
+    scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())
 
 
-@click.command(short_help='Scan the files in the path supplied in the command')
-@click.argument('path', nargs=1, type=click.STRING, required=True)
+@click.command(short_help='Scan the files in the path provided in the command.')
+@click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.pass_context
-def scan_path(context: click.Context, path):
+def scan_path(context: click.Context, path: str) -> None:
+    progress_bar = context.obj['progress_bar']
+    progress_bar.start()
+
     logger.debug('Starting path scan process, %s', {'path': path})
-    files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
-    files_to_scan = exclude_irrelevant_files(context, files_to_scan)
-    logger.debug('Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(files_to_scan)})
-    return scan_disk_files(context, path, files_to_scan)
+
+    all_files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
+
+    # we are double the progress bar section length because we are going to process the files twice
+    # first time to get the file list with respect of excluded patterns (excluding takes seconds to execute)
+    # second time to get the files content
+    progress_bar_section_len = len(all_files_to_scan) * 2
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, progress_bar_section_len)
+
+    relevant_files_to_scan = exclude_irrelevant_files(context, all_files_to_scan)
+
+    # after finishing the first processing (excluding),
+    # we must update the progress bar stage with respect of excluded files.
+    # now it's possible that we will not process x2 of the files count
+    # because some of them were excluded, we should subtract the excluded files count
+    # from the progress bar section length
+    excluded_files_count = len(all_files_to_scan) - len(relevant_files_to_scan)
+    progress_bar_section_len = progress_bar_section_len - excluded_files_count
+    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, progress_bar_section_len)
+
+    logger.debug(
+        'Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(relevant_files_to_scan)}
+    )
+    scan_disk_files(context, path, relevant_files_to_scan)
 
 
-@click.command(short_help='Use this command to scan the content that was not committed yet')
+@click.command(short_help='Use this command to scan any content that was not committed yet.')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def pre_commit_scan(context: click.Context, ignored_args: List[str]):
+def pre_commit_scan(context: click.Context, ignored_args: List[str]) -> None:
     scan_type = context.obj['scan_type']
+
     progress_bar = context.obj['progress_bar']
+    progress_bar.start()
 
     if scan_type == consts.SCA_SCAN_TYPE:
-        return scan_sca_pre_commit(context)
+        scan_sca_pre_commit(context)
+        return
 
     diff_files = Repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
 
@@ -209,13 +245,13 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]):
         documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
 
     documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
-    return scan_documents(context, documents_to_scan, is_git_diff=True)
+    scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
-@click.command(short_help='Use this command to scan commits on the server side before pushing them to the repository')
+@click.command(short_help='Use this command to scan commits on the server side before pushing them to the repository.')
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def pre_receive_scan(context: click.Context, ignored_args: List[str]):
+def pre_receive_scan(context: click.Context, ignored_args: List[str]) -> None:
     try:
         scan_type = context.obj['scan_type']
         if scan_type != consts.SECRET_SCAN_TYPE:
@@ -253,13 +289,13 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]):
         _handle_exception(context, e)
 
 
-def scan_sca_pre_commit(context: click.Context):
+def scan_sca_pre_commit(context: click.Context) -> None:
     scan_parameters = get_default_scan_parameters(context)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(context.obj['progress_bar'])
     git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
-    return scan_commit_range_documents(
+    scan_commit_range_documents(
         context,
         git_head_documents,
         pre_committed_documents,
@@ -268,7 +304,7 @@ def scan_sca_pre_commit(context: click.Context):
     )
 
 
-def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
+def scan_sca_commit_range(context: click.Context, path: str, commit_range: str) -> None:
     progress_bar = context.obj['progress_bar']
 
     scan_parameters = get_scan_parameters(context, path)
@@ -282,32 +318,28 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str):
         path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
     )
 
-    return scan_commit_range_documents(
-        context, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters
-    )
+    scan_commit_range_documents(context, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters)
 
 
-def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str]):
+def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str]) -> None:
     scan_parameters = get_scan_parameters(context, path)
     scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
     is_git_diff = False
 
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(files_to_scan))
-
     documents: List[Document] = []
     for file in files_to_scan:
         progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
-        with open(file, 'r', encoding='UTF-8') as f:
-            try:
-                documents.append(Document(file, f.read(), is_git_diff))
-            except UnicodeDecodeError:
-                continue
+        content = get_file_content(file)
+        if not content:
+            continue
+
+        documents.append(Document(file, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    return scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
+    scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
 
 def set_issue_detected_by_scan_results(context: click.Context, scan_results: List[LocalScanResult]) -> None:
@@ -757,19 +789,21 @@ def get_oldest_unupdated_commit_for_branch(commit: str) -> Optional[str]:
     return commits[0]
 
 
-def get_diff_file_path(file):
+def get_diff_file_path(file: 'Diff') -> Optional[str]:
     return file.b_path if file.b_path else file.a_path
 
 
-def get_diff_file_content(file):
+def get_diff_file_content(file: 'Diff') -> str:
     return file.diff.decode('UTF-8', errors='replace')
 
 
-def should_process_git_object(obj, _: int) -> bool:
+def should_process_git_object(obj: 'Blob', _: int) -> bool:
     return obj.type == 'blob' and obj.size > 0
 
 
-def get_git_repository_tree_file_entries(path: str, branch: str):
+def get_git_repository_tree_file_entries(
+    path: str, branch: str
+) -> Union[Iterator['IndexObjUnion'], Iterator['TraversedTreeTup']]:
     return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
@@ -818,11 +852,15 @@ def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_sc
 
 def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
     scan_type = context.obj['scan_type']
+    progress_bar = context.obj['progress_bar']
 
     relevant_files = []
     for filename in filenames:
+        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
         if _is_relevant_file_to_scan(scan_type, filename):
             relevant_files.append(filename)
+
+    is_sub_path.cache_clear()  # free up memory
 
     return relevant_files
 
@@ -867,7 +905,7 @@ def _exclude_detections_by_scan_type(
     return detections
 
 
-def exclude_detections_in_deleted_lines(detections) -> List:
+def exclude_detections_in_deleted_lines(detections: List[Detection]) -> List[Detection]:
     return [detection for detection in detections if detection.detection_details.get('line_type') != 'Removed']
 
 
@@ -969,7 +1007,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     return False
 
 
-def _is_detection_sha_configured_in_exclusions(detection, exclusions: List[str]) -> bool:
+def _is_detection_sha_configured_in_exclusions(detection: Detection, exclusions: List[str]) -> bool:
     detection_sha = detection.detection_details.get('sha512', '')
     return detection_sha in exclusions
 
@@ -1058,20 +1096,12 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     filename = filename.lower()
 
     if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        return any(
-            filename.endswith(supported_file_extension)
-            for supported_file_extension in consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES
-        )
+        return filename.endswith(consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
 
     if scan_type == consts.SCA_SCAN_TYPE:
-        return any(
-            filename.endswith(supported_file) for supported_file in consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES
-        )
+        return filename.endswith(consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)
 
-    return all(
-        not filename.endswith(file_extension_to_ignore)
-        for file_extension_to_ignore in consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE
-    )
+    return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
@@ -1136,7 +1166,7 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             soft_fail=False,
             code='invalid_git_error',
             message='The path you supplied does not correlate to a git repository. '
-            'Should you still wish to scan this path, use: `cycode scan path <path>`',
+            'If you still wish to scan this path, use: `cycode scan path <path>`',
         ),
     }
 

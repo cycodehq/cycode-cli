@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "cycode"
 version = "0.0.0" # DON'T TOUCH. Placeholder. Will be filled automatically on poetry build from Git Tag
-description = "Perform secrets/iac scans for your sources using Cycode's engine"
+description = "Boost security in your dev lifecycle via SAST, SCA, Secrets & IaC scanning."
 keywords=["secret-scan", "cycode", "devops", "token", "secret", "security", "cycode", "code"]
 authors = ["Cycode <support@cycode.com>"]
 license = "MIT"
@@ -59,9 +59,10 @@ log_cli = true
 [tool.poetry-dynamic-versioning]
 # poetry self add "poetry-dynamic-versioning[plugin]"
 enable = true
-strict = false
+strict = true
 bump = true
 metadata = false
+fix-shallow-repository=true
 vcs = "git"
 style = "pep440"
 
@@ -96,7 +97,7 @@ extend-select = [
     "Q",  # flake8-quotes
     "S",  # flake8-bandit
     "ASYNC", # flake8-async
-    #    "ANN", # flake8-annotations. Enable later
+    "ANN", # flake8-annotations
     "C",
     "BLE",
     "ERA",
@@ -111,12 +112,18 @@ extend-select = [
     "RUF",
     "SIM",
     "T20",
-    #    "TCH", # it can't be autofixed yet
+    "TCH",
     "TID",
     "YTT",
 ]
 line-length = 120
 target-version = "py37"
+ignore = [
+    "ANN002", # Missing type annotation for `*args`
+    "ANN003", # Missing type annotation for `**kwargs`
+    "ANN101", # Missing type annotation for `self` in method
+    "ANN102", # Missing type annotation for `cls` in classmethod
+]
 
 [tool.ruff.flake8-quotes]
 docstring-quotes = "double"
@@ -128,5 +135,5 @@ inline-quotes = "single"
 "cycode/*.py" = ["BLE001"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=0.25.0"]
 build-backend = "poetry_dynamic_versioning.backend"

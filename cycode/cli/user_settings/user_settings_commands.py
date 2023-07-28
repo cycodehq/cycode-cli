@@ -22,9 +22,10 @@ credentials_manager = CredentialsManager()
 
 
 @click.command(
-    short_help='Initial command to authenticate your CLI client with Cycode using client ID and client secret'
+    short_help='Initial command to authenticate your CLI client with Cycode using a client ID and client secret.'
 )
-def set_credentials():
+def set_credentials() -> None:
+    """Authenticates your CLI client with Cycode manually by using a client ID and client secret."""
     click.echo(f'Update credentials in file ({credentials_manager.get_filename()})')
     current_client_id, current_client_secret = credentials_manager.get_credentials_from_file()
     client_id = _get_client_id_input(current_client_id)
@@ -37,40 +38,39 @@ def set_credentials():
     click.echo(_get_credentials_update_result_message())
 
 
-@click.command()
+@click.command(short_help='Ignores a specific value, path or rule ID.')
 @click.option(
-    '--by-value', type=click.STRING, required=False, help='Ignore a specific value while scanning for secrets'
+    '--by-value', type=click.STRING, required=False, help='Ignore a specific value while scanning for Secrets.'
 )
 @click.option(
     '--by-sha',
     type=click.STRING,
     required=False,
-    help='Ignore a specific SHA512 representation of a string while scanning for secrets',
+    help='Ignore a specific SHA512 representation of a string while scanning for Secrets.',
 )
 @click.option(
-    '--by-path', type=click.STRING, required=False, help='Avoid scanning a specific path. Need to specify scan type '
+    '--by-path',
+    type=click.STRING,
+    required=False,
+    help='Avoid scanning a specific path. You`ll need to specify the scan type.',
 )
 @click.option(
     '--by-rule',
     type=click.STRING,
     required=False,
-    help='Ignore scanning a specific secret rule ID/IaC rule ID. Need to specify scan type.',
+    help='Ignore scanning a specific secret rule ID or IaC rule ID. You`ll to specify the scan type.',
 )
 @click.option(
     '--by-package',
     type=click.STRING,
     required=False,
-    help='Ignore scanning a specific package version while running SCA scan. expected pattern - name@version',
+    help='Ignore scanning a specific package version while running an SCA scan. Expected pattern: name@version.',
 )
 @click.option(
     '--scan-type',
     '-t',
     default='secret',
-    help="""
-              \b
-              Specify the scan you wish to execute (secrets/iac),
-              the default is secrets
-              """,
+    help='Specify the type of scan you wish to execute (the default is Secrets).',
     type=click.Choice(config['scans']['supported_scans']),
     required=False,
 )
@@ -81,12 +81,12 @@ def set_credentials():
     is_flag=True,
     default=False,
     required=False,
-    help='Add an ignore rule and update it in the global .cycode config file',
+    help='Add an ignore rule to the global CLI config.',
 )
 def add_exclusions(
     by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str, is_global: bool
-):
-    """Ignore a specific value, path or rule ID"""
+) -> None:
+    """Ignores a specific value, path or rule ID."""
     if not by_value and not by_sha and not by_path and not by_rule and not by_package:
         raise click.ClickException('ignore by type is missing')
 
@@ -143,14 +143,14 @@ def _get_client_secret_input(current_client_secret: str) -> str:
     return new_client_secret if new_client_secret else current_client_secret
 
 
-def _get_credentials_update_result_message():
+def _get_credentials_update_result_message() -> str:
     if not _are_credentials_exist_in_environment_variables():
         return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE
 
     return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE + ' ' + CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
 
 
-def _are_credentials_exist_in_environment_variables():
+def _are_credentials_exist_in_environment_variables() -> bool:
     client_id, client_secret = credentials_manager.get_credentials_from_environment_variables()
     return client_id is not None or client_secret is not None
 

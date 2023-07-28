@@ -5,7 +5,9 @@ from cycode.cyclient.models import Detection
 
 
 class Document:
-    def __init__(self, path: str, content: str, is_git_diff_format: bool = False, unique_id: Optional[str] = None):
+    def __init__(
+        self, path: str, content: str, is_git_diff_format: bool = False, unique_id: Optional[str] = None
+    ) -> None:
         self.path = path
         self.content = content
         self.is_git_diff_format = is_git_diff_format
@@ -16,7 +18,7 @@ class Document:
 
 
 class DocumentDetections:
-    def __init__(self, document: Document, detections: List[Detection]):
+    def __init__(self, document: Document, detections: List[Detection]) -> None:
         self.document = document
         self.detections = detections
 

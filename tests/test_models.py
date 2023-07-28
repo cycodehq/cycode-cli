@@ -2,7 +2,7 @@ from cycode.cyclient.models import InternalMetadata, K8SResource, ResourcesColle
 from tests import PODS_MOCK
 
 
-def test_batch_resources_to_json():
+def test_batch_resources_to_json() -> None:
     batch = ResourcesCollection('pod', 'default', PODS_MOCK, 77777)
     json_dict = batch.to_json()
     assert 'resources' in json_dict
@@ -15,7 +15,7 @@ def test_batch_resources_to_json():
     assert json_dict['resources'][0]['name'] == 'pod_name_1'
 
 
-def test_internal_metadata_to_json():
+def test_internal_metadata_to_json() -> None:
     resource = K8SResource('nginx-template-123-456', 'pod', 'cycode', {})
     resource.internal_metadata = InternalMetadata('nginx-template', 'deployment')
     batch = ResourcesCollection('pod', 'cycode', [resource], 1)

@@ -213,19 +213,19 @@ repos:
 
 The following are the options and commands available with the Cycode CLI application:
 
-| Option                         | Description                                                       |
-|--------------------------------|-------------------------------------------------------------------|
-| `--output [text\|json\|table]` | Specify the output (`text`/`json`/`table`). The default is `text` |
-| `-v`, `--verbose`              | Show detailed logs                                                |
-| `--version`                    | Show the version and exit.                                        |
-| `--help`                       | Show options for given command.                                   |
+| Option                               | Description                                                        |
+|--------------------------------------|--------------------------------------------------------------------|
+| `-o`, `--output [text\|json\|table]` | Specify the output (`text`/`json`/`table`). The default is `text`. |
+| `-v`, `--verbose`                    | Show detailed logs.                                                |
+| `--help`                             | Show options for given command.                                    |
 
-| Command                             | Description |
-|-------------------------------------|-------------|
-| [auth](#use-auth-command)           | Authenticates your machine to associate CLI with your Cycode account. |
-| [configure](#use-configure-command) | Initial command to authenticate your CLI client with Cycode using client ID and client secret. |
-| [ignore](#ingoring-scan-results)    | Ignore a specific value, path or rule ID |
-| [scan](#running-a-scan)             | Scan content for secrets/IaC/SCA/SAST violations. You need to specify which scan type: `ci`/`commit_history`/`path`/`repository`/etc |
+| Command                             | Description                                                                                                                           |
+|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| [auth](#use-auth-command)           | Authenticates your machine to associate CLI with your Cycode account.                                                                 |
+| [configure](#use-configure-command) | Initial command to authenticate your CLI client with Cycode using client ID and client secret.                                        |
+| [ignore](#ingoring-scan-results)    | Ignore a specific value, path or rule ID.                                                                                             |
+| [scan](#running-a-scan)             | Scan content for secrets/IaC/SCA/SAST violations. You need to specify which scan type: `ci`/`commit_history`/`path`/`repository`/etc. |
+| version                             | Show the version and exit.                                                                                                            |
 
 # Running a Scan
 
@@ -555,6 +555,7 @@ Ignore rules can be added to ignore specific secret values, specific SHA512 valu
 
 > :warning: **Warning**<br/>
 > Adding values to be ignored should be done with careful consideration of the values, paths, and policies to ensure that the scans will pick up true positives.
+
 The following are the options available for the `cycode ignore` command:
 
 | Option                          | Description |

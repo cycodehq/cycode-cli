@@ -8,13 +8,13 @@ from cycode.cyclient.scan_client import ScanClient
 from cycode.cyclient.scan_config.scan_config_base import DefaultScanConfig, DevScanConfig
 
 
-def create_scan_client(client_id: str, client_secret: str) -> ScanClient:
+def create_scan_client(client_id: str, client_secret: str, hide_response_log: bool) -> ScanClient:
     if dev_mode:
         scan_cycode_client, scan_config = create_scan_for_dev_env()
     else:
         scan_cycode_client, scan_config = create_scan(client_id, client_secret)
 
-    return ScanClient(scan_cycode_client=scan_cycode_client, scan_config=scan_config)
+    return ScanClient(scan_cycode_client, scan_config, hide_response_log)
 
 
 def create_scan(client_id: str, client_secret: str) -> Tuple[CycodeTokenBasedClient, DefaultScanConfig]:

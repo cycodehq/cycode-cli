@@ -11,7 +11,7 @@ from .cycode_client import CycodeClient
 class AuthClient:
     AUTH_CONTROLLER_PATH = 'api/v1/device-auth'
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.cycode_client = CycodeClient()
 
     def start_session(self, code_challenge: str) -> models.AuthenticationSession:
@@ -24,7 +24,7 @@ class AuthClient:
         path = f'{self.AUTH_CONTROLLER_PATH}/token'
         body = {'session_id': session_id, 'code_verifier': code_verifier}
         try:
-            response = self.cycode_client.post(url_path=path, body=body)
+            response = self.cycode_client.post(url_path=path, body=body, hide_response_content_log=True)
             return self.parse_api_token_polling_response(response)
         except (NetworkError, HttpUnauthorizedError) as e:
             return self.parse_api_token_polling_response(e.response)

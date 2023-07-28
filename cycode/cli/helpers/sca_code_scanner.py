@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
 from git import GitCommandError, Repo
@@ -10,6 +10,9 @@ from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDepe
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cyclient import logger
+
+if TYPE_CHECKING:
+    from cycode.cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
@@ -39,14 +42,17 @@ def perform_pre_hook_range_scan_actions(
 
 def add_ecosystem_related_files_if_exists(
     documents: List[Document], repo: Optional[Repo] = None, commit_rev: Optional[str] = None
-):
+) -> None:
+    documents_to_add: List[Document] = []
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
             logger.debug('failed to resolve project file ecosystem: %s', doc.path)
             continue
-        documents_to_add = get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo)
-        documents.extend(documents_to_add)
+
+        documents_to_add.extend(get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo))
+
+    documents.extend(documents_to_add)
 
 
 def get_doc_ecosystem_related_project_files(
@@ -56,11 +62,10 @@ def get_doc_ecosystem_related_project_files(
     for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
-            file_content = (
-                get_file_content_from_commit(repo, commit_rev, file_to_search)
-                if repo
-                else get_file_content(file_to_search)
-            )
+            if repo:
+                file_content = get_file_content_from_commit(repo, commit_rev, file_to_search)
+            else:
+                file_content = get_file_content(file_to_search)
 
             if file_content is not None:
                 documents_to_add.append(Document(file_to_search, file_content))
@@ -81,8 +86,11 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 
 def try_restore_dependencies(
-    context: click.Context, documents_to_add: List[Document], restore_dependencies, document: Document
-):
+    context: click.Context,
+    documents_to_add: Dict[str, Document],
+    restore_dependencies: 'BaseRestoreMavenDependencies',
+    document: Document,
+) -> None:
     if restore_dependencies.is_project(document):
         restore_dependencies_document = restore_dependencies.restore(document)
         if restore_dependencies_document is None:
@@ -117,7 +125,7 @@ def add_dependencies_tree_document(
     documents_to_scan.extend(list(documents_to_add.values()))
 
 
-def restore_handlers(context, is_git_diff):
+def restore_handlers(context: click.Context, is_git_diff: bool) -> List[RestoreGradleDependencies]:
     return [
         RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
         RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),

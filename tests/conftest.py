@@ -18,8 +18,13 @@ TEST_FILES_PATH = Path(__file__).parent.joinpath('test_files').absolute()
 
 
 @pytest.fixture(scope='session')
+def test_files_path() -> Path:
+    return TEST_FILES_PATH
+
+
+@pytest.fixture(scope='session')
 def scan_client() -> ScanClient:
-    return create_scan_client(_CLIENT_ID, _CLIENT_SECRET)
+    return create_scan_client(_CLIENT_ID, _CLIENT_SECRET, hide_response_log=False)
 
 
 @pytest.fixture(scope='session')
@@ -33,7 +38,7 @@ def api_token_url(token_based_client: CycodeTokenBasedClient) -> str:
 
 
 @pytest.fixture(scope='session')
-def api_token_response(api_token_url) -> responses.Response:
+def api_token_response(api_token_url: str) -> responses.Response:
     return responses.Response(
         method=responses.POST,
         url=api_token_url,

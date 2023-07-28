@@ -41,8 +41,19 @@ jobs:
         with:
           python-version: '3.7'
 
+      - name: Load cached Poetry setup
+        id: cached-poetry
+        uses: actions/cache@v3
+        with:
+          path: ~/.local
+          key: poetry-${{ matrix.os }}-0  # increment to reset cache
+
       - name: Setup Poetry
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
+
+      - name: Add Poetry to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: poetry install
@@ -51,7 +62,7 @@ jobs:
         run: poetry run pyinstaller pyinstaller.spec
 
       - name: Test executable
-        run: ./dist/cycode --version
+        run: ./dist/cycode version
 
       - name: Sign macOS executable
         if: ${{ startsWith(matrix.os, 'macos') }}
@@ -99,7 +110,7 @@ jobs:
 
       - name: Test signed executable
         if: ${{ startsWith(matrix.os, 'macos') }}
-        run: ./dist/cycode --version
+        run: ./dist/cycode version
 
       - uses: actions/upload-artifact@v3
         with:

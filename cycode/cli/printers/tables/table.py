@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from texttable import Texttable
 
 if TYPE_CHECKING:
-    from cycode.cli.printers.table_models import ColumnInfo, ColumnWidths
+    from cycode.cli.printers.tables.table_models import ColumnInfo, ColumnWidths
 
 
 class Table:
     """Helper class to manage columns and their values in the right order and only if the column should be presented."""
 
-    def __init__(self, column_infos: Optional[List['ColumnInfo']] = None):
+    def __init__(self, column_infos: Optional[List['ColumnInfo']] = None) -> None:
         self._column_widths = None
 
         self._columns: Dict['ColumnInfo', List[str]] = {}

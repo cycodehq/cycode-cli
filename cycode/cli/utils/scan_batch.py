@@ -44,7 +44,8 @@ def split_documents_into_batches(
 
 
 def _get_threads_count() -> int:
-    return min(os.cpu_count() * SCAN_BATCH_SCANS_PER_CPU, SCAN_BATCH_MAX_PARALLEL_SCANS)
+    cpu_count = os.cpu_count() or 1
+    return min(cpu_count * SCAN_BATCH_SCANS_PER_CPU, SCAN_BATCH_MAX_PARALLEL_SCANS)
 
 
 def run_parallel_batched_scan(
