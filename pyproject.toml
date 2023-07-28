@@ -37,6 +37,7 @@ arrow = ">=0.17.0,<0.18.0"
 binaryornot = ">=0.4.4,<0.5.0"
 texttable = ">=1.6.7,<1.7.0"
 requests = ">=2.24,<3.0"
+urllib3 = "1.26.16"  # lock v1 to avoid issues with openssl and old Python versions (<3.9.11) on macOS
 
 [tool.poetry.group.test.dependencies]
 mock = ">=4.0.3,<4.1.0"
