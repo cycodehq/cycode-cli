@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
 
@@ -15,14 +15,16 @@ class JsonPrinter(PrinterBase):
     def print_result(self, result: CliResult) -> None:
         result = {'result': result.success, 'message': result.message}
 
-        click.secho(self.get_data_json(result))
+        click.echo(self.get_data_json(result))
 
     def print_error(self, error: CliError) -> None:
         result = {'error': error.code, 'message': error.message}
 
-        click.secho(self.get_data_json(result))
+        click.echo(self.get_data_json(result))
 
-    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def print_scan_results(
+        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+    ) -> None:
         detections = []
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
@@ -30,12 +32,18 @@ class JsonPrinter(PrinterBase):
 
         detections_dict = DetectionSchema(many=True).dump(detections)
 
-        click.secho(self._get_json_scan_result(detections_dict))
+        inlined_errors = []
+        if errors:
+            # FIXME(MarshalX): we don't care about scan IDs in JSON output due to clumsy JSON root structure
+            inlined_errors = [err._asdict() for err in errors.values()]
 
-    def _get_json_scan_result(self, detections: dict) -> str:
+        click.echo(self._get_json_scan_result(detections_dict, inlined_errors))
+
+    def _get_json_scan_result(self, detections: dict, errors: List[dict]) -> str:
         result = {
             'scan_id': 'DEPRECATED',  # FIXME(MarshalX): we need change JSON struct to support multiple scan results
             'detections': detections,
+            'errors': errors,
         }
 
         return self.get_data_json(result)

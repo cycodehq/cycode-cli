@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
 
@@ -30,8 +30,10 @@ class TextPrinter(PrinterBase):
     def print_error(self, error: CliError) -> None:
         click.secho(error.message, fg=self.RED_COLOR_NAME)
 
-    def print_scan_results(self, local_scan_results: List['LocalScanResult']) -> None:
-        if all(result.issue_detected == 0 for result in local_scan_results):
+    def print_scan_results(
+        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+    ) -> None:
+        if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return
 
@@ -40,6 +42,18 @@ class TextPrinter(PrinterBase):
                 self._print_document_detections(
                     document_detections, local_scan_result.scan_id, local_scan_result.report_url
                 )
+
+        if not errors:
+            return
+
+        click.secho(
+            'Unfortunately, Cycode was unable to complete the full scan. '
+            'Please note that not all results may be available:',
+            fg='red',
+        )
+        for scan_id, error in errors.items():
+            click.echo(f'- {scan_id}: ', nl=False)
+            self.print_error(error)
 
     def _print_document_detections(
         self, document_detections: DocumentDetections, scan_id: str, report_url: Optional[str]
