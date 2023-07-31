@@ -90,7 +90,7 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, is_git_diff=False)
 
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        return scan_documents(
+        scan_documents(
             context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context, path)
         )
     except Exception as e:
@@ -420,6 +420,16 @@ def scan_documents(
 ) -> None:
     progress_bar = context.obj['progress_bar']
 
+    if not documents_to_scan:
+        progress_bar.stop()
+        ConsolePrinter(context).print_error(
+            CliError(
+                code='no_relevant_files',
+                message='Error: The scan could not be completed - relevant files to scan are not found.',
+            )
+        )
+        return
+
     scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
     errors, local_scan_results = run_parallel_batched_scan(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
@@ -430,25 +440,7 @@ def scan_documents(
     progress_bar.stop()
 
     set_issue_detected_by_scan_results(context, local_scan_results)
-    print_results(context, local_scan_results)
-
-    if not errors:
-        return
-
-    if context.obj['output'] == 'json':
-        # TODO(MarshalX): we can't just print JSON formatted errors here
-        #  because we should return only one root json structure per scan
-        #  could be added later to "print_results" function if we wish to display detailed errors in UI
-        return
-
-    click.secho(
-        'Unfortunately, Cycode was unable to complete the full scan. '
-        'Please note that not all results may be available:',
-        fg='red',
-    )
-    for scan_id, error in errors.items():
-        click.echo(f'- {scan_id}: ', nl=False)
-        ConsolePrinter(context).print_error(error)
+    print_results(context, local_scan_results, errors)
 
 
 def scan_commit_range_documents(
@@ -506,6 +498,7 @@ def scan_commit_range_documents(
         progress_bar.update(ProgressBarSection.GENERATE_REPORT)
         progress_bar.stop()
 
+        # errors will be handled with try-except block; printing will not occur on errors
         print_results(context, [local_scan_result])
 
         scan_completed = True
@@ -693,9 +686,11 @@ def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> No
         logger.debug(f'Scan message: {scan_details_response.message}')
 
 
-def print_results(context: click.Context, local_scan_results: List[LocalScanResult]) -> None:
+def print_results(
+    context: click.Context, local_scan_results: List[LocalScanResult], errors: Optional[Dict[str, 'CliError']] = None
+) -> None:
     printer = ConsolePrinter(context)
-    printer.print_scan_results(local_scan_results)
+    printer.print_scan_results(local_scan_results, errors)
 
 
 def get_document_detections(
