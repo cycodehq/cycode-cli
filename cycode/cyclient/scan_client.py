@@ -49,7 +49,11 @@ class ScanClient:
         self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False
     ) -> models.ScanInitializationResponse:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
-        url_path = f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{async_scan_type}/repository'
+        async_entity_type = self.scan_config.get_async_entity_type(scan_type)
+
+        url_prefix = self.scan_config.get_scans_prefix()
+        url_path = f'{url_prefix}/{self.SCAN_CONTROLLER_PATH}/{async_scan_type}/{async_entity_type}'
+
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
             url_path=url_path,

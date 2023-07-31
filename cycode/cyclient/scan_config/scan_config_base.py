@@ -15,6 +15,13 @@ class ScanConfigBase(ABC):
 
         return scan_type.upper()
 
+    @staticmethod
+    def get_async_entity_type(scan_type: str) -> str:
+        if scan_type == 'secret':
+            return 'zippedfile'
+
+        return 'repository'
+
     @abstractmethod
     def get_scans_prefix(self) -> str:
         ...
