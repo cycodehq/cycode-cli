@@ -66,9 +66,7 @@ class LocalScanResult(NamedTuple):
 
 
 class ChangeResource:
-    def __init__(
-            self, resource_type: str, name: str, values: Dict[str, any]
-    ) -> None:
+    def __init__(self, resource_type: str, name: str, values: Dict[str, any]) -> None:
         self.resource_type = resource_type
         self.name = name
         self.values = values

@@ -341,7 +341,7 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
 
         if _is_iac(scan_type) and _is_tfplan_json_file(file, content):
             content = tf_content_generator.generate_tf_content_from_tfplan(content)
-            file_name = change_file_extension(file, "tf")
+            file_name = change_file_extension(file, 'tf')
 
         documents.append(Document(file_name, content, is_git_diff))
 
@@ -1119,6 +1119,7 @@ def _is_tfplan_json_file(file: str, content: str) -> bool:
 
     except ValueError:
         return False
+
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
     return get_file_size(filename) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
