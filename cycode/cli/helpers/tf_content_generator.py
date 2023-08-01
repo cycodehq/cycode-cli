@@ -9,14 +9,18 @@ def generate_tf_content_from_tfplan(tfplan: str) -> str:
 
 
 def _extract_resources(tfplan: str) -> list[ChangeResource]:
-    tfplan_json = json.loads(tfplan)
-    resources = []
-    for change in tfplan_json.get('resource_changes', []):
-        if change['change'] and 'after' in change['change']:
-            resources.append(
-                ChangeResource(resource_type=change['type'], name=change['name'], values=change['change']['after'])
-            )
-    return resources
+    try:
+        tfplan_json = json.loads(tfplan)
+        resources: list[ChangeResource] = []
+        for change in tfplan_json.get('resource_changes', []):
+            if change['change'] and 'after' in change['change']:
+                resources.append(
+                    ChangeResource(resource_type=change['type'], name=change['name'], values=change['change']['after'])
+                )
+        return resources
+
+    except (ValueError, TypeError):
+        return []
 
 
 def _generate_tf_content(resources: list[ChangeResource]) -> str:
