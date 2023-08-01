@@ -7,7 +7,6 @@ _PATH_TO_EXAMPLES = os.path.join(TEST_FILES_PATH, 'tf_content_generator_files')
 
 
 def test_generate_tf_content_from_tfplan() -> None:
-    print(_PATH_TO_EXAMPLES)
     examples_directories = [
         name for name in os.listdir(_PATH_TO_EXAMPLES) if os.path.isdir(os.path.join(_PATH_TO_EXAMPLES, name))
     ]
