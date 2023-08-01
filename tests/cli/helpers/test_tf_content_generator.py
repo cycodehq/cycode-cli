@@ -18,4 +18,3 @@ def test_generate_tf_content_from_tfplan() -> None:
             tf_expected_content: str = tf_expected_content_file.read()
             tf_content = tf_content_generator.generate_tf_content_from_tfplan(tfplan_content)
             assert tf_content == tf_expected_content
-
