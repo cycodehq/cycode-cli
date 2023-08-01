@@ -26,6 +26,7 @@ def ctx() -> click.Context:
         (custom_exceptions.ScanAsyncError('msg'), True),
         (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
         (custom_exceptions.ZipTooLargeError(1000), True),
+        (custom_exceptions.TfplanKeyError('msg'), True),
         (InvalidGitRepositoryError(), None),
     ],
 )

@@ -55,3 +55,9 @@ class AuthProcessError(CycodeError):
 
     def __str__(self) -> str:
         return f'Something went wrong during the authentication process, error message: {self.error_message}'
+
+
+class TfplanKeyError(CycodeError):
+    def __init__(self, error_message: str) -> None:
+        self.error_message = error_message
+        super().__init__()

@@ -21,7 +21,7 @@ from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections,
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils import scan_utils
-from cycode.cli.utils.file_utils import change_file_extension
+from cycode.cli.utils.file_utils import change_filename_extension
 from cycode.cli.utils.path_utils import (
     get_file_content,
     get_file_size,
@@ -340,8 +340,14 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
         file_name = file
 
         if _is_iac(scan_type) and _is_tfplan_json_file(file, content):
-            content = tf_content_generator.generate_tf_content_from_tfplan(content)
-            file_name = change_file_extension(file, 'tf')
+            try:
+                content = tf_content_generator.generate_tf_content_from_tfplan(content)
+            except KeyError:
+                _handle_exception(
+                    context,
+                    custom_exceptions.TfplanKeyError('Error occurred while parsing tfplan file.'),
+                )
+            file_name = change_filename_extension(file, 'tf')
 
         documents.append(Document(file_name, content, is_git_diff))
 
@@ -1177,6 +1183,13 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             code='zip_too_large_error',
             message='The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
             'Please try ignoring irrelevant paths using the `cycode ignore --by-path` command '
+            'and execute the scan again',
+        ),
+        custom_exceptions.TfplanKeyError: CliError(
+            soft_fail=True,
+            code='key_error',
+            message='A crucial field is missing in you terraform plan file. '
+            'Please make sure that your file is well formed '
             'and execute the scan again',
         ),
         InvalidGitRepositoryError: CliError(
