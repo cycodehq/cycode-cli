@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 from cycode.cli.models import ChangeResource
 
@@ -8,12 +9,12 @@ def generate_tf_content_from_tfplan(tfplan: str) -> str:
     return _generate_tf_content(planned_resources)
 
 
-def _extract_resources(tfplan: str) -> list[ChangeResource]:
+def _extract_resources(tfplan: str) -> List[ChangeResource]:
     try:
         tfplan_json = json.loads(tfplan)
-        resources: list[ChangeResource] = []
+        resources: List[ChangeResource] = []
         for change in tfplan_json.get('resource_changes', []):
-            if change['change'] and 'after' in change['change']:
+            if change['change'] and change['change']['after']:
                 resources.append(
                     ChangeResource(resource_type=change['type'], name=change['name'], values=change['change']['after'])
                 )
@@ -23,7 +24,7 @@ def _extract_resources(tfplan: str) -> list[ChangeResource]:
         return []
 
 
-def _generate_tf_content(resources: list[ChangeResource]) -> str:
+def _generate_tf_content(resources: List[ChangeResource]) -> str:
     tf_content = ''
     for resource in resources:
         tf_content += f'resource \"{resource.resource_type}\" \"{resource.name}\" {{\n'
