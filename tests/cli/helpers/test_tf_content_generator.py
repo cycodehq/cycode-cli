@@ -13,7 +13,9 @@ def test_generate_tf_content_from_tfplan() -> None:
     for example in examples_directories:
         tfplan_path = os.path.join(examples_main_dir, example, 'tfplan.json')
         tf_expected_content_path = os.path.join(examples_main_dir, example, 'tf_content.txt')
-        with open(tfplan_path, 'r') as tfplan_file, open(tf_expected_content_path, 'r') as tf_expected_content_file:
+        with open(tfplan_path, 'r', encoding='utf-8') as tfplan_file, open(
+            tf_expected_content_path, 'r', encoding='utf-8'
+        ) as tf_expected_content_file:
             tfplan_content: str = tfplan_file.read()
             tf_expected_content: str = tf_expected_content_file.read()
             tf_content = tf_content_generator.generate_tf_content_from_tfplan(tfplan_content)
