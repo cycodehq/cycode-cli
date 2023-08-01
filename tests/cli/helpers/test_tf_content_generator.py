@@ -1,18 +1,20 @@
 import os
 
 from cycode.cli.helpers import tf_content_generator
+from tests.conftest import TEST_FILES_PATH
 
-examples_main_dir = '../../test_files/tf_content_generator_files'
+_PATH_TO_EXAMPLES = os.path.join(TEST_FILES_PATH, 'tf_content_generator_files')
 
 
 def test_generate_tf_content_from_tfplan() -> None:
+    print(_PATH_TO_EXAMPLES)
     examples_directories = [
-        name for name in os.listdir(examples_main_dir) if os.path.isdir(os.path.join(examples_main_dir, name))
+        name for name in os.listdir(_PATH_TO_EXAMPLES) if os.path.isdir(os.path.join(_PATH_TO_EXAMPLES, name))
     ]
 
     for example in examples_directories:
-        tfplan_path = os.path.join(examples_main_dir, example, 'tfplan.json')
-        tf_expected_content_path = os.path.join(examples_main_dir, example, 'tf_content.txt')
+        tfplan_path = os.path.join(_PATH_TO_EXAMPLES, example, 'tfplan.json')
+        tf_expected_content_path = os.path.join(_PATH_TO_EXAMPLES, example, 'tf_content.txt')
         with open(tfplan_path, 'r', encoding='utf-8') as tfplan_file, open(
             tf_expected_content_path, 'r', encoding='utf-8'
         ) as tf_expected_content_file:
