@@ -63,3 +63,12 @@ class LocalScanResult(NamedTuple):
     issue_detected: bool
     detections_count: int
     relevant_detections_count: int
+
+
+class ChangeResource:
+    def __init__(
+            self, resource_type: str, name: str, values: Dict[str, any]
+    ) -> None:
+        self.resource_type = resource_type
+        self.name = name
+        self.values = values
