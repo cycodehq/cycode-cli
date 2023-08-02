@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional, Type
 
@@ -65,8 +66,12 @@ class LocalScanResult(NamedTuple):
     relevant_detections_count: int
 
 
+@dataclass
 class ChangeResource:
     def __init__(self, resource_type: str, name: str, values: Dict[str, any]) -> None:
         self.resource_type = resource_type
         self.name = name
         self.values = values
+
+    def __repr__(self) -> str:
+        return 'resource_type:{0}, name:{1}'.format(self.resource_type, self.name)

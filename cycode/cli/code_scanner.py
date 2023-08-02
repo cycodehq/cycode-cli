@@ -21,8 +21,8 @@ from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections,
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils import scan_utils
-from cycode.cli.utils.file_utils import change_filename_extension
 from cycode.cli.utils.path_utils import (
+    change_filename_extension,
     get_file_content,
     get_file_size,
     get_path_by_os,
@@ -337,18 +337,7 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
         if not content:
             continue
 
-        file_name = file
-
-        if _is_iac(scan_type) and _is_tfplan_json_file(file, content):
-            try:
-                content = tf_content_generator.generate_tf_content_from_tfplan(content)
-            except KeyError:
-                _handle_exception(
-                    context,
-                    custom_exceptions.TfplanKeyError('Error occurred while parsing tfplan file.'),
-                )
-            file_name = change_filename_extension(file, 'tf')
-
+        file_name, content = _try_parse_iac_file(context, scan_type, file, content)
         documents.append(Document(file_name, content, is_git_diff))
 
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
@@ -1112,18 +1101,31 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
+def _try_parse_iac_file(context: click.Context, scan_type: str, file: str, content: str) -> (str, str):
+    if _is_iac(scan_type) and _is_tfplan_file(file, content):
+        try:
+            file_name = change_filename_extension(file, 'tf')
+            tf_content = tf_content_generator.generate_tf_content_from_tfplan(content)
+            return file_name, tf_content
+
+        except Exception as e:
+            _handle_exception(context, e)
+
+    return file, content
+
+
 def _is_iac(scan_type: str) -> bool:
     return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
 
 
-def _is_tfplan_json_file(file: str, content: str) -> bool:
+def _is_tfplan_file(file: str, content: str) -> bool:
     if not file.endswith('.json'):
         return False
     try:
         tf_plan = json.loads(content)
         return tf_plan.get('resource_changes')
 
-    except ValueError:
+    except (ValueError, json.JSONDecodeError):
         return False
 
 
@@ -1186,7 +1188,7 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             'and execute the scan again',
         ),
         custom_exceptions.TfplanKeyError: CliError(
-            soft_fail=True,
+            soft_fail=False,
             code='key_error',
             message='A crucial field is missing in you terraform plan file. '
             'Please make sure that your file is well formed '

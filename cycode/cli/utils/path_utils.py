@@ -71,6 +71,10 @@ def get_file_dir(path: str) -> str:
     return os.path.dirname(path)
 
 
+def get_immediate_subdirectories(path: str) -> List[str]:
+    return [f.name for f in os.scandir(path) if f.is_dir()]
+
+
 def join_paths(path: str, filename: str) -> str:
     return os.path.join(path, filename)
 
@@ -81,3 +85,8 @@ def get_file_content(file_path: str) -> Optional[AnyStr]:
             return f.read()
     except (FileNotFoundError, UnicodeDecodeError):
         return None
+
+
+def change_filename_extension(filename: str, extension: str) -> str:
+    base_name, old_ext = os.path.splitext(filename)
+    return f'{base_name}.{extension}'
