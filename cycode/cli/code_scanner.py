@@ -338,9 +338,11 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
         if not content:
             continue
 
-        file_name, content = _try_parse_iac_file(context, scan_type, file, content)
-        documents.append(Document(file_name, content, is_git_diff))
+        documents.append(Document(file, content, is_git_diff))
 
+    documents = (
+        [_try_parse_iac_document(context, document) for document in documents] if _is_iac(scan_type) else documents
+    )
     perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
     scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
 
@@ -1102,27 +1104,27 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
-def _try_parse_iac_file(context: click.Context, scan_type: str, file: str, content: str) -> (str, str):
-    if _is_iac(scan_type) and _is_tfplan_file(file, content):
+def _try_parse_iac_document(context: click.Context, document: Document) -> Document:
+    if _is_tfplan_document(document):
         try:
-            file_name = change_filename_extension(file, 'tf')
-            tf_content = tf_content_generator.generate_tf_content_from_tfplan(content)
-            return file_name, tf_content
+            document_name = change_filename_extension(document.path, 'tf')
+            tf_content = tf_content_generator.generate_tf_content_from_tfplan(document.content)
+            return Document(document_name, tf_content, document.is_git_diff_format)
 
         except Exception as e:
             _handle_exception(context, e)
 
-    return file, content
+    return document
 
 
 def _is_iac(scan_type: str) -> bool:
     return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
 
 
-def _is_tfplan_file(file: str, content: str) -> bool:
-    if not file.endswith('.json'):
+def _is_tfplan_document(document: Document) -> bool:
+    if not document.path.endswith('.json'):
         return False
-    tf_plan = load_json(content)
+    tf_plan = load_json(document.content)
     return tf_plan.get('resource_changes')
 
 
