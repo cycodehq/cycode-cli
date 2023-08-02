@@ -1,3 +1,4 @@
+import json
 import os
 from functools import lru_cache
 from typing import AnyStr, Iterable, List, Optional
@@ -85,6 +86,15 @@ def get_file_content(file_path: str) -> Optional[AnyStr]:
             return f.read()
     except (FileNotFoundError, UnicodeDecodeError):
         return None
+
+
+def load_json(txt: str) -> Optional[dict]:
+    try:
+        return json.loads(txt)
+    except json.JSONDecodeError:
+        return None
+
+
 
 
 def change_filename_extension(filename: str, extension: str) -> str:

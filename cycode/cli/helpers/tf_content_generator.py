@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from cycode.cli.exceptions.custom_exceptions import TfplanKeyError
 from cycode.cli.models import ResourceChange
+from cycode.cli.utils.path_utils import load_json
 
 
 def _generate_tf_content(resource_changes: List[ResourceChange]) -> str:
@@ -21,10 +22,11 @@ def generate_tf_content_from_tfplan(tfplan: str) -> str:
 
 
 def _extract_resources(tfplan: str) -> List[ResourceChange]:
+    tfplan_json = load_json(tfplan)
     resources: List[ResourceChange] = []
     try:
-        tfplan_json = json.loads(tfplan)['resource_changes']
-        for resource_change in tfplan_json:
+        resource_changes = tfplan_json['resource_changes']
+        for resource_change in resource_changes:
             resources.append(
                 ResourceChange(
                     resource_type=resource_change['type'],

@@ -28,7 +28,7 @@ from cycode.cli.utils.path_utils import (
     get_path_by_os,
     get_relevant_files_in_path,
     is_binary_file,
-    is_sub_path,
+    is_sub_path, load_json,
 )
 from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.progress_bar import logger as progress_bar_logger
@@ -1121,12 +1121,8 @@ def _is_iac(scan_type: str) -> bool:
 def _is_tfplan_file(file: str, content: str) -> bool:
     if not file.endswith('.json'):
         return False
-    try:
-        tf_plan = json.loads(content)
-        return tf_plan.get('resource_changes')
-
-    except json.JSONDecodeError:
-        return False
+    tf_plan = load_json(content)
+    return tf_plan.get('resource_changes')
 
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
