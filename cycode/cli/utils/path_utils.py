@@ -95,8 +95,6 @@ def load_json(txt: str) -> Optional[dict]:
         return None
 
 
-
-
 def change_filename_extension(filename: str, extension: str) -> str:
     base_name, _ = os.path.splitext(filename)
     return f'{base_name}.{extension}'

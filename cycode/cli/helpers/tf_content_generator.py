@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import List
 
 from cycode.cli.exceptions.custom_exceptions import TfplanKeyError
 from cycode.cli.models import ResourceChange

@@ -28,7 +28,8 @@ from cycode.cli.utils.path_utils import (
     get_path_by_os,
     get_relevant_files_in_path,
     is_binary_file,
-    is_sub_path, load_json,
+    is_sub_path,
+    load_json,
 )
 from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.progress_bar import logger as progress_bar_logger
