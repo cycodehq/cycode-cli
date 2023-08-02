@@ -2,16 +2,16 @@ import json
 from typing import List, Optional
 
 from cycode.cli.exceptions.custom_exceptions import TfplanKeyError
-from cycode.cli.models import ChangeResource
+from cycode.cli.models import ResourceChange
 
 
-def _generate_tf_content(resources: List[ChangeResource]) -> str:
+def _generate_tf_content(resource_changes: List[ResourceChange]) -> str:
     tf_content = ''
-    for resource in resources:
-        tf_content += f'resource \"{resource.resource_type}\" \"{resource.name}\" {{\n'
-        for key, value in resource.values.items():
-            tf_content += f'  {key} = {json.dumps(value)}\n'
-        tf_content += '}\n\n'
+    for resource_change in resource_changes:
+        tf_content += f"""resource "{resource_change.resource_type}" "{resource_change.name}" {{\n"""
+        for key, value in resource_change.values.items():
+            tf_content += f"""  {key} = {json.dumps(value)}\n"""
+        tf_content += """}\n\n"""
     return tf_content
 
 
@@ -30,13 +30,13 @@ def _try_get_tfplan(tfplan: Optional[str]) -> json:
         return None
 
 
-def _extract_resources(tfplan: str) -> List[ChangeResource]:
+def _extract_resources(tfplan: str) -> List[ResourceChange]:
     tfplan_json = _try_get_tfplan(tfplan).get('resource_changes')
-    resources: List[ChangeResource] = []
+    resources: List[ResourceChange] = []
     for resource_change in tfplan_json:
         try:
             resources.append(
-                ChangeResource(
+                ResourceChange(
                     resource_type=resource_change['type'],
                     name=resource_change['name'],
                     values=resource_change['change']['after'],

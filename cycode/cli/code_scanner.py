@@ -1190,7 +1190,7 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
         custom_exceptions.TfplanKeyError: CliError(
             soft_fail=False,
             code='key_error',
-            message='A crucial field is missing in you terraform plan file. '
+            message='A crucial field is missing in your terraform plan file. '
             'Please make sure that your file is well formed '
             'and execute the scan again',
         ),
