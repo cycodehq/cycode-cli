@@ -1125,7 +1125,7 @@ def _is_tfplan_file(file: str, content: str) -> bool:
         tf_plan = json.loads(content)
         return tf_plan.get('resource_changes')
 
-    except (ValueError, json.JSONDecodeError):
+    except json.JSONDecodeError:
         return False
 
 

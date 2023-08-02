@@ -20,21 +20,11 @@ def generate_tf_content_from_tfplan(tfplan: str) -> str:
     return _generate_tf_content(planned_resources)
 
 
-def _try_get_tfplan(tfplan: Optional[str]) -> json:
-    if tfplan is None:
-        return None
-
-    try:
-        return json.loads(tfplan)
-    except json.JSONDecodeError:
-        return None
-
-
 def _extract_resources(tfplan: str) -> List[ResourceChange]:
-    tfplan_json = _try_get_tfplan(tfplan).get('resource_changes')
     resources: List[ResourceChange] = []
-    for resource_change in tfplan_json:
-        try:
+    try:
+        tfplan_json = json.loads(tfplan)['resource_changes']
+        for resource_change in tfplan_json:
             resources.append(
                 ResourceChange(
                     resource_type=resource_change['type'],
@@ -42,6 +32,6 @@ def _extract_resources(tfplan: str) -> List[ResourceChange]:
                     values=resource_change['change']['after'],
                 )
             )
-        except KeyError as e:
-            raise TfplanKeyError('Error occurred while parsing tfplan file.') from e
+    except KeyError as e:
+        raise TfplanKeyError('Error occurred while parsing tfplan file.') from e
     return resources

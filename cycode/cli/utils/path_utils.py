@@ -88,5 +88,5 @@ def get_file_content(file_path: str) -> Optional[AnyStr]:
 
 
 def change_filename_extension(filename: str, extension: str) -> str:
-    base_name, old_ext = os.path.splitext(filename)
+    base_name, _ = os.path.splitext(filename)
     return f'{base_name}.{extension}'
