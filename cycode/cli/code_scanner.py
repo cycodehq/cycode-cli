@@ -341,8 +341,12 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
 
             documents.append(Document(file, content, is_git_diff))
 
+        if _is_iac(scan_type):
+            documents = _handle_iac_documents(documents)
+
         perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
         scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
+
     except Exception as e:
         _handle_exception(context, e)
 
@@ -581,9 +585,6 @@ def perform_pre_scan_documents_actions(
     if scan_type == consts.SCA_SCAN_TYPE:
         logger.debug('Perform pre scan document add_dependencies_tree_document action')
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
-    elif scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        logger.debug('Perform pre scan document handle_iac_documents action')
-        handle_iac_documents(documents_to_scan)
 
 
 def zip_documents_to_scan(scan_type: str, zip_file: InMemoryZip, documents: List[Document]) -> InMemoryZip:
@@ -1107,29 +1108,29 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
-def handle_iac_documents(documents_to_scan: List[Document]) -> None:
-    documents_to_add: List[Document] = []
-    documents_to_remove: List[Document] = []
+def _handle_iac_documents(documents: List[Document]) -> List[Document]:
+    return [_handle_tflpan_document(document) for document in documents]
 
-    for document in documents_to_scan:
-        if _is_tfplan_document(document):
-            document_name = f"""{int(time.time())}-{change_filename_extension(document.path, '.tf')}"""
-            tf_content = tf_content_generator.generate_tf_content_from_tfplan(document.content)
 
-            documents_to_add.append(Document(document_name, tf_content, document.is_git_diff_format))
-            documents_to_remove.append(document)
+def _handle_tflpan_document(document: Document) -> Document:
+    if _is_tfplan_document(document):
+        document_name = _generate_tfplan_document_name(document.path)
+        tf_content = tf_content_generator.generate_tf_content_from_tfplan(document.content)
+        return Document(document_name, tf_content, document.is_git_diff_format)
+    return document
 
-    # we must remove not parsed variant of files
-    for document_to_remove in documents_to_remove:
-        documents_to_scan.remove(document_to_remove)
 
-    documents_to_scan.extend(list(documents_to_add))
+def _generate_tfplan_document_name(path: str) -> str:
+    return f"""{int(time.time())}-{change_filename_extension(path, '.tf')}"""
+
+
+def _is_iac(scan_type: str) -> bool:
+    return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
 
 
 def _is_tfplan_document(document: Document) -> bool:
     if not document.path.endswith('.json'):
         return False
-
     tf_plan = load_json(document.content)
     return 'resource_changes' in tf_plan
 
