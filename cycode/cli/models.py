@@ -70,6 +70,7 @@ class LocalScanResult(NamedTuple):
 class ResourceChange:
     resource_type: str
     name: str
+    actions: List[str]
     values: Dict[str, str]
 
     def __repr__(self) -> str:
