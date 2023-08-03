@@ -9,7 +9,6 @@ _PATH_TO_EXAMPLES = os.path.join(TEST_FILES_PATH, 'tf_content_generator_files')
 
 def test_generate_tf_content_from_tfplan() -> None:
     examples_directories = get_immediate_subdirectories(_PATH_TO_EXAMPLES)
-
     for example in examples_directories:
         tfplan_content = get_file_content(os.path.join(_PATH_TO_EXAMPLES, example, 'tfplan.json'))
         tf_expected_content = get_file_content(os.path.join(_PATH_TO_EXAMPLES, example, 'tf_content.txt'))
