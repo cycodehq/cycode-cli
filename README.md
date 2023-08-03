@@ -25,7 +25,7 @@ This guide will guide you through both installation and usage.
         1. [License Compliance Option](#license-compliance-option)
         2. [Severity Threshold](#severity-threshold)
     5. [Path Scan](#path-scan)
-       1. [Scan TF Plan](#scan-tf-plan)
+       1. [Scan Terraform Plan](#scan-terraform-plan)
     6. [Commit History Scan](#commit-history-scan)
         1. [Commit Range Option](#commit-range-option)
     7. [Pre-Commit Scan](#pre-commit-scan)
@@ -422,6 +422,7 @@ For example, consider a scenario in which you want to scan the directory located
 
 `cycode scan path ~/home/git/codebase`
 
+
 ### Terraform Plan Scan
 Cycode cli supports Terraform plan scanning.
 
@@ -431,7 +432,7 @@ Terraform plan file must be in json format.
 
 _How to generate a Terraform plan from Terraform configuration file?_
     
-1. Initializes a working directory containing Terraform configuration file
+1. Initialize a working directory that contains Terraform configuration file
 
 
     terraform init
@@ -448,7 +449,7 @@ _How to generate a Terraform plan from Terraform configuration file?_
 
     terraform show -json {tfplan_output} > {tfplan}.json
 
-4. Scan your `{tfplan}.json` with cycode-cli
+4. Scan your `{tfplan}.json` with Cycode CLI
 
 
     cycode scan -t iac path ~/PATH/TO/YOUR/{tfplan}.json
