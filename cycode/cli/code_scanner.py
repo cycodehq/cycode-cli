@@ -582,8 +582,8 @@ def perform_pre_scan_documents_actions(
         logger.debug('Perform pre scan document add_dependencies_tree_document action')
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
     elif scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        logger.debug('Perform pre scan document add_parsed_iac_documents action')
-        add_parsed_iac_documents(documents_to_scan)
+        logger.debug('Perform pre scan document replace_iac_documents_with_parsed_content action')
+        replace_iac_documents_with_parsed_content(documents_to_scan)
 
 
 def zip_documents_to_scan(scan_type: str, zip_file: InMemoryZip, documents: List[Document]) -> InMemoryZip:
@@ -1107,14 +1107,21 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
-def add_parsed_iac_documents(documents_to_scan: List[Document]) -> None:
+def replace_iac_documents_with_parsed_content(documents_to_scan: List[Document]) -> None:
     documents_to_add: List[Document] = []
+    documents_to_remove: List[Document] = []
 
     for document in documents_to_scan:
         if _is_tfplan_document(document):
             document_name = change_filename_extension(document.path, 'tf')
             tf_content = tf_content_generator.generate_tf_content_from_tfplan(document.content)
+
             documents_to_add.append(Document(document_name, tf_content, document.is_git_diff_format))
+            documents_to_remove.append(document)
+
+    # we must remove not parsed variant of files
+    for document_to_remove in documents_to_remove:
+        documents_to_scan.remove(document_to_remove)
 
     documents_to_scan.extend(list(documents_to_add))
 
