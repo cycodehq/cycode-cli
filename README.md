@@ -424,7 +424,7 @@ For example, consider a scenario in which you want to scan the directory located
 
 
 ### Terraform Plan Scan
-Cycode cli supports Terraform plan scanning.
+Cycode cli supports Terraform plan scanning (supporting Terraform 0.12 and later)
 
 Terraform plan file must be in JSON format (having `.json` extension)
 

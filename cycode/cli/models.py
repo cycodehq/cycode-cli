@@ -74,4 +74,4 @@ class ResourceChange:
     values: Dict[str, str]
 
     def __repr__(self) -> str:
-        return 'resource_type:{0}, name:{1}'.format(self.resource_type, self.name)
+        return f'resource_type: {self.resource_type}, name: {self.name}'

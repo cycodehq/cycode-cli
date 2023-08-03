@@ -1121,7 +1121,9 @@ def _handle_tflpan_document(document: Document) -> Document:
 
 
 def _generate_tfplan_document_name(path: str) -> str:
-    return f"""{int(time.time())}-{change_filename_extension(path, '.tf')}"""
+    document_name = change_filename_extension(path, '.tf')
+    timestamp = int(time.time())
+    return f'{timestamp}-{document_name}'
 
 
 def _is_iac(scan_type: str) -> bool:
