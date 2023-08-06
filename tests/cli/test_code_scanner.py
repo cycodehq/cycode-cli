@@ -8,10 +8,9 @@ from git import InvalidGitRepositoryError
 from requests import Response
 
 from cycode.cli import consts
-from cycode.cli.code_scanner import _handle_exception, _is_file_relevant_for_sca_scan, _generate_document
+from cycode.cli.code_scanner import _generate_document, _handle_exception, _is_file_relevant_for_sca_scan
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.models import Document
-from cycode.cyclient import logger
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -85,7 +84,6 @@ def test_is_file_relevant_for_sca_scan() -> None:
 def test_generate_document() -> None:
     is_git_diff = False
 
-    # scan_type != iac
     path = 'path/to/nowhere.txt'
     content = 'nothing important here'
 
@@ -96,16 +94,15 @@ def test_generate_document() -> None:
     assert non_iac_document.content == generated_document.content
     assert non_iac_document.is_git_diff_format == generated_document.is_git_diff_format
 
-    # scan_type == iac and tfplan_file == False
     path = 'path/to/nowhere.tf'
-    content = '''provider "aws" {
+    content = """provider "aws" {
         profile = "chili"
         region = "us-east-1"
         }
 
         resource "aws_s3_bucket" "chili-env-var-test" {
           bucket = "chili-env-var-test"
-        }'''
+        }"""
 
     iac_document = Document(path, content, is_git_diff)
     generated_document = _generate_document(path, consts.INFRA_CONFIGURATION_SCAN_TYPE, content, is_git_diff)
@@ -113,10 +110,7 @@ def test_generate_document() -> None:
     assert iac_document.content == generated_document.content
     assert iac_document.is_git_diff_format == generated_document.is_git_diff_format
 
-    # scan_type == iac and tfplan_file == True
-
-    # path = 'path/to/nowhere.json'
-    content = '''
+    content = """
     {
        "resource_changes":[
           {
@@ -135,7 +129,7 @@ def test_generate_document() -> None:
              }
           ]
        }
-    '''
+    """
 
     generated_tfplan_document = _generate_document(path, consts.INFRA_CONFIGURATION_SCAN_TYPE, content, is_git_diff)
 
