@@ -1113,7 +1113,7 @@ def _generate_document(file: str, scan_type: str, content: str, is_git_diff: boo
 
 def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
     document_name = _generate_tfplan_document_name(file)
-    tf_content = tf_content_generator.generate_tf_content_from_tfplan(content)
+    tf_content = tf_content_generator.generate_tf_content_from_tfplan(file, content)
     return Document(document_name, tf_content, is_git_diff)
 
 
@@ -1121,7 +1121,6 @@ def _generate_tfplan_document_name(path: str) -> str:
     document_name = change_filename_extension(path, '.tf')
     timestamp = int(time.time())
     return f'{timestamp}-{document_name}'
-
 
 def _is_iac(scan_type: str) -> bool:
     return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
@@ -1131,7 +1130,9 @@ def _is_tfplan_file(file: str, content: str) -> bool:
     if not file.endswith('.json'):
         return False
     tf_plan = load_json(content)
-    return tf_plan.get('resource_changes', False)
+    if not isinstance(tf_plan, dict):
+        return False
+    return 'resource_changes' in tf_plan
 
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
@@ -1195,7 +1196,8 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
         custom_exceptions.TfplanKeyError: CliError(
             soft_fail=True,
             code='key_error',
-            message='A crucial field is missing in your terraform plan file. '
+            message=f'\n{str(e)}'
+            'A crucial field is missing in your terraform plan file. '
             'Please make sure that your file is well formed '
             'and execute the scan again',
         ),

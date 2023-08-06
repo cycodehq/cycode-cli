@@ -8,8 +8,8 @@ from cycode.cli.utils.path_utils import load_json
 ACTIONS_TO_OMIT_RESOURCE = ['delete']
 
 
-def generate_tf_content_from_tfplan(tfplan: str) -> str:
-    planned_resources = _extract_resources(tfplan)
+def generate_tf_content_from_tfplan(filename: str, tfplan: str) -> str:
+    planned_resources = _extract_resources(tfplan, filename)
     return _generate_tf_content(planned_resources)
 
 
@@ -30,7 +30,7 @@ def _generate_resource_content(resource_change: ResourceChange) -> str:
     return resource_content
 
 
-def _extract_resources(tfplan: str) -> List[ResourceChange]:
+def _extract_resources(tfplan: str, filename: str) -> List[ResourceChange]:
     tfplan_json = load_json(tfplan)
     resources: List[ResourceChange] = []
     try:
@@ -45,5 +45,5 @@ def _extract_resources(tfplan: str) -> List[ResourceChange]:
                 )
             )
     except (KeyError, TypeError) as e:
-        raise TfplanKeyError('Error occurred while parsing tfplan file.') from e
+        raise TfplanKeyError(filename) from e
     return resources

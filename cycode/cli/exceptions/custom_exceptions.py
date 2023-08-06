@@ -58,6 +58,9 @@ class AuthProcessError(CycodeError):
 
 
 class TfplanKeyError(CycodeError):
-    def __init__(self, error_message: str) -> None:
-        self.error_message = error_message
+    def __init__(self, file_path: str) -> None:
+        self.file_path = file_path
         super().__init__()
+
+    def __str__(self) -> str:
+        return f'Error occurred while parsing terraform plan file. Path: {self.file_path}\n'
