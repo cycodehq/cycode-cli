@@ -12,5 +12,5 @@ def test_generate_tf_content_from_tfplan() -> None:
     for example in examples_directories:
         tfplan_content = get_file_content(os.path.join(_PATH_TO_EXAMPLES, example, 'tfplan.json'))
         tf_expected_content = get_file_content(os.path.join(_PATH_TO_EXAMPLES, example, 'tf_content.txt'))
-        tf_content = tf_content_generator.generate_tf_content_from_tfplan(tfplan_content)
+        tf_content = tf_content_generator.generate_tf_content_from_tfplan(example, tfplan_content)
         assert tf_content == tf_expected_content
