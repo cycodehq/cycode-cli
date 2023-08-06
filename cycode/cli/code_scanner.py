@@ -339,10 +339,7 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
             if not content:
                 continue
 
-            documents.append(Document(file, content, is_git_diff))
-
-        if _is_iac(scan_type):
-            documents = _handle_iac_documents(documents)
+            documents.append(_generate_document(file, scan_type, content, is_git_diff))
 
         perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
         scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
@@ -1108,16 +1105,16 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
-def _handle_iac_documents(documents: List[Document]) -> List[Document]:
-    return [_handle_tflpan_document(document) for document in documents]
+def _generate_document(file: str, scan_type: str, content: str, is_git_diff: bool) -> Document:
+    if _is_iac(scan_type) and _is_tfplan_file(file, content):
+        return _handle_tfplan_file(file, content, is_git_diff)
+    return Document(file, content, is_git_diff)
 
 
-def _handle_tflpan_document(document: Document) -> Document:
-    if _is_tfplan_document(document):
-        document_name = _generate_tfplan_document_name(document.path)
-        tf_content = tf_content_generator.generate_tf_content_from_tfplan(document.content)
-        return Document(document_name, tf_content, document.is_git_diff_format)
-    return document
+def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
+    document_name = _generate_tfplan_document_name(file)
+    tf_content = tf_content_generator.generate_tf_content_from_tfplan(content)
+    return Document(document_name, tf_content, is_git_diff)
 
 
 def _generate_tfplan_document_name(path: str) -> str:
@@ -1130,11 +1127,11 @@ def _is_iac(scan_type: str) -> bool:
     return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
 
 
-def _is_tfplan_document(document: Document) -> bool:
-    if not document.path.endswith('.json'):
+def _is_tfplan_file(file: str, content: str) -> bool:
+    if not file.endswith('.json'):
         return False
-    tf_plan = load_json(document.content)
-    return 'resource_changes' in tf_plan
+    tf_plan = load_json(content)
+    return tf_plan.get('resource_changes', False)
 
 
 def _does_file_exceed_max_size_limit(filename: str) -> bool:

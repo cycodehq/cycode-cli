@@ -25,7 +25,7 @@ This guide will guide you through both installation and usage.
         1. [License Compliance Option](#license-compliance-option)
         2. [Severity Threshold](#severity-threshold)
     5. [Path Scan](#path-scan)
-       1. [Terraform Plan Scan](#terraform-plan-scan)
+        1. [Terraform Plan Scan](#terraform-plan-scan)
     6. [Commit History Scan](#commit-history-scan)
         1. [Commit Range Option](#commit-range-option)
     7. [Pre-Commit Scan](#pre-commit-scan)
@@ -424,10 +424,10 @@ For example, consider a scenario in which you want to scan the directory located
 
 
 ### Terraform Plan Scan
-Cycode cli supports Terraform plan scanning (supporting Terraform 0.12 and later)
+
+Cycode CLI supports Terraform plan scanning (supporting Terraform 0.12 and later)
 
 Terraform plan file must be in JSON format (having `.json` extension)
-
 
 
 _How to generate a Terraform plan from Terraform configuration file?_

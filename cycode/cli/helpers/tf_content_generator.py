@@ -5,7 +5,7 @@ from cycode.cli.exceptions.custom_exceptions import TfplanKeyError
 from cycode.cli.models import ResourceChange
 from cycode.cli.utils.path_utils import load_json
 
-ACTIONS_LISTS_TO_OMIT_RESOURCE = [['delete']]
+ACTIONS_TO_OMIT_RESOURCE = ['delete']
 
 
 def generate_tf_content_from_tfplan(tfplan: str) -> str:
@@ -16,7 +16,7 @@ def generate_tf_content_from_tfplan(tfplan: str) -> str:
 def _generate_tf_content(resource_changes: List[ResourceChange]) -> str:
     tf_content = ''
     for resource_change in resource_changes:
-        if resource_change.actions not in ACTIONS_LISTS_TO_OMIT_RESOURCE:
+        if not any(item in resource_change.actions for item in ACTIONS_TO_OMIT_RESOURCE):
             tf_content += _generate_resource_content(resource_change)
     return tf_content
 
@@ -44,6 +44,6 @@ def _extract_resources(tfplan: str) -> List[ResourceChange]:
                     values=resource_change['change']['after'],
                 )
             )
-    except KeyError as e:
+    except (KeyError, TypeError) as e:
         raise TfplanKeyError('Error occurred while parsing tfplan file.') from e
     return resources
