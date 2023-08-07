@@ -63,4 +63,4 @@ class TfplanKeyError(CycodeError):
         super().__init__()
 
     def __str__(self) -> str:
-        return f'Error occurred while parsing terraform plan file. Path: {self.file_path}\n'
+        return f'Error occurred while parsing terraform plan file. Path: {self.file_path}'
