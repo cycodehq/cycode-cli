@@ -1118,7 +1118,7 @@ def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
 
 
 def _generate_tfplan_document_name(path: str) -> str:
-    document_name = change_filename_extension(path, '.tf')
+    document_name = change_filename_extension(path, 'tf')
     timestamp = int(time.time())
     return f'{timestamp}-{document_name}'
 
