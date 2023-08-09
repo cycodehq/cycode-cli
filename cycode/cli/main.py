@@ -125,7 +125,7 @@ def code_scan(
     sca_scan: List[str],
     monitor: bool,
     report: bool,
-    disable_restore: bool,
+    no_restore: bool,
 ) -> int:
     """Scans for Secrets, IaC, SCA or SAST violations."""
     if show_secret:
@@ -143,7 +143,7 @@ def code_scan(
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report
-    context.obj[SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG] = disable_restore
+    context.obj[SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG] = no_restore
 
     _sca_scan_to_context(context, sca_scan)
 
