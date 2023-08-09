@@ -232,18 +232,19 @@ The following are the options and commands available with the Cycode CLI applica
 
 The Cycode CLI application offers several types of scans so that you can choose the option that best fits your case. The following are the current options and commands available:
 
-| Option                               | Description                                                                |
-|--------------------------------------|----------------------------------------------------------------------------|
-| `-t, --scan-type [secret\|iac\|sca\|sast]` | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret` |
-| `--secret TEXT`                      | Specify a Cycode client secret for this specific scan execution |
-| `--client-id TEXT`                   | Specify a Cycode client ID for this specific scan execution   |
-| `--show-secret BOOLEAN`              | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details. |
-| `--soft-fail BOOLEAN`                | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
-| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]`  | Show only violations at the specified level or higher (supported for the SCA scan type only). |
-| `--sca-scan`                         | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both |
-| `--monitor`                          | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
-| `--report`                           | When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution |
-| `--help`                             | Show options for given command.                                                |
+| Option                                                     | Description                                                                |
+|------------------------------------------------------------|----------------------------------------------------------------------------|
+| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret` |
+| `--secret TEXT`                                            | Specify a Cycode client secret for this specific scan execution |
+| `--client-id TEXT`                                         | Specify a Cycode client ID for this specific scan execution   |
+| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details. |
+| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
+| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher (supported for the SCA scan type only). |
+| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both |
+| `--monitor`                                                | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
+| `--report`                                                 | When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution |
+| `--no-restore`                                             | When declared, Cycode will not run restore command. Will scan direct dependencies ONLY! |
+| `--help`                                                   | Show options for given command.                                                |
 
 | Command                                | Description                                                     |
 |----------------------------------------|-----------------------------------------------------------------|
