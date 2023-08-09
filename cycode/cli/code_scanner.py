@@ -15,7 +15,7 @@ from git import NULL_TREE, InvalidGitRepositoryError, Repo
 from cycode.cli import consts
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.config import configuration_manager
-from cycode.cli.consts import SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG
+from cycode.cli.consts import SCA_SKIP_RESTORE_DEPENDENCIES_FLAG
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.helpers import sca_code_scanner, tf_content_generator
 from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections, LocalScanResult, Severity
@@ -580,7 +580,7 @@ def create_local_scan_result(
 def perform_pre_scan_documents_actions(
     context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG):
+    if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
         logger.debug('Perform pre scan document add_dependencies_tree_document action')
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
 

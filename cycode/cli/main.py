@@ -14,7 +14,7 @@ from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
     PROGRAM_NAME,
-    SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG,
+    SCA_SKIP_RESTORE_DEPENDENCIES_FLAG,
 )
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
@@ -106,7 +106,7 @@ if TYPE_CHECKING:
     required=False,
 )
 @click.option(
-    f'--{SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG}',
+    f'--{SCA_SKIP_RESTORE_DEPENDENCIES_FLAG}',
     is_flag=True,
     default=False,
     help='When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!',
@@ -143,7 +143,7 @@ def code_scan(
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report
-    context.obj[SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG] = no_restore
+    context.obj[SCA_SKIP_RESTORE_DEPENDENCIES_FLAG] = no_restore
 
     _sca_scan_to_context(context, sca_scan)
 
