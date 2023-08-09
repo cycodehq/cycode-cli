@@ -5,7 +5,6 @@ import click
 from git import GitCommandError, Repo
 
 from cycode.cli import consts
-from cycode.cli.consts import SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG
 from cycode.cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cycode.cli.models import Document
