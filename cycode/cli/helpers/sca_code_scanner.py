@@ -119,9 +119,6 @@ def add_dependencies_tree_document(
     documents_to_add: Dict[str, Document] = {}
     restore_dependencies_list = restore_handlers(context, is_git_diff)
 
-    if context.obj.get(SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG):
-        return
-
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
             try_restore_dependencies(context, documents_to_add, restore_dependencies, document)
