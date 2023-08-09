@@ -9,7 +9,13 @@ from cycode import __version__
 from cycode.cli import code_scanner
 from cycode.cli.auth.auth_command import authenticate
 from cycode.cli.config import config
-from cycode.cli.consts import CLI_CONTEXT_SETTINGS, ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, PROGRAM_NAME
+from cycode.cli.consts import (
+    CLI_CONTEXT_SETTINGS,
+    ISSUE_DETECTED_STATUS_CODE,
+    NO_ISSUES_STATUS_CODE,
+    PROGRAM_NAME,
+    SCA_SKIP_RESTORE_DEPENDENCIES_FLAG,
+)
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
@@ -99,6 +105,14 @@ if TYPE_CHECKING:
     type=bool,
     required=False,
 )
+@click.option(
+    f'--{SCA_SKIP_RESTORE_DEPENDENCIES_FLAG}',
+    is_flag=True,
+    default=False,
+    help='When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!',
+    type=bool,
+    required=False,
+)
 @click.pass_context
 def code_scan(
     context: click.Context,
@@ -111,6 +125,7 @@ def code_scan(
     sca_scan: List[str],
     monitor: bool,
     report: bool,
+    no_restore: bool,
 ) -> int:
     """Scans for Secrets, IaC, SCA or SAST violations."""
     if show_secret:
@@ -128,6 +143,7 @@ def code_scan(
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report
+    context.obj[SCA_SKIP_RESTORE_DEPENDENCIES_FLAG] = no_restore
 
     _sca_scan_to_context(context, sca_scan)
 
