@@ -15,6 +15,7 @@ from git import NULL_TREE, InvalidGitRepositoryError, Repo
 from cycode.cli import consts
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.config import configuration_manager
+from cycode.cli.consts import SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.helpers import sca_code_scanner, tf_content_generator
 from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections, LocalScanResult, Severity
@@ -810,6 +811,7 @@ def get_git_repository_tree_file_entries(
 
 def get_default_scan_parameters(context: click.Context) -> dict:
     return {
+        SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG: context.obj.get(SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG),
         'monitor': context.obj.get('monitor'),
         'report': context.obj.get('report'),
         'package_vulnerabilities': context.obj.get('package-vulnerabilities'),

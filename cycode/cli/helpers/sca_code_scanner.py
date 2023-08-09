@@ -5,6 +5,7 @@ import click
 from git import GitCommandError, Repo
 
 from cycode.cli import consts
+from cycode.cli.consts import SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG
 from cycode.cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cycode.cli.models import Document
@@ -117,6 +118,9 @@ def add_dependencies_tree_document(
 ) -> None:
     documents_to_add: Dict[str, Document] = {}
     restore_dependencies_list = restore_handlers(context, is_git_diff)
+
+    if context.obj.get(SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG):
+        return
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:

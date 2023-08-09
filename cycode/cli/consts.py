@@ -189,3 +189,5 @@ PACKAGE_VULNERABILITY_POLICY_ID = '9369d10a-9ac0-48d3-9921-5de7fe9a37a7'
 # Example: A -> B -> C
 # Result: A -> ... -> C
 SCA_SHORTCUT_DEPENDENCY_PATHS = 2
+
+SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG = 'disable-restore-dependencies'
