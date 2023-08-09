@@ -811,7 +811,6 @@ def get_git_repository_tree_file_entries(
 
 def get_default_scan_parameters(context: click.Context) -> dict:
     return {
-        SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG: context.obj.get(SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG),
         'monitor': context.obj.get('monitor'),
         'report': context.obj.get('report'),
         'package_vulnerabilities': context.obj.get('package-vulnerabilities'),
