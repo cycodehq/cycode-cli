@@ -109,7 +109,7 @@ if TYPE_CHECKING:
     '--' + SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG,
     is_flag=True,
     default=False,
-    help='When declared, cycode will not run restore command. Will scan direct dependencies ONLY!',
+    help='When declared, Cycode will not run restore command. Will scan direct dependencies ONLY!',
     type=bool,
     required=False,
 )
