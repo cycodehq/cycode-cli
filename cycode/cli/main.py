@@ -106,7 +106,7 @@ if TYPE_CHECKING:
     required=False,
 )
 @click.option(
-    '--' + SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG,
+    f'--{SCA_DISABLE_RESTORE_DEPENDENCIES_FLAG}',
     is_flag=True,
     default=False,
     help='When declared, Cycode will not run restore command. Will scan direct dependencies ONLY!',
