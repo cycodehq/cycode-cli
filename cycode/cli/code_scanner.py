@@ -1315,6 +1315,10 @@ def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
 def _get_file_name_from_detection(detection: dict) -> str:
     if detection['category'] == 'SAST':
         return detection['detection_details']['file_path']
+    if detection['category'] == 'SecretDetection':
+        file_path = detection['detection_details']['file_path']
+        file_name = detection['detection_details']['file_name']
+        return os.path.join(file_path, file_name)
 
     return detection['detection_details']['file_name']
 
