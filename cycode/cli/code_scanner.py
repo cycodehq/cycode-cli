@@ -15,19 +15,22 @@ from git import NULL_TREE, InvalidGitRepositoryError, Repo
 from cycode.cli import consts
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.config import configuration_manager
+from cycode.cli.consts import SCA_SKIP_RESTORE_DEPENDENCIES_FLAG
 from cycode.cli.exceptions import custom_exceptions
-from cycode.cli.helpers import sca_code_scanner
+from cycode.cli.helpers import sca_code_scanner, tf_content_generator
 from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections, LocalScanResult, Severity
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.path_utils import (
+    change_filename_extension,
     get_file_content,
     get_file_size,
     get_path_by_os,
     get_relevant_files_in_path,
     is_binary_file,
     is_sub_path,
+    load_json,
 )
 from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.progress_bar import logger as progress_bar_logger
@@ -328,18 +331,22 @@ def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str])
 
     is_git_diff = False
 
-    documents: List[Document] = []
-    for file in files_to_scan:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+    try:
+        documents: List[Document] = []
+        for file in files_to_scan:
+            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
 
-        content = get_file_content(file)
-        if not content:
-            continue
+            content = get_file_content(file)
+            if not content:
+                continue
 
-        documents.append(Document(file, content, is_git_diff))
+            documents.append(_generate_document(file, scan_type, content, is_git_diff))
 
-    perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-    scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
+        perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
+        scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
+
+    except Exception as e:
+        _handle_exception(context, e)
 
 
 def set_issue_detected_by_scan_results(context: click.Context, scan_results: List[LocalScanResult]) -> None:
@@ -573,8 +580,8 @@ def create_local_scan_result(
 def perform_pre_scan_documents_actions(
     context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE:
-        logger.debug('Perform pre scan document actions')
+    if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
+        logger.debug('Perform pre scan document add_dependencies_tree_document action')
         sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
 
 
@@ -1099,6 +1106,37 @@ def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
 
 
+def _generate_document(file: str, scan_type: str, content: str, is_git_diff: bool) -> Document:
+    if _is_iac(scan_type) and _is_tfplan_file(file, content):
+        return _handle_tfplan_file(file, content, is_git_diff)
+    return Document(file, content, is_git_diff)
+
+
+def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
+    document_name = _generate_tfplan_document_name(file)
+    tf_content = tf_content_generator.generate_tf_content_from_tfplan(file, content)
+    return Document(document_name, tf_content, is_git_diff)
+
+
+def _generate_tfplan_document_name(path: str) -> str:
+    document_name = change_filename_extension(path, 'tf')
+    timestamp = int(time.time())
+    return f'{timestamp}-{document_name}'
+
+
+def _is_iac(scan_type: str) -> bool:
+    return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
+
+
+def _is_tfplan_file(file: str, content: str) -> bool:
+    if not file.endswith('.json'):
+        return False
+    tf_plan = load_json(content)
+    if not isinstance(tf_plan, dict):
+        return False
+    return 'resource_changes' in tf_plan
+
+
 def _does_file_exceed_max_size_limit(filename: str) -> bool:
     return get_file_size(filename) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
 
@@ -1155,6 +1193,14 @@ def _handle_exception(context: click.Context, e: Exception, *, return_exception:
             code='zip_too_large_error',
             message='The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
             'Please try ignoring irrelevant paths using the `cycode ignore --by-path` command '
+            'and execute the scan again',
+        ),
+        custom_exceptions.TfplanKeyError: CliError(
+            soft_fail=True,
+            code='key_error',
+            message=f'\n{e!s}\n'
+            'A crucial field is missing in your terraform plan file. '
+            'Please make sure that your file is well formed '
             'and execute the scan again',
         ),
         InvalidGitRepositoryError: CliError(
