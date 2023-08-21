@@ -152,7 +152,7 @@ jobs:
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: cmd
         run: |
-          ./dist/cycode.exe version
+          .\dist\cycode.exe version
           signtool.exe verify /v /pa ".\dist\cycode.exe"
 
       - uses: actions/upload-artifact@v3
