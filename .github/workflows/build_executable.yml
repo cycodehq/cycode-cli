@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - CM-23216-sign-windows-cli-executable
 
 jobs:
   build:
