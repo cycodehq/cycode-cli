@@ -137,17 +137,21 @@ jobs:
           SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
           SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
         run: |
-          # setup SSM KSP
+          :: setup SSM KSP
           curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" -o smtools-windows-x64.msi 
           msiexec /i smtools-windows-x64.msi /quiet /qn
-          smksp_registrar.exe list
-          smctl.exe keypair ls
           C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
           smksp_cert_sync.exe
 
-          # sign executable
-          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe"
-          signtool.exe verify /v /pa ".\dist\cycode.exe" 
+          :: sign executable
+          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe" 
+
+      - name: Test Windows signed executable
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        shell: cmd
+        run: |
+          ./dist/cycode.exe version
+          signtool.exe verify /v /pa ".\dist\cycode.exe"
 
       - uses: actions/upload-artifact@v3
         with:
