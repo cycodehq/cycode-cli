@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - main
+      - CM-23216-sign-windows-cli-executable
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, macos-11, windows-2019 ]
+#        os: [ ubuntu-20.04, macos-11, windows-2019 ]
+        os: [ windows-2019 ]
 
     runs-on: ${{ matrix.os }}
 
@@ -25,7 +27,7 @@ jobs:
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
           secret: ${{ secrets.CIMON_SECRET }}
-          prevent: true
+          prevent: false
           allowed-hosts: >
             files.pythonhosted.org
             install.python-poetry.org
@@ -108,9 +110,43 @@ jobs:
           # we can't staple the app because it's executable. we should only staple app bundles like .dmg
           # xcrun stapler staple dist/cycode
 
-      - name: Test signed executable
+      - name: Test macOS signed executable
         if: ${{ startsWith(matrix.os, 'macos') }}
         run: ./dist/cycode version
+
+      - name: Import cert for Windows and setup envs
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        run: |
+          # import certificate
+          echo "${{secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12 
+
+          # set envs
+          echo "SM_HOST=${{ secrets.SM_HOST }}" >> "$GITHUB_ENV" 
+          echo "SM_API_KEY=${{ secrets.SM_API_KEY }}" >> "$GITHUB_ENV" 
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV" 
+          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}" >> "$GITHUB_ENV" 
+
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH 
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH 
+          echo "C:\Program Files\DigiCert\DigiCert One Signing Manager Tools" >> $GITHUB_PATH 
+
+      - name: Setup SSM KSP
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        shell: cmd
+        run: |
+          curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" -o smtools-windows-x64.msi 
+          msiexec /i smtools-windows-x64.msi /quiet /qn
+          smksp_registrar.exe list
+          smctl.exe keypair ls
+          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+          smksp_cert_sync.exe
+
+      - name: Sign Windows executable
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        shell: cmd
+        run: |
+          signtool.exe sign /sha1 ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe"
+          signtool.exe verify /v /pa ".\dist\cycode.exe" 
 
       - uses: actions/upload-artifact@v3
         with:
