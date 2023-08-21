@@ -11,8 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #        os: [ ubuntu-20.04, macos-11, windows-2019 ]
-        os: [ windows-2019 ]
+        os: [ ubuntu-20.04, macos-11, windows-2019 ]
 
     runs-on: ${{ matrix.os }}
 
@@ -151,7 +150,10 @@ jobs:
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: cmd
         run: |
+          :: call executable and expect correct output
           .\dist\cycode.exe version
+
+          :: verify signature
           signtool.exe verify /v /pa ".\dist\cycode.exe"
 
       - uses: actions/upload-artifact@v3
