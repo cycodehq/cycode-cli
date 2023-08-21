@@ -143,6 +143,8 @@ jobs:
       - name: Sign Windows executable
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: cmd
+        env:
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
         run: |
           signtool.exe sign /sha1 ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe"
           signtool.exe verify /v /pa ".\dist\cycode.exe" 
