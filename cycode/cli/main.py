@@ -22,8 +22,7 @@ from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.user_settings.user_settings_commands import add_exclusions, set_credentials
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.progress_bar import get_progress_bar
-from cycode.cli.utils.progress_bar import logger as progress_bar_logger
-from cycode.cyclient import logger
+from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
 from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
@@ -228,10 +227,8 @@ def main_cli(
 
     verbose = verbose or configuration_manager.get_verbose_flag()
     context.obj['verbose'] = verbose
-    # TODO(MarshalX): rework setting the log level for loggers
-    log_level = logging.DEBUG if verbose else logging.INFO
-    logger.setLevel(log_level)
-    progress_bar_logger.setLevel(log_level)
+    if verbose:
+        set_logging_level(logging.DEBUG)
 
     context.obj['output'] = output
     if output == 'json':

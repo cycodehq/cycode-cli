@@ -33,13 +33,13 @@ from cycode.cli.utils.path_utils import (
     load_json,
 )
 from cycode.cli.utils.progress_bar import ProgressBarSection
-from cycode.cli.utils.progress_bar import logger as progress_bar_logger
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
 from cycode.cli.utils.string_utils import get_content_size, is_binary_content
 from cycode.cli.utils.task_timer import TimeoutAfter
 from cycode.cli.zip_file import InMemoryZip
 from cycode.cyclient import logger
+from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
 
 if TYPE_CHECKING:
@@ -1399,9 +1399,7 @@ def perform_post_pre_receive_scan_actions(context: click.Context) -> None:
 
 def enable_verbose_mode(context: click.Context) -> None:
     context.obj['verbose'] = True
-    # TODO(MarshalX): rework setting the log level for loggers
-    logger.setLevel(logging.DEBUG)
-    progress_bar_logger.setLevel(logging.DEBUG)
+    set_logging_level(logging.DEBUG)
 
 
 def is_verbose_mode_requested_in_pre_receive_scan() -> bool:
