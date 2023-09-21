@@ -1,4 +1,4 @@
-from cycode.cyclient.scan_config.scan_config_creator import DefaultScanConfig
+from cycode.cyclient.scan_config_base import DefaultScanConfig
 
 
 def test_get_service_name() -> None:

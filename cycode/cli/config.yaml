@@ -8,6 +8,9 @@ scans:
   supported_sca_scans:
     - package-vulnerabilities
     - license-compliance
+  supported_sbom_formats:
+    - spdx-2.2
+    - cyclonedx-1.4
 result_printer:
   default:
     lines_to_display: 3

@@ -8,8 +8,10 @@ from git import InvalidGitRepositoryError
 from requests import Response
 
 from cycode.cli import consts
-from cycode.cli.code_scanner import _generate_document, _handle_exception, _is_file_relevant_for_sca_scan
+from cycode.cli.code_scanner import _handle_exception
 from cycode.cli.exceptions import custom_exceptions
+from cycode.cli.files_collector.excluder import _is_file_relevant_for_sca_scan
+from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
 
 if TYPE_CHECKING:

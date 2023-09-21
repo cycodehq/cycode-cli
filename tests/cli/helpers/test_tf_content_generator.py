@@ -1,6 +1,6 @@
 import os
 
-from cycode.cli.helpers import tf_content_generator
+from cycode.cli.files_collector.iac import tf_content_generator
 from cycode.cli.utils.path_utils import get_file_content, get_immediate_subdirectories
 from tests.conftest import TEST_FILES_PATH
 
