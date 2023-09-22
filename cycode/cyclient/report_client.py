@@ -18,11 +18,14 @@ class ReportParameters:
     include_vulnerabilities: bool
     include_dev_dependencies: bool
 
-    def to_dict(self) -> dict:
-        return dataclasses.asdict(self)
+    def to_dict(self, *, without_entity_type: bool) -> dict:
+        model_dict = dataclasses.asdict(self)
+        if without_entity_type:
+            del model_dict['entity_type']
+        return model_dict
 
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict())
+    def to_json(self, *, without_entity_type: bool) -> str:
+        return json.dumps(self.to_dict(without_entity_type=without_entity_type))
 
 
 class ReportClient:
@@ -42,15 +45,10 @@ class ReportClient:
         report_type = 'zipped-file' if zip_file else 'repository-url'
         url_path = f'{self.SERVICE_NAME}/{self.CREATE_SBOM_REPORT_REQUEST_PATH}'.format(report_type=report_type)
 
-        request_data = {'report_parameters': params.to_dict()}
+        # entity type required only for zipped-file
+        request_data = {'report_parameters': params.to_json(without_entity_type=zip_file is None)}
         if repository_url:
             request_data['repository_url'] = repository_url
-
-            # FIXME BACKEND ISSUE
-            del request_data['report_parameters']['entity_type']
-
-        # FIXME Delete after BE fix
-        request_data['report_parameters'] = json.dumps(request_data['report_parameters'])
 
         request_args = {
             'url_path': url_path,
