@@ -14,6 +14,7 @@ from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 def sbom_path_command(context: click.Context, path: str) -> None:
     client = context.obj['client']
     report_parameters = context.obj['report_parameters']
+    output_format = report_parameters.output_format
     output_file = context.obj['output_file']
 
     progress_bar = context.obj['progress_bar']
@@ -28,4 +29,4 @@ def sbom_path_command(context: click.Context, path: str) -> None:
     zipped_documents = zip_documents(consts.SCA_SCAN_TYPE, documents)
     sbom_report = client.request_sbom_report(report_parameters, zip_file=zipped_documents)
 
-    create_sbom_report(progress_bar, client, sbom_report.id, output_file)
+    create_sbom_report(progress_bar, client, sbom_report.id, output_file, output_format)
