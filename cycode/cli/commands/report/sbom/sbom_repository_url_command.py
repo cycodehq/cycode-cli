@@ -16,6 +16,7 @@ def sbom_repository_url_command(context: click.Context, uri: str) -> None:
     client = context.obj['client']
     report_parameters = context.obj['report_parameters']
     output_file = context.obj['output_file']
+    output_format = report_parameters.output_format
     # TODO(MarshalX): add support of progress bar somehow?
     sbom_report = client.request_sbom_report(report_parameters, repository_url=uri)
-    create_sbom_report(progress_bar, client, sbom_report.id, output_file)
+    create_sbom_report(progress_bar, client, sbom_report.id, output_file, output_format)

@@ -1,8 +1,10 @@
+import pathlib
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import click
 
+from cycode.cli.commands.report.sbom.sbom_report_file import SbomReportFile
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 
 if TYPE_CHECKING:
@@ -11,7 +13,11 @@ if TYPE_CHECKING:
 
 
 def create_sbom_report(
-    progress_bar: 'BaseProgressBar', client: 'ReportClient', report_id: int, output_file: str
+    progress_bar: 'BaseProgressBar',
+    client: 'ReportClient',
+    report_id: int,
+    output_file: Optional[pathlib.Path],
+    output_format: str,
 ) -> None:
     # TODO(MarshalX): API will be changed soon. Just MVP for now.
     report_satus = None
@@ -32,8 +38,9 @@ def create_sbom_report(
 
     report_path = report_satus.report_executions[0].storage_details.path
     report_content = client.get_file_content(report_path)
-    with open(output_file, 'w', encoding='UTF-8') as f:
-        f.write(report_content)
 
     progress_bar.set_section_length(SbomReportProgressBarSection.RECEIVE_REPORT)
     progress_bar.stop()
+
+    sbom_report = SbomReportFile(report_path, output_format, output_file)
+    sbom_report.write(report_content)
