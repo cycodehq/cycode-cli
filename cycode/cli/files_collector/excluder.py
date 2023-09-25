@@ -4,19 +4,20 @@ from cycode.cli import consts
 from cycode.cli.config import configuration_manager
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils.path_utils import get_file_size, is_binary_file, is_sub_path
-from cycode.cli.utils.progress_bar import ProgressBarSection
 from cycode.cli.utils.string_utils import get_content_size, is_binary_content
 from cycode.cyclient import logger
 
 if TYPE_CHECKING:
     from cycode.cli.models import Document
-    from cycode.cli.utils.progress_bar import BaseProgressBar
+    from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 
-def exclude_irrelevant_files(progress_bar: 'BaseProgressBar', scan_type: str, filenames: List[str]) -> List[str]:
+def exclude_irrelevant_files(
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, filenames: List[str]
+) -> List[str]:
     relevant_files = []
     for filename in filenames:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(progress_bar_section)
         if _is_relevant_file_to_scan(scan_type, filename):
             relevant_files.append(filename)
 

@@ -5,14 +5,13 @@ from cycode.cli import consts
 from cycode.cli.files_collector.sca import sca_code_scanner
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_path_by_os
-from cycode.cli.utils.progress_bar import ProgressBarSection
 
 if TYPE_CHECKING:
     from git import Blob, Diff
     from git.objects.base import IndexObjUnion
     from git.objects.tree import TraversedTreeTup
 
-    from cycode.cli.utils.progress_bar import BaseProgressBar
+    from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 from git import Repo
 
@@ -47,15 +46,17 @@ def get_diff_file_content(file: 'Diff') -> str:
     return file.diff.decode('UTF-8', errors='replace')
 
 
-def get_pre_commit_modified_documents(progress_bar: 'BaseProgressBar') -> Tuple[List[Document], List[Document]]:
+def get_pre_commit_modified_documents(
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection'
+) -> Tuple[List[Document], List[Document]]:
     git_head_documents = []
     pre_committed_documents = []
 
     repo = Repo(os.getcwd())
     diff_files = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
+    progress_bar.set_section_length(progress_bar_section, len(diff_files))
     for file in diff_files:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(progress_bar_section)
 
         diff_file_path = get_diff_file_path(file)
         file_path = get_path_by_os(diff_file_path)
@@ -72,7 +73,11 @@ def get_pre_commit_modified_documents(progress_bar: 'BaseProgressBar') -> Tuple[
 
 
 def get_commit_range_modified_documents(
-    progress_bar: 'BaseProgressBar', path: str, from_commit_rev: str, to_commit_rev: str
+    progress_bar: 'BaseProgressBar',
+    progress_bar_section: 'ProgressBarSection',
+    path: str,
+    from_commit_rev: str,
+    to_commit_rev: str,
 ) -> Tuple[List[Document], List[Document]]:
     from_commit_documents = []
     to_commit_documents = []
@@ -83,9 +88,9 @@ def get_commit_range_modified_documents(
     modified_files_diff = [
         change for change in diff if change.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
     ]
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(modified_files_diff))
+    progress_bar.set_section_length(progress_bar_section, len(modified_files_diff))
     for blob in modified_files_diff:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(progress_bar_section)
 
         diff_file_path = get_diff_file_path(blob)
         file_path = get_path_by_os(diff_file_path)

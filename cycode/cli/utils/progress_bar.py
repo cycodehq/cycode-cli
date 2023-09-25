@@ -16,15 +16,11 @@ logger = get_logger('progress bar')
 
 
 class ProgressBarSection(AutoCountEnum):
-    PREPARE_LOCAL_FILES = auto()
-    SCAN = auto()
-    GENERATE_REPORT = auto()
-
     def has_next(self) -> bool:
-        return self.value < len(ProgressBarSection) - 1
+        return self.value < len(type(self)) - 1
 
     def next(self) -> 'ProgressBarSection':
-        return ProgressBarSection(self.value + 1)
+        return type(self)(self.value + 1)
 
 
 class ProgressBarSectionInfo(NamedTuple):
@@ -32,25 +28,62 @@ class ProgressBarSectionInfo(NamedTuple):
     label: str
     start_percent: int
     stop_percent: int
+    initial: bool = False
 
 
 _PROGRESS_BAR_LENGTH = 100
 
-_PROGRESS_BAR_SECTIONS = {
-    ProgressBarSection.PREPARE_LOCAL_FILES: ProgressBarSectionInfo(
-        ProgressBarSection.PREPARE_LOCAL_FILES, 'Prepare local files', start_percent=0, stop_percent=5
+ProgressBarSections = Dict[ProgressBarSection, ProgressBarSectionInfo]
+
+
+class ScanProgressBarSection(ProgressBarSection):
+    PREPARE_LOCAL_FILES = auto()
+    SCAN = auto()
+    GENERATE_REPORT = auto()
+
+
+SCAN_PROGRESS_BAR_SECTIONS: ProgressBarSections = {
+    ScanProgressBarSection.PREPARE_LOCAL_FILES: ProgressBarSectionInfo(
+        ScanProgressBarSection.PREPARE_LOCAL_FILES, 'Prepare local files', start_percent=0, stop_percent=5, initial=True
     ),
-    ProgressBarSection.SCAN: ProgressBarSectionInfo(
-        ProgressBarSection.SCAN, 'Scan in progress', start_percent=5, stop_percent=95
+    ScanProgressBarSection.SCAN: ProgressBarSectionInfo(
+        ScanProgressBarSection.SCAN, 'Scan in progress', start_percent=5, stop_percent=95
     ),
-    ProgressBarSection.GENERATE_REPORT: ProgressBarSectionInfo(
-        ProgressBarSection.GENERATE_REPORT, 'Generate report', start_percent=95, stop_percent=100
+    ScanProgressBarSection.GENERATE_REPORT: ProgressBarSectionInfo(
+        ScanProgressBarSection.GENERATE_REPORT, 'Generate report', start_percent=95, stop_percent=100
     ),
 }
 
 
-def _get_section_length(section: 'ProgressBarSection') -> int:
-    return _PROGRESS_BAR_SECTIONS[section].stop_percent - _PROGRESS_BAR_SECTIONS[section].start_percent
+class SbomReportProgressBarSection(ProgressBarSection):
+    PREPARE_LOCAL_FILES = auto()
+    GENERATION = auto()
+    RECEIVE_REPORT = auto()
+
+
+SBOM_REPORT_PROGRESS_BAR_SECTIONS: ProgressBarSections = {
+    SbomReportProgressBarSection.PREPARE_LOCAL_FILES: ProgressBarSectionInfo(
+        SbomReportProgressBarSection.PREPARE_LOCAL_FILES,
+        'Prepare local files',
+        start_percent=0,
+        stop_percent=30,
+        initial=True,
+    ),
+    SbomReportProgressBarSection.GENERATION: ProgressBarSectionInfo(
+        SbomReportProgressBarSection.GENERATION, 'Report generation in progress', start_percent=30, stop_percent=90
+    ),
+    SbomReportProgressBarSection.RECEIVE_REPORT: ProgressBarSectionInfo(
+        SbomReportProgressBarSection.RECEIVE_REPORT, 'Receive report', start_percent=90, stop_percent=100
+    ),
+}
+
+
+def _get_initial_section(progress_bar_sections: ProgressBarSections) -> ProgressBarSectionInfo:
+    for section in progress_bar_sections.values():
+        if section.initial:
+            return section
+
+    raise ValueError('No initial section found')
 
 
 class BaseProgressBar(ABC):
@@ -75,11 +108,15 @@ class BaseProgressBar(ABC):
         ...
 
     @abstractmethod
-    def set_section_length(self, section: 'ProgressBarSection', length: int) -> None:
+    def set_section_length(self, section: 'ProgressBarSection', length: int = 0) -> None:
         ...
 
     @abstractmethod
     def update(self, section: 'ProgressBarSection') -> None:
+        ...
+
+    @abstractmethod
+    def update_label(self, label: Optional[str] = None) -> None:
         ...
 
 
@@ -99,16 +136,22 @@ class DummyProgressBar(BaseProgressBar):
     def stop(self) -> None:
         pass
 
-    def set_section_length(self, section: 'ProgressBarSection', length: int) -> None:
+    def set_section_length(self, section: 'ProgressBarSection', length: int = 0) -> None:
         pass
 
     def update(self, section: 'ProgressBarSection') -> None:
         pass
 
+    def update_label(self, label: Optional[str] = None) -> None:
+        pass
+
 
 class CompositeProgressBar(BaseProgressBar):
-    def __init__(self) -> None:
+    def __init__(self, progress_bar_sections: ProgressBarSections) -> None:
         super().__init__()
+
+        self._progress_bar_sections = progress_bar_sections
+
         self._progress_bar_context_manager = click.progressbar(
             length=_PROGRESS_BAR_LENGTH,
             item_show_func=self._progress_bar_item_show_func,
@@ -121,7 +164,7 @@ class CompositeProgressBar(BaseProgressBar):
         self._section_values: Dict[ProgressBarSection, int] = {}
 
         self._current_section_value = 0
-        self._current_section: ProgressBarSectionInfo = _PROGRESS_BAR_SECTIONS[ProgressBarSection.PREPARE_LOCAL_FILES]
+        self._current_section: ProgressBarSectionInfo = _get_initial_section(self._progress_bar_sections)
 
     def __enter__(self) -> 'CompositeProgressBar':
         self._progress_bar = self._progress_bar_context_manager.__enter__()
@@ -140,7 +183,7 @@ class CompositeProgressBar(BaseProgressBar):
         if self._run:
             self.__exit__(None, None, None)
 
-    def set_section_length(self, section: 'ProgressBarSection', length: int) -> None:
+    def set_section_length(self, section: 'ProgressBarSection', length: int = 0) -> None:
         logger.debug(f'set_section_length: {section} {length}')
         self._section_lengths[section] = length
 
@@ -149,8 +192,12 @@ class CompositeProgressBar(BaseProgressBar):
         else:
             self._maybe_update_current_section()
 
+    def _get_section_length(self, section: 'ProgressBarSection') -> int:
+        section_info = self._progress_bar_sections[section]
+        return section_info.stop_percent - section_info.start_percent
+
     def _skip_section(self, section: 'ProgressBarSection') -> None:
-        self._progress_bar.update(_get_section_length(section))
+        self._progress_bar.update(self._get_section_length(section))
         self._maybe_update_current_section()
 
     def _increment_section_value(self, section: 'ProgressBarSection', value: int) -> None:
@@ -164,7 +211,7 @@ class CompositeProgressBar(BaseProgressBar):
         """Used to update label right after changing the progress bar section."""
         self._progress_bar.update(0)
 
-    def _increment_progress(self, section: ProgressBarSection) -> None:
+    def _increment_progress(self, section: 'ProgressBarSection') -> None:
         increment_value = self._get_increment_progress_value(section)
 
         self._current_section_value += increment_value
@@ -177,7 +224,7 @@ class CompositeProgressBar(BaseProgressBar):
         max_val = self._section_lengths.get(self._current_section.section, 0)
         cur_val = self._section_values.get(self._current_section.section, 0)
         if cur_val >= max_val:
-            next_section = _PROGRESS_BAR_SECTIONS[self._current_section.section.next()]
+            next_section = self._progress_bar_sections[self._current_section.section.next()]
             logger.debug(f'_update_current_section: {self._current_section.section} -> {next_section.section}')
 
             self._current_section = next_section
@@ -188,7 +235,7 @@ class CompositeProgressBar(BaseProgressBar):
         max_val = self._section_lengths[section]
         cur_val = self._section_values[section]
 
-        expected_value = round(_get_section_length(section) * (cur_val / max_val))
+        expected_value = round(self._get_section_length(section) * (cur_val / max_val))
 
         return expected_value - self._current_section_value
 
@@ -210,12 +257,19 @@ class CompositeProgressBar(BaseProgressBar):
         self._increment_progress(section)
         self._maybe_update_current_section()
 
+    def update_label(self, label: Optional[str] = None) -> None:
+        if not self._progress_bar:
+            raise ValueError('Progress bar is not initialized. Call start() first or use "with" statement.')
 
-def get_progress_bar(*, hidden: bool) -> BaseProgressBar:
+        self._progress_bar.label = label or ''
+        self._progress_bar.render_progress()
+
+
+def get_progress_bar(*, hidden: bool, sections: ProgressBarSections) -> BaseProgressBar:
     if hidden:
         return DummyProgressBar()
 
-    return CompositeProgressBar()
+    return CompositeProgressBar(sections)
 
 
 if __name__ == '__main__':
@@ -223,15 +277,18 @@ if __name__ == '__main__':
     import random
     import time
 
-    bar = get_progress_bar(hidden=False)
+    bar = get_progress_bar(hidden=False, sections=SCAN_PROGRESS_BAR_SECTIONS)
     bar.start()
 
-    for bar_section in ProgressBarSection:
+    for bar_section in ScanProgressBarSection:
         section_capacity = random.randint(500, 1000)  # noqa: S311
         bar.set_section_length(bar_section, section_capacity)
 
         for _i in range(section_capacity):
             time.sleep(0.01)
+            bar.update_label(f'{bar_section} {_i}/{section_capacity}')
             bar.update(bar_section)
+
+        bar.update_label()
 
     bar.stop()

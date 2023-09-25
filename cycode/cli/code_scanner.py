@@ -37,7 +37,7 @@ from cycode.cli.utils import scan_utils
 from cycode.cli.utils.path_utils import (
     get_path_by_os,
 )
-from cycode.cli.utils.progress_bar import ProgressBarSection
+from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
 from cycode.cli.utils.task_timer import TimeoutAfter
@@ -76,12 +76,12 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
         progress_bar.start()
 
         file_entries = list(get_git_repository_tree_file_entries(path, branch))
-        progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
+        progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
 
         documents_to_scan = []
         for file in file_entries:
             # FIXME(MarshalX): probably file could be tree or submodule too. we expect blob only
-            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+            progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
 
             file_path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
             documents_to_scan.append(Document(file_path, file.data_stream.read().decode('UTF-8', errors='replace')))
@@ -138,16 +138,16 @@ def scan_commit_range(
     total_commits_count = int(repo.git.rev_list('--count', commit_range))
     logger.debug(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
 
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
+    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
     scanned_commits_count = 0
     for commit in repo.iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
             logger.debug(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
-            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
+            progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
             break
 
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
 
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
@@ -215,11 +215,11 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]) -> None:
 
     diff_files = Repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
 
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
+    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
 
     documents_to_scan = []
     for file in diff_files:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
         documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
 
     documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
@@ -270,7 +270,9 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]) -> None:
 def scan_sca_pre_commit(context: click.Context) -> None:
     scan_type = context.obj['scan_type']
     scan_parameters = get_default_scan_parameters(context)
-    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(context.obj['progress_bar'])
+    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(
+        context.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES
+    )
     git_head_documents = exclude_irrelevant_documents_to_scan(scan_type, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(scan_type, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
@@ -290,7 +292,7 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str) 
     scan_parameters = get_scan_parameters(context, path)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = get_commit_range_modified_documents(
-        progress_bar, path, from_commit_rev, to_commit_rev
+        progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
     )
     from_commit_documents = exclude_irrelevant_documents_to_scan(scan_type, from_commit_documents)
     to_commit_documents = exclude_irrelevant_documents_to_scan(scan_type, to_commit_documents)
@@ -307,7 +309,7 @@ def scan_disk_files(context: click.Context, path: str) -> None:
     progress_bar = context.obj['progress_bar']
 
     try:
-        documents = get_relevant_document(progress_bar, scan_type, path)
+        documents = get_relevant_document(progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, scan_type, path)
         perform_pre_scan_documents_actions(context, scan_type, documents)
         scan_documents(context, documents, scan_parameters=scan_parameters)
     except Exception as e:
@@ -407,8 +409,8 @@ def scan_documents(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
 
-    progress_bar.set_section_length(ProgressBarSection.GENERATE_REPORT, 1)
-    progress_bar.update(ProgressBarSection.GENERATE_REPORT)
+    progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
+    progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
     progress_bar.stop()
 
     set_issue_detected_by_scan_results(context, local_scan_results)
@@ -436,7 +438,7 @@ def scan_commit_range_documents(
     to_commit_zipped_documents = InMemoryZip()
 
     try:
-        progress_bar.set_section_length(ProgressBarSection.SCAN, 1)
+        progress_bar.set_section_length(ScanProgressBarSection.SCAN, 1)
 
         scan_result = init_default_scan_result(scan_id)
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
@@ -455,15 +457,15 @@ def scan_commit_range_documents(
                 timeout,
             )
 
-        progress_bar.update(ProgressBarSection.SCAN)
-        progress_bar.set_section_length(ProgressBarSection.GENERATE_REPORT, 1)
+        progress_bar.update(ScanProgressBarSection.SCAN)
+        progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
 
         local_scan_result = create_local_scan_result(
             scan_result, to_documents_to_scan, scan_command_type, scan_type, severity_threshold
         )
         set_issue_detected_by_scan_results(context, [local_scan_result])
 
-        progress_bar.update(ProgressBarSection.GENERATE_REPORT)
+        progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
         progress_bar.stop()
 
         # errors will be handled with try-except block; printing will not occur on errors

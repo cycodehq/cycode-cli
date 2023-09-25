@@ -22,7 +22,7 @@ from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.user_settings_commands import add_exclusions, set_credentials
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
-from cycode.cli.utils.progress_bar import get_progress_bar
+from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
 from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
@@ -232,7 +232,7 @@ def main_cli(
     if output == 'json':
         no_progress_meter = True
 
-    context.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter)
+    context.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter, sections=SCAN_PROGRESS_BAR_SECTIONS)
 
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
