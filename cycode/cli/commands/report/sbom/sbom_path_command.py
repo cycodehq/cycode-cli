@@ -2,6 +2,7 @@ import click
 
 from cycode.cli import consts
 from cycode.cli.commands.report.sbom.common import create_sbom_report
+from cycode.cli.commands.report.sbom.handle_errors import handle_report_exception
 from cycode.cli.files_collector.path_documents import get_relevant_document
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.files_collector.zip_documents import zip_documents
@@ -20,13 +21,17 @@ def sbom_path_command(context: click.Context, path: str) -> None:
     progress_bar = context.obj['progress_bar']
     progress_bar.start()
 
-    documents = get_relevant_document(
-        progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, path
-    )
-    # TODO(MarshalX): refactoring more. Combine into one function.
-    perform_pre_scan_documents_actions(context, consts.SCA_SCAN_TYPE, documents)
+    try:
+        documents = get_relevant_document(
+            progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, path
+        )
+        # TODO(MarshalX): refactoring more. Combine into one function.
+        perform_pre_scan_documents_actions(context, consts.SCA_SCAN_TYPE, documents)
 
-    zipped_documents = zip_documents(consts.SCA_SCAN_TYPE, documents)
-    sbom_report = client.request_sbom_report(report_parameters, zip_file=zipped_documents)
+        zipped_documents = zip_documents(consts.SCA_SCAN_TYPE, documents)
+        sbom_report = client.request_sbom_report(report_parameters, zip_file=zipped_documents)
 
-    create_sbom_report(progress_bar, client, sbom_report.id, output_file, output_format)
+        create_sbom_report(progress_bar, client, sbom_report.id, output_file, output_format)
+    except Exception as e:
+        progress_bar.stop()
+        handle_report_exception(context, e)
