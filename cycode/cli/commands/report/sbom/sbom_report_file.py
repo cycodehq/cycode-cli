@@ -1,3 +1,4 @@
+import os
 import pathlib
 from typing import Optional
 
@@ -19,14 +20,25 @@ class SbomReportFile:
         return self._file_path.exists()
 
     def _prompt_overwrite(self) -> bool:
-        return click.confirm(f'File {self._file_path} already exists. Overwrite?')
+        return click.confirm(f'File {self._file_path} already exists. Save with a different filename?', default=True)
 
     def _write(self, content: str) -> None:
         with open(self._file_path, 'w', encoding='UTF-8') as f:
             f.write(content)
 
+    def _notify_about_saved_file(self) -> None:
+        click.echo(f'Report saved to {self._file_path}')
+
+    def _find_and_set_unique_filename(self) -> None:
+        attempt_no = 1
+        while self.is_exists():
+            base, ext = os.path.splitext(self._file_path)
+            self._file_path = pathlib.Path(f'{base}-{attempt_no}{ext}')
+            attempt_no += 1
+
     def write(self, content: str) -> None:
-        if self.is_exists() and not self._prompt_overwrite():
-            return
+        if self.is_exists() and self._prompt_overwrite():
+            self._find_and_set_unique_filename()
 
         self._write(content)
+        self._notify_about_saved_file()
