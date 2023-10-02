@@ -23,6 +23,11 @@ def handle_report_exception(context: click.Context, err: Exception) -> Optional[
             message='Cycode was unable to complete this report. '
             'Please try again by executing the `cycode report` command',
         ),
+        custom_exceptions.ReportAsyncError: CliError(
+            code='report_error',
+            message='Cycode was unable to complete this report. '
+            'Please try again by executing the `cycode report` command',
+        ),
         custom_exceptions.HttpUnauthorizedError: CliError(
             code='auth_error',
             message='Unable to authenticate to Cycode, your token is either invalid or has expired. '

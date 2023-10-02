@@ -2,12 +2,43 @@ import pathlib
 import time
 from typing import TYPE_CHECKING, Optional
 
+from cycode.cli import consts
 from cycode.cli.commands.report.sbom.sbom_report_file import SbomReportFile
+from cycode.cli.config import configuration_manager
+from cycode.cli.exceptions.custom_exceptions import ReportAsyncError
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
+from cycode.cyclient.models import ReportExecutionSchema
 
 if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar
     from cycode.cyclient.report_client import ReportClient
+
+
+def _poll_report_execution_until_completed(
+    progress_bar: 'BaseProgressBar',
+    client: 'ReportClient',
+    report_execution_id: int,
+    polling_timeout: Optional[int] = None,
+) -> ReportExecutionSchema:
+    if polling_timeout is None:
+        polling_timeout = configuration_manager.get_report_polling_timeout_in_seconds()
+
+    end_polling_time = time.time() + polling_timeout
+    while time.time() < end_polling_time:
+        report_execution = client.get_report_execution(report_execution_id)
+        report_label = report_execution.error_message or report_execution.status_message
+
+        progress_bar.update_label(report_label)
+
+        if report_execution.status == consts.REPORT_STATUS_COMPLETED:
+            return report_execution
+
+        if report_execution.status == consts.REPORT_STATUS_ERROR:
+            raise ReportAsyncError(f'Error occurred while trying to generate report: {report_label}')
+
+        time.sleep(consts.REPORT_POLLING_WAIT_INTERVAL_IN_SECONDS)
+
+    raise ReportAsyncError(f'Timeout exceeded while waiting for report to complete. Timeout: {polling_timeout} sec.')
 
 
 def create_sbom_report(
@@ -17,13 +48,7 @@ def create_sbom_report(
     output_file: Optional[pathlib.Path],
     output_format: str,
 ) -> None:
-    report_execution = client.get_report_execution(report_execution_id)
-    while report_execution.status == 'Running':
-        time.sleep(3)
-
-        report_execution = client.get_report_execution(report_execution_id)
-        report_label = report_execution.error_message or report_execution.status_message
-        progress_bar.update_label(report_label)
+    report_execution = _poll_report_execution_until_completed(progress_bar, client, report_execution_id)
 
     progress_bar.set_section_length(SbomReportProgressBarSection.GENERATION)
 
