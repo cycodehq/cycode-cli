@@ -25,13 +25,14 @@ def sbom_path_command(context: click.Context, path: str) -> None:
         documents = get_relevant_document(
             progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, path
         )
-        # TODO(MarshalX): refactoring more. Combine into one function.
+        # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
+        #  unhardcode usage of context in perform_pre_scan_documents_actions
         perform_pre_scan_documents_actions(context, consts.SCA_SCAN_TYPE, documents)
 
         zipped_documents = zip_documents(consts.SCA_SCAN_TYPE, documents)
-        sbom_report = client.request_sbom_report(report_parameters, zip_file=zipped_documents)
+        report_execution = client.request_sbom_report_execution(report_parameters, zip_file=zipped_documents)
 
-        create_sbom_report(progress_bar, client, sbom_report.id, output_file, output_format)
+        create_sbom_report(progress_bar, client, report_execution.id, output_file, output_format)
     except Exception as e:
         progress_bar.stop()
         handle_report_exception(context, e)

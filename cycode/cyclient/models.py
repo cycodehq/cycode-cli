@@ -346,57 +346,11 @@ class UserAgentOption:
         )
 
 
-class RequestedSbomReportResultSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    id = fields.Integer()
-    name = fields.String()
-    # add more fields on demand
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'SbomReport':
-        return SbomReport(**data)
-
-
 @dataclass
-class SbomReport:
-    id: int
-    name: str
-
-
-class ReportExecutionSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    status = fields.String()
-    error_message = fields.String(allow_none=True)
-    status_message = fields.String(allow_none=True)
-    storage_details = fields.Nested('SbomReportStorageDetailsSchema', allow_none=True)
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ReportExecution':
-        return ReportExecution(**data)
-
-
-@dataclass
-class ReportExecution:
-    status: str
-    error_message: Optional[str] = None
-    status_message: Optional[str] = None
-    storage_details: Optional['SbomReportStorageDetails'] = None
-
-
-class SbomReportExecutionStatusResultSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    id = fields.Integer()
-    report_executions = fields.List(fields.Nested(ReportExecutionSchema))
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'SbomReportStatus':
-        return SbomReportStatus(**data)
+class SbomReportStorageDetails:
+    path: str
+    folder: str
+    size: int
 
 
 class SbomReportStorageDetailsSchema(Schema):
@@ -408,18 +362,45 @@ class SbomReportStorageDetailsSchema(Schema):
     size = fields.Integer()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'SbomReportStorageDetails':
+    def build_dto(self, data: Dict[str, Any], **_) -> SbomReportStorageDetails:
         return SbomReportStorageDetails(**data)
 
 
 @dataclass
-class SbomReportStorageDetails:
-    path: str
-    folder: str
-    size: int
+class ReportExecution:
+    id: int
+    status: str
+    error_message: Optional[str] = None
+    status_message: Optional[str] = None
+    storage_details: Optional[SbomReportStorageDetails] = None
+
+
+class ReportExecutionSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.Integer()
+    status = fields.String()
+    error_message = fields.String(allow_none=True)
+    status_message = fields.String(allow_none=True)
+    storage_details = fields.Nested(SbomReportStorageDetailsSchema, allow_none=True)
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> ReportExecution:
+        return ReportExecution(**data)
 
 
 @dataclass
-class SbomReportStatus:
-    id: int
+class SbomReport:
     report_executions: List[ReportExecution]
+
+
+class RequestedSbomReportResultSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    report_executions = fields.List(fields.Nested(ReportExecutionSchema))
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> SbomReport:
+        return SbomReport(**data)

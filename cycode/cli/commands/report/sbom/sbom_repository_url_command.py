@@ -19,8 +19,8 @@ def sbom_repository_url_command(context: click.Context, uri: str) -> None:
     output_format = report_parameters.output_format
 
     try:
-        sbom_report = client.request_sbom_report(report_parameters, repository_url=uri)
-        create_sbom_report(progress_bar, client, sbom_report.id, output_file, output_format)
+        report_execution = client.request_sbom_report_execution(report_parameters, repository_url=uri)
+        create_sbom_report(progress_bar, client, report_execution.id, output_file, output_format)
     except Exception as e:
         progress_bar.stop()
         handle_report_exception(context, e)

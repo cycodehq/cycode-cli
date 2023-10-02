@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from requests import Response
 
+from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cyclient import models
 from cycode.cyclient.cycode_client_base import CycodeClientBase
@@ -31,7 +32,7 @@ class ReportParameters:
 class ReportClient:
     SERVICE_NAME: str = 'report'
     CREATE_SBOM_REPORT_REQUEST_PATH: str = 'api/v2/report/{report_type}/sbom'
-    GET_EXECUTIONS_STATUS_PATH: str = 'api/v2/report/{report_id}/executions'
+    GET_EXECUTIONS_STATUS_PATH: str = 'api/v2/report/executions'
 
     DOWNLOAD_REPORT_PATH: str = 'files/api/v1/file/sbom/{file_name}'  # not in the report service
 
@@ -39,9 +40,9 @@ class ReportClient:
         self.client = client
         self._hide_response_log = hide_response_log
 
-    def request_sbom_report(
+    def request_sbom_report_execution(
         self, params: ReportParameters, zip_file: InMemoryZip = None, repository_url: Optional[str] = None
-    ) -> models.SbomReport:
+    ) -> models.ReportExecution:
         report_type = 'zipped-file' if zip_file else 'repository-url'
         url_path = f'{self.SERVICE_NAME}/{self.CREATE_SBOM_REPORT_REQUEST_PATH}'.format(report_type=report_type)
 
@@ -60,12 +61,25 @@ class ReportClient:
             request_args['files'] = {'file': ('sca_files.zip', zip_file.read())}
 
         response = self.client.post(**request_args)
-        return self.parse_requested_sbom_report_response(response)
+        sbom_report = self.parse_requested_sbom_report_response(response)
+        if not sbom_report.report_executions:
+            raise CycodeError('Failed to get SBOM report. No executions found.')
 
-    def get_execution_status(self, report_id: int) -> List[models.SbomReportStatus]:
-        url_path = f'{self.SERVICE_NAME}/{self.GET_EXECUTIONS_STATUS_PATH}'.format(report_id=report_id)
-        response = self.client.get(url_path=url_path)
-        return self.parse_execution_status_response(response)
+        return sbom_report.report_executions[0]
+
+    def get_report_execution(self, report_execution_id: int) -> models.ReportExecutionSchema:
+        url_path = f'{self.SERVICE_NAME}/{self.GET_EXECUTIONS_STATUS_PATH}'
+        params = {
+            'executions_ids': report_execution_id,
+            'include_orphan_executions': True,
+        }
+        response = self.client.get(url_path=url_path, params=params)
+
+        report_executions = self.parse_execution_status_response(response)
+        if not report_executions:
+            raise CycodeError('Failed to get report execution.')
+
+        return report_executions[0]
 
     def get_file_content(self, file_name: str) -> str:
         response = self.client.get(
@@ -78,5 +92,5 @@ class ReportClient:
         return models.RequestedSbomReportResultSchema().load(response.json())
 
     @staticmethod
-    def parse_execution_status_response(response: Response) -> List[models.SbomReportStatus]:
-        return models.SbomReportExecutionStatusResultSchema().load(response.json(), many=True)
+    def parse_execution_status_response(response: Response) -> List[models.ReportExecutionSchema]:
+        return models.ReportExecutionSchema().load(response.json(), many=True)
