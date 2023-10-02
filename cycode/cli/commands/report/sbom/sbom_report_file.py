@@ -1,5 +1,6 @@
 import os
 import pathlib
+import re
 from typing import Optional
 
 import click
@@ -30,11 +31,15 @@ class SbomReportFile:
         click.echo(f'Report saved to {self._file_path}')
 
     def _find_and_set_unique_filename(self) -> None:
-        attempt_no = 1
+        attempt_no = 0
         while self.is_exists():
-            base, ext = os.path.splitext(self._file_path)
-            self._file_path = pathlib.Path(f'{base}-{attempt_no}{ext}')
             attempt_no += 1
+
+            base, ext = os.path.splitext(self._file_path)
+            # Remove previous suffix
+            base = re.sub(r'-\d+$', '', base)
+
+            self._file_path = pathlib.Path(f'{base}-{attempt_no}{ext}')
 
     def write(self, content: str) -> None:
         if self.is_exists() and self._prompt_overwrite():
