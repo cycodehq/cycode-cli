@@ -1,7 +1,9 @@
+import time
+
 import click
 
 from cycode.cli import consts
-from cycode.cli.commands.report.sbom.common import create_sbom_report
+from cycode.cli.commands.report.sbom.common import create_sbom_report, send_report_feedback
 from cycode.cli.commands.report.sbom.handle_errors import handle_report_exception
 from cycode.cli.files_collector.path_documents import get_relevant_document
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
@@ -21,6 +23,8 @@ def sbom_path_command(context: click.Context, path: str) -> None:
     progress_bar = context.obj['progress_bar']
     progress_bar.start()
 
+    start_scan_time = time.time()
+
     try:
         documents = get_relevant_document(
             progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, path
@@ -33,6 +37,30 @@ def sbom_path_command(context: click.Context, path: str) -> None:
         report_execution = client.request_sbom_report_execution(report_parameters, zip_file=zipped_documents)
 
         create_sbom_report(progress_bar, client, report_execution.id, output_file, output_format)
+
+        send_report_feedback(
+            client=client,
+            start_scan_time=start_scan_time,
+            success=True,
+            output_format=output_format,
+            report_type='idk',  # FIXME
+            report_command_type='path',
+            report_parameters=report_parameters.to_dict(without_entity_type=False),
+            report_execution_id=report_execution.id,
+            report_size=zipped_documents.size,
+        )
     except Exception as e:
         progress_bar.stop()
+
+        send_report_feedback(
+            client=client,
+            start_scan_time=start_scan_time,
+            success=False,
+            output_format=output_format,
+            report_type='idk',  # FIXME
+            report_command_type='path',
+            report_parameters=report_parameters.to_dict(without_entity_type=False),
+            report_execution_id=0,  # FIXME
+        )
+
         handle_report_exception(context, e)

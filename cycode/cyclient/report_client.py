@@ -33,6 +33,7 @@ class ReportClient:
     SERVICE_NAME: str = 'report'
     CREATE_SBOM_REPORT_REQUEST_PATH: str = 'api/v2/report/{report_type}/sbom'
     GET_EXECUTIONS_STATUS_PATH: str = 'api/v2/report/executions'
+    REPORT_STATUS_PATH: str = 'api/v2/report/{report_execution_id}/status'
 
     DOWNLOAD_REPORT_PATH: str = 'files/api/v1/file/sbom/{file_name}'  # not in the report service
 
@@ -86,6 +87,10 @@ class ReportClient:
             url_path=self.DOWNLOAD_REPORT_PATH.format(file_name=file_name), params={'include_hidden': True}
         )
         return response.text
+
+    def report_status(self, report_execution_id: int, status: dict) -> None:
+        url_path = self.REPORT_STATUS_PATH.format(report_execution_id=report_execution_id)
+        self.client.post(url_path=url_path, body=status)
 
     @staticmethod
     def parse_requested_sbom_report_response(response: Response) -> models.SbomReport:

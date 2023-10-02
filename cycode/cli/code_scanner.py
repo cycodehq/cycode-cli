@@ -5,7 +5,6 @@ import sys
 import time
 import traceback
 from platform import platform
-from sys import getsizeof
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
@@ -338,7 +337,7 @@ def _get_scan_documents_thread_func(
         try:
             logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
             zipped_documents = zip_documents(scan_type, batch)
-            zip_file_size = getsizeof(zipped_documents.in_memory_zip)
+            zip_file_size = zipped_documents.size
 
             scan_result = perform_scan(
                 cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range, scan_parameters
@@ -476,9 +475,7 @@ def scan_commit_range_documents(
         _handle_exception(context, e)
         error_message = str(e)
 
-    zip_file_size = getsizeof(from_commit_zipped_documents.in_memory_zip) + getsizeof(
-        to_commit_zipped_documents.in_memory_zip
-    )
+    zip_file_size = from_commit_zipped_documents.size + to_commit_zipped_documents.size
 
     detections_count = relevant_detections_count = 0
     if local_scan_result:

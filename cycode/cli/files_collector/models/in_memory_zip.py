@@ -1,4 +1,5 @@
 from io import BytesIO
+from sys import getsizeof
 from typing import Optional
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -25,3 +26,7 @@ class InMemoryZip(object):
     def read(self) -> bytes:
         self.in_memory_zip.seek(0)
         return self.in_memory_zip.read()
+
+    @property
+    def size(self) -> int:
+        return getsizeof(self.in_memory_zip)

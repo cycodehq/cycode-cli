@@ -1,5 +1,4 @@
 import time
-from sys import getsizeof
 from typing import List, Optional
 
 from cycode.cli import consts
@@ -25,8 +24,7 @@ def zip_documents(scan_type: str, documents: List[Document], zip_file: Optional[
     start_zip_creation_time = time.time()
 
     for index, document in enumerate(documents):
-        zip_file_size = getsizeof(zip_file.in_memory_zip)
-        _validate_zip_file_size(scan_type, zip_file_size)
+        _validate_zip_file_size(scan_type, zip_file.size)
 
         logger.debug(
             'adding file to zip, %s', {'index': index, 'filename': document.path, 'unique_id': document.unique_id}

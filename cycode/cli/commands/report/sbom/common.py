@@ -1,5 +1,6 @@
 import pathlib
 import time
+from platform import platform
 from typing import TYPE_CHECKING, Optional
 
 from cycode.cli import consts
@@ -7,6 +8,7 @@ from cycode.cli.commands.report.sbom.sbom_report_file import SbomReportFile
 from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions.custom_exceptions import ReportAsyncError
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
+from cycode.cyclient import logger
 from cycode.cyclient.models import ReportExecutionSchema
 
 if TYPE_CHECKING:
@@ -39,6 +41,37 @@ def _poll_report_execution_until_completed(
         time.sleep(consts.REPORT_POLLING_WAIT_INTERVAL_IN_SECONDS)
 
     raise ReportAsyncError(f'Timeout exceeded while waiting for report to complete. Timeout: {polling_timeout} sec.')
+
+
+def send_report_feedback(
+    client: 'ReportClient',
+    start_scan_time: float,
+    success: bool,
+    output_format: str,
+    report_type: str,
+    report_command_type: str,
+    report_parameters: dict,
+    report_execution_id: int,
+    error_message: Optional[str] = None,
+    report_size: Optional[int] = None,
+) -> None:
+    try:
+        end_scan_time = time.time()
+        scan_status = {
+            'status': consts.REPORT_STATUS_COMPLETED if success else consts.REPORT_STATUS_ERROR,
+            'output_format': output_format,
+            'report_type': report_type,
+            'report_command_type': report_command_type,
+            'report_parameters': report_parameters,
+            'operation_system': platform(),
+            'error_message': error_message,
+            'execution_time': int(end_scan_time - start_scan_time),
+            'report_size': report_size,
+        }
+
+        client.report_status(report_execution_id, scan_status)
+    except Exception as e:
+        logger.debug(f'Failed to send report feedback: {e}')
 
 
 def create_sbom_report(
