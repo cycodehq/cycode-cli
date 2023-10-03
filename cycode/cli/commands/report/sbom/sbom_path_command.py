@@ -24,6 +24,7 @@ def sbom_path_command(context: click.Context, path: str) -> None:
     progress_bar.start()
 
     start_scan_time = time.time()
+    report_execution_id = -1
 
     try:
         documents = get_relevant_document(
@@ -35,19 +36,18 @@ def sbom_path_command(context: click.Context, path: str) -> None:
 
         zipped_documents = zip_documents(consts.SCA_SCAN_TYPE, documents)
         report_execution = client.request_sbom_report_execution(report_parameters, zip_file=zipped_documents)
+        report_execution_id = report_execution.id
 
-        create_sbom_report(progress_bar, client, report_execution.id, output_file, output_format)
+        create_sbom_report(progress_bar, client, report_execution_id, output_file, output_format)
 
         send_report_feedback(
             client=client,
             start_scan_time=start_scan_time,
-            success=True,
-            output_format=output_format,
-            report_type='idk',  # FIXME
+            report_type='SBOM',
             report_command_type='path',
-            report_parameters=report_parameters.to_dict(without_entity_type=False),
-            report_execution_id=report_execution.id,
-            report_size=zipped_documents.size,
+            request_report_parameters=report_parameters.to_dict(without_entity_type=False),
+            report_execution_id=report_execution_id,
+            request_zip_file_size=zipped_documents.size,
         )
     except Exception as e:
         progress_bar.stop()
@@ -55,12 +55,11 @@ def sbom_path_command(context: click.Context, path: str) -> None:
         send_report_feedback(
             client=client,
             start_scan_time=start_scan_time,
-            success=False,
-            output_format=output_format,
-            report_type='idk',  # FIXME
+            report_type='SBOM',
             report_command_type='path',
-            report_parameters=report_parameters.to_dict(without_entity_type=False),
-            report_execution_id=0,  # FIXME
+            request_report_parameters=report_parameters.to_dict(without_entity_type=False),
+            report_execution_id=report_execution_id,
+            error_message=str(e),
         )
 
         handle_report_exception(context, e)

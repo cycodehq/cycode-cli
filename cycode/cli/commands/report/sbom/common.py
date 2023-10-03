@@ -46,27 +46,26 @@ def _poll_report_execution_until_completed(
 def send_report_feedback(
     client: 'ReportClient',
     start_scan_time: float,
-    success: bool,
-    output_format: str,
     report_type: str,
     report_command_type: str,
-    report_parameters: dict,
+    request_report_parameters: dict,
     report_execution_id: int,
     error_message: Optional[str] = None,
-    report_size: Optional[int] = None,
+    request_zip_file_size: Optional[int] = None,
+    **kwargs,
 ) -> None:
     try:
+        request_report_parameters.update(kwargs)
+
         end_scan_time = time.time()
         scan_status = {
-            'status': consts.REPORT_STATUS_COMPLETED if success else consts.REPORT_STATUS_ERROR,
-            'output_format': output_format,
             'report_type': report_type,
             'report_command_type': report_command_type,
-            'report_parameters': report_parameters,
+            'request_report_parameters': request_report_parameters,
             'operation_system': platform(),
             'error_message': error_message,
             'execution_time': int(end_scan_time - start_scan_time),
-            'report_size': report_size,
+            'request_zip_file_size': request_zip_file_size,
         }
 
         client.report_status(report_execution_id, scan_status)

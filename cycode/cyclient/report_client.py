@@ -89,7 +89,7 @@ class ReportClient:
         return response.text
 
     def report_status(self, report_execution_id: int, status: dict) -> None:
-        url_path = self.REPORT_STATUS_PATH.format(report_execution_id=report_execution_id)
+        url_path = f'{self.SERVICE_NAME}/{self.REPORT_STATUS_PATH}'.format(report_execution_id=report_execution_id)
         self.client.post(url_path=url_path, body=status)
 
     @staticmethod

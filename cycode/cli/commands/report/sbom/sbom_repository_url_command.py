@@ -21,20 +21,22 @@ def sbom_repository_url_command(context: click.Context, uri: str) -> None:
     output_format = report_parameters.output_format
 
     start_scan_time = time.time()
+    report_execution_id = -1
 
     try:
         report_execution = client.request_sbom_report_execution(report_parameters, repository_url=uri)
-        create_sbom_report(progress_bar, client, report_execution.id, output_file, output_format)
+        report_execution_id = report_execution.id
+
+        create_sbom_report(progress_bar, client, report_execution_id, output_file, output_format)
 
         send_report_feedback(
             client=client,
             start_scan_time=start_scan_time,
-            success=True,
-            output_format=output_format,
-            report_type='idk',  # FIXME
+            report_type='SBOM',
             report_command_type='repository_url',
-            report_parameters=report_parameters.to_dict(without_entity_type=False),
-            report_execution_id=report_execution.id,
+            request_report_parameters=report_parameters.to_dict(without_entity_type=False),
+            report_execution_id=report_execution_id,
+            repository_uri=uri,
         )
     except Exception as e:
         progress_bar.stop()
@@ -42,12 +44,12 @@ def sbom_repository_url_command(context: click.Context, uri: str) -> None:
         send_report_feedback(
             client=client,
             start_scan_time=start_scan_time,
-            success=False,
-            output_format=output_format,
-            report_type='idk',  # FIXME
+            report_type='SBOM',
             report_command_type='repository_url',
-            report_parameters=report_parameters.to_dict(without_entity_type=False),
-            report_execution_id=0,  # FIXME
+            request_report_parameters=report_parameters.to_dict(without_entity_type=False),
+            report_execution_id=report_execution_id,
+            error_message=str(e),
+            repository_uri=uri,
         )
 
         handle_report_exception(context, e)
