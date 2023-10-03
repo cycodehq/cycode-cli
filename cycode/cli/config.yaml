@@ -10,6 +10,7 @@ scans:
     - license-compliance
   supported_sbom_formats:
     - spdx-2.2
+    - spdx-2.3
     - cyclonedx-1.4
 result_printer:
   default:
