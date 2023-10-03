@@ -46,6 +46,14 @@ from cycode.cyclient.report_client import ReportParameters
     type=bool,
     required=False,
 )
+@click.option(
+    '--include-dev-dependencies',
+    is_flag=True,
+    default=False,
+    help='Include dev dependencies.',
+    type=bool,
+    required=False,
+)
 @click.pass_context
 def sbom_command(
     context: click.Context,
@@ -53,6 +61,7 @@ def sbom_command(
     output_format: Optional[str],
     output_file: Optional[pathlib.Path],
     include_vulnerabilities: bool,
+    include_dev_dependencies: bool,
 ) -> int:
     """Generate SBOM report."""
     sbom_format_parts = format.split('-')
@@ -67,7 +76,7 @@ def sbom_command(
         sbom_version=sbom_format_version,
         output_format=output_format,
         include_vulnerabilities=include_vulnerabilities,
-        include_dev_dependencies=False,  # is not supported by BE yet
+        include_dev_dependencies=include_dev_dependencies,
     )
     context.obj['report_parameters'] = report_parameters
     context.obj['output_file'] = output_file
