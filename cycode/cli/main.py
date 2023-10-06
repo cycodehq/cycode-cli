@@ -1,13 +1,14 @@
 import json
 import logging
 import sys
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import List, Optional
 
 import click
 
 from cycode import __version__
 from cycode.cli import code_scanner
 from cycode.cli.auth.auth_command import authenticate
+from cycode.cli.commands.report.report_command import report_command
 from cycode.cli.config import config
 from cycode.cli.consts import (
     CLI_CONTEXT_SETTINGS,
@@ -18,17 +19,13 @@ from cycode.cli.consts import (
 )
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.user_settings.user_settings_commands import add_exclusions, set_credentials
 from cycode.cli.utils import scan_utils
-from cycode.cli.utils.progress_bar import get_progress_bar
+from cycode.cli.utils.get_api_client import get_scan_cycode_client
+from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
 from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
-from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
-
-if TYPE_CHECKING:
-    from cycode.cyclient.scan_client import ScanClient
 
 
 @click.group(
@@ -137,7 +134,7 @@ def code_scan(
     else:
         context.obj['soft_fail'] = config['soft_fail']
 
-    context.obj['client'] = get_cycode_client(client_id, secret, not context.obj['show_secret'])
+    context.obj['client'] = get_scan_cycode_client(client_id, secret, not context.obj['show_secret'])
     context.obj['scan_type'] = scan_type
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
@@ -185,6 +182,7 @@ def version(context: click.Context) -> None:
 @click.group(
     commands={
         'scan': code_scan,
+        'report': report_command,
         'configure': set_credentials,
         'ignore': add_exclusions,
         'auth': authenticate,
@@ -234,27 +232,11 @@ def main_cli(
     if output == 'json':
         no_progress_meter = True
 
-    context.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter)
+    context.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter, sections=SCAN_PROGRESS_BAR_SECTIONS)
 
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
         CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
-
-
-def get_cycode_client(client_id: str, client_secret: str, hide_response_log: bool) -> 'ScanClient':
-    if not client_id or not client_secret:
-        client_id, client_secret = _get_configured_credentials()
-        if not client_id:
-            raise click.ClickException('Cycode client id needed.')
-        if not client_secret:
-            raise click.ClickException('Cycode client secret is needed.')
-
-    return create_scan_client(client_id, client_secret, hide_response_log)
-
-
-def _get_configured_credentials() -> Tuple[str, str]:
-    credentials_manager = CredentialsManager()
-    return credentials_manager.get_credentials()
 
 
 def _should_fail_scan(context: click.Context) -> bool:

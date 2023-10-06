@@ -1,7 +1,9 @@
-import os.path
 from io import BytesIO
+from sys import getsizeof
 from typing import Optional
 from zipfile import ZIP_DEFLATED, ZipFile
+
+from cycode.cli.utils.path_utils import concat_unique_id
 
 
 class InMemoryZip(object):
@@ -25,10 +27,6 @@ class InMemoryZip(object):
         self.in_memory_zip.seek(0)
         return self.in_memory_zip.read()
 
-
-def concat_unique_id(filename: str, unique_id: str) -> str:
-    if filename.startswith(os.sep):
-        # remove leading slash to join the path correctly
-        filename = filename[len(os.sep) :]
-
-    return os.path.join(unique_id, filename)
+    @property
+    def size(self) -> int:
+        return getsizeof(self.in_memory_zip)

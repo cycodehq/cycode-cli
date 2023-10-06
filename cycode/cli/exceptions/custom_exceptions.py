@@ -28,6 +28,10 @@ class ScanAsyncError(CycodeError):
         return f'error occurred during the scan. error message: {self.error_message}'
 
 
+class ReportAsyncError(CycodeError):
+    pass
+
+
 class HttpUnauthorizedError(CycodeError):
     def __init__(self, error_message: str, response: Response) -> None:
         self.status_code = 401

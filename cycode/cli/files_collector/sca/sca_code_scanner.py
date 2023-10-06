@@ -5,14 +5,14 @@ import click
 from git import GitCommandError, Repo
 
 from cycode.cli import consts
-from cycode.cli.helpers.maven.restore_gradle_dependencies import RestoreGradleDependencies
-from cycode.cli.helpers.maven.restore_maven_dependencies import RestoreMavenDependencies
+from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
+from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cyclient import logger
 
 if TYPE_CHECKING:
-    from cycode.cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
+    from cycode.cli.files_collector.sca.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
@@ -141,3 +141,11 @@ def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Opt
         return repo.git.show(f'{commit}:{file_path}')
     except GitCommandError:
         return None
+
+
+def perform_pre_scan_documents_actions(
+    context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
+) -> None:
+    if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(consts.SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
+        logger.debug('Perform pre scan document add_dependencies_tree_document action')
+        add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
