@@ -8,6 +8,8 @@ import click
 from cycode import __version__
 from cycode.cli import code_scanner
 from cycode.cli.auth.auth_command import authenticate
+from cycode.cli.commands.configure.configure_command import configure_command
+from cycode.cli.commands.ignore.ignore_command import ignore_command
 from cycode.cli.commands.report.report_command import report_command
 from cycode.cli.config import config
 from cycode.cli.consts import (
@@ -19,7 +21,6 @@ from cycode.cli.consts import (
 )
 from cycode.cli.models import Severity
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-from cycode.cli.user_settings.user_settings_commands import add_exclusions, set_credentials
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
@@ -183,8 +184,8 @@ def version(context: click.Context) -> None:
     commands={
         'scan': code_scan,
         'report': report_command,
-        'configure': set_credentials,
-        'ignore': add_exclusions,
+        'configure': configure_command,
+        'ignore': ignore_command,
         'auth': authenticate,
         'version': version,
     },
