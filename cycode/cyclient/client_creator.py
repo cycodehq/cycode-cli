@@ -18,6 +18,6 @@ def create_scan_client(client_id: str, client_secret: str, hide_response_log: bo
     return ScanClient(client, scan_config, hide_response_log)
 
 
-def create_report_client(client_id: str, client_secret: str, hide_response_log: bool) -> ReportClient:
+def create_report_client(client_id: str, client_secret: str, _: bool) -> ReportClient:
     client = CycodeDevBasedClient(DEV_CYCODE_API_URL) if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
-    return ReportClient(client, hide_response_log)
+    return ReportClient(client)
