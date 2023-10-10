@@ -76,10 +76,6 @@ class ConfigurationManager:
         keys = set(list(local_exclusions.keys()) + list(global_exclusions.keys()))
         return {key: local_exclusions.get(key, []) + global_exclusions.get(key, []) for key in keys}
 
-    def update_base_url(self, base_url: str, scope: str = 'local') -> None:
-        config_file_manager = self.get_config_file_manager(scope)
-        config_file_manager.update_base_url(base_url)
-
     def get_or_create_installation_id(self) -> str:
         config_file_manager = self.get_config_file_manager()
 

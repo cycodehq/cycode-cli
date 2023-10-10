@@ -1,41 +1,21 @@
-import os.path
+import os
 import re
-from typing import Optional
 
 import click
 
 from cycode.cli import consts
 from cycode.cli.config import config, configuration_manager
-from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.utils.path_utils import get_absolute_path
-from cycode.cli.utils.string_utils import hash_string_to_sha256, obfuscate_text
+from cycode.cli.utils.string_utils import hash_string_to_sha256
 from cycode.cyclient import logger
 
-CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE = 'Successfully configured CLI credentials!'
-CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE = (
-    'Note that the credentials that already exist in environment'
-    ' variables (CYCODE_CLIENT_ID and CYCODE_CLIENT_SECRET) take'
-    ' precedent over these credentials; either update or remove '
-    'the environment variables.'
-)
-credentials_manager = CredentialsManager()
+
+def _is_path_to_ignore_exists(path: str) -> bool:
+    return os.path.exists(path)
 
 
-@click.command(
-    short_help='Initial command to authenticate your CLI client with Cycode using a client ID and client secret.'
-)
-def set_credentials() -> None:
-    """Authenticates your CLI client with Cycode manually by using a client ID and client secret."""
-    click.echo(f'Update credentials in file ({credentials_manager.get_filename()})')
-    current_client_id, current_client_secret = credentials_manager.get_credentials_from_file()
-    client_id = _get_client_id_input(current_client_id)
-    client_secret = _get_client_secret_input(current_client_secret)
-
-    if not _should_update_credentials(current_client_id, current_client_secret, client_id, client_secret):
-        return
-
-    credentials_manager.update_credentials_file(client_id, client_secret)
-    click.echo(_get_credentials_update_result_message())
+def _is_package_pattern_valid(package: str) -> bool:
+    return re.search('^[^@]+@[^@]+$', package) is not None
 
 
 @click.command(short_help='Ignores a specific value, path or rule ID.')
@@ -83,7 +63,7 @@ def set_credentials() -> None:
     required=False,
     help='Add an ignore rule to the global CLI config.',
 )
-def add_exclusions(
+def ignore_command(
     by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str, is_global: bool
 ) -> None:
     """Ignores a specific value, path or rule ID."""
@@ -126,48 +106,3 @@ def add_exclusions(
         },
     )
     configuration_manager.add_exclusion(configuration_scope, scan_type, exclusion_type, exclusion_value)
-
-
-def _get_client_id_input(current_client_id: str) -> str:
-    new_client_id = click.prompt(
-        f'cycode client id [{_obfuscate_credential(current_client_id)}]', default='', show_default=False
-    )
-
-    return new_client_id if new_client_id else current_client_id
-
-
-def _get_client_secret_input(current_client_secret: str) -> str:
-    new_client_secret = click.prompt(
-        f'cycode client secret [{_obfuscate_credential(current_client_secret)}]', default='', show_default=False
-    )
-    return new_client_secret if new_client_secret else current_client_secret
-
-
-def _get_credentials_update_result_message() -> str:
-    if not _are_credentials_exist_in_environment_variables():
-        return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE
-
-    return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE + ' ' + CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
-
-
-def _are_credentials_exist_in_environment_variables() -> bool:
-    client_id, client_secret = credentials_manager.get_credentials_from_environment_variables()
-    return client_id is not None or client_secret is not None
-
-
-def _should_update_credentials(
-    current_client_id: str, current_client_secret: str, new_client_id: str, new_client_secret: str
-) -> bool:
-    return current_client_id != new_client_id or current_client_secret != new_client_secret
-
-
-def _obfuscate_credential(credential: Optional[str]) -> str:
-    return '' if not credential else obfuscate_text(credential)
-
-
-def _is_path_to_ignore_exists(path: str) -> bool:
-    return os.path.exists(path)
-
-
-def _is_package_pattern_valid(package: str) -> bool:
-    return re.search('^[^@]+@[^@]+$', package) is not None
