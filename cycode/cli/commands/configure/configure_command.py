@@ -59,7 +59,7 @@ def configure_command() -> None:
 def _get_client_id_input(current_client_id: Optional[str]) -> Optional[str]:
     prompt_text = 'Cycode Client ID'
 
-    prompt_suffix = ' (optional): '
+    prompt_suffix = ' []: '
     if current_client_id:
         prompt_suffix = f' [{obfuscate_text(current_client_id)}]: '
 
@@ -70,7 +70,7 @@ def _get_client_id_input(current_client_id: Optional[str]) -> Optional[str]:
 def _get_client_secret_input(current_client_secret: Optional[str]) -> Optional[str]:
     prompt_text = 'Cycode Client Secret'
 
-    prompt_suffix = ' (optional): '
+    prompt_suffix = ' []: '
     if current_client_secret:
         prompt_suffix = f' [{obfuscate_text(current_client_secret)}]: '
 
