@@ -37,9 +37,8 @@ class ReportClient:
 
     DOWNLOAD_REPORT_PATH: str = 'files/api/v1/file/sbom/{file_name}'  # not in the report service
 
-    def __init__(self, client: CycodeClientBase, hide_response_log: bool = True) -> None:
+    def __init__(self, client: CycodeClientBase) -> None:
         self.client = client
-        self._hide_response_log = hide_response_log
 
     def request_sbom_report_execution(
         self, params: ReportParameters, zip_file: InMemoryZip = None, repository_url: Optional[str] = None
@@ -55,7 +54,6 @@ class ReportClient:
         request_args = {
             'url_path': url_path,
             'data': request_data,
-            'hide_response_content_log': self._hide_response_log,
         }
 
         if zip_file:
@@ -84,7 +82,9 @@ class ReportClient:
 
     def get_file_content(self, file_name: str) -> str:
         response = self.client.get(
-            url_path=self.DOWNLOAD_REPORT_PATH.format(file_name=file_name), params={'include_hidden': True}
+            url_path=self.DOWNLOAD_REPORT_PATH.format(file_name=file_name),
+            params={'include_hidden': True},
+            hide_response_content_log=True,
         )
         return response.text
 
