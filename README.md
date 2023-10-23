@@ -119,38 +119,50 @@ To install the Cycode CLI application on your local machine, perform the followi
 ### Using the Configure Command
 
 > :memo: **Note**<br/>
-> If you already set up your Cycode client ID and client secret through the Linux or Windows environment variables, those credentials will take precedent over this method.
+> If you already set up your Cycode Client ID and Client Secret through the Linux or Windows environment variables, those credentials will take precedent over this method.
 
 1. Type the following command into your terminal/command line window:
 
    `cycode configure`
 
-   You will see the following appear:
+2. Enter your Cycode API URL value (you can leave blank to use default value).
 
     ```bash
-    Update credentials in file (/Users/travislloyd/.cycode/credentials.yaml)
-    cycode client id []:
+    Cycode API URL [https://api.cycode.com]: https://api.onpremise.com
     ```
 
-2. Enter your Cycode client ID value.
+3. Enter your Cycode APP URL value (you can leave blank to use default value).
 
     ```bash
-    cycode client id []: 7fe5346b-xxxx-xxxx-xxxx-55157625c72d
+    Cycode APP URL [https://app.cycode.com]: https://app.onpremise.com
     ```
 
-3. Enter your Cycode client secret value.
+4. Enter your Cycode Client ID value.
 
     ```bash
-    cycode client secret []: c1e24929-xxxx-xxxx-xxxx-8b08c1839a2e
+    Cycode Client ID []: 7fe5346b-xxxx-xxxx-xxxx-55157625c72d
     ```
 
-4. If the values were entered successfully, you'll see the following message:
+5. Enter your Cycode Client Secret value.
+
+    ```bash
+    Cycode Client Secret []: c1e24929-xxxx-xxxx-xxxx-8b08c1839a2e
+    ```
+
+6. If the values were entered successfully, you'll see the following message:
 
     ```bash
     Successfully configured CLI credentials!
     ```
 
-If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder.
+   or/and
+
+    ```bash
+    Successfully configured Cycode URLs!
+    ```
+
+If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder. 
+And the URLs were placed in the `config.yaml` file in that folder.
 
 ### Add to Environment Variables
 
