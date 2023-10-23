@@ -34,6 +34,7 @@ jobs:
             files.pythonhosted.org
             install.python-poetry.org
             pypi.org
+            uploads.github.com
 
       - name: Checkout repository
         uses: actions/checkout@v4
