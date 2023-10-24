@@ -1,18 +1,19 @@
 import json
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from requests import Response
 
-from cycode.cli.zip_file import InMemoryZip
+from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+from cycode.cyclient import models
+from cycode.cyclient.cycode_client_base import CycodeClientBase
 
-from . import models
-from .cycode_client_base import CycodeClientBase
-from .scan_config.scan_config_base import ScanConfigBase
+if TYPE_CHECKING:
+    from .scan_config_base import ScanConfigBase
 
 
 class ScanClient:
     def __init__(
-        self, scan_cycode_client: CycodeClientBase, scan_config: ScanConfigBase, hide_response_log: bool = True
+        self, scan_cycode_client: CycodeClientBase, scan_config: 'ScanConfigBase', hide_response_log: bool = True
     ) -> None:
         self.scan_cycode_client = scan_cycode_client
         self.scan_config = scan_config

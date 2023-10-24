@@ -15,35 +15,39 @@ This guide will guide you through both installation and usage.
             1. [On Unix/Linux](#on-unixlinux)
             2. [On Windows](#on-windows)
     2. [Install Pre-Commit Hook](#install-pre-commit-hook)
-3. [Cycode Command](#cycode-command)
-4. [Running a Scan](#running-a-scan)
-    1. [Repository Scan](#repository-scan)
-        1. [Branch Option](#branch-option)
-    2. [Monitor Option](#monitor-option)
-    3. [Report Option](#report-option)
-    4. [Package Vulnerabilities Scan](#package-vulnerabilities-option)
-        1. [License Compliance Option](#license-compliance-option)
-        2. [Severity Threshold](#severity-threshold)
-    5. [Path Scan](#path-scan)
-        1. [Terraform Plan Scan](#terraform-plan-scan)
-    6. [Commit History Scan](#commit-history-scan)
-        1. [Commit Range Option](#commit-range-option)
-    7. [Pre-Commit Scan](#pre-commit-scan)
-5. [Scan Results](#scan-results)
-    1. [Show/Hide Secrets](#showhide-secrets)
-    2. [Soft Fail](#soft-fail)
-    3. [Example Scan Results](#example-scan-results)
-        1. [Secrets Result Example](#secrets-result-example)
-        2. [IaC Result Example](#iac-result-example)
-        3. [SCA Result Example](#sca-result-example)
-        4. [SAST Result Example](#sast-result-example)
-6. [Ignoring Scan Results](#ignoring-scan-results)
-    1. [Ignoring a Secret Value](#ignoring-a-secret-value)
-    2. [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value)
-    3. [Ignoring a Path](#ignoring-a-path)
-    4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
-    5. [Ignoring a Package](#ignoring-a-package)
-7. [Syntax Help](#syntax-help)
+3. [Cycode Command](#cycode-cli-commands)
+4. [Scan Command](#scan-command)
+    1. [Running a Scan](#running-a-scan)
+        1. [Repository Scan](#repository-scan)
+            1. [Branch Option](#branch-option)
+        2. [Monitor Option](#monitor-option)
+        3. [Report Option](#report-option)
+        4. [Package Vulnerabilities Scan](#package-vulnerabilities-option)
+            1. [License Compliance Option](#license-compliance-option)
+            2. [Severity Threshold](#severity-threshold)
+        5. [Path Scan](#path-scan)
+            1. [Terraform Plan Scan](#terraform-plan-scan)
+        6. [Commit History Scan](#commit-history-scan)
+            1. [Commit Range Option](#commit-range-option)
+        7. [Pre-Commit Scan](#pre-commit-scan)
+    2. [Scan Results](#scan-results)
+        1. [Show/Hide Secrets](#showhide-secrets)
+        2. [Soft Fail](#soft-fail)
+        3. [Example Scan Results](#example-scan-results)
+            1. [Secrets Result Example](#secrets-result-example)
+            2. [IaC Result Example](#iac-result-example)
+            3. [SCA Result Example](#sca-result-example)
+            4. [SAST Result Example](#sast-result-example)
+    3. [Ignoring Scan Results](#ignoring-scan-results)
+        1. [Ignoring a Secret Value](#ignoring-a-secret-value)
+        2. [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value)
+        3. [Ignoring a Path](#ignoring-a-path)
+        4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
+        5. [Ignoring a Package](#ignoring-a-package)
+5. [Report command](#report-command)
+    1. [Generating Report](#generating-report)
+    2. [Report Result](#report-results)
+6. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
@@ -115,38 +119,50 @@ To install the Cycode CLI application on your local machine, perform the followi
 ### Using the Configure Command
 
 > :memo: **Note**<br/>
-> If you already set up your Cycode client ID and client secret through the Linux or Windows environment variables, those credentials will take precedent over this method.
+> If you already set up your Cycode Client ID and Client Secret through the Linux or Windows environment variables, those credentials will take precedent over this method.
 
 1. Type the following command into your terminal/command line window:
 
    `cycode configure`
 
-   You will see the following appear:
+2. Enter your Cycode API URL value (you can leave blank to use default value).
 
     ```bash
-    Update credentials in file (/Users/travislloyd/.cycode/credentials.yaml)
-    cycode client id []:
+    Cycode API URL [https://api.cycode.com]: https://api.onpremise.com
     ```
 
-2. Enter your Cycode client ID value.
+3. Enter your Cycode APP URL value (you can leave blank to use default value).
 
     ```bash
-    cycode client id []: 7fe5346b-xxxx-xxxx-xxxx-55157625c72d
+    Cycode APP URL [https://app.cycode.com]: https://app.onpremise.com
     ```
 
-3. Enter your Cycode client secret value.
+4. Enter your Cycode Client ID value.
 
     ```bash
-    cycode client secret []: c1e24929-xxxx-xxxx-xxxx-8b08c1839a2e
+    Cycode Client ID []: 7fe5346b-xxxx-xxxx-xxxx-55157625c72d
     ```
 
-4. If the values were entered successfully, you'll see the following message:
+5. Enter your Cycode Client Secret value.
+
+    ```bash
+    Cycode Client Secret []: c1e24929-xxxx-xxxx-xxxx-8b08c1839a2e
+    ```
+
+6. If the values were entered successfully, you'll see the following message:
 
     ```bash
     Successfully configured CLI credentials!
     ```
 
-If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder.
+   or/and
+
+    ```bash
+    Successfully configured Cycode URLs!
+    ```
+
+If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder. 
+And the URLs were placed in the `config.yaml` file in that folder.
 
 ### Add to Environment Variables
 
@@ -226,9 +242,12 @@ The following are the options and commands available with the Cycode CLI applica
 | [configure](#use-configure-command) | Initial command to authenticate your CLI client with Cycode using client ID and client secret.                                        |
 | [ignore](#ingoring-scan-results)    | Ignore a specific value, path or rule ID.                                                                                             |
 | [scan](#running-a-scan)             | Scan content for secrets/IaC/SCA/SAST violations. You need to specify which scan type: `ci`/`commit_history`/`path`/`repository`/etc. |
+| [report](#running-a-report)         | Generate report for SCA SBOM. |
 | version                             | Show the version and exit.                                                                                                            |
 
-# Running a Scan
+# Scan Command
+
+## Running a Scan
 
 The Cycode CLI application offers several types of scans so that you can choose the option that best fits your case. The following are the current options and commands available:
 
@@ -253,7 +272,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | [pre_commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet |
 | [repository](#repository-scan)         | Scan git repository including its history                       |
 
-## Repository Scan
+### Repository Scan
 
 A repository scan examines an entire local repository for any exposed secrets or insecure misconfigurations. This more holistic scan type looks at everything: the current state of your repository and its commit history. It will look not only for secrets that are currently exposed within the repository but previously deleted secrets as well.
 
@@ -271,7 +290,7 @@ The following option is available for use with this command:
 |---------------------|-------------|
 | `-b, --branch TEXT` | Branch to scan, if not set scanning the default branch |
 
-### Branch Option
+#### Branch Option
 
 To scan a specific branch of your local repository, add the argument `-b` (alternatively, `--branch`) followed by the name of the branch you wish to scan.
 
@@ -283,7 +302,7 @@ or:
 
 `cycode scan repository ~/home/git/codebase --branch dev`
 
-## Monitor Option
+### Monitor Option
 
 > :memo: **Note**<br/>
 > This option is only available to SCA scans.
@@ -303,7 +322,7 @@ When using this option, the scan results from this scan will appear in the knowl
 > :warning: **NOTE**<br/>
 > You must be an `owner` or an `admin` in Cycode to view the knowledge graph page.
 
-## Report Option
+### Report Option
 
 > :memo: **Note**<br/>
 > This option is only available to SCA scans.
@@ -366,7 +385,7 @@ The report page will look something like below:
 
 ![](https://raw.githubusercontent.com/cycodehq-public/cycode-cli/main/images/scan_details.png)
 
-## Package Vulnerabilities Option
+### Package Vulnerabilities Option
 
 > :memo: **Note**<br/>
 > This option is only available to SCA scans.
@@ -381,7 +400,7 @@ or:
 
 `cycode scan --scan-type sca --sca-scan package-vulnerabilities repository ~/home/git/codebase`
 
-### License Compliance Option
+#### License Compliance Option
 
 > :memo: **Note**<br/>
 > This option is only available to SCA scans.
@@ -396,7 +415,7 @@ or:
 
 `cycode scan --scan-type sca --sca-scan license-compliance repository ~/home/git/codebase`
 
-### Severity Threshold
+#### Severity Threshold
 
 > :memo: **Note**<br/>
 > This option is only available to SCA scans.
@@ -411,7 +430,7 @@ or:
 
 `cycode scan --scan-type sca --security-threshold MEDIUM repository ~/home/git/codebase`
 
-## Path Scan
+### Path Scan
 
 A path scan examines a specific local directory and all the contents within it, instead of focusing solely on a GIT repository.
 
@@ -424,7 +443,7 @@ For example, consider a scenario in which you want to scan the directory located
 `cycode scan path ~/home/git/codebase`
 
 
-### Terraform Plan Scan
+#### Terraform Plan Scan
 
 Cycode CLI supports Terraform plan scanning (supporting Terraform 0.12 and later)
 
@@ -453,7 +472,7 @@ _How to generate a Terraform plan from Terraform configuration file?_
     `cycode scan -t iac path ~/PATH/TO/YOUR/{tfplan}.json`
 
 
-## Commit History Scan
+### Commit History Scan
 
 A commit history scan is limited to a local repositoryâ€™s previous commits, focused on finding any secrets within the commit history, instead of examining the repositoryâ€™s current state.
 
@@ -471,7 +490,7 @@ The following options are available for use with this command:
 |---------------------------|-------------|
 | `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
 
-### Commit Range Option
+#### Commit Range Option
 
 The commit history scan, by default, examines the repositoryâ€™s entire commit history, all the way back to the initial commit. You can instead limit the scan to a specific commit range by adding the argument `--commit_range` followed by the name you specify.
 
@@ -483,7 +502,7 @@ OR
 
 `cycode scan commit_history --commit_range {{from-commit-id}}...{{to-commit-id}} ~/home/git/codebase`
 
-## Pre-Commit Scan
+### Pre-Commit Scan
 
 A pre-commit scan automatically identifies any issues before you commit changes to your repository. There is no need to manually execute this scan; simply configure the pre-commit hook as detailed under the Installation section of this guide.
 
@@ -491,7 +510,7 @@ After your install the pre-commit hook and, you may, on occasion, wish to skip s
 
 `SKIP=cycode git commit -m <your commit message>`
 
-# Scan Results
+## Scan Results
 
 Each scan will complete with a message stating if any issues were found or not.
 
@@ -511,7 +530,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 
 In the event an issue is found, review the file in question for the specific line highlighted by the result message. Implement any changes required to resolve the issue, then execute the scan again.
 
-## Show/Hide Secrets
+### Show/Hide Secrets
 
 In the above example, a secret was found in the file `secret_test`, located in the subfolder `cli`. The second part of the message shows the specific line the secret appears in, which in this case is a value assigned to `googleApiKey`.
 
@@ -533,15 +552,15 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 2 | \ No newline at end of file
 ```
 
-## Soft Fail
+### Soft Fail
 
 Utilizing the soft fail feature will not fail the CI/CD step within the pipeline if the Cycode scan finds an issue. Additionally, in case an issue occurs from Cycodeâ€™s side, a soft fail will automatically execute to avoid interference.
 
 Add the `--soft-fail` argument to any type of scan to configure this feature, then assign a value of `1` if you want found issues to result in a failure within the CI/CD tool or `0` for scan results to have no impact (result in a `success` result).
 
-## Example Scan Results
+### Example Scan Results
 
-### Secrets Result Example
+#### Secrets Result Example
 
 ```bash
 â›”  Found issue of type: generic-password (rule ID: ce3a4de0-9dfc-448b-a004-c538cf8b4710) in file: config/my_config.py
@@ -551,7 +570,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 2 | \ No newline at end of file
 ```
 
-### IaC Result Example
+#### IaC Result Example
 
 ```bash
 â›”  Found issue of type: Resource should use non-default namespace (rule ID: bdaa88e2-5e7c-46ff-ac2a-29721418c59c) in file: ./k8s/k8s.yaml   â›”
@@ -561,7 +580,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 9 |   resourceVersion: "4228"
 ```
 
-### SCA Result Example
+#### SCA Result Example
 
 ```bash
 â›”  Found issue of type: Security vulnerability in package 'pyyaml' referenced in project 'Users/myuser/my-test-repo': Improper Input Validation in PyYAML (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: Users/myuser/my-test-repo/requirements.txt   â›”
@@ -571,7 +590,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 3 | cleo==1.0.0a5
 ```
 
-### SAST Result Example
+#### SAST Result Example
 
 ```bash
 â›”  Found issue of type: Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the network and be able to obtain sensitive information. Use 'https://' instead. (rule ID: 3fbbd34b-b00d-4415-b9d9-f861c076b9f2) in file: ./requests.py   â›”
@@ -581,7 +600,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 4 | print(res.content)
 ```
 
-# Ignoring Scan Results
+## Ignoring Scan Results
 
 Ignore rules can be added to ignore specific secret values, specific SHA512 values, specific paths, and specific Cycode secret and IaC rule IDs. This will cause the scan to not alert these values. The ignore rules are written and saved locally in the `./.cycode/config.yaml` file.
 
@@ -612,7 +631,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 
 If this is a value that is not a valid secret, then use the the `cycode ignore` command to ignore the secret by its value, SHA value, specific path, or rule ID. If this is an IaC scan, then you can ignore that result by its path or rule ID.
 
-## Ignoring a Secret Value
+### Ignoring a Secret Value
 
 To ignore a specific secret value, you will need to use the `--by-value` flag. This will ignore the given secret value from all future scans. Use the following command to add a secret value to be ignored:
 
@@ -624,7 +643,7 @@ In the example at the top of this section, the command to ignore a specific secr
 
 In the example above, replace the `h3110w0r1d!@#$350` value with your non-masked secret value. See the Cycode scan options for details on how to see secret values in the scan results.
 
-## Ignoring a Secret SHA Value
+### Ignoring a Secret SHA Value
 
 To ignore a specific secret SHA value, you will need to use the `--by-sha` flag. This will ignore the given secret SHA value from all future scans. Use the following command to add a secret SHA value to be ignored:
 
@@ -636,7 +655,7 @@ In the example at the top of this section, the command to ignore a specific secr
 
 In the example above, replace the `a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0` value with your secret SHA value.
 
-## Ignoring a Path
+### Ignoring a Path
 
 To ignore a specific path for either secret, IaC, or SCA scans, you will need to use the `--by-path` flag in conjunction with the `-t, --scan-type` flag (you must specify the scan type). This will ignore the given path from all future scans for the given scan type. Use the following command to add a path to be ignored:
 
@@ -664,7 +683,7 @@ In the example at the top of this section, the command to ignore a specific path
 
 In the example above, replace the `~/home/my-repo/config` value with your path value.
 
-## Ignoring a Secret, IaC, SCA, or SAST Rule
+### Ignoring a Secret, IaC, SCA, or SAST Rule
 
 To ignore a specific secret, IaC, SCA, or SAST rule, you will need to use the `--by-rule` flag in conjunction with the `-t, --scan-type` flag (you must specify the scan type). This will ignore the given rule ID value from all future scans. Use the following command to add a rule ID value to be ignored:
 
@@ -692,7 +711,7 @@ In the example at the top of this section, the command to ignore the specific SC
 
 In the example above, replace the `dc21bc6b-9f4f-46fb-9f92-e4327ea03f6b` value with the rule ID you want to ignore.
 
-## Ignoring a Package
+### Ignoring a Package
 
 > :memo: **Note**<br/>
 > This option is only available to the SCA scans.
@@ -710,6 +729,44 @@ In the example below, the command to ignore a specific SCA package is as follows
 `cycode ignore --scan-type sca --by-package pyyaml@5.3.1`
 
 In the example above, replace `pyyaml` with package name and `5.3.1` with the package version you want to ignore.
+
+# Report Command
+
+## Generating SBOM Report
+
+A software bill of materials (SBOM) is an inventory of all constituent components and software dependencies involved in the development and delivery of an application.
+Using this command you can create an SBOM report for your local project or for your repository URI.
+
+The following options are available for use with this command:
+| Option              | Description | Required | Default |
+|---------------------|-------------|----------|---------|
+| `-f, --format [spdx-2.2\|spdx-2.3\|cyclonedx-1.4]` | SBOM format | Yes | | 
+| `-o, --output-format [JSON]` | Specify the output file format | No | json |
+| `--output-file PATH` | Output file | No | autogenerated filename saved to the current directory |
+| `--include-vulnerabilities` | Include vulnerabilities | No | False |
+| `--include-dev-dependencies` | Include dev dependencies | No | False |
+
+The following commands are available for use with this command: 
+| Command              | Description |
+|---------------------|-------------|
+| `path` | Generate SBOM report for provided path in the command | 
+| `repository_url` | Generate SBOM report for provided repository URI in the command | 
+
+### Repository
+
+To create an SBOM report for a repository URI:\
+`cycode report sbom --format <sbom format> --include-vulnerabilities --include-dev-dependencies --output-file </path/to/file> repository_url <repository url>`
+
+For example:\
+`cycode report sbom --format spdx-2.3 --include-vulnerabilities --include-dev-dependencies repository_url https://github.com/cycodehq-public/cycode-cli.git`
+
+### Local Project
+
+To create an SBOM report for a path:\
+`cycode report sbom --format <sbom format> --include-vulnerabilities --include-dev-dependencies --output-file </path/to/file> path </path/to/project>`
+
+For example:\
+`cycode report sbom --format spdx-2.3 --include-vulnerabilities --include-dev-dependencies path /path/to/local/project`
 
 # Syntax Help
 
@@ -734,3 +791,12 @@ For example, to see options available for a Path Scan, you would simply enter:
 To see the options available for the ignore scan function, use this command:
 
 `cycode ignore --help`
+
+To see the options available for report, use this command:
+
+`cycode report --help`
+
+
+To see the options available for a specific type of report, enter:
+
+`cycode scan {{option}} --help`

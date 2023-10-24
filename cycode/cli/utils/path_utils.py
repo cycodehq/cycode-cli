@@ -1,29 +1,9 @@
 import json
 import os
 from functools import lru_cache
-from typing import AnyStr, Iterable, List, Optional
+from typing import AnyStr, List, Optional
 
-import pathspec
 from binaryornot.check import is_binary
-
-
-def get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> List[str]:
-    absolute_path = get_absolute_path(path)
-
-    if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
-        raise FileNotFoundError(f'the specified path was not found, path: {absolute_path}')
-
-    if os.path.isfile(absolute_path):
-        return [absolute_path]
-
-    all_file_paths = set(_get_all_existing_files_in_directory(absolute_path))
-
-    path_spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, exclude_patterns)
-    excluded_file_paths = set(path_spec.match_files(all_file_paths))
-
-    relevant_file_paths = all_file_paths - excluded_file_paths
-
-    return [file_path for file_path in relevant_file_paths if os.path.isfile(file_path)]
 
 
 @lru_cache(maxsize=None)
@@ -52,16 +32,6 @@ def get_file_size(filename: str) -> int:
 
 def get_path_by_os(filename: str) -> str:
     return filename.replace('/', os.sep)
-
-
-def _get_all_existing_files_in_directory(path: str) -> List[str]:
-    files: List[str] = []
-
-    for root, _, filenames in os.walk(path):
-        for filename in filenames:
-            files.append(os.path.join(root, filename))
-
-    return files
 
 
 def is_path_exists(path: str) -> bool:
@@ -98,3 +68,11 @@ def load_json(txt: str) -> Optional[dict]:
 def change_filename_extension(filename: str, extension: str) -> str:
     base_name, _ = os.path.splitext(filename)
     return f'{base_name}.{extension}'
+
+
+def concat_unique_id(filename: str, unique_id: str) -> str:
+    if filename.startswith(os.sep):
+        # remove leading slash to join the path correctly
+        filename = filename[len(os.sep) :]
+
+    return os.path.join(unique_id, filename)

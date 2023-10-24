@@ -76,10 +76,6 @@ class ConfigurationManager:
         keys = set(list(local_exclusions.keys()) + list(global_exclusions.keys()))
         return {key: local_exclusions.get(key, []) + global_exclusions.get(key, []) for key in keys}
 
-    def update_base_url(self, base_url: str, scope: str = 'local') -> None:
-        config_file_manager = self.get_config_file_manager(scope)
-        config_file_manager.update_base_url(base_url)
-
     def get_or_create_installation_id(self) -> str:
         config_file_manager = self.get_config_file_manager()
 
@@ -100,6 +96,13 @@ class ConfigurationManager:
         return int(
             self._get_value_from_environment_variables(
                 consts.SCAN_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME, consts.DEFAULT_SCAN_POLLING_TIMEOUT_IN_SECONDS
+            )
+        )
+
+    def get_report_polling_timeout_in_seconds(self) -> int:
+        return int(
+            self._get_value_from_environment_variables(
+                consts.REPORT_POLLING_TIMEOUT_IN_SECONDS_ENV_VAR_NAME, consts.DEFAULT_REPORT_POLLING_TIMEOUT_IN_SECONDS
             )
         )
 

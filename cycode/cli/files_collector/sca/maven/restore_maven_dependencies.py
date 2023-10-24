@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import click
 
-from cycode.cli.helpers.maven.base_restore_maven_dependencies import (
+from cycode.cli.files_collector.sca.maven.base_restore_maven_dependencies import (
     BaseRestoreMavenDependencies,
     build_dep_tree_path,
     execute_command,

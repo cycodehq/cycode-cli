@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 import responses
 
+from cycode.cyclient.client_creator import create_scan_client
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from cycode.cyclient.scan_client import ScanClient
-from cycode.cyclient.scan_config.scan_config_creator import create_scan_client
 
 _EXPECTED_API_TOKEN = 'someJWT'
 

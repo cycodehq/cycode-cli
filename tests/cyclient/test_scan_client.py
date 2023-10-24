@@ -8,11 +8,11 @@ import responses
 from requests import Timeout
 from requests.exceptions import ProxyError
 
-from cycode.cli.code_scanner import zip_documents_to_scan
+from cycode.cli.code_scanner import zip_documents
 from cycode.cli.config import config
 from cycode.cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
+from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.models import Document
-from cycode.cli.zip_file import InMemoryZip
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import TEST_FILES_PATH
 
@@ -42,7 +42,7 @@ def get_test_zip_file(scan_type: str) -> InMemoryZip:
             with open(path, 'r', encoding='UTF-8') as f:
                 test_documents.append(Document(path, f.read(), is_git_diff_format=False))
 
-    return zip_documents_to_scan(scan_type, InMemoryZip(), test_documents)
+    return zip_documents(scan_type, test_documents)
 
 
 def get_zipped_file_scan_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:

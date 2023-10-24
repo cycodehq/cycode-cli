@@ -5,8 +5,7 @@ import sys
 import time
 import traceback
 from platform import platform
-from sys import getsizeof
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import click
@@ -15,39 +14,37 @@ from git import NULL_TREE, InvalidGitRepositoryError, Repo
 from cycode.cli import consts
 from cycode.cli.ci_integrations import get_commit_range
 from cycode.cli.config import configuration_manager
-from cycode.cli.consts import SCA_SKIP_RESTORE_DEPENDENCIES_FLAG
 from cycode.cli.exceptions import custom_exceptions
-from cycode.cli.helpers import sca_code_scanner, tf_content_generator
+from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
+from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+from cycode.cli.files_collector.path_documents import get_relevant_document
+from cycode.cli.files_collector.repository_documents import (
+    calculate_pre_receive_commit_range,
+    get_commit_range_modified_documents,
+    get_diff_file_content,
+    get_diff_file_path,
+    get_git_repository_tree_file_entries,
+    get_pre_commit_modified_documents,
+    parse_commit_range,
+)
+from cycode.cli.files_collector.sca import sca_code_scanner
+from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
+from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, CliErrors, Document, DocumentDetections, LocalScanResult, Severity
 from cycode.cli.printers import ConsolePrinter
-from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.path_utils import (
-    change_filename_extension,
-    get_file_content,
-    get_file_size,
     get_path_by_os,
-    get_relevant_files_in_path,
-    is_binary_file,
-    is_sub_path,
-    load_json,
 )
-from cycode.cli.utils.progress_bar import ProgressBarSection
-from cycode.cli.utils.progress_bar import logger as progress_bar_logger
+from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
-from cycode.cli.utils.string_utils import get_content_size, is_binary_content
 from cycode.cli.utils.task_timer import TimeoutAfter
-from cycode.cli.zip_file import InMemoryZip
 from cycode.cyclient import logger
+from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
 
 if TYPE_CHECKING:
-    from git import Blob, Diff
-    from git.objects.base import IndexObjUnion
-    from git.objects.tree import TraversedTreeTup
-
-    from cycode.cli.utils.progress_bar import BaseProgressBar
     from cycode.cyclient.models import ScanDetailsResponse
     from cycode.cyclient.scan_client import ScanClient
 
@@ -78,17 +75,17 @@ def scan_repository(context: click.Context, path: str, branch: str) -> None:
         progress_bar.start()
 
         file_entries = list(get_git_repository_tree_file_entries(path, branch))
-        progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
+        progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
 
         documents_to_scan = []
         for file in file_entries:
             # FIXME(MarshalX): probably file could be tree or submodule too. we expect blob only
-            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+            progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
 
             file_path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
             documents_to_scan.append(Document(file_path, file.data_stream.read().decode('UTF-8', errors='replace')))
 
-        documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
+        documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
 
         perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, is_git_diff=False)
 
@@ -140,16 +137,16 @@ def scan_commit_range(
     total_commits_count = int(repo.git.rev_list('--count', commit_range))
     logger.debug(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
 
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
+    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
     scanned_commits_count = 0
     for commit in repo.iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
             logger.debug(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
-            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
+            progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
             break
 
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
 
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
@@ -172,7 +169,7 @@ def scan_commit_range(
             {'path': path, 'commit_range': commit_range, 'commit_id': commit_id},
         )
 
-        documents_to_scan.extend(exclude_irrelevant_documents_to_scan(context, commit_documents_to_scan))
+        documents_to_scan.extend(exclude_irrelevant_documents_to_scan(scan_type, commit_documents_to_scan))
         scanned_commits_count += 1
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
@@ -199,30 +196,7 @@ def scan_path(context: click.Context, path: str) -> None:
     progress_bar.start()
 
     logger.debug('Starting path scan process, %s', {'path': path})
-
-    all_files_to_scan = get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
-
-    # we are double the progress bar section length because we are going to process the files twice
-    # first time to get the file list with respect of excluded patterns (excluding takes seconds to execute)
-    # second time to get the files content
-    progress_bar_section_len = len(all_files_to_scan) * 2
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, progress_bar_section_len)
-
-    relevant_files_to_scan = exclude_irrelevant_files(context, all_files_to_scan)
-
-    # after finishing the first processing (excluding),
-    # we must update the progress bar stage with respect of excluded files.
-    # now it's possible that we will not process x2 of the files count
-    # because some of them were excluded, we should subtract the excluded files count
-    # from the progress bar section length
-    excluded_files_count = len(all_files_to_scan) - len(relevant_files_to_scan)
-    progress_bar_section_len = progress_bar_section_len - excluded_files_count
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, progress_bar_section_len)
-
-    logger.debug(
-        'Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(relevant_files_to_scan)}
-    )
-    scan_disk_files(context, path, relevant_files_to_scan)
+    scan_disk_files(context, path)
 
 
 @click.command(short_help='Use this command to scan any content that was not committed yet.')
@@ -240,14 +214,14 @@ def pre_commit_scan(context: click.Context, ignored_args: List[str]) -> None:
 
     diff_files = Repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
 
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
+    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
 
     documents_to_scan = []
     for file in diff_files:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
+        progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
         documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
 
-    documents_to_scan = exclude_irrelevant_documents_to_scan(context, documents_to_scan)
+    documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
     scan_documents(context, documents_to_scan, is_git_diff=True)
 
 
@@ -293,10 +267,13 @@ def pre_receive_scan(context: click.Context, ignored_args: List[str]) -> None:
 
 
 def scan_sca_pre_commit(context: click.Context) -> None:
+    scan_type = context.obj['scan_type']
     scan_parameters = get_default_scan_parameters(context)
-    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(context.obj['progress_bar'])
-    git_head_documents = exclude_irrelevant_documents_to_scan(context, git_head_documents)
-    pre_committed_documents = exclude_irrelevant_documents_to_scan(context, pre_committed_documents)
+    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(
+        context.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES
+    )
+    git_head_documents = exclude_irrelevant_documents_to_scan(scan_type, git_head_documents)
+    pre_committed_documents = exclude_irrelevant_documents_to_scan(scan_type, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
     scan_commit_range_documents(
         context,
@@ -308,15 +285,16 @@ def scan_sca_pre_commit(context: click.Context) -> None:
 
 
 def scan_sca_commit_range(context: click.Context, path: str, commit_range: str) -> None:
+    scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
     scan_parameters = get_scan_parameters(context, path)
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = get_commit_range_modified_documents(
-        progress_bar, path, from_commit_rev, to_commit_rev
+        progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
     )
-    from_commit_documents = exclude_irrelevant_documents_to_scan(context, from_commit_documents)
-    to_commit_documents = exclude_irrelevant_documents_to_scan(context, to_commit_documents)
+    from_commit_documents = exclude_irrelevant_documents_to_scan(scan_type, from_commit_documents)
+    to_commit_documents = exclude_irrelevant_documents_to_scan(scan_type, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(
         path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
     )
@@ -324,27 +302,15 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str) 
     scan_commit_range_documents(context, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters)
 
 
-def scan_disk_files(context: click.Context, path: str, files_to_scan: List[str]) -> None:
+def scan_disk_files(context: click.Context, path: str) -> None:
     scan_parameters = get_scan_parameters(context, path)
     scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
-    is_git_diff = False
-
     try:
-        documents: List[Document] = []
-        for file in files_to_scan:
-            progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
-
-            content = get_file_content(file)
-            if not content:
-                continue
-
-            documents.append(_generate_document(file, scan_type, content, is_git_diff))
-
-        perform_pre_scan_documents_actions(context, scan_type, documents, is_git_diff)
-        scan_documents(context, documents, is_git_diff=is_git_diff, scan_parameters=scan_parameters)
-
+        documents = get_relevant_document(progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, scan_type, path)
+        perform_pre_scan_documents_actions(context, scan_type, documents)
+        scan_documents(context, documents, scan_parameters=scan_parameters)
     except Exception as e:
         _handle_exception(context, e)
 
@@ -370,8 +336,8 @@ def _get_scan_documents_thread_func(
 
         try:
             logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
-            zipped_documents = zip_documents_to_scan(scan_type, InMemoryZip(), batch)
-            zip_file_size = getsizeof(zipped_documents.in_memory_zip)
+            zipped_documents = zip_documents(scan_type, batch)
+            zip_file_size = zipped_documents.size
 
             scan_result = perform_scan(
                 cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range, scan_parameters
@@ -442,8 +408,8 @@ def scan_documents(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
 
-    progress_bar.set_section_length(ProgressBarSection.GENERATE_REPORT, 1)
-    progress_bar.update(ProgressBarSection.GENERATE_REPORT)
+    progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
+    progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
     progress_bar.stop()
 
     set_issue_detected_by_scan_results(context, local_scan_results)
@@ -471,19 +437,15 @@ def scan_commit_range_documents(
     to_commit_zipped_documents = InMemoryZip()
 
     try:
-        progress_bar.set_section_length(ProgressBarSection.SCAN, 1)
+        progress_bar.set_section_length(ScanProgressBarSection.SCAN, 1)
 
         scan_result = init_default_scan_result(scan_id)
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
             logger.debug('Preparing from-commit zip')
-            from_commit_zipped_documents = zip_documents_to_scan(
-                scan_type, from_commit_zipped_documents, from_documents_to_scan
-            )
+            from_commit_zipped_documents = zip_documents(scan_type, from_documents_to_scan)
 
             logger.debug('Preparing to-commit zip')
-            to_commit_zipped_documents = zip_documents_to_scan(
-                scan_type, to_commit_zipped_documents, to_documents_to_scan
-            )
+            to_commit_zipped_documents = zip_documents(scan_type, to_documents_to_scan)
 
             scan_result = perform_commit_range_scan_async(
                 cycode_client,
@@ -494,15 +456,15 @@ def scan_commit_range_documents(
                 timeout,
             )
 
-        progress_bar.update(ProgressBarSection.SCAN)
-        progress_bar.set_section_length(ProgressBarSection.GENERATE_REPORT, 1)
+        progress_bar.update(ScanProgressBarSection.SCAN)
+        progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
 
         local_scan_result = create_local_scan_result(
             scan_result, to_documents_to_scan, scan_command_type, scan_type, severity_threshold
         )
         set_issue_detected_by_scan_results(context, [local_scan_result])
 
-        progress_bar.update(ProgressBarSection.GENERATE_REPORT)
+        progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
         progress_bar.stop()
 
         # errors will be handled with try-except block; printing will not occur on errors
@@ -513,9 +475,7 @@ def scan_commit_range_documents(
         _handle_exception(context, e)
         error_message = str(e)
 
-    zip_file_size = getsizeof(from_commit_zipped_documents.in_memory_zip) + getsizeof(
-        to_commit_zipped_documents.in_memory_zip
-    )
+    zip_file_size = from_commit_zipped_documents.size + to_commit_zipped_documents.size
 
     detections_count = relevant_detections_count = 0
     if local_scan_result:
@@ -577,45 +537,9 @@ def create_local_scan_result(
     )
 
 
-def perform_pre_scan_documents_actions(
-    context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
-) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
-        logger.debug('Perform pre scan document add_dependencies_tree_document action')
-        sca_code_scanner.add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
-
-
-def zip_documents_to_scan(scan_type: str, zip_file: InMemoryZip, documents: List[Document]) -> InMemoryZip:
-    start_zip_creation_time = time.time()
-
-    for index, document in enumerate(documents):
-        zip_file_size = getsizeof(zip_file.in_memory_zip)
-        validate_zip_file_size(scan_type, zip_file_size)
-
-        logger.debug(
-            'adding file to zip, %s', {'index': index, 'filename': document.path, 'unique_id': document.unique_id}
-        )
-        zip_file.append(document.path, document.unique_id, document.content)
-    zip_file.close()
-
-    end_zip_creation_time = time.time()
-    zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
-    logger.debug('finished to create zip file, %s', {'zip_creation_time': zip_creation_time})
-    return zip_file
-
-
-def validate_zip_file_size(scan_type: str, zip_file_size: int) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE:
-        if zip_file_size > consts.SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES:
-            raise custom_exceptions.ZipTooLargeError(consts.SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
-    else:
-        if zip_file_size > consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES:
-            raise custom_exceptions.ZipTooLargeError(consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES)
-
-
 def perform_scan(
     cycode_client: 'ScanClient',
-    zipped_documents: InMemoryZip,
+    zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_id: str,
     is_git_diff: bool,
@@ -632,7 +556,7 @@ def perform_scan(
 
 
 def perform_scan_async(
-    cycode_client: 'ScanClient', zipped_documents: InMemoryZip, scan_type: str, scan_parameters: dict
+    cycode_client: 'ScanClient', zipped_documents: 'InMemoryZip', scan_type: str, scan_parameters: dict
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
@@ -642,8 +566,8 @@ def perform_scan_async(
 
 def perform_commit_range_scan_async(
     cycode_client: 'ScanClient',
-    from_commit_zipped_documents: InMemoryZip,
-    to_commit_zipped_documents: InMemoryZip,
+    from_commit_zipped_documents: 'InMemoryZip',
+    to_commit_zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
     timeout: Optional[int] = None,
@@ -759,56 +683,6 @@ def parse_pre_receive_input() -> str:
     return pre_receive_input.splitlines()[0]
 
 
-def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[str]:
-    end_commit = get_end_commit_from_branch_update_details(branch_update_details)
-
-    # branch is deleted, no need to perform scan
-    if end_commit == consts.EMPTY_COMMIT_SHA:
-        return None
-
-    start_commit = get_oldest_unupdated_commit_for_branch(end_commit)
-
-    # no new commit to update found
-    if not start_commit:
-        return None
-
-    return f'{start_commit}~1...{end_commit}'
-
-
-def get_end_commit_from_branch_update_details(update_details: str) -> str:
-    # update details pattern: <start_commit> <end_commit> <ref>
-    _, end_commit, _ = update_details.split()
-    return end_commit
-
-
-def get_oldest_unupdated_commit_for_branch(commit: str) -> Optional[str]:
-    # get a list of commits by chronological order that are not in the remote repository yet
-    # more info about rev-list command: https://git-scm.com/docs/git-rev-list
-    not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
-    commits = not_updated_commits.splitlines()
-    if not commits:
-        return None
-    return commits[0]
-
-
-def get_diff_file_path(file: 'Diff') -> Optional[str]:
-    return file.b_path if file.b_path else file.a_path
-
-
-def get_diff_file_content(file: 'Diff') -> str:
-    return file.diff.decode('UTF-8', errors='replace')
-
-
-def should_process_git_object(obj: 'Blob', _: int) -> bool:
-    return obj.type == 'blob' and obj.size > 0
-
-
-def get_git_repository_tree_file_entries(
-    path: str, branch: str
-) -> Union[Iterator['IndexObjUnion'], Iterator['TraversedTreeTup']]:
-    return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
-
-
 def get_default_scan_parameters(context: click.Context) -> dict:
     return {
         'monitor': context.obj.get('monitor'),
@@ -837,34 +711,6 @@ def try_get_git_remote_url(path: str) -> Optional[dict]:
     except Exception as e:
         logger.debug('Failed to get git remote URL. %s', {'exception_message': str(e)})
         return None
-
-
-def exclude_irrelevant_documents_to_scan(context: click.Context, documents_to_scan: List[Document]) -> List[Document]:
-    logger.debug('Excluding irrelevant documents to scan')
-
-    scan_type = context.obj['scan_type']
-
-    relevant_documents = []
-    for document in documents_to_scan:
-        if _is_relevant_document_to_scan(scan_type, document.path, document.content):
-            relevant_documents.append(document)
-
-    return relevant_documents
-
-
-def exclude_irrelevant_files(context: click.Context, filenames: List[str]) -> List[str]:
-    scan_type = context.obj['scan_type']
-    progress_bar = context.obj['progress_bar']
-
-    relevant_files = []
-    for filename in filenames:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
-        if _is_relevant_file_to_scan(scan_type, filename):
-            relevant_files.append(filename)
-
-    is_sub_path.cache_clear()  # free up memory
-
-    return relevant_files
 
 
 def exclude_irrelevant_detections(
@@ -916,60 +762,6 @@ def _exclude_detections_by_exclusions_configuration(detections: List[Detection],
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
 
 
-def get_pre_commit_modified_documents(progress_bar: 'BaseProgressBar') -> Tuple[List[Document], List[Document]]:
-    git_head_documents = []
-    pre_committed_documents = []
-
-    repo = Repo(os.getcwd())
-    diff_files = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
-    for file in diff_files:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
-
-        diff_file_path = get_diff_file_path(file)
-        file_path = get_path_by_os(diff_file_path)
-
-        file_content = sca_code_scanner.get_file_content_from_commit(repo, consts.GIT_HEAD_COMMIT_REV, diff_file_path)
-        if file_content is not None:
-            git_head_documents.append(Document(file_path, file_content))
-
-        if os.path.exists(file_path):
-            file_content = get_file_content(file_path)
-            pre_committed_documents.append(Document(file_path, file_content))
-
-    return git_head_documents, pre_committed_documents
-
-
-def get_commit_range_modified_documents(
-    progress_bar: 'BaseProgressBar', path: str, from_commit_rev: str, to_commit_rev: str
-) -> Tuple[List[Document], List[Document]]:
-    from_commit_documents = []
-    to_commit_documents = []
-
-    repo = Repo(path)
-    diff = repo.commit(from_commit_rev).diff(to_commit_rev)
-
-    modified_files_diff = [
-        change for change in diff if change.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
-    ]
-    progress_bar.set_section_length(ProgressBarSection.PREPARE_LOCAL_FILES, len(modified_files_diff))
-    for blob in modified_files_diff:
-        progress_bar.update(ProgressBarSection.PREPARE_LOCAL_FILES)
-
-        diff_file_path = get_diff_file_path(blob)
-        file_path = get_path_by_os(diff_file_path)
-
-        file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
-        if file_content is not None:
-            from_commit_documents.append(Document(file_path, file_content))
-
-        file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
-        if file_content is not None:
-            to_commit_documents.append(Document(file_path, file_content))
-
-    return from_commit_documents, to_commit_documents
-
-
 def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     exclusions_by_value = exclusions.get(consts.EXCLUSIONS_BY_VALUE_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_value):
@@ -1014,13 +806,6 @@ def _is_detection_sha_configured_in_exclusions(detection: Detection, exclusions:
     return detection_sha in exclusions
 
 
-def _is_path_configured_in_exclusions(scan_type: str, file_path: str) -> bool:
-    exclusions_by_path = configuration_manager.get_exclusions_by_scan_type(scan_type).get(
-        consts.EXCLUSIONS_BY_PATH_SECTION_NAME, []
-    )
-    return any(is_sub_path(exclusion_path, file_path) for exclusion_path in exclusions_by_path)
-
-
 def _get_package_name(detection: Detection) -> str:
     package_name = detection.detection_details.get('vulnerable_component', '')
     package_version = detection.detection_details.get('vulnerable_component_version', '')
@@ -1032,119 +817,6 @@ def _get_package_name(detection: Detection) -> str:
     return f'{package_name}@{package_version}'
 
 
-def _is_file_relevant_for_sca_scan(filename: str) -> bool:
-    if any(sca_excluded_path in filename for sca_excluded_path in consts.SCA_EXCLUDED_PATHS):
-        logger.debug("file is irrelevant because it is from node_modules's inner path, %s", {'filename': filename})
-        return False
-
-    return True
-
-
-def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
-    if _is_subpath_of_cycode_configuration_folder(filename):
-        logger.debug('file is irrelevant because it is in cycode configuration directory, %s', {'filename': filename})
-        return False
-
-    if _is_path_configured_in_exclusions(scan_type, filename):
-        logger.debug('file is irrelevant because the file path is in the ignore paths list, %s', {'filename': filename})
-        return False
-
-    if not _is_file_extension_supported(scan_type, filename):
-        logger.debug('file is irrelevant because the file extension is not supported, %s', {'filename': filename})
-        return False
-
-    if is_binary_file(filename):
-        logger.debug('file is irrelevant because it is binary file, %s', {'filename': filename})
-        return False
-
-    if scan_type != consts.SCA_SCAN_TYPE and _does_file_exceed_max_size_limit(filename):
-        logger.debug('file is irrelevant because its exceeded max size limit, %s', {'filename': filename})
-        return False
-
-    if scan_type == consts.SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename):
-        return False
-
-    return True
-
-
-def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -> bool:
-    if _is_subpath_of_cycode_configuration_folder(filename):
-        logger.debug(
-            'document is irrelevant because it is in cycode configuration directory, %s', {'filename': filename}
-        )
-        return False
-
-    if _is_path_configured_in_exclusions(scan_type, filename):
-        logger.debug(
-            'document is irrelevant because the document path is in the ignore paths list, %s', {'filename': filename}
-        )
-        return False
-
-    if not _is_file_extension_supported(scan_type, filename):
-        logger.debug('document is irrelevant because the file extension is not supported, %s', {'filename': filename})
-        return False
-
-    if is_binary_content(content):
-        logger.debug('document is irrelevant because it is binary, %s', {'filename': filename})
-        return False
-
-    if scan_type != consts.SCA_SCAN_TYPE and _does_document_exceed_max_size_limit(content):
-        logger.debug('document is irrelevant because its exceeded max size limit, %s', {'filename': filename})
-        return False
-    return True
-
-
-def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
-    filename = filename.lower()
-
-    if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        return filename.endswith(consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
-
-    if scan_type == consts.SCA_SCAN_TYPE:
-        return filename.endswith(consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)
-
-    return not filename.endswith(consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE)
-
-
-def _generate_document(file: str, scan_type: str, content: str, is_git_diff: bool) -> Document:
-    if _is_iac(scan_type) and _is_tfplan_file(file, content):
-        return _handle_tfplan_file(file, content, is_git_diff)
-    return Document(file, content, is_git_diff)
-
-
-def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
-    document_name = _generate_tfplan_document_name(file)
-    tf_content = tf_content_generator.generate_tf_content_from_tfplan(file, content)
-    return Document(document_name, tf_content, is_git_diff)
-
-
-def _generate_tfplan_document_name(path: str) -> str:
-    document_name = change_filename_extension(path, 'tf')
-    timestamp = int(time.time())
-    return f'{timestamp}-{document_name}'
-
-
-def _is_iac(scan_type: str) -> bool:
-    return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
-
-
-def _is_tfplan_file(file: str, content: str) -> bool:
-    if not file.endswith('.json'):
-        return False
-    tf_plan = load_json(content)
-    if not isinstance(tf_plan, dict):
-        return False
-    return 'resource_changes' in tf_plan
-
-
-def _does_file_exceed_max_size_limit(filename: str) -> bool:
-    return get_file_size(filename) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
-
-
-def _does_document_exceed_max_size_limit(content: str) -> bool:
-    return get_content_size(content) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
-
-
 def _get_document_by_file_name(
     documents: List[Document], file_name: str, unique_id: Optional[str] = None
 ) -> Optional[Document]:
@@ -1153,14 +825,6 @@ def _get_document_by_file_name(
             return document
 
     return None
-
-
-def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
-    return (
-        is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename)
-        or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename)
-        or filename.endswith(ConfigFileManager.get_config_file_route())
-    )
 
 
 def _handle_exception(context: click.Context, e: Exception, *, return_exception: bool = False) -> Optional[CliError]:
@@ -1376,18 +1040,6 @@ def _does_reach_to_max_commits_to_scan_limit(commit_ids: List[str], max_commits_
     return len(commit_ids) >= max_commits_count
 
 
-def parse_commit_range(commit_range: str, path: str) -> Tuple[str, str]:
-    from_commit_rev = None
-    to_commit_rev = None
-
-    for commit in Repo(path).iter_commits(rev=commit_range):
-        if not to_commit_rev:
-            to_commit_rev = commit.hexsha
-        from_commit_rev = commit.hexsha
-
-    return from_commit_rev, to_commit_rev
-
-
 def _normalize_file_path(path: str) -> str:
     if path.startswith('/'):
         return path[1:]
@@ -1403,9 +1055,7 @@ def perform_post_pre_receive_scan_actions(context: click.Context) -> None:
 
 def enable_verbose_mode(context: click.Context) -> None:
     context.obj['verbose'] = True
-    # TODO(MarshalX): rework setting the log level for loggers
-    logger.setLevel(logging.DEBUG)
-    progress_bar_logger.setLevel(logging.DEBUG)
+    set_logging_level(logging.DEBUG)
 
 
 def is_verbose_mode_requested_in_pre_receive_scan() -> bool:

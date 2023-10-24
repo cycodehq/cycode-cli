@@ -9,7 +9,7 @@ from cycode.cli.consts import (
     SCAN_BATCH_SCANS_PER_CPU,
 )
 from cycode.cli.models import Document
-from cycode.cli.utils.progress_bar import ProgressBarSection
+from cycode.cli.utils.progress_bar import ScanProgressBarSection
 
 if TYPE_CHECKING:
     from cycode.cli.models import CliError, LocalScanResult
@@ -56,7 +56,7 @@ def run_parallel_batched_scan(
     max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
 ) -> Tuple[Dict[str, 'CliError'], List['LocalScanResult']]:
     batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
-    progress_bar.set_section_length(ProgressBarSection.SCAN, len(batches))  # * 3
+    progress_bar.set_section_length(ScanProgressBarSection.SCAN, len(batches))  # * 3
     # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:
     # 1. scan creation
     # 2. scan completion
@@ -73,6 +73,6 @@ def run_parallel_batched_scan(
             if err:
                 cli_errors[scan_id] = err
 
-            progress_bar.update(ProgressBarSection.SCAN)
+            progress_bar.update(ScanProgressBarSection.SCAN)
 
     return cli_errors, local_scan_results

@@ -2,7 +2,7 @@ from typing import List
 
 import click
 
-from cycode.cli.helpers.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
+from cycode.cli.files_collector.sca.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 from cycode.cli.models import Document
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'

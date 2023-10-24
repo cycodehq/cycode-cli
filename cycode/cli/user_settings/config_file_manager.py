@@ -52,8 +52,12 @@ class ConfigFileManager(BaseFileManager):
             command_scan_type, self.EXCLUDE_DETECTIONS_IN_DELETED_LINES
         )
 
-    def update_base_url(self, base_url: str) -> None:
-        update_data = {self.ENVIRONMENT_SECTION_NAME: {self.API_URL_FIELD_NAME: base_url}}
+    def update_api_base_url(self, api_url: str) -> None:
+        update_data = {self.ENVIRONMENT_SECTION_NAME: {self.API_URL_FIELD_NAME: api_url}}
+        self.write_content_to_file(update_data)
+
+    def update_app_base_url(self, app_url: str) -> None:
+        update_data = {self.ENVIRONMENT_SECTION_NAME: {self.APP_URL_FIELD_NAME: app_url}}
         self.write_content_to_file(update_data)
 
     def get_installation_id(self) -> Optional[str]:

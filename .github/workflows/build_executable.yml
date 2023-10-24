@@ -1,9 +1,13 @@
-name: Build executable version of CLI
+name: Build executable version of CLI and upload artifact. On dispatch event build the latest tag and upload to release assets
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -30,11 +34,19 @@ jobs:
             files.pythonhosted.org
             install.python-poetry.org
             pypi.org
+            uploads.github.com
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Checkout latest release tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          git checkout $LATEST_TAG
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
       - name: Set up Python 3.7
         uses: actions/setup-python@v4
@@ -51,6 +63,8 @@ jobs:
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
+        with:
+          version: 1.5.1
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -65,7 +79,7 @@ jobs:
         run: ./dist/cycode version
 
       - name: Sign macOS executable
-        if: ${{ startsWith(matrix.os, 'macos') }}
+        if: runner.os == 'macOS'
         env:
           APPLE_CERT: ${{ secrets.APPLE_CERT }}
           APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
@@ -90,7 +104,7 @@ jobs:
           codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
 
       - name: Notarize macOS executable
-        if: ${{ startsWith(matrix.os, 'macos') }}
+        if: runner.os == 'macOS'
         env:
           APPLE_NOTARIZATION_EMAIL: ${{ secrets.APPLE_NOTARIZATION_EMAIL }}
           APPLE_NOTARIZATION_PWD: ${{ secrets.APPLE_NOTARIZATION_PWD }}
@@ -108,11 +122,86 @@ jobs:
           # we can't staple the app because it's executable. we should only staple app bundles like .dmg
           # xcrun stapler staple dist/cycode
 
-      - name: Test signed executable
-        if: ${{ startsWith(matrix.os, 'macos') }}
+      - name: Test macOS signed executable
+        if: runner.os == 'macOS'
         run: ./dist/cycode version
 
-      - uses: actions/upload-artifact@v3
+      - name: Import cert for Windows and setup envs
+        if: runner.os == 'Windows'
+        env:
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+        run: |
+          # import certificate
+          echo "$SM_CLIENT_CERT_FILE_B64" | base64 --decode > /d/Certificate_pkcs12.p12 
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+
+          # add required soft to the path
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH  
+          echo "C:\Program Files\DigiCert\DigiCert One Signing Manager Tools" >> $GITHUB_PATH 
+
+      - name: Sign Windows executable
+        if: runner.os == 'Windows'
+        shell: cmd
+        env:
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
+        run: |
+          :: setup SSM KSP
+          curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" -o smtools-windows-x64.msi 
+          msiexec /i smtools-windows-x64.msi /quiet /qn
+          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+          smksp_cert_sync.exe
+
+          :: sign executable
+          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe" 
+
+      - name: Test Windows signed executable
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          :: call executable and expect correct output
+          .\dist\cycode.exe version
+
+          :: verify signature
+          signtool.exe verify /v /pa ".\dist\cycode.exe"
+
+      - name: Prepare files on Windows
+        if: runner.os == 'Windows'
+        run: |
+          echo "ARTIFACT_NAME=cycode-win" >> $GITHUB_ENV
+          mv dist/cycode.exe dist/cycode-win.exe
+          powershell -Command "(Get-FileHash -Algorithm SHA256 dist/cycode-win.exe).Hash" > sha256
+          head -c 64 sha256 > dist/cycode-win.exe.sha256
+
+      - name: Prepare files on macOS
+        if: runner.os == 'macOS'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac" >> $GITHUB_ENV
+          mv dist/cycode dist/cycode-mac
+          shasum -a 256 dist/cycode-mac > sha256
+          head -c 64 sha256 > dist/cycode-mac.sha256
+
+      - name: Prepare files on Linux
+        if: runner.os == 'Linux'
+        run: |
+          echo "ARTIFACT_NAME=cycode-linux" >> $GITHUB_ENV
+          mv dist/cycode dist/cycode-linux
+          sha256sum dist/cycode-linux > sha256
+          head -c 64 sha256 > dist/cycode-linux.sha256
+
+      - name: Upload files as artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: cycode-cli-${{ matrix.os }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: dist
+
+      - name: Upload files to release
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: dist/*
+          tag: ${{ env.LATEST_TAG }}
+          overwrite: true
+          file_glob: true

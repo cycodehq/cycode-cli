@@ -1,11 +1,32 @@
 import json
+import time
 from typing import List
 
+from cycode.cli import consts
 from cycode.cli.exceptions.custom_exceptions import TfplanKeyError
 from cycode.cli.models import ResourceChange
-from cycode.cli.utils.path_utils import load_json
+from cycode.cli.utils.path_utils import change_filename_extension, load_json
 
 ACTIONS_TO_OMIT_RESOURCE = ['delete']
+
+
+def generate_tfplan_document_name(path: str) -> str:
+    document_name = change_filename_extension(path, 'tf')
+    timestamp = int(time.time())
+    return f'{timestamp}-{document_name}'
+
+
+def is_iac(scan_type: str) -> bool:
+    return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
+
+
+def is_tfplan_file(file: str, content: str) -> bool:
+    if not file.endswith('.json'):
+        return False
+    tf_plan = load_json(content)
+    if not isinstance(tf_plan, dict):
+        return False
+    return 'resource_changes' in tf_plan
 
 
 def generate_tf_content_from_tfplan(filename: str, tfplan: str) -> str:
