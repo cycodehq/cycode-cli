@@ -1,6 +1,6 @@
 import os
-from typing import List, Optional, Tuple
-from uuid import UUID, uuid4
+from typing import List, Tuple
+from uuid import uuid4
 
 import pytest
 import requests
@@ -14,9 +14,8 @@ from cycode.cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorize
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.models import Document
 from cycode.cyclient.scan_client import ScanClient
-from tests.conftest import TEST_FILES_PATH
-
-_ZIP_CONTENT_PATH = TEST_FILES_PATH.joinpath('zip_content').absolute()
+from tests.conftest import ZIP_CONTENT_PATH
+from tests.cyclient.mocked_responses.scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url
 
 
 def zip_scan_resources(scan_type: str, scan_client: ScanClient) -> Tuple[str, InMemoryZip]:
@@ -26,70 +25,16 @@ def zip_scan_resources(scan_type: str, scan_client: ScanClient) -> Tuple[str, In
     return url, zip_file
 
 
-def get_zipped_file_scan_url(scan_type: str, scan_client: ScanClient) -> str:
-    api_url = scan_client.scan_cycode_client.api_url
-    # TODO(MarshalX): create method in the scan client to build this url
-    service_url = f'{api_url}/{scan_client.scan_config.get_service_name(scan_type)}'
-    return f'{service_url}/{scan_client.SCAN_CONTROLLER_PATH}/zipped-file'
-
-
 def get_test_zip_file(scan_type: str) -> InMemoryZip:
     # TODO(MarshalX): refactor scan_disk_files in code_scanner.py to reuse method here instead of this
     test_documents: List[Document] = []
-    for root, _, files in os.walk(_ZIP_CONTENT_PATH):
+    for root, _, files in os.walk(ZIP_CONTENT_PATH):
         for name in files:
             path = os.path.join(root, name)
             with open(path, 'r', encoding='UTF-8') as f:
                 test_documents.append(Document(path, f.read(), is_git_diff_format=False))
 
     return zip_documents(scan_type, test_documents)
-
-
-def get_zipped_file_scan_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
-    if not scan_id:
-        scan_id = uuid4()
-
-    json_response = {
-        'did_detect': True,
-        'scan_id': str(scan_id),  # not always as expected due to _get_scan_id and passing scan_id to cxt of CLI
-        'detections_per_file': [
-            {
-                'file_name': str(_ZIP_CONTENT_PATH.joinpath('secrets.py')),
-                'commit_id': None,
-                'detections': [
-                    {
-                        'detection_type_id': '12345678-418f-47ee-abb0-012345678901',
-                        'detection_rule_id': '12345678-aea1-4304-a6e9-012345678901',
-                        'message': "Secret of type 'Slack Token' was found in filename 'secrets.py'",
-                        'type': 'slack-token',
-                        'is_research': False,
-                        'detection_details': {
-                            'sha512': 'sha hash',
-                            'length': 55,
-                            'start_position': 19,
-                            'line': 0,
-                            'committed_at': '0001-01-01T00:00:00+00:00',
-                            'file_path': str(_ZIP_CONTENT_PATH),
-                            'file_name': 'secrets.py',
-                            'file_extension': '.py',
-                            'should_resolve_upon_branch_deletion': False,
-                        },
-                    }
-                ],
-            }
-        ],
-        'report_url': None,
-    }
-
-    return responses.Response(method=responses.POST, url=url, json=json_response, status=200)
-
-
-def test_get_service_name(scan_client: ScanClient) -> None:
-    # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
-    assert scan_client.get_service_name('secret') == 'secret'
-    assert scan_client.get_service_name('iac') == 'iac'
-    assert scan_client.get_service_name('sca') == 'scans'
-    assert scan_client.get_service_name('sast') == 'scans'
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
@@ -99,7 +44,7 @@ def test_zipped_file_scan(scan_type: str, scan_client: ScanClient, api_token_res
     expected_scan_id = uuid4()
 
     responses.add(api_token_response)  # mock token based client
-    responses.add(get_zipped_file_scan_response(url, expected_scan_id))
+    responses.add(get_zipped_file_scan_response(url, ZIP_CONTENT_PATH, expected_scan_id))
 
     zipped_file_scan_response = scan_client.zipped_file_scan(
         scan_type, zip_file, scan_id=str(expected_scan_id), scan_parameters={}

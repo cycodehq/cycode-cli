@@ -31,14 +31,16 @@ class ScanClient:
         )
         return self.parse_scan_response(response)
 
+    def get_zipped_file_scan_url_path(self, scan_type: str) -> str:
+        return f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/zipped-file'
+
     def zipped_file_scan(
         self, scan_type: str, zip_file: InMemoryZip, scan_id: str, scan_parameters: dict, is_git_diff: bool = False
     ) -> models.ZippedFileScanResult:
-        url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/zipped-file'
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
 
         response = self.scan_cycode_client.post(
-            url_path=url_path,
+            url_path=self.get_zipped_file_scan_url_path(scan_type),
             data={'scan_id': scan_id, 'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
             files=files,
             hide_response_content_log=self._hide_response_log,
@@ -46,18 +48,19 @@ class ScanClient:
 
         return self.parse_zipped_file_scan_response(response)
 
-    def zipped_file_scan_async(
-        self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False
-    ) -> models.ScanInitializationResponse:
+    def get_zipped_file_scan_async_url_path(self, scan_type: str) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
         async_entity_type = self.scan_config.get_async_entity_type(scan_type)
 
         url_prefix = self.scan_config.get_scans_prefix()
-        url_path = f'{url_prefix}/{self.SCAN_CONTROLLER_PATH}/{async_scan_type}/{async_entity_type}'
+        return f'{url_prefix}/{self.SCAN_CONTROLLER_PATH}/{async_scan_type}/{async_entity_type}'
 
+    def zipped_file_scan_async(
+        self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False
+    ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
-            url_path=url_path,
+            url_path=self.get_zipped_file_scan_async_url_path(scan_type),
             data={'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
             files=files,
         )
@@ -85,13 +88,17 @@ class ScanClient:
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
+    def get_scan_details_path(self, scan_id: str) -> str:
+        return f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{scan_id}'
+
     def get_scan_details(self, scan_id: str) -> models.ScanDetailsResponse:
-        url_path = f'{self.scan_config.get_scans_prefix()}/{self.SCAN_CONTROLLER_PATH}/{scan_id}'
-        response = self.scan_cycode_client.get(url_path=url_path)
+        response = self.scan_cycode_client.get(url_path=self.get_scan_details_path(scan_id))
         return models.ScanDetailsResponseSchema().load(response.json())
 
+    def get_scan_detections_path(self) -> str:
+        return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}'
+
     def get_scan_detections(self, scan_id: str) -> List[dict]:
-        url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}'
         params = {'scan_id': scan_id}
 
         page_size = 200
@@ -105,7 +112,9 @@ class ScanClient:
             params['page_number'] = page_number
 
             response = self.scan_cycode_client.get(
-                url_path=url_path, params=params, hide_response_content_log=self._hide_response_log
+                url_path=self.get_scan_detections_path(),
+                params=params,
+                hide_response_content_log=self._hide_response_log,
             ).json()
             detections.extend(response)
 
@@ -114,9 +123,13 @@ class ScanClient:
 
         return detections
 
+    def get_get_scan_detections_count_path(self) -> str:
+        return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count'
+
     def get_scan_detections_count(self, scan_id: str) -> int:
-        url_path = f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/count'
-        response = self.scan_cycode_client.get(url_path=url_path, params={'scan_id': scan_id})
+        response = self.scan_cycode_client.get(
+            url_path=self.get_get_scan_detections_count_path(), params={'scan_id': scan_id}
+        )
         return response.json().get('count', 0)
 
     def commit_range_zipped_file_scan(
@@ -131,9 +144,11 @@ class ScanClient:
         )
         return self.parse_zipped_file_scan_response(response)
 
+    def get_report_scan_status_path(self, scan_type: str, scan_id: str) -> str:
+        return f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/{scan_id}/status'
+
     def report_scan_status(self, scan_type: str, scan_id: str, scan_status: dict) -> None:
-        url_path = f'{self.scan_config.get_service_name(scan_type)}/{self.SCAN_CONTROLLER_PATH}/{scan_id}/status'
-        self.scan_cycode_client.post(url_path=url_path, body=scan_status)
+        self.scan_cycode_client.post(url_path=self.get_report_scan_status_path(scan_type, scan_id), body=scan_status)
 
     @staticmethod
     def parse_scan_response(response: Response) -> models.ScanResult:
@@ -145,6 +160,7 @@ class ScanClient:
 
     @staticmethod
     def get_service_name(scan_type: str) -> Optional[str]:
+        # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
         if scan_type == 'secret':
             return 'secret'
         if scan_type == 'iac':
