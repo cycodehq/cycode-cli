@@ -35,7 +35,9 @@ jobs:
             pypi.org
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -47,7 +49,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local
-          key: poetry-${{ matrix.os }}-0  # increment to reset cache
+          key: poetry-${{ matrix.os }}-1  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
@@ -61,5 +63,11 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Run Tests
+      - name: Run executable test
+        if: runner.os == 'Linux'
+        run: |
+          poetry run pyinstaller pyinstaller.spec
+          ./dist/cycode version
+
+      - name: Run pytest
         run: poetry run pytest
