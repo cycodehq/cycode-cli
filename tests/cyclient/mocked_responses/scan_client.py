@@ -128,8 +128,8 @@ def get_scan_detections_url(scan_client: ScanClient) -> str:
 def get_scan_detections_response(url: str, scan_id: UUID, zip_content_path: Path) -> responses.Response:
     with open(MOCKED_RESPONSES_PATH.joinpath('detections.json')) as f:
         content = f.read()
-        content = content.replace('{%FILEPATH%}', str(zip_content_path.absolute()))
-        content = content.replace('{%SCAN_ID%}', str(scan_id))
+        content = content.replace('%FILEPATH%', str(zip_content_path.absolute()))
+        content = content.replace('%SCAN_ID%', str(scan_id))
 
         json_response = json.loads(content)
 
