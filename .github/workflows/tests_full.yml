@@ -61,5 +61,11 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Run Tests
+      - name: Run executable test
+        if: runner.os == 'Linux'
+        run: |
+          poetry run pyinstaller pyinstaller.spec
+          ./dist/cycode version
+
+      - name: Run pytest
         run: poetry run pytest
