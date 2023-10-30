@@ -6,6 +6,22 @@ class ScanConfigBase(ABC):
     def get_service_name(self, scan_type: str) -> str:
         ...
 
+    @staticmethod
+    def get_async_scan_type(scan_type: str) -> str:
+        if scan_type == 'secret':
+            return 'Secrets'
+        if scan_type == 'iac':
+            return 'InfraConfiguration'
+
+        return scan_type.upper()
+
+    @staticmethod
+    def get_async_entity_type(scan_type: str) -> str:
+        if scan_type == 'secret':
+            return 'zippedfile'
+
+        return 'repository'
+
     @abstractmethod
     def get_scans_prefix(self) -> str:
         ...
