@@ -5,7 +5,7 @@ description = "Boost security in your dev lifecycle via SAST, SCA, Secrets & IaC
 keywords=["secret-scan", "cycode", "devops", "token", "secret", "security", "cycode", "code"]
 authors = ["Cycode <support@cycode.com>"]
 license = "MIT"
-repository = "https://github.com/cycodehq-public/cycode-cli"
+repository = "https://github.com/cycodehq/cycode-cli"
 readme = "README.md"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
