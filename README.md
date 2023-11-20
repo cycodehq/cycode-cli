@@ -44,6 +44,7 @@ This guide will guide you through both installation and usage.
         3. [Ignoring a Path](#ignoring-a-path)
         4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
         5. [Ignoring a Package](#ignoring-a-package)
+        6. [Ignoring using config file](#ignoring-using-config-file)
 5. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
 6. [Syntax Help](#syntax-help)
@@ -58,7 +59,7 @@ This guide will guide you through both installation and usage.
 
 The following installation steps are applicable to both Windows and UNIX / Linux operating systems.
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > The following steps assume the use of `python3` and `pip3` for Python-related commands; however, some systems may instead use the `python` and `pip` commands, depending on your Python environment’s configuration.
 
 ## Install Cycode CLI
@@ -81,7 +82,7 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 ### Using the Auth Command
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This is the **recommended** method for setting up your local machine to authenticate with Cycode CLI.
 
 1. Type the following command into your terminal/command line window:
@@ -98,7 +99,7 @@ To install the Cycode CLI application on your local machine, perform the followi
 
     ![authorize CLI](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/authorize_cli.png)
 
-    > :memo: **Note**<br/>
+   > [!NOTE]
     > This will be the default method for authenticating with the Cycode CLI.
 
 5. Click the **Allow** button to authorize the Cycode CLI on the selected business group.
@@ -117,7 +118,7 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 ### Using the Configure Command
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > If you already set up your Cycode Client ID and Client Secret through the Linux or Windows environment variables, those credentials will take precedent over this method.
 
 1. Type the following command into your terminal/command line window:
@@ -220,7 +221,7 @@ Perform the following steps to install the pre-commit hook:
 
    `pre-commit install`
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > A successful hook installation will result in the message:<br/>
 `Pre-commit installed at .git/hooks/pre-commit`
 
@@ -302,7 +303,7 @@ or:
 
 ### Monitor Option
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This option is only available to SCA scans.
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in an SCA type scan to Cycode's knowledge graph, add the argument `--monitor` to the scan command.
@@ -317,12 +318,12 @@ or:
 
 When using this option, the scan results from this scan will appear in the knowledge graph, which can be found [here](https://app.cycode.com/query-builder).
 
-> :warning: **NOTE**<br/>
+> [!WARNING]
 > You must be an `owner` or an `admin` in Cycode to view the knowledge graph page.
 
 ### Report Option
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This option is only available to SCA scans.
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
@@ -385,7 +386,7 @@ The report page will look something like below:
 
 ### Package Vulnerabilities Option
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This option is only available to SCA scans.
 
 To scan a specific package vulnerability of your local repository, add the argument `--sca-scan package-vulnerabilities` following the `-t sca` or `--scan-type sca` option.
@@ -400,7 +401,7 @@ or:
 
 #### License Compliance Option
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This option is only available to SCA scans.
 
 To scan a specific branch of your local repository, add the argument `--sca-scan license-compliance` followed by the name of the branch you wish to scan.
@@ -415,7 +416,7 @@ or:
 
 #### Severity Threshold
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This option is only available to SCA scans.
 
 To limit the results of the `sca` scan to a specific severity threshold, add the argument `--severity-threshold` to the scan command.
@@ -706,7 +707,7 @@ In the example above, replace the `dc21bc6b-9f4f-46fb-9f92-e4327ea03f6b` value w
 
 ### Ignoring a Package
 
-> :memo: **Note**<br/>
+> [!NOTE]
 > This option is only available to the SCA scans.
 
 To ignore a specific package in the SCA scans, you will need to use the `--by-package` flag in conjunction with the `-t, --scan-type` flag (you must specify the `sca` scan type). This will ignore the given package, using the `{{package_name}}@{{package_version}}` formatting, from all future scans. Use the following command to add a package and version to be ignored:
@@ -722,6 +723,90 @@ In the example below, the command to ignore a specific SCA package is as follows
 `cycode ignore --scan-type sca --by-package pyyaml@5.3.1`
 
 In the example above, replace `pyyaml` with package name and `5.3.1` with the package version you want to ignore.
+
+### Ignoring using config file
+
+The applied ignoring rules are stored in the configuration file called `config.yaml`.
+This file could be easily shared between developers or even committed to remote Git.
+These files are always located in the `.cycode` folder.
+The folder starts with a dot (.), and you should enable the displaying of hidden files to see it.
+
+#### Path of the config files
+
+By default, all `cycode ignore` commands save the ignoring rule to the current directory from which CLI has been run.
+
+Example: running ignoring CLI command from `/Users/name/projects/backend` will create `config.yaml` in `/Users/name/projects/backend/.cycode`
+
+```shell
+➜  backend  pwd
+/Users/name/projects/backend
+➜  backend  cycode ignore --by-value test-value
+➜  backend  tree -a
+.
+└── .cycode
+    └── config.yaml
+
+2 directories, 1 file
+```
+
+The second option is to save ignoring rules to the global configuration files.
+The path of the global config is `~/.cycode/config.yaml`,
+where `~` means user\`s home directory, for example, `/Users/name` on macOS.
+
+Saving to the global space could be performed with the `-g` flag of the `cycode ignore` command.
+For example: `cycode ignore -g --by-value test-value`.
+
+#### Proper working directory
+
+This is incredibly important to place the `.cycode` folder and run CLI from the same place.
+You should double-check it when working with different environments like CI/CD (GitHub Actions, Jenkins, etc.).
+
+You could commit the `.cycode` folder to the root of your repository.
+In this scenario, you must run CLI scans from the repository root.
+If it doesn't fit your requirements, you could temporarily copy the `.cycode` folder
+wherever you want and perform a CLI scan from this folder.
+
+#### Structure ignoring rules in the config
+
+It's important to understand how CLI stores ignore rules to be able to read these configuration files or even modify them without CLI.
+
+The abstract YAML structure:
+```yaml
+exclusions:
+  *scanTypeName*:
+    *ignoringType:
+    - *ignoringValue1*
+    - *ignoringValue2*
+```
+
+Possible values of `scanTypeName`: `iac`, `sca`, `sast`, `secret`.
+Possible values of `ignoringType`: `paths`, `values`, `rules`, `packages`, `shas`.
+
+> [!WARNING]  
+> Values for "ignore by value" are not stored as plain text!
+> CLI stores sha256 hashes of the values instead.
+> You should put hashes of the string when modifying the configuration file by hand.
+
+Example of real `config.yaml`:
+```yaml
+exclusions:
+  iac:
+    rules:
+    - bdaa88e2-5e7c-46ff-ac2a-29721418c59c
+  sca:
+    packages:
+    - pyyaml@5.3.1
+  secret:
+    paths:
+    - /Users/name/projects/build
+    rules:
+    - ce3a4de0-9dfc-448b-a004-c538cf8b4710
+    shas:
+    - a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0
+    values:
+    - a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
+    - 60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752
+```
 
 # Report Command
 
