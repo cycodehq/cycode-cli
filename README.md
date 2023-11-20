@@ -9,8 +9,8 @@ This guide will guide you through both installation and usage.
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
     1. [Install Cycode CLI](#install-cycode-cli)
-        1. [Use `auth` command](#use-auth-command)
-        2. [Use `configure` command](#use-configure-command)
+        1. [Using the Auth Command](#using-the-auth-command)
+        2. [Using the Configure Command](#using-the-configure-command)
         3. [Add to Environment Variables](#add-to-environment-variables)
             1. [On Unix/Linux](#on-unixlinux)
             2. [On Windows](#on-windows)
@@ -45,14 +45,13 @@ This guide will guide you through both installation and usage.
         4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
         5. [Ignoring a Package](#ignoring-a-package)
 5. [Report command](#report-command)
-    1. [Generating Report](#generating-report)
-    2. [Report Result](#report-results)
+    1. [Generating SBOM Report](#generating-sbom-report)
 6. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
 - The Cycode CLI application requires Python version 3.7 or later.
-- Use the [`cycode auth` command](#use-auth-command) to authenticate to Cycode with the CLI
+- Use the [`cycode auth` command](#using-the-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, you can obtain a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages, which contain details on obtaining these values.
 
 # Installation
@@ -76,11 +75,11 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 4. There are three methods to set the Cycode client ID and client secret:
 
-   - [cycode auth](#use-auth-command) (**Recommended**)
-   - [cycode configure](#use-configure-command)
+   - [cycode auth](#using-the-auth-command) (**Recommended**)
+   - [cycode configure](#using-the-configure-command)
    - Add them to your [environment variables](#add-to-environment-variables)
 
-### Useing the Auth Command
+### Using the Auth Command
 
 > :memo: **Note**<br/>
 > This is the **recommended** method for setting up your local machine to authenticate with Cycode CLI.
@@ -91,24 +90,24 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 2. A browser window will appear, asking you to log into Cycode (as seen below):
 
-![Cycode login](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/cycode_login.png)
+    ![Cycode login](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/cycode_login.png)
 
 3. Enter your login credentials on this page and log in.
 
 4. You will eventually be taken to the page below, where you'll be asked to choose the business group you want to authorize Cycode with (if applicable):
 
-![authorize CLI](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/authorize_cli.png)
+    ![authorize CLI](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/authorize_cli.png)
 
-> :memo: **Note**<br/>
-> This will be the default method for authenticating with the Cycode CLI.
+    > :memo: **Note**<br/>
+    > This will be the default method for authenticating with the Cycode CLI.
 
 5. Click the **Allow** button to authorize the Cycode CLI on the selected business group.
 
-![allow CLI](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/allow_cli.png)
+    ![allow CLI](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/allow_cli.png)
 
 6. Once completed, you'll see the following screen, if it was selected successfully:
 
-![successfully auth](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/successfully_auth.png)
+    ![successfully auth](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/successfully_auth.png)
 
 7. In the terminal/command line screen, you will see the following when exiting the browser window:
 
@@ -177,19 +176,19 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 1. From the Control Panel, navigate to the System menu:
 
-![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image1.png)
+    ![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image1.png)
 
 2. Next, click Advanced system settings:
 
-![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image2.png)
+    ![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image2.png)
 
 3. In the System Properties window that opens, click the Environment Variables button:
 
-![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image3.png)
+    ![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image3.png)
 
 4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively:
 
-![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image4.png)
+    ![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image4.png)
 
 5. Insert the cycode.exe into the path to complete the installation.
    
@@ -207,15 +206,15 @@ Perform the following steps to install the pre-commit hook:
 
 3. Create a new YAML file named `.pre-commit-config.yaml` (include the beginning `.`) in the repository’s top directory that contains the following:
 
-```yaml
-repos:
-  - repo: https://github.com/cycodehq/cycode-cli
-    rev: v1.4.0
-    hooks:
-      - id: cycode
-        stages:
-          - commit
-```
+    ```yaml
+    repos:
+      - repo: https://github.com/cycodehq/cycode-cli
+        rev: v1.4.0
+        hooks:
+          - id: cycode
+            stages:
+              - commit
+    ```
 
 4. Install Cycode’s hook:
 
@@ -235,14 +234,14 @@ The following are the options and commands available with the Cycode CLI applica
 | `-v`, `--verbose`                    | Show detailed logs.                                                |
 | `--help`                             | Show options for given command.                                    |
 
-| Command                             | Description                                                                                                                           |
-|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| [auth](#use-auth-command)           | Authenticates your machine to associate CLI with your Cycode account.                                                                 |
-| [configure](#use-configure-command) | Initial command to authenticate your CLI client with Cycode using client ID and client secret.                                        |
-| [ignore](#ingoring-scan-results)    | Ignore a specific value, path or rule ID.                                                                                             |
-| [scan](#running-a-scan)             | Scan content for secrets/IaC/SCA/SAST violations. You need to specify which scan type: `ci`/`commit_history`/`path`/`repository`/etc. |
-| [report](#running-a-report)         | Generate report for SCA SBOM. |
-| version                             | Show the version and exit.                                                                                                            |
+| Command                                   | Description                                                                                                                           |
+|-------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| [auth](#using-the-auth-command)           | Authenticates your machine to associate CLI with your Cycode account.                                                                 |
+| [configure](#using-the-configure-command) | Initial command to authenticate your CLI client with Cycode using client ID and client secret.                                        |
+| [ignore](#ignoring-scan-results)          | Ignore a specific value, path or rule ID.                                                                                             |
+| [scan](#running-a-scan)                   | Scan content for secrets/IaC/SCA/SAST violations. You need to specify which scan type: `ci`/`commit_history`/`path`/`repository`/etc. |
+| [report](#report-command)                 | Generate report for SCA SBOM.                                                                                                         |
+| version                                   | Show the version and exit.                                                                                                            |
 
 # Scan Command
 
@@ -285,8 +284,8 @@ For example, consider a scenario in which you want to scan your repository store
 
 The following option is available for use with this command:
 
-| Option              | Description |
-|---------------------|-------------|
+| Option              | Description                                            |
+|---------------------|--------------------------------------------------------|
 | `-b, --branch TEXT` | Branch to scan, if not set scanning the default branch |
 
 #### Branch Option
@@ -448,28 +447,23 @@ Cycode CLI supports Terraform plan scanning (supporting Terraform 0.12 and later
 
 Terraform plan file must be in JSON format (having `.json` extension)
 
-
 _How to generate a Terraform plan from Terraform configuration file?_
     
 1. Initialize a working directory that contains Terraform configuration file:
 
     `terraform init`
 
-
 2. Create Terraform execution plan and save the binary output:
 
     `terraform plan -out={tfplan_output}`
-
 
 3. Convert the binary output file into readable JSON:
 
     `terraform show -json {tfplan_output} > {tfplan}.json`
 
-
 4. Scan your `{tfplan}.json` with Cycode CLI:
 
     `cycode scan -t iac path ~/PATH/TO/YOUR/{tfplan}.json`
-
 
 ### Commit History Scan
 
@@ -485,8 +479,8 @@ For example, consider a scenario in which you want to scan the commit history fo
 
 The following options are available for use with this command:
 
-| Option                    | Description |
-|---------------------------|-------------|
+| Option                    | Description                                                                                              |
+|---------------------------|----------------------------------------------------------------------------------------------------------|
 | `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
 
 #### Commit Range Option
@@ -608,15 +602,15 @@ Ignore rules can be added to ignore specific secret values, specific SHA512 valu
 
 The following are the options available for the `cycode ignore` command:
 
-| Option                          | Description |
-|---------------------------------|-------------|
-| `--by-value TEXT`               | Ignore a specific value while scanning for secrets. See [Ignoring a Secret Value](#ignoring-a-secret-value) for more details. |
-| `--by-sha TEXT`                 | Ignore a specific SHA512 representation of a string while scanning for secrets. See [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value) for more details. |
-| `--by-path TEXT`                | Avoid scanning a specific path. Need to specify scan type. See [Ignoring a Path](#ignoring-a-path) for more details. |
-| `--by-rule TEXT`                | Ignore scanning a specific secret rule ID/IaC rule ID/SCA rule ID. See [Ignoring a Secret or Iac Rule](#ignoring-a-secret-or-iac-rule) for more details. |
-| `--by-package TEXT`             | Ignore scanning a specific package version while running an SCA scan. Expected pattern - `name@version`. See [Ignoring a Package](#ignoring-a-package) for more details. |
-| `-t, --scan-type [secret\|iac\|sca\|sast]` | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), The default value is `secret` |
-| `-g, --global`                  | Add an ignore rule and update it in the global `.cycode` config file |
+| Option                                     | Description                                                                                                                                                              |
+|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--by-value TEXT`                          | Ignore a specific value while scanning for secrets. See [Ignoring a Secret Value](#ignoring-a-secret-value) for more details.                                            |
+| `--by-sha TEXT`                            | Ignore a specific SHA512 representation of a string while scanning for secrets. See [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value) for more details.        |
+| `--by-path TEXT`                           | Avoid scanning a specific path. Need to specify scan type. See [Ignoring a Path](#ignoring-a-path) for more details.                                                     |
+| `--by-rule TEXT`                           | Ignore scanning a specific secret rule ID/IaC rule ID/SCA rule ID. See [Ignoring a Secret or Iac Rule](#ignoring-a-secret-iac-sca-or-sast-rule) for more details.        |
+| `--by-package TEXT`                        | Ignore scanning a specific package version while running an SCA scan. Expected pattern - `name@version`. See [Ignoring a Package](#ignoring-a-package) for more details. |
+| `-t, --scan-type [secret\|iac\|sca\|sast]` | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), The default value is `secret`                                                                        |
+| `-g, --global`                             | Add an ignore rule and update it in the global `.cycode` config file                                                                                                     |
 
 In the following example, a pre-commit scan runs and finds the following:
 
@@ -628,7 +622,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  �
 2 | \ No newline at end of file
 ```
 
-If this is a value that is not a valid secret, then use the the `cycode ignore` command to ignore the secret by its value, SHA value, specific path, or rule ID. If this is an IaC scan, then you can ignore that result by its path or rule ID.
+If this is a value that is not a valid secret, then use the `cycode ignore` command to ignore the secret by its value, SHA value, specific path, or rule ID. If this is an IaC scan, then you can ignore that result by its path or rule ID.
 
 ### Ignoring a Secret Value
 
@@ -737,19 +731,21 @@ A software bill of materials (SBOM) is an inventory of all constituent component
 Using this command you can create an SBOM report for your local project or for your repository URI.
 
 The following options are available for use with this command:
-| Option              | Description | Required | Default |
-|---------------------|-------------|----------|---------|
-| `-f, --format [spdx-2.2\|spdx-2.3\|cyclonedx-1.4]` | SBOM format | Yes | | 
-| `-o, --output-format [JSON]` | Specify the output file format | No | json |
-| `--output-file PATH` | Output file | No | autogenerated filename saved to the current directory |
-| `--include-vulnerabilities` | Include vulnerabilities | No | False |
-| `--include-dev-dependencies` | Include dev dependencies | No | False |
 
-The following commands are available for use with this command: 
-| Command              | Description |
-|---------------------|-------------|
-| `path` | Generate SBOM report for provided path in the command | 
-| `repository_url` | Generate SBOM report for provided repository URI in the command | 
+| Option                                             | Description                    | Required | Default                                               |
+|----------------------------------------------------|--------------------------------|----------|-------------------------------------------------------|
+| `-f, --format [spdx-2.2\|spdx-2.3\|cyclonedx-1.4]` | SBOM format                    | Yes      |                                                       | 
+| `-o, --output-format [JSON]`                       | Specify the output file format | No       | json                                                  |
+| `--output-file PATH`                               | Output file                    | No       | autogenerated filename saved to the current directory |
+| `--include-vulnerabilities`                        | Include vulnerabilities        | No       | False                                                 |
+| `--include-dev-dependencies`                       | Include dev dependencies       | No       | False                                                 |
+
+The following commands are available for use with this command:
+
+| Command          | Description                                                     |
+|------------------|-----------------------------------------------------------------|
+| `path`           | Generate SBOM report for provided path in the command           |
+| `repository_url` | Generate SBOM report for provided repository URI in the command |
 
 ### Repository
 
