@@ -549,9 +549,6 @@ def perform_scan(
     if is_commit_range:
         return cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id)
 
-    if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        return cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, scan_parameters, is_git_diff)
-
     return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
 
 

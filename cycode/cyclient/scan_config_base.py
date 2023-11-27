@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from cycode.cli import consts
+
 
 class ScanConfigBase(ABC):
     @abstractmethod
@@ -17,9 +19,10 @@ class ScanConfigBase(ABC):
 
     @staticmethod
     def get_async_entity_type(scan_type: str) -> str:
-        if scan_type == 'secret':
+        if scan_type in {consts.SECRET_SCAN_TYPE, consts.INFRA_CONFIGURATION_SCAN_TYPE}:
             return 'zippedfile'
 
+        # TODO(MarshalX): SAST, SCA is not migrated to new endpoint yet
         return 'repository'
 
     @abstractmethod
