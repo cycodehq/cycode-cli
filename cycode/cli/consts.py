@@ -79,6 +79,8 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (
     'pipfile.lock',
     'requirements.txt',
     'setup.py',
+    'mix.exs',
+    'mix.lock',
 )
 
 SCA_EXCLUDED_PATHS = ('node_modules',)
@@ -97,6 +99,7 @@ PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     'pypi_pipenv': ['Pipfile', 'Pipfile.lock'],
     'pypi_requirements': ['requirements.txt'],
     'pypi_setup': ['setup.py'],
+    'hex': ['mix.exs', 'mix.lock'],
 }
 
 COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]
