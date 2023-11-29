@@ -65,7 +65,7 @@ class ScaTablePrinter(TablePrinterBase):
         return 'Unknown'
 
     @staticmethod
-    def __group_by(detections: List[Detection], details_field_name: str) -> dict[str, List[Detection]]:
+    def __group_by(detections: List[Detection], details_field_name: str) -> Dict[str, List[Detection]]:
         grouped = defaultdict(list)
         for detection in detections:
             grouped[detection.detection_details.get(details_field_name)].append(detection)
