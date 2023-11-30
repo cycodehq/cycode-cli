@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Dict, List
 import click
 
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
-from cycode.cli.models import Detection
+from cycode.cli.models import Detection, Severity
 from cycode.cli.printers.tables.table import Table
 from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidths
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
@@ -19,21 +19,21 @@ column_builder = ColumnInfoBuilder()
 # Building must have strict order. Represents the order of the columns in the table (from left to right)
 SEVERITY_COLUMN = column_builder.build(name='Severity')
 REPOSITORY_COLUMN = column_builder.build(name='Repository')
-
-FILE_PATH_COLUMN = column_builder.build(name='File Path')
+CODE_PROJECT_COLUMN = column_builder.build(name='Code Project')  # File path to manifest file
 ECOSYSTEM_COLUMN = column_builder.build(name='Ecosystem')
-DEPENDENCY_NAME_COLUMN = column_builder.build(name='Dependency Name')
-DIRECT_DEPENDENCY_COLUMN = column_builder.build(name='Direct Dependency')
-DEVELOPMENT_DEPENDENCY_COLUMN = column_builder.build(name='Development Dependency')
-DEPENDENCY_PATHS_COLUMN = column_builder.build(name='Dependency Paths')
-
+PACKAGE_COLUMN = column_builder.build(name='Package')
 CVE_COLUMNS = column_builder.build(name='CVE')
+DEPENDENCY_PATHS_COLUMN = column_builder.build(name='Dependency Paths')
 UPGRADE_COLUMN = column_builder.build(name='Upgrade')
 LICENSE_COLUMN = column_builder.build(name='License')
+DIRECT_DEPENDENCY_COLUMN = column_builder.build(name='Direct Dependency')
+DEVELOPMENT_DEPENDENCY_COLUMN = column_builder.build(name='Development Dependency')
+
 
 COLUMN_WIDTHS_CONFIG: ColumnWidths = {
     REPOSITORY_COLUMN: 2,
-    FILE_PATH_COLUMN: 3,
+    CODE_PROJECT_COLUMN: 2,
+    PACKAGE_COLUMN: 3,
     CVE_COLUMNS: 5,
     UPGRADE_COLUMN: 3,
     LICENSE_COLUMN: 2,
@@ -47,7 +47,7 @@ class ScaTablePrinter(TablePrinterBase):
             table = self._get_table(policy_id)
             table.set_cols_width(COLUMN_WIDTHS_CONFIG)
 
-            for detection in detections:
+            for detection in self._sort_and_group_detections(detections):
                 self._enrich_table_with_values(table, detection)
 
             self._print_summary_issues(len(detections), self._get_title(policy_id))
@@ -64,6 +64,52 @@ class ScaTablePrinter(TablePrinterBase):
 
         return 'Unknown'
 
+    @staticmethod
+    def __group_by(detections: List[Detection], details_field_name: str) -> Dict[str, List[Detection]]:
+        grouped = defaultdict(list)
+        for detection in detections:
+            grouped[detection.detection_details.get(details_field_name)].append(detection)
+        return grouped
+
+    @staticmethod
+    def __severity_sort_key(detection: Detection) -> int:
+        severity = detection.detection_details.get('advisory_severity')
+        return Severity.try_get_value(severity)
+
+    def _sort_detections_by_severity(self, detections: List[Detection]) -> List[Detection]:
+        return sorted(detections, key=self.__severity_sort_key, reverse=True)
+
+    @staticmethod
+    def __package_sort_key(detection: Detection) -> int:
+        return detection.detection_details.get('package_name')
+
+    def _sort_detections_by_package(self, detections: List[Detection]) -> List[Detection]:
+        return sorted(detections, key=self.__package_sort_key)
+
+    def _sort_and_group_detections(self, detections: List[Detection]) -> List[Detection]:
+        """Sort detections by severity and group by repository, code project and package name.
+
+        Note:
+            Code Project is path to manifest file.
+
+            Grouping by code projects also groups by ecosystem.
+            Because manifest files are unique per ecosystem.
+        """
+        result = []
+
+        # we sort detections by package name to make persist output order
+        sorted_detections = self._sort_detections_by_package(detections)
+
+        grouped_by_repository = self.__group_by(sorted_detections, 'repository_name')
+        for repository_group in grouped_by_repository.values():
+            grouped_by_code_project = self.__group_by(repository_group, 'file_name')
+            for code_project_group in grouped_by_code_project.values():
+                grouped_by_package = self.__group_by(code_project_group, 'package_name')
+                for package_group in grouped_by_package.values():
+                    result.extend(self._sort_detections_by_severity(package_group))
+
+        return result
+
     def _get_table(self, policy_id: str) -> Table:
         table = Table()
 
@@ -77,9 +123,9 @@ class ScaTablePrinter(TablePrinterBase):
         if self._is_git_repository():
             table.add(REPOSITORY_COLUMN)
 
-        table.add(FILE_PATH_COLUMN)
+        table.add(CODE_PROJECT_COLUMN)
         table.add(ECOSYSTEM_COLUMN)
-        table.add(DEPENDENCY_NAME_COLUMN)
+        table.add(PACKAGE_COLUMN)
         table.add(DIRECT_DEPENDENCY_COLUMN)
         table.add(DEVELOPMENT_DEPENDENCY_COLUMN)
         table.add(DEPENDENCY_PATHS_COLUMN)
@@ -93,9 +139,9 @@ class ScaTablePrinter(TablePrinterBase):
         table.set(SEVERITY_COLUMN, detection_details.get('advisory_severity'))
         table.set(REPOSITORY_COLUMN, detection_details.get('repository_name'))
 
-        table.set(FILE_PATH_COLUMN, detection_details.get('file_name'))
+        table.set(CODE_PROJECT_COLUMN, detection_details.get('file_name'))
         table.set(ECOSYSTEM_COLUMN, detection_details.get('ecosystem'))
-        table.set(DEPENDENCY_NAME_COLUMN, detection_details.get('package_name'))
+        table.set(PACKAGE_COLUMN, detection_details.get('package_name'))
         table.set(DIRECT_DEPENDENCY_COLUMN, detection_details.get('is_direct_dependency_str'))
         table.set(DEVELOPMENT_DEPENDENCY_COLUMN, detection_details.get('is_dev_dependency_str'))
 
