@@ -156,3 +156,12 @@ def mock_scan_async_responses(
     responses_module.add(get_scan_detections_count_response(get_scan_detections_count_url(scan_client)))
     responses_module.add(get_scan_detections_response(get_scan_detections_url(scan_client), scan_id, zip_content_path))
     responses_module.add(get_report_scan_status_response(get_report_scan_status_url(scan_type, scan_id, scan_client)))
+
+
+def mock_scan_responses(
+    responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
+) -> None:
+    responses_module.add(
+        get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client), zip_content_path)
+    )
+    responses_module.add(get_report_scan_status_response(get_report_scan_status_url(scan_type, scan_id, scan_client)))

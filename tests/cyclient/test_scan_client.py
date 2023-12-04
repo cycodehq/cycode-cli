@@ -37,6 +37,14 @@ def get_test_zip_file(scan_type: str) -> InMemoryZip:
     return zip_documents(scan_type, test_documents)
 
 
+def test_get_service_name(scan_client: ScanClient) -> None:
+    # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
+    assert scan_client.get_service_name('secret') == 'secret'
+    assert scan_client.get_service_name('iac') == 'iac'
+    assert scan_client.get_service_name('sca') == 'scans'
+    assert scan_client.get_service_name('sast') == 'scans'
+
+
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan(scan_type: str, scan_client: ScanClient, api_token_response: responses.Response) -> None:

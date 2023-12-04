@@ -16,10 +16,8 @@ class ScanConfigBase(ABC):
         return scan_type.upper()
 
     @staticmethod
-    def get_async_entity_type(scan_type: str) -> str:
-        if scan_type == 'secret':
-            return 'zippedfile'
-
+    def get_async_entity_type(_: str) -> str:
+        # we are migrating to "zippedfile" entity type. will be used later
         return 'repository'
 
     @abstractmethod
