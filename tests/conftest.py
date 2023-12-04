@@ -15,8 +15,6 @@ _CLIENT_SECRET = 'a12345a-42b2-1234-3bdd-c0130123456'
 CLI_ENV_VARS = {'CYCODE_CLIENT_ID': _CLIENT_ID, 'CYCODE_CLIENT_SECRET': _CLIENT_SECRET}
 
 TEST_FILES_PATH = Path(__file__).parent.joinpath('test_files').absolute()
-MOCKED_RESPONSES_PATH = Path(__file__).parent.joinpath('cyclient/mocked_responses/data').absolute()
-ZIP_CONTENT_PATH = TEST_FILES_PATH.joinpath('zip_content').absolute()
 
 
 @pytest.fixture(scope='session')
