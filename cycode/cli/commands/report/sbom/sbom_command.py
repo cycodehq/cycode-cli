@@ -3,16 +3,16 @@ from typing import Optional
 
 import click
 
-from cycode.cli.commands.report.sbom.sbom_path_command import sbom_path_command
-from cycode.cli.commands.report.sbom.sbom_repository_url_command import sbom_repository_url_command
+from cycode.cli.commands.report.sbom.path.path_command import path_command
+from cycode.cli.commands.report.sbom.repository_url.repository_url_command import repository_url_command
 from cycode.cli.config import config
 from cycode.cyclient.report_client import ReportParameters
 
 
 @click.group(
     commands={
-        'path': sbom_path_command,
-        'repository_url': sbom_repository_url_command,
+        'path': path_command,
+        'repository_url': repository_url_command,
     },
     short_help='Generate SBOM report for remote repository by url or local directory by path.',
 )

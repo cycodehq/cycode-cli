@@ -8,10 +8,10 @@ import responses
 from requests import Timeout
 from requests.exceptions import ProxyError
 
-from cycode.cli.code_scanner import zip_documents
 from cycode.cli.config import config
 from cycode.cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import Document
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import ZIP_CONTENT_PATH

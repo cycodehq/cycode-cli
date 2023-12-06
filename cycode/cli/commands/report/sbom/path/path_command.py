@@ -4,7 +4,7 @@ import click
 
 from cycode.cli import consts
 from cycode.cli.commands.report.sbom.common import create_sbom_report, send_report_feedback
-from cycode.cli.commands.report.sbom.handle_errors import handle_report_exception
+from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.files_collector.path_documents import get_relevant_document
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.files_collector.zip_documents import zip_documents
@@ -15,7 +15,7 @@ from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 @click.command(short_help='Generate SBOM report for provided path in the command.')
 @click.argument('path', nargs=1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.pass_context
-def sbom_path_command(context: click.Context, path: str) -> None:
+def path_command(context: click.Context, path: str) -> None:
     client = get_report_cycode_client()
     report_parameters = context.obj['report_parameters']
     output_format = report_parameters.output_format
