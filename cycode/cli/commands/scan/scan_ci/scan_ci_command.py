@@ -5,6 +5,8 @@ import click
 from cycode.cli.commands.scan.code_scanner import scan_commit_range
 from cycode.cli.commands.scan.scan_ci.ci_integrations import get_commit_range
 
+# This command is not finished yet. It is not used in the codebase.
+
 
 @click.command(
     short_help='Execute scan in a CI environment which relies on the '

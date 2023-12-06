@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Iterable, List
+from typing import TYPE_CHECKING, Iterable, List, Tuple
 
 import pathspec
 
@@ -48,9 +48,13 @@ def _get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> L
 
 
 def _get_relevant_files(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, path: str
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, paths: Tuple[str]
 ) -> List[str]:
-    all_files_to_scan = _get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
+    all_files_to_scan = []
+    for path in paths:
+        all_files_to_scan.extend(
+            _get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
+        )
 
     # we are double the progress bar section length because we are going to process the files twice
     # first time to get the file list with respect of excluded patterns (excluding takes seconds to execute)
@@ -70,7 +74,7 @@ def _get_relevant_files(
     progress_bar.set_section_length(progress_bar_section, progress_bar_section_len)
 
     logger.debug(
-        'Found all relevant files for scanning %s', {'path': path, 'file_to_scan_count': len(relevant_files_to_scan)}
+        'Found all relevant files for scanning %s', {'paths': paths, 'file_to_scan_count': len(relevant_files_to_scan)}
     )
 
     return relevant_files_to_scan
@@ -89,15 +93,15 @@ def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
     return Document(document_name, tf_content, is_git_diff)
 
 
-def get_relevant_document(
+def get_relevant_documents(
     progress_bar: 'BaseProgressBar',
     progress_bar_section: 'ProgressBarSection',
     scan_type: str,
-    path: str,
+    paths: Tuple[str],
     *,
     is_git_diff: bool = False,
 ) -> List[Document]:
-    relevant_files = _get_relevant_files(progress_bar, progress_bar_section, scan_type, path)
+    relevant_files = _get_relevant_files(progress_bar, progress_bar_section, scan_type, paths)
 
     documents: List[Document] = []
     for file in relevant_files:

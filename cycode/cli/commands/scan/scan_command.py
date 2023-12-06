@@ -7,7 +7,7 @@ from cycode.cli.commands.scan.commit_history.commit_history_command import commi
 from cycode.cli.commands.scan.path.path_command import path_command
 from cycode.cli.commands.scan.pre_commit.pre_commit_command import pre_commit_command
 from cycode.cli.commands.scan.pre_receive.pre_receive_command import pre_receive_command
-from cycode.cli.commands.scan.repository.repisotiry_command import repisotiry_command
+from cycode.cli.commands.scan.repository.repository_command import repository_command
 from cycode.cli.config import config
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
@@ -21,14 +21,14 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
 
 @click.group(
     commands={
-        'repository': repisotiry_command,
+        'repository': repository_command,
         'commit_history': commit_history_command,
         'path': path_command,
         'pre_commit': pre_commit_command,
         'pre_receive': pre_receive_command,
     },
     short_help='Scan the content for Secrets/IaC/SCA/SAST violations. '
-    'You`ll need to specify which scan type to perform: ci/commit_history/path/repository/etc.',
+    'You`ll need to specify which scan type to perform: commit_history/path/repository/etc.',
 )
 @click.option(
     '--scan-type',
