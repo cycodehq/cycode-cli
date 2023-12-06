@@ -3,7 +3,7 @@ import time
 import click
 
 from cycode.cli.commands.report.sbom.common import create_sbom_report, send_report_feedback
-from cycode.cli.commands.report.sbom.handle_errors import handle_report_exception
+from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 

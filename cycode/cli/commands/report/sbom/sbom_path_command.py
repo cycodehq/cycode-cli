@@ -4,7 +4,7 @@ import click
 
 from cycode.cli import consts
 from cycode.cli.commands.report.sbom.common import create_sbom_report, send_report_feedback
-from cycode.cli.commands.report.sbom.handle_errors import handle_report_exception
+from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.files_collector.path_documents import get_relevant_document
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.files_collector.zip_documents import zip_documents

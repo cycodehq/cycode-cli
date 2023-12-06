@@ -6,7 +6,7 @@ import pytest
 import responses
 from click.testing import CliRunner
 
-from cycode.cli.main import main_cli
+from cycode.cli.commands.main_cli import main_cli
 from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH, ZIP_CONTENT_PATH
 from tests.cyclient.mocked_responses.scan_client import mock_scan_responses
 from tests.cyclient.test_scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url

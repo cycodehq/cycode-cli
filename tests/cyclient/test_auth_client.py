@@ -3,6 +3,7 @@ import requests
 import responses
 from requests import Timeout
 
+from cycode.cli.commands.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cyclient.auth_client import AuthClient
 from cycode.cyclient.models import (
@@ -14,16 +15,12 @@ from cycode.cyclient.models import (
 
 @pytest.fixture(scope='module')
 def code_challenge() -> str:
-    from cycode.cli.auth.auth_manager import AuthManager
-
     code_challenge, _ = AuthManager()._generate_pkce_code_pair()
     return code_challenge
 
 
 @pytest.fixture(scope='module')
 def code_verifier() -> str:
-    from cycode.cli.auth.auth_manager import AuthManager
-
     _, code_verifier = AuthManager()._generate_pkce_code_pair()
     return code_verifier
 
