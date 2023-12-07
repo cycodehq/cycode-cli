@@ -16,7 +16,7 @@ from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
-from cycode.cli.files_collector.path_documents import get_relevant_document
+from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.repository_documents import (
     get_commit_range_modified_documents,
     get_diff_file_path,
@@ -68,7 +68,7 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str) 
     scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
-    scan_parameters = get_scan_parameters(context, path)
+    scan_parameters = get_scan_parameters(context, (path,))
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents = get_commit_range_modified_documents(
         progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
@@ -82,13 +82,13 @@ def scan_sca_commit_range(context: click.Context, path: str, commit_range: str) 
     scan_commit_range_documents(context, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters)
 
 
-def scan_disk_files(context: click.Context, path: str) -> None:
-    scan_parameters = get_scan_parameters(context, path)
+def scan_disk_files(context: click.Context, paths: Tuple[str]) -> None:
+    scan_parameters = get_scan_parameters(context, paths)
     scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
     try:
-        documents = get_relevant_document(progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, scan_type, path)
+        documents = get_relevant_documents(progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, scan_type, paths)
         perform_pre_scan_documents_actions(context, scan_type, documents)
         scan_documents(context, documents, scan_parameters=scan_parameters)
     except Exception as e:
@@ -535,22 +535,31 @@ def get_default_scan_parameters(context: click.Context) -> dict:
     }
 
 
-def get_scan_parameters(context: click.Context, path: str) -> dict:
+def get_scan_parameters(context: click.Context, paths: Tuple[str]) -> dict:
     scan_parameters = get_default_scan_parameters(context)
-    remote_url = try_get_git_remote_url(path)
+
+    if len(paths) != 1:
+        # ignore remote url if multiple paths are provided
+        return scan_parameters
+
+    remote_url = try_get_git_remote_url(paths[0])
     if remote_url:
-        # TODO(MarshalX): remove hardcode
+        # TODO(MarshalX): remove hardcode in context
         context.obj['remote_url'] = remote_url
-        scan_parameters.update(remote_url)
+        scan_parameters.update(
+            {
+                'remote_url': remote_url,
+            }
+        )
+
     return scan_parameters
 
 
-def try_get_git_remote_url(path: str) -> Optional[dict]:
+def try_get_git_remote_url(path: str) -> Optional[str]:
     try:
-        git_remote_url = Repo(path).remotes[0].config_reader.get('url')
-        return {
-            'remote_url': git_remote_url,
-        }
+        remote_url = Repo(path).remotes[0].config_reader.get('url')
+        logger.debug(f'Found Git remote URL "{remote_url}" in path "{path}"')
+        return remote_url
     except Exception as e:
         logger.debug('Failed to get git remote URL. %s', {'exception_message': str(e)})
         return None

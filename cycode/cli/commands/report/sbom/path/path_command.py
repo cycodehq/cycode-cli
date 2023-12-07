@@ -5,7 +5,7 @@ import click
 from cycode.cli import consts
 from cycode.cli.commands.report.sbom.common import create_sbom_report, send_report_feedback
 from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
-from cycode.cli.files_collector.path_documents import get_relevant_document
+from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.utils.get_api_client import get_report_cycode_client
@@ -28,8 +28,8 @@ def path_command(context: click.Context, path: str) -> None:
     report_execution_id = -1
 
     try:
-        documents = get_relevant_document(
-            progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, path
+        documents = get_relevant_documents(
+            progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, (path,)
         )
         # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
         #  unhardcode usage of context in perform_pre_scan_documents_actions

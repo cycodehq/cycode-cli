@@ -25,7 +25,7 @@ from cycode.cyclient import logger
     required=False,
 )
 @click.pass_context
-def repisotiry_command(context: click.Context, path: str, branch: str) -> None:
+def repository_command(context: click.Context, path: str, branch: str) -> None:
     try:
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
 
@@ -54,7 +54,7 @@ def repisotiry_command(context: click.Context, path: str, branch: str) -> None:
 
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         scan_documents(
-            context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context, path)
+            context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context, (path,))
         )
     except Exception as e:
         handle_scan_exception(context, e)
