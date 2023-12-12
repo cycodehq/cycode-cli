@@ -404,3 +404,39 @@ class RequestedSbomReportResultSchema(Schema):
     @post_load
     def build_dto(self, data: Dict[str, Any], **_) -> SbomReport:
         return SbomReport(**data)
+
+
+@dataclass
+class ClassificationData:
+    severity: str
+
+
+class ClassificationDataSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    severity = fields.String()
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> ClassificationData:
+        return ClassificationData(**data)
+
+
+@dataclass
+class DetectionRule:
+    classification_data: List[ClassificationData]
+    detection_rule_id: str
+    custom_remediation_guidelines: Optional[str] = None
+
+
+class DetectionRuleSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    classification_data = fields.Nested(ClassificationDataSchema, many=True)
+    detection_rule_id = fields.String()
+    custom_remediation_guidelines = fields.String(allow_none=True)
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> DetectionRule:
+        return DetectionRule(**data)

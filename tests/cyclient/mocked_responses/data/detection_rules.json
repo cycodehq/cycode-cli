@@ -1,0 +1,20 @@
+[
+  {
+    "classification_data": [
+      {
+        "severity": "High",
+        "classification_rule_id": "e4e826bd-5820-4cc9-ae5b-bbfceb500a21"
+      }
+    ],
+    "detection_rule_id": "26ab3395-2522-4061-a50a-c69c2d622ca1"
+  },
+  {
+    "classification_data": [
+      {
+        "severity": "High",
+        "classification_rule_id": "e4e826bd-5820-4cc9-ae5b-bbfceb500a22"
+      }
+    ],
+    "detection_rule_id": "12345678-aea1-4304-a6e9-012345678901"
+  }
+]

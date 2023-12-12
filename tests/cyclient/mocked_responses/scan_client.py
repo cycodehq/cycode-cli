@@ -146,6 +146,19 @@ def get_report_scan_status_response(url: str) -> responses.Response:
     return responses.Response(method=responses.POST, url=url, status=200)
 
 
+def get_detection_rules_url(scan_client: ScanClient) -> str:
+    api_url = scan_client.scan_cycode_client.api_url
+    service_url = scan_client.get_detection_rules_path()
+    return f'{api_url}/{service_url}'
+
+
+def get_detection_rules_response(url: str) -> responses.Response:
+    with open(MOCKED_RESPONSES_PATH.joinpath('detection_rules.json'), encoding='UTF-8') as f:
+        json_response = json.load(f)
+
+    return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
+
+
 def mock_scan_async_responses(
     responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
@@ -153,6 +166,7 @@ def mock_scan_async_responses(
         get_zipped_file_scan_async_response(get_zipped_file_scan_async_url(scan_type, scan_client), scan_id)
     )
     responses_module.add(get_scan_details_response(get_scan_details_url(scan_id, scan_client), scan_id))
+    responses_module.add(get_detection_rules_response(get_detection_rules_url(scan_client)))
     responses_module.add(get_scan_detections_count_response(get_scan_detections_count_url(scan_client)))
     responses_module.add(get_scan_detections_response(get_scan_detections_url(scan_client), scan_id, zip_content_path))
     responses_module.add(get_report_scan_status_response(get_report_scan_status_url(scan_type, scan_id, scan_client)))
@@ -164,4 +178,5 @@ def mock_scan_responses(
     responses_module.add(
         get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client), zip_content_path)
     )
+    responses_module.add(get_detection_rules_response(get_detection_rules_url(scan_client)))
     responses_module.add(get_report_scan_status_response(get_report_scan_status_url(scan_type, scan_id, scan_client)))
