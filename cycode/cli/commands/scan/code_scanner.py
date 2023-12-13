@@ -122,7 +122,11 @@ def _enrich_scan_result_with_data_from_detection_rules(
                 # we want to make sure that BE returned it. better to not map data instead of failed scan
                 continue
 
-            # TODO(MarshalX): here we can also map severity without migrating secrets to async flow
+            if detection_rule.classification_data:
+                # it's fine to take the first one, because:
+                # - for "secrets" and "iac" there is only one classification rule per detection rule
+                # - for "sca" and "sast" we get severity from detection service
+                detection.severity = detection_rule.classification_data[0].severity
 
             # detection_details never was typed properly. so not a problem for now
             detection.detection_details['custom_remediation_guidelines'] = detection_rule.custom_remediation_guidelines
