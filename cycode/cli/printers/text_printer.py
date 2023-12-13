@@ -68,6 +68,7 @@ class TextPrinter(PrinterBase):
         self, detection: Detection, document_path: str, scan_id: str, report_url: Optional[str]
     ) -> None:
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
+        detection_name_styled = click.style(detection_name, fg='bright_red', bold=True)
 
         detection_sha = detection.detection_details.get('sha512')
         detection_sha_message = f'\nSecret SHA: {detection_sha}' if detection_sha else ''
@@ -78,10 +79,19 @@ class TextPrinter(PrinterBase):
         detection_commit_id = detection.detection_details.get('commit_id')
         detection_commit_id_message = f'\nCommit SHA: {detection_commit_id}' if detection_commit_id else ''
 
+        company_guidelines = detection.detection_details.get('custom_remediation_guidelines')
+        company_guidelines_message = f'\nCompany Guideline: {company_guidelines}' if company_guidelines else ''
+
         click.echo(
-            f'⛔  Found issue of type: {click.style(detection_name, fg="bright_red", bold=True)} '
+            f'⛔  '
+            f'Found issue of type: {detection_name_styled} '
             f'(rule ID: {detection.detection_rule_id}) in file: {click.format_filename(document_path)} '
-            f'{detection_sha_message}{scan_id_message}{report_url_message}{detection_commit_id_message}  ⛔'
+            f'{detection_sha_message}'
+            f'{scan_id_message}'
+            f'{report_url_message}'
+            f'{detection_commit_id_message}'
+            f'{company_guidelines_message}'
+            f'  ⛔'
         )
 
     def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int) -> None:

@@ -99,6 +99,35 @@ def set_issue_detected_by_scan_results(context: click.Context, scan_results: Lis
     set_issue_detected(context, any(scan_result.issue_detected for scan_result in scan_results))
 
 
+def _enrich_scan_result_with_data_from_detection_rules(
+    cycode_client: 'ScanClient', scan_type: str, scan_result: ZippedFileScanResult
+) -> None:
+    # TODO(MarshalX): remove scan_type arg after migration to new backend filter
+    if scan_type != consts.SECRET_SCAN_TYPE:
+        # not yet
+        return
+
+    detection_rule_ids = set()
+    for detections_per_file in scan_result.detections_per_file:
+        for detection in detections_per_file.detections:
+            detection_rule_ids.add(detection.detection_rule_id)
+
+    detection_rules = cycode_client.get_detection_rules(scan_type, detection_rule_ids)
+    detection_rules_by_id = {detection_rule.detection_rule_id: detection_rule for detection_rule in detection_rules}
+
+    for detections_per_file in scan_result.detections_per_file:
+        for detection in detections_per_file.detections:
+            detection_rule = detection_rules_by_id.get(detection.detection_rule_id)
+            if not detection_rule:
+                # we want to make sure that BE returned it. better to not map data instead of failed scan
+                continue
+
+            # TODO(MarshalX): here we can also map severity without migrating secrets to async flow
+
+            # detection_details never was typed properly. so not a problem for now
+            detection.detection_details['custom_remediation_guidelines'] = detection_rule.custom_remediation_guidelines
+
+
 def _get_scan_documents_thread_func(
     context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
 ) -> Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]]:
@@ -122,6 +151,8 @@ def _get_scan_documents_thread_func(
             scan_result = perform_scan(
                 cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range, scan_parameters
             )
+
+            _enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_type, scan_result)
 
             local_scan_result = create_local_scan_result(
                 scan_result, batch, command_scan_type, scan_type, severity_threshold

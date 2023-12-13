@@ -1,8 +1,10 @@
 import json
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Set, Union
 
 from requests import Response
 
+from cycode.cli import consts
+from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cyclient import models
 from cycode.cyclient.cycode_client_base import CycodeClientBase
@@ -20,6 +22,7 @@ class ScanClient:
 
         self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
         self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
+        self.POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
 
         self._hide_response_log = hide_response_log
 
@@ -94,6 +97,58 @@ class ScanClient:
     def get_scan_details(self, scan_id: str) -> models.ScanDetailsResponse:
         response = self.scan_cycode_client.get(url_path=self.get_scan_details_path(scan_id))
         return models.ScanDetailsResponseSchema().load(response.json())
+
+    def get_detection_rules_path(self) -> str:
+        return (
+            f'{self.scan_config.get_detections_prefix()}/'
+            f'{self.POLICIES_SERVICE_CONTROLLER_PATH_V3}/'
+            f'detection_rules'
+        )
+
+    @staticmethod
+    def _get_policy_type_by_scan_type(scan_type: str) -> str:
+        scan_type_to_policy_type = {
+            consts.INFRA_CONFIGURATION_SCAN_TYPE: 'IaC',
+            consts.SCA_SCAN_TYPE: 'SCA',
+            consts.SECRET_SCAN_TYPE: 'SecretDetection',
+            consts.SAST_SCAN_TYPE: 'SAST',
+        }
+
+        if scan_type not in scan_type_to_policy_type:
+            raise CycodeError('Invalid scan type')
+
+        return scan_type_to_policy_type[scan_type]
+
+    @staticmethod
+    def _filter_detection_rules_by_ids(
+        detection_rules: List[models.DetectionRule], detection_rules_ids: Union[Set[str], List[str]]
+    ) -> List[models.DetectionRule]:
+        ids = set(detection_rules_ids)  # cast to set to perform faster search
+        return [rule for rule in detection_rules if rule.detection_rule_id in ids]
+
+    @staticmethod
+    def parse_detection_rules_response(response: Response) -> List[models.DetectionRule]:
+        return models.DetectionRuleSchema().load(response.json(), many=True)
+
+    def get_detection_rules(
+        self, scan_type: str, detection_rules_ids: Union[Set[str], List[str]]
+    ) -> List[models.DetectionRule]:
+        # TODO(MarshalX): use filter by list of IDs instead of policy_type when BE will be ready
+        params = {
+            'include_hidden': False,
+            'include_only_enabled_detection_rules': True,
+            'page_number': 0,
+            'page_size': 5000,
+            'policy_types_v2': self._get_policy_type_by_scan_type(scan_type),
+        }
+        response = self.scan_cycode_client.get(
+            url_path=self.get_detection_rules_path(),
+            params=params,
+            hide_response_content_log=self._hide_response_log,
+        )
+
+        # we are filtering rules by ids in-place for smooth migration when backend will be ready
+        return self._filter_detection_rules_by_ids(self.parse_detection_rules_response(response), detection_rules_ids)
 
     def get_scan_detections_path(self) -> str:
         return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}'
