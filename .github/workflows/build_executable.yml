@@ -72,9 +72,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          poetry install --only-root
-          poetry shell
-          pip install pyinstaller==6.3.0
+          poetry install --without dev,test
 
       - name: Build executable
         run: poetry run pyinstaller pyinstaller.spec
