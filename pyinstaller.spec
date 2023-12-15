@@ -2,8 +2,6 @@
 # Run `poetry run pyinstaller pyinstaller.spec` to generate the binary.
 
 
-block_cipher = None
-
 INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
 
 # save the prev content of __init__ file
@@ -21,21 +19,11 @@ with open(INIT_FILE_PATH, 'w', encoding='UTF-8') as file:
     file.write(prev_content.replace(VERSION_PLACEHOLDER, CLI_VERSION))
 
 a = Analysis(
-    ['cycode/cli/main.py'],
-    pathex=[],
-    binaries=[],
+    scripts=['cycode/cli/main.py'],
     datas=[('cycode/cli/config.yaml', 'cycode/cli'), ('cycode/cyclient/config.yaml', 'cycode/cyclient')],
-    hiddenimports=[],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
     excludes=['tests'],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
 exe = EXE(
     pyz,
@@ -46,17 +34,10 @@ exe = EXE(
     [],
     name='cycode',
     debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
+    strip=True,
     runtime_tmpdir=None,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    disable_windowed_traceback=True,
 )
 
 # rollback the prev content of the __init__ file

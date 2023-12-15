@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-29700-improve-executable-files
 
 permissions:
   contents: write
@@ -48,17 +49,17 @@ jobs:
           git checkout $LATEST_TAG
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Set up Python 3.7
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.12'
 
       - name: Load cached Poetry setup
         id: cached-poetry
         uses: actions/cache@v3
         with:
           path: ~/.local
-          key: poetry-${{ matrix.os }}-0  # increment to reset cache
+          key: poetry-${{ matrix.os }}-1  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
@@ -70,13 +71,16 @@ jobs:
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: poetry install
+        run: |
+          poetry install --only-root
+          poetry shell
+          pip install pyinstaller==6.3.0
 
       - name: Build executable
         run: poetry run pyinstaller pyinstaller.spec
 
       - name: Test executable
-        run: ./dist/cycode version
+        run: time ./dist/cycode version
 
       - name: Sign macOS executable
         if: runner.os == 'macOS'
@@ -124,7 +128,7 @@ jobs:
 
       - name: Test macOS signed executable
         if: runner.os == 'macOS'
-        run: ./dist/cycode version
+        run: time ./dist/cycode version
 
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
