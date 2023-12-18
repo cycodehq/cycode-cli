@@ -36,7 +36,7 @@ jobs:
         run: pip install cycode nuitka
 
       - name: Build executable
-        run: python -m nuitka --onefile --follow-imports --include-data-files=cycode/cli/config.yaml=cycode/cli --include-data-files=cycode/cyclient/config.yaml=cycode/cyclient --output-dir=dist cycode/cli/main.py
+        run: python -m nuitka --onefile --include-data-files=cycode/cli/config.yaml=cycode/cli/config.yaml --include-data-files=cycode/cyclient/config.yaml=cycode/cyclient/config.yaml --output-dir=dist cycode/cli/main.py
 
       - name: Test executable
         run: |
