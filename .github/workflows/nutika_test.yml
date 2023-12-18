@@ -40,7 +40,7 @@ jobs:
 
       - name: Test executable
         run: |
-          cp dist/main.dist/main.bin dist/cycode
+          cp dist/main.bin dist/cycode
           time ./dist/cycode version
 
       - name: Sign macOS executable
