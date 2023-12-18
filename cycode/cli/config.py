@@ -3,14 +3,7 @@ import os
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.yaml_utils import read_file
 
-__is_nuitka = '__compiled__' in globals()
-
-if __is_nuitka:
-    import sys
-    relative_path = os.path.dirname(sys.argv[0])
-else:
-    relative_path = os.path.dirname(__file__)
-
+relative_path = os.path.dirname(__file__)
 config_file_path = os.path.join(relative_path, 'config.yaml')
 config = read_file(config_file_path)
 configuration_manager = ConfigurationManager()
