@@ -39,7 +39,9 @@ jobs:
         run: python -m nuitka --standalone --follow-imports --output-dir=dist cycode/cli/main.py
 
       - name: Test executable
-        run: time ./dist/cycode version
+        run: |
+          cp dist/main.dist/main.bin dist/cycode
+          time ./dist/cycode version
 
       - name: Sign macOS executable
         if: runner.os == 'macOS'
