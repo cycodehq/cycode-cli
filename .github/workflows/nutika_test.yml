@@ -60,10 +60,11 @@ jobs:
       - name: Build executable
         env:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
-        run: python -m nuitka --onefile --include-data-files=cycode/cli/config.yaml=cycode/cli/config.yaml --include-data-files=cycode/cyclient/config.yaml=cycode/cyclient/config.yaml --output-dir=out cycode/cli/main.py --macos-sign-identity="$APPLE_CERT_NAME"
+        run: python -m nuitka --onefile --include-data-files=cycode/cli/config.yaml=cycode/cli/config.yaml --include-data-files=cycode/cyclient/config.yaml=cycode/cyclient/config.yaml --output-dir=out cycode/cli/main.py --macos-sign-identity="$APPLE_CERT_NAME" --onefile-tempdir-spec="%CACHE_DIR%/%COMPANY%/%PRODUCT%/%VERSION%" --company-name="Cycode" --product-name="CLI" --product-version="1.7.0"
 
       - name: Test executable
         run: |
+          mkdir dist
           cp out/main.bin dist/cycode
           time ./dist/cycode version
 
