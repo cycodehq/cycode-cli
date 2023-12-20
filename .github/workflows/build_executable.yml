@@ -122,14 +122,6 @@ jobs:
       - name: Test executable
         run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
-      - name: Sign macOS executable
-        if: runner.os == 'macOS'
-        env:
-          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
-        run: |
-          # sign executable
-          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp $PATH_TO_CYCODE_CLI_EXECUTABLE
-
       - name: Notarize macOS executable
         if: runner.os == 'macOS'
         env:
@@ -141,13 +133,12 @@ jobs:
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_NOTARIZATION_EMAIL" --team-id "$APPLE_NOTARIZATION_TEAM_ID" --password "$APPLE_NOTARIZATION_PWD"
 
           # create zip file (notarization does not support binaries)
-          ditto -c -k --keepParent $PATH_TO_CYCODE_CLI_EXECUTABLE notarization.zip
+          ditto -c -k --keepParent dist/cycode-cli notarization.zip
 
           # notarize app (this will take a while)
           xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
 
-          # we can't staple the app because it's executable. we should only staple app bundles like .dmg
-          # xcrun stapler staple $PATH_TO_CYCODE_CLI_EXECUTABLE
+          # we can't staple the app because it's executable
 
       - name: Test macOS signed executable
         run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
@@ -188,10 +179,10 @@ jobs:
         shell: cmd
         run: |
           :: call executable and expect correct output
-          .\dist\cycode.exe version
+          .\dist\cycode-cli.exe version
 
           :: verify signature
-          signtool.exe verify /v /pa ".\dist\cycode.exe"
+          signtool.exe verify /v /pa ".\dist\cycode-cli.exe"
 
       - name: Prepare files on Windows
         if: runner.os == 'Windows'
