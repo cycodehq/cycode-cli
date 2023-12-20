@@ -78,14 +78,7 @@ jobs:
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: |
-          # we are exporting dependencies to do the trick with pyinstaller version
-          # we want to use new pyinstaller version with python 3.12, but our project uses Python 3.7
-          # the pyinstaller v6 dropped support of python 3.7
-
-          poetry export -f "requirements.txt" -o "requirements.txt"
-          pip install -r requirements.txt
-          pip install pyinstaller==6.3.0 dunamai==1.18.0
+        run: poetry install --without dev,test
 
       - name: Import macOS signing certificate
         if: runner.os == 'macOS'
@@ -115,7 +108,7 @@ jobs:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
           poetry run pyinstaller pyinstaller.spec
-          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode" >> $GITHUB_ENV
+          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode-cli" >> $GITHUB_ENV
 
       - name: Build executable (onedir)
         if: matrix.mode == 'onedir'
@@ -123,8 +116,8 @@ jobs:
           CYCODE_ONEDIR_MODE: 1
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
-          pyinstaller pyinstaller.spec
-          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode/cycode" >> $GITHUB_ENV
+          poetry run pyinstaller pyinstaller.spec
+          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode/cycode-cli" >> $GITHUB_ENV
 
       - name: Test executable
         run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
@@ -204,7 +197,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           echo "ARTIFACT_NAME=cycode-win" >> $GITHUB_ENV
-          mv dist/cycode.exe dist/cycode-win.exe
+          mv dist/cycode-cli.exe dist/cycode-win.exe
           powershell -Command "(Get-FileHash -Algorithm SHA256 dist/cycode-win.exe).Hash" > sha256
           head -c 64 sha256 > dist/cycode-win.exe.sha256
 
@@ -212,7 +205,7 @@ jobs:
         if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onefile'
         run: |
           echo "ARTIFACT_NAME=cycode-mac" >> $GITHUB_ENV
-          mv dist/cycode dist/cycode-mac
+          mv dist/cycode-cli dist/cycode-mac
           shasum -a 256 dist/cycode-mac > sha256
           head -c 64 sha256 > dist/cycode-mac.sha256
 
@@ -220,7 +213,7 @@ jobs:
         if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onefile'
         run: |
           echo "ARTIFACT_NAME=cycode-mac-arm" >> $GITHUB_ENV
-          mv dist/cycode dist/cycode-mac-arm
+          mv dist/cycode-cli dist/cycode-mac-arm
           shasum -a 256 dist/cycode-mac-arm > sha256
           head -c 64 sha256 > dist/cycode-mac-arm.sha256
 
@@ -238,7 +231,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           echo "ARTIFACT_NAME=cycode-linux" >> $GITHUB_ENV
-          mv dist/cycode dist/cycode-linux
+          mv dist/cycode-cli dist/cycode-linux
           sha256sum dist/cycode-linux > sha256
           head -c 64 sha256 > dist/cycode-linux.sha256
 

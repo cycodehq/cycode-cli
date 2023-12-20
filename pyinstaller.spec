@@ -33,7 +33,7 @@ if _ONEDIR_MODE:
 
 exe = EXE(
     *exe_args,
-    name='cycode',
+    name='cycode-cli',
     exclude_binaries=bool(_ONEDIR_MODE),
     target_arch=None,
     codesign_identity=_CODESIGN_IDENTITY,
@@ -41,7 +41,7 @@ exe = EXE(
 )
 
 if _ONEDIR_MODE:
-    coll = COLLECT(exe, a.binaries, a.datas, name='cycode')
+    coll = COLLECT(exe, a.binaries, a.datas, name='cycode-cli')
 
 # rollback the prev content of the __init__ file
 with open(_INIT_FILE_PATH, 'w', encoding='UTF-8') as file:
