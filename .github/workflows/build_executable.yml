@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }} (${{ matrix.mode }} mode)
+    name: Build on ${{ runner.os }} ${{ runner.arch }} (${{ matrix.mode }} mode)
     strategy:
       fail-fast: false
       matrix:
@@ -113,38 +113,29 @@ jobs:
         if: matrix.mode == 'onefile'
         env:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
-        run: poetry run pyinstaller pyinstaller.spec
+        run: |
+          poetry run pyinstaller pyinstaller.spec
+          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode" >> $GITHUB_ENV
 
       - name: Build executable (onedir)
         if: matrix.mode == 'onedir'
         env:
           CYCODE_ONEDIR_MODE: 1
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
-        run: poetry run pyinstaller pyinstaller.spec
+        run: |
+          poetry run pyinstaller pyinstaller.spec
+          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode/cycode" >> $GITHUB_ENV
 
-      - name: Test executable (onefile)
-        if: matrix.mode == 'onefile'
-        run: time ./dist/cycode version
-
-      - name: Test executable (onedir)
-        if: matrix.mode == 'onedir'
-        run: time ./dist/cycode/cycode version
+      - name: Test executable
+        run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
       - name: Sign macOS executable
-        if: runner.os == 'macOS' && matrix.mode == 'onefile'
+        if: runner.os == 'macOS'
         env:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
           # sign executable
-          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
-
-      - name: Sign macOS executable (onedir)
-        if: runner.os == 'macOS' && matrix.mode == 'onedir'
-        env:
-          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
-        run: |
-          # sign executable
-          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode/cycode
+          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp $PATH_TO_CYCODE_CLI_EXECUTABLE
 
       - name: Notarize macOS executable
         if: runner.os == 'macOS'
@@ -157,21 +148,16 @@ jobs:
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_NOTARIZATION_EMAIL" --team-id "$APPLE_NOTARIZATION_TEAM_ID" --password "$APPLE_NOTARIZATION_PWD"
 
           # create zip file (notarization does not support binaries)
-          ditto -c -k --keepParent dist/cycode notarization.zip
+          ditto -c -k --keepParent $PATH_TO_CYCODE_CLI_EXECUTABLE notarization.zip
 
           # notarize app (this will take a while)
           xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
 
           # we can't staple the app because it's executable. we should only staple app bundles like .dmg
-          # xcrun stapler staple dist/cycode
+          # xcrun stapler staple $PATH_TO_CYCODE_CLI_EXECUTABLE
 
-      - name: Test macOS signed executable (onefile)
-        if: runner.os == 'macOS' && matrix.mode == 'onefile'
-        run: time ./dist/cycode version
-
-      - name: Test executable (onedir)
-        if: runner.os == 'macOS' && matrix.mode == 'onedir'
-        run: time ./dist/cycode/cycode version
+      - name: Test macOS signed executable
+        run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
