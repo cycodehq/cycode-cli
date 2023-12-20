@@ -214,13 +214,18 @@ jobs:
           powershell -Command "(Get-FileHash -Algorithm SHA256 dist/cycode-win.exe).Hash" > sha256
           head -c 64 sha256 > dist/cycode-win.exe.sha256
 
-      - name: Prepare files on macOS
-        if: runner.os == 'macOS'
+      - name: Prepare files on macOS (onefile)
+        if: runner.os == 'macOS' && matrix.mode == 'onefile'
         run: |
           echo "ARTIFACT_NAME=cycode-mac" >> $GITHUB_ENV
           mv dist/cycode dist/cycode-mac
           shasum -a 256 dist/cycode-mac > sha256
           head -c 64 sha256 > dist/cycode-mac.sha256
+
+      - name: Prepare files on macOS (onedir)
+        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac-onedir" >> $GITHUB_ENV
 
       - name: Prepare files on Linux
         if: runner.os == 'Linux'
