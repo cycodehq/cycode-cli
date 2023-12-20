@@ -172,7 +172,7 @@ jobs:
           smksp_cert_sync.exe
 
           :: sign executable
-          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe" 
+          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode-cli.exe" 
 
       - name: Test Windows signed executable
         if: runner.os == 'Windows'
