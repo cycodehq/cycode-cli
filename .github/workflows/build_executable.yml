@@ -123,7 +123,7 @@ jobs:
           CYCODE_ONEDIR_MODE: 1
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
-          poetry run pyinstaller pyinstaller.spec
+          pyinstaller pyinstaller.spec
           echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode/cycode" >> $GITHUB_ENV
 
       - name: Test executable
