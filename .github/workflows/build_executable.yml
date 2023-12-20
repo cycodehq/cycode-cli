@@ -12,19 +12,16 @@ permissions:
 
 jobs:
   build:
+    name: Build on ${{ matrix.os }} (${{ matrix.mode }} mode)
     strategy:
       fail-fast: false
       matrix:
         os: [ ubuntu-20.04, macos-11, windows-2019 ]
         mode: [ 'onefile', 'onedir' ]
-        include:
+        exclude:
           - os: ubuntu-20.04
-            mode: onefile
+            mode: onedir
           - os: windows-2019
-            mode: onefile
-          - os: macos-11
-            mode: onefile
-          - os: macos-11
             mode: onedir
 
     runs-on: ${{ matrix.os }}
