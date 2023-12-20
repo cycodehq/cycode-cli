@@ -131,12 +131,20 @@ jobs:
         run: time ./dist/cycode/cycode version
 
       - name: Sign macOS executable
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && matrix.mode == 'onefile'
         env:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
           # sign executable
           codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
+
+      - name: Sign macOS executable (onedir)
+        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        env:
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: |
+          # sign executable
+          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode/cycode
 
       - name: Notarize macOS executable
         if: runner.os == 'macOS'
@@ -214,18 +222,31 @@ jobs:
           powershell -Command "(Get-FileHash -Algorithm SHA256 dist/cycode-win.exe).Hash" > sha256
           head -c 64 sha256 > dist/cycode-win.exe.sha256
 
-      - name: Prepare files on macOS (onefile)
-        if: runner.os == 'macOS' && matrix.mode == 'onefile'
+      - name: Prepare files on Intel macOS (onefile)
+        if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onefile'
         run: |
           echo "ARTIFACT_NAME=cycode-mac" >> $GITHUB_ENV
           mv dist/cycode dist/cycode-mac
           shasum -a 256 dist/cycode-mac > sha256
           head -c 64 sha256 > dist/cycode-mac.sha256
 
-      - name: Prepare files on macOS (onedir)
-        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+      - name: Prepare files on Apple Silicon macOS (onefile)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onefile'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac-arm" >> $GITHUB_ENV
+          mv dist/cycode dist/cycode-mac-arm
+          shasum -a 256 dist/cycode-mac-arm > sha256
+          head -c 64 sha256 > dist/cycode-mac-arm.sha256
+
+      - name: Prepare files on Intel macOS (onedir)
+        if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onedir'
         run: |
           echo "ARTIFACT_NAME=cycode-mac-onedir" >> $GITHUB_ENV
+
+      - name: Prepare files on Apple Silicon macOS (onedir)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onedir'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac-arm-onedir" >> $GITHUB_ENV
 
       - name: Prepare files on Linux
         if: runner.os == 'Linux'
