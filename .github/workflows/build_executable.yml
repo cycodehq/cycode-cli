@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-30405-add-building-of-executable-cli-in-the-onedir-mode
 
 permissions:
   contents: write
@@ -15,6 +16,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-20.04, macos-11, windows-2019 ]
+        mode: [ 'onefile', 'onedir' ]
+        include:
+          - os: ubuntu-20.04
+            mode: onefile
+          - os: windows-2019
+            mode: onefile
+          - os: macos-11
+            mode: onefile
+          - os: macos-11
+            mode: onedir
 
     runs-on: ${{ matrix.os }}
 
@@ -48,17 +59,17 @@ jobs:
           git checkout $LATEST_TAG
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Set up Python 3.7
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.12'
 
       - name: Load cached Poetry setup
         id: cached-poetry
         uses: actions/cache@v3
         with:
           path: ~/.local
-          key: poetry-${{ matrix.os }}-0  # increment to reset cache
+          key: poetry-${{ matrix.os }}-1  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
@@ -70,15 +81,16 @@ jobs:
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: poetry install
+        run: |
+          # we are exporting dependencies to do the trick with pyinstaller version
+          # we want to use new pyinstaller version with python 3.12, but our project uses Python 3.7
+          # the pyinstaller v6 dropped support of python 3.7
 
-      - name: Build executable
-        run: poetry run pyinstaller pyinstaller.spec
+          poetry export -f "requirements.txt" -o "requirements.txt"
+          pip install -r requirements.txt
+          pip install pyinstaller==6.3.0 dunamai==1.18.0
 
-      - name: Test executable
-        run: ./dist/cycode version
-
-      - name: Sign macOS executable
+      - name: Import macOS signing certificate
         if: runner.os == 'macOS'
         env:
           APPLE_CERT: ${{ secrets.APPLE_CERT }}
@@ -100,6 +112,32 @@ jobs:
           security import $CERTIFICATE_PATH -P "$APPLE_CERT_PWD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: Build executable (onefile)
+        if: matrix.mode == 'onefile'
+        env:
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: poetry run pyinstaller pyinstaller.spec
+
+      - name: Build executable (onedir)
+        if: matrix.mode == 'onedir'
+        env:
+          CYCODE_ONEDIR_MODE: 1
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: poetry run pyinstaller pyinstaller.spec
+
+      - name: Test executable (onefile)
+        if: matrix.mode == 'onefile'
+        run: time ./dist/cycode version
+
+      - name: Test executable (onedir)
+        if: matrix.mode == 'onedir'
+        run: time ./dist/cycode/cycode version
+
+      - name: Sign macOS executable
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: |
           # sign executable
           codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
 
@@ -122,9 +160,13 @@ jobs:
           # we can't staple the app because it's executable. we should only staple app bundles like .dmg
           # xcrun stapler staple dist/cycode
 
-      - name: Test macOS signed executable
-        if: runner.os == 'macOS'
-        run: ./dist/cycode version
+      - name: Test macOS signed executable (onefile)
+        if: runner.os == 'macOS' && matrix.mode == 'onefile'
+        run: time ./dist/cycode version
+
+      - name: Test executable (onedir)
+        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        run: time ./dist/cycode/cycode version
 
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
