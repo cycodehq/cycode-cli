@@ -64,10 +64,9 @@ jobs:
         run: poetry install
 
       - name: Run executable test
-        if: runner.os == 'Linux'
         run: |
           poetry run pyinstaller pyinstaller.spec
-          ./dist/cycode version
+          ./dist/cycode-cli version
 
       - name: Run pytest
         run: poetry run pytest

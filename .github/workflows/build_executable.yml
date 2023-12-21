@@ -11,10 +11,17 @@ permissions:
 
 jobs:
   build:
+    name: Build on ${{ matrix.os }} (${{ matrix.mode }} mode)
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, macos-11, windows-2019 ]
+        os: [ ubuntu-20.04, macos-11, macos-13-xlarge, windows-2019 ]
+        mode: [ 'onefile', 'onedir' ]
+        exclude:
+          - os: ubuntu-20.04
+            mode: onedir
+          - os: windows-2019
+            mode: onedir
 
     runs-on: ${{ matrix.os }}
 
@@ -48,17 +55,17 @@ jobs:
           git checkout $LATEST_TAG
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Set up Python 3.7
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.12'
 
       - name: Load cached Poetry setup
         id: cached-poetry
         uses: actions/cache@v3
         with:
           path: ~/.local
-          key: poetry-${{ matrix.os }}-0  # increment to reset cache
+          key: poetry-${{ matrix.os }}-1  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
@@ -70,15 +77,9 @@ jobs:
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --without dev,test
 
-      - name: Build executable
-        run: poetry run pyinstaller pyinstaller.spec
-
-      - name: Test executable
-        run: ./dist/cycode version
-
-      - name: Sign macOS executable
+      - name: Import macOS signing certificate
         if: runner.os == 'macOS'
         env:
           APPLE_CERT: ${{ secrets.APPLE_CERT }}
@@ -100,8 +101,25 @@ jobs:
           security import $CERTIFICATE_PATH -P "$APPLE_CERT_PWD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-          # sign executable
-          codesign --deep --force --options=runtime --entitlements entitlements.plist --sign "$APPLE_CERT_NAME" --timestamp dist/cycode
+      - name: Build executable (onefile)
+        if: matrix.mode == 'onefile'
+        env:
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: |
+          poetry run pyinstaller pyinstaller.spec
+          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode-cli" >> $GITHUB_ENV
+
+      - name: Build executable (onedir)
+        if: matrix.mode == 'onedir'
+        env:
+          CYCODE_ONEDIR_MODE: 1
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: |
+          poetry run pyinstaller pyinstaller.spec
+          echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode-cli/cycode-cli" >> $GITHUB_ENV
+
+      - name: Test executable
+        run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
       - name: Notarize macOS executable
         if: runner.os == 'macOS'
@@ -114,17 +132,20 @@ jobs:
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_NOTARIZATION_EMAIL" --team-id "$APPLE_NOTARIZATION_TEAM_ID" --password "$APPLE_NOTARIZATION_PWD"
 
           # create zip file (notarization does not support binaries)
-          ditto -c -k --keepParent dist/cycode notarization.zip
+          ditto -c -k --keepParent dist/cycode-cli notarization.zip
 
           # notarize app (this will take a while)
           xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
 
-          # we can't staple the app because it's executable. we should only staple app bundles like .dmg
-          # xcrun stapler staple dist/cycode
+          # we can't staple the app because it's executable
 
       - name: Test macOS signed executable
         if: runner.os == 'macOS'
-        run: ./dist/cycode version
+        run: |
+          time $PATH_TO_CYCODE_CLI_EXECUTABLE version
+
+          # verify signature
+          codesign -dv --verbose=4 $PATH_TO_CYCODE_CLI_EXECUTABLE
 
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
@@ -155,39 +176,57 @@ jobs:
           smksp_cert_sync.exe
 
           :: sign executable
-          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode.exe" 
+          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode-cli.exe" 
 
       - name: Test Windows signed executable
         if: runner.os == 'Windows'
         shell: cmd
         run: |
           :: call executable and expect correct output
-          .\dist\cycode.exe version
+          .\dist\cycode-cli.exe version
 
           :: verify signature
-          signtool.exe verify /v /pa ".\dist\cycode.exe"
+          signtool.exe verify /v /pa ".\dist\cycode-cli.exe"
 
       - name: Prepare files on Windows
         if: runner.os == 'Windows'
         run: |
           echo "ARTIFACT_NAME=cycode-win" >> $GITHUB_ENV
-          mv dist/cycode.exe dist/cycode-win.exe
+          mv dist/cycode-cli.exe dist/cycode-win.exe
           powershell -Command "(Get-FileHash -Algorithm SHA256 dist/cycode-win.exe).Hash" > sha256
           head -c 64 sha256 > dist/cycode-win.exe.sha256
 
-      - name: Prepare files on macOS
-        if: runner.os == 'macOS'
+      - name: Prepare files on Intel macOS (onefile)
+        if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onefile'
         run: |
           echo "ARTIFACT_NAME=cycode-mac" >> $GITHUB_ENV
-          mv dist/cycode dist/cycode-mac
+          mv dist/cycode-cli dist/cycode-mac
           shasum -a 256 dist/cycode-mac > sha256
           head -c 64 sha256 > dist/cycode-mac.sha256
+
+      - name: Prepare files on Apple Silicon macOS (onefile)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onefile'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac-arm" >> $GITHUB_ENV
+          mv dist/cycode-cli dist/cycode-mac-arm
+          shasum -a 256 dist/cycode-mac-arm > sha256
+          head -c 64 sha256 > dist/cycode-mac-arm.sha256
+
+      - name: Prepare files on Intel macOS (onedir)
+        if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onedir'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac-onedir" >> $GITHUB_ENV
+
+      - name: Prepare files on Apple Silicon macOS (onedir)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onedir'
+        run: |
+          echo "ARTIFACT_NAME=cycode-mac-arm-onedir" >> $GITHUB_ENV
 
       - name: Prepare files on Linux
         if: runner.os == 'Linux'
         run: |
           echo "ARTIFACT_NAME=cycode-linux" >> $GITHUB_ENV
-          mv dist/cycode dist/cycode-linux
+          mv dist/cycode-cli dist/cycode-linux
           sha256sum dist/cycode-linux > sha256
           head -c 64 sha256 > dist/cycode-linux.sha256
 

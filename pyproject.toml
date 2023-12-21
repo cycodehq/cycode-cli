@@ -48,7 +48,7 @@ coverage = ">=7.2.3,<7.3.0"
 responses = ">=0.23.1,<0.24.0"
 
 [tool.poetry.group.executable.dependencies]
-pyinstaller = ">=5.13.0,<5.14.0"
+pyinstaller = ">=5.13.2,<5.14.0"
 dunamai = ">=1.18.0,<1.19.0"
 
 [tool.poetry.group.dev.dependencies]
