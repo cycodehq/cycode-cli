@@ -145,8 +145,13 @@ jobs:
         run: |
           time $PATH_TO_CYCODE_CLI_EXECUTABLE version
           
-          # verify signature and notarization
+          # verify signature
           codesign -dv --verbose=4 $PATH_TO_CYCODE_CLI_EXECUTABLE
+
+          # there is a small delay between notarization and notarization verification
+          sleep 10
+
+          # verify notarization
           spctl -a -vvv -t install $PATH_TO_CYCODE_CLI_EXECUTABLE
 
       - name: Import cert for Windows and setup envs
