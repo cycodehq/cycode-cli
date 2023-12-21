@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-30405-add-building-of-executable-cli-in-the-onedir-mode
 
 permissions:
   contents: write
@@ -140,7 +141,13 @@ jobs:
           # we can't staple the app because it's executable
 
       - name: Test macOS signed executable
-        run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
+        if: runner.os == 'macOS'
+        run: |
+          time $PATH_TO_CYCODE_CLI_EXECUTABLE version
+          
+          # verify signature and notarization
+          codesign -dv --verbose=4 $PATH_TO_CYCODE_CLI_EXECUTABLE
+          spctl -a -vvv -t install $PATH_TO_CYCODE_CLI_EXECUTABLE
 
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
