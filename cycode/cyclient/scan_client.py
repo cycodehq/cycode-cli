@@ -20,8 +20,8 @@ class ScanClient:
         self.scan_cycode_client = scan_cycode_client
         self.scan_config = scan_config
 
-        self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
-        self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
+        self.SCAN_CONTROLLER_PATH = 'api/v1/cli-scan'
+        self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections/cli'
         self.POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
 
         self._hide_response_log = hide_response_log
