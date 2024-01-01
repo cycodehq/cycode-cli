@@ -151,7 +151,7 @@ class ScanClient:
         return self._filter_detection_rules_by_ids(self.parse_detection_rules_response(response), detection_rules_ids)
 
     def get_scan_detections_path(self) -> str:
-        return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}'
+        return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/detections'
 
     def get_scan_detections(self, scan_id: str) -> List[dict]:
         params = {'scan_id': scan_id}
