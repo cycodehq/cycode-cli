@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - CM-30406-attach-onedir-cli-to-git-hub-releases-with-checksums
 
 permissions:
   contents: write
@@ -189,7 +188,7 @@ jobs:
           :: verify signature
           signtool.exe verify /v /pa ".\dist\cycode-cli.exe"
 
-      - name: Prepare files
+      - name: Prepare files for artifact and release (rename and calculate sha256)
         env:
           PROCESS_ONEDIR: ${{ matrix.mode == 'onedir' }}
         run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli)" >> $GITHUB_ENV
