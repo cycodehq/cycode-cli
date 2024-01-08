@@ -118,7 +118,7 @@ def process_executable_file(input_path: Path, arm: bool, onedir: bool) -> str:
         file_hash = get_hash_of_file(input_path)
         write_hash_to_file(file_hash, hash_file_path)
 
-    if not onedir:
+        # for example rename cycode-cli to cycode-mac or cycode-mac-arm-onedir
         os.rename(input_path, get_cli_path(output_path, arm, onedir))
 
     return get_cli_filename(arm, onedir)
@@ -144,10 +144,16 @@ def main() -> None:
     parser.add_argument('input', help='Path to executable or directory')
 
     args = parser.parse_args()
+
     onedir = args.onedir or parse_bool(os.environ.get('PROCESS_ONEDIR', False))
     arm = args.arm or parse_bool(os.environ.get('PROCESS_ARM', False)) or is_arm()
 
-    artifact_name = process_executable_file(Path(args.input), arm, onedir)
+    input_path = Path(args.input)
+    if get_os_name() == 'windows' and not onedir and input_path.suffix != '.exe':
+        # add .exe on windows if was missed (to simplify GHA workflow)
+        input_path = input_path.with_suffix('.exe')
+
+    artifact_name = process_executable_file(input_path, arm, onedir)
 
     print(artifact_name)  # noqa: T201
 

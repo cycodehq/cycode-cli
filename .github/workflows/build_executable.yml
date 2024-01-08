@@ -194,12 +194,6 @@ jobs:
           PROCESS_ONEDIR: ${{ matrix.mode == 'onedir' }}
         run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli)" >> $GITHUB_ENV
 
-      - name: Prepare files on Windows
-        if: runner.os == 'Windows'
-        env:
-          PROCESS_ONEDIR: ${{ matrix.mode == 'onedir' }}
-        run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli.exe)" >> $GITHUB_ENV
-
       - name: Upload files as artifact
         uses: actions/upload-artifact@v3
         with:
