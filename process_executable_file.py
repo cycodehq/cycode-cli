@@ -66,12 +66,12 @@ def get_cli_file_name(suffix: str = '', ext: str = '') -> str:
     return template.substitute(suffix=suffix, ext=ext)
 
 
-def get_cli_file_suffix(arm: bool, onedir: bool) -> str:
+def get_cli_file_suffix(is_onedir: bool) -> str:
     suffixes = []
 
-    if arm:
+    if is_arm():
         suffixes.append('-arm')
-    if onedir:
+    if is_onedir:
         suffixes.append('-onedir')
 
     return ''.join(suffixes)
@@ -91,27 +91,27 @@ def write_hashes_db_to_file(hashes: DirHashes, output_path: str) -> None:
         f.write(content)
 
 
-def get_cli_filename(arm: bool, onedir: bool) -> str:
-    return get_cli_file_name(get_cli_file_suffix(arm, onedir))
+def get_cli_filename(is_onedir: bool) -> str:
+    return get_cli_file_name(get_cli_file_suffix(is_onedir))
 
 
-def get_cli_path(output_path: Path, arm: bool, onedir: bool) -> str:
-    return os.path.join(output_path, get_cli_filename(arm, onedir))
+def get_cli_path(output_path: Path, is_onedir: bool) -> str:
+    return os.path.join(output_path, get_cli_filename(is_onedir))
 
 
-def get_cli_hash_filename(arm: bool, onedir: bool) -> str:
-    return get_cli_file_name(suffix=get_cli_file_suffix(arm, onedir), ext=_HASH_FILE_EXT)
+def get_cli_hash_filename(is_onedir: bool) -> str:
+    return get_cli_file_name(suffix=get_cli_file_suffix(is_onedir), ext=_HASH_FILE_EXT)
 
 
-def get_cli_hash_path(output_path: Path, arm: bool, onedir: bool) -> str:
-    return os.path.join(output_path, get_cli_hash_filename(arm, onedir))
+def get_cli_hash_path(output_path: Path, is_onedir: bool) -> str:
+    return os.path.join(output_path, get_cli_hash_filename(is_onedir))
 
 
-def process_executable_file(input_path: Path, arm: bool, onedir: bool) -> str:
+def process_executable_file(input_path: Path, is_onedir: bool) -> str:
     output_path = input_path.parent
-    hash_file_path = get_cli_hash_path(output_path, arm, onedir)
+    hash_file_path = get_cli_hash_path(output_path, is_onedir)
 
-    if onedir:
+    if is_onedir:
         hashes = calculate_hash_of_every_file_in_the_directory(input_path)
         write_hashes_db_to_file(hashes, hash_file_path)
     else:
@@ -119,41 +119,24 @@ def process_executable_file(input_path: Path, arm: bool, onedir: bool) -> str:
         write_hash_to_file(file_hash, hash_file_path)
 
         # for example rename cycode-cli to cycode-mac or cycode-mac-arm-onedir
-        os.rename(input_path, get_cli_path(output_path, arm, onedir))
+        os.rename(input_path, get_cli_path(output_path, is_onedir))
 
-    return get_cli_filename(arm, onedir)
-
-
-def parse_bool(value: Union[str, bool]) -> bool:
-    if isinstance(value, bool):
-        return value
-
-    if value.lower() in ('true', '1'):
-        return True
-    if value.lower() in ('false', '0'):
-        return False
-
-    raise ValueError(f'Invalid value: {value}')
+    return get_cli_filename(is_onedir)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('--onedir', '-o', action='store_true', help='One directory mode')
-    parser.add_argument('--arm', '-a', action='store_true', help='Is it ARM arch')
     parser.add_argument('input', help='Path to executable or directory')
 
     args = parser.parse_args()
-
-    onedir = args.onedir or parse_bool(os.environ.get('PROCESS_ONEDIR', False))
-    arm = args.arm or parse_bool(os.environ.get('PROCESS_ARM', False)) or is_arm()
-
     input_path = Path(args.input)
-    if get_os_name() == 'windows' and not onedir and input_path.suffix != '.exe':
+    is_onedir = input_path.is_dir()
+
+    if get_os_name() == 'windows' and not is_onedir and input_path.suffix != '.exe':
         # add .exe on windows if was missed (to simplify GHA workflow)
         input_path = input_path.with_suffix('.exe')
 
-    artifact_name = process_executable_file(input_path, arm, onedir)
+    artifact_name = process_executable_file(input_path, is_onedir)
 
     print(artifact_name)  # noqa: T201
 
