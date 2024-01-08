@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-30406-attach-onedir-cli-to-git-hub-releases-with-checksums
 
 permissions:
   contents: write
@@ -188,47 +189,16 @@ jobs:
           :: verify signature
           signtool.exe verify /v /pa ".\dist\cycode-cli.exe"
 
+      - name: Prepare files
+        env:
+          PROCESS_ONEDIR: ${{ matrix.mode == 'onedir' }}
+        run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli)" >> $GITHUB_ENV
+
       - name: Prepare files on Windows
         if: runner.os == 'Windows'
-        run: |
-          echo "ARTIFACT_NAME=cycode-win" >> $GITHUB_ENV
-          mv dist/cycode-cli.exe dist/cycode-win.exe
-          powershell -Command "(Get-FileHash -Algorithm SHA256 dist/cycode-win.exe).Hash" > sha256
-          head -c 64 sha256 > dist/cycode-win.exe.sha256
-
-      - name: Prepare files on Intel macOS (onefile)
-        if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onefile'
-        run: |
-          echo "ARTIFACT_NAME=cycode-mac" >> $GITHUB_ENV
-          mv dist/cycode-cli dist/cycode-mac
-          shasum -a 256 dist/cycode-mac > sha256
-          head -c 64 sha256 > dist/cycode-mac.sha256
-
-      - name: Prepare files on Apple Silicon macOS (onefile)
-        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onefile'
-        run: |
-          echo "ARTIFACT_NAME=cycode-mac-arm" >> $GITHUB_ENV
-          mv dist/cycode-cli dist/cycode-mac-arm
-          shasum -a 256 dist/cycode-mac-arm > sha256
-          head -c 64 sha256 > dist/cycode-mac-arm.sha256
-
-      - name: Prepare files on Intel macOS (onedir)
-        if: runner.os == 'macOS' && runner.arch == 'X64' && matrix.mode == 'onedir'
-        run: |
-          echo "ARTIFACT_NAME=cycode-mac-onedir" >> $GITHUB_ENV
-
-      - name: Prepare files on Apple Silicon macOS (onedir)
-        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.mode == 'onedir'
-        run: |
-          echo "ARTIFACT_NAME=cycode-mac-arm-onedir" >> $GITHUB_ENV
-
-      - name: Prepare files on Linux
-        if: runner.os == 'Linux'
-        run: |
-          echo "ARTIFACT_NAME=cycode-linux" >> $GITHUB_ENV
-          mv dist/cycode-cli dist/cycode-linux
-          sha256sum dist/cycode-linux > sha256
-          head -c 64 sha256 > dist/cycode-linux.sha256
+        env:
+          PROCESS_ONEDIR: ${{ matrix.mode == 'onedir' }}
+        run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli.exe)" >> $GITHUB_ENV
 
       - name: Upload files as artifact
         uses: actions/upload-artifact@v3
