@@ -34,7 +34,9 @@ def calculate_hash_of_every_file_in_the_directory(dir_path: Path) -> DirHashes:
         for file in files:
             file_path = os.path.join(root, file)
             file_hash = get_hash_of_file(file_path)
-            hashes.append((file_hash, file_path))
+
+            relative_file_path = file_path[file_path.find(dir_path.name):]
+            hashes.append((file_hash, relative_file_path))
 
     # sort by file path
     hashes.sort(key=lambda x: x[1])
