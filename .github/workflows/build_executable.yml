@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - CM-30406-attach-onedir-cli-to-git-hub-releases-with-checksums
 
 permissions:
   contents: write
