@@ -22,6 +22,8 @@ _OS_TO_CLI_DIST_TEMPLATE = {
     'linux': Template('cycode-linux$suffix$ext'),
     'windows': Template('cycode-win$suffix.exe$ext'),
 }
+_WINDOWS = 'windows'
+_WINDOWS_EXECUTABLE_SUFFIX = '.exe'
 
 DirHashes = List[Tuple[str, str]]
 
@@ -31,21 +33,38 @@ def get_hash_of_file(file_path: Union[str, Path]) -> str:
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def calculate_hash_of_every_file_in_the_directory(dir_path: Path) -> DirHashes:
+def get_hashes_of_many_files(root: str, file_paths: List[str]) -> DirHashes:
+    hashes = []
+
+    for file_path in file_paths:
+        file_path = os.path.join(root, file_path)
+        file_hash = get_hash_of_file(file_path)
+
+        hashes.append((file_hash, file_path))
+
+    return hashes
+
+
+def get_hashes_of_every_file_in_the_directory(dir_path: Path) -> DirHashes:
     hashes = []
 
     for root, _, files in os.walk(dir_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            file_hash = get_hash_of_file(file_path)
-
-            relative_file_path = file_path[file_path.find(dir_path.name):]
-            hashes.append((file_hash, relative_file_path))
-
-    # sort by file path
-    hashes.sort(key=lambda x: x[1])
+        hashes.extend(get_hashes_of_many_files(root, files,))
 
     return hashes
+
+
+def normalize_hashes_db(hashes: DirHashes, dir_path: Path) -> DirHashes:
+    normalized_hashes = []
+
+    for file_hash, file_path in hashes:
+        relative_file_path = file_path[file_path.find(dir_path.name):]
+        normalized_hashes.append((file_hash, relative_file_path))
+
+    # sort by file path
+    normalized_hashes.sort(key=lambda hash_item: hash_item[1])
+
+    return normalized_hashes
 
 
 def is_arm() -> bool:
@@ -111,8 +130,9 @@ def process_executable_file(input_path: Path, is_onedir: bool) -> str:
     hash_file_path = get_cli_hash_path(output_path, is_onedir)
 
     if is_onedir:
-        hashes = calculate_hash_of_every_file_in_the_directory(input_path)
-        write_hashes_db_to_file(hashes, hash_file_path)
+        hashes = get_hashes_of_every_file_in_the_directory(input_path)
+        normalized_hashes = normalize_hashes_db(hashes, input_path)
+        write_hashes_db_to_file(normalized_hashes, hash_file_path)
     else:
         file_hash = get_hash_of_file(input_path)
         write_hash_to_file(file_hash, hash_file_path)
@@ -131,9 +151,9 @@ def main() -> None:
     input_path = Path(args.input)
     is_onedir = input_path.is_dir()
 
-    if get_os_name() == 'windows' and not is_onedir and input_path.suffix != '.exe':
+    if get_os_name() == _WINDOWS and not is_onedir and input_path.suffix != _WINDOWS_EXECUTABLE_SUFFIX:
         # add .exe on windows if was missed (to simplify GHA workflow)
-        input_path = input_path.with_suffix('.exe')
+        input_path = input_path.with_suffix(_WINDOWS_EXECUTABLE_SUFFIX)
 
     artifact_name = process_executable_file(input_path, is_onedir)
 
