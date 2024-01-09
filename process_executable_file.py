@@ -16,15 +16,19 @@ from pathlib import Path
 from string import Template
 from typing import List, Tuple, Union
 
+_HASH_FILE_EXT = '.sha256'
+_OS_TO_CLI_DIST_TEMPLATE = {
+    'darwin': Template('cycode-mac$suffix$ext'),
+    'linux': Template('cycode-linux$suffix$ext'),
+    'windows': Template('cycode-win$suffix.exe$ext'),
+}
+
+DirHashes = List[Tuple[str, str]]
+
 
 def get_hash_of_file(file_path: Union[str, Path]) -> str:
     with open(file_path, 'rb') as f:
         return hashlib.sha256(f.read()).hexdigest()
-
-
-_HASH_FILE_EXT = '.sha256'
-
-DirHashes = List[Tuple[str, str]]
 
 
 def calculate_hash_of_every_file_in_the_directory(dir_path: Path) -> DirHashes:
@@ -42,13 +46,6 @@ def calculate_hash_of_every_file_in_the_directory(dir_path: Path) -> DirHashes:
     hashes.sort(key=lambda x: x[1])
 
     return hashes
-
-
-_OS_TO_CLI_DIST_TEMPLATE = {
-    'darwin': Template('cycode-mac$suffix$ext'),
-    'linux': Template('cycode-linux$suffix$ext'),
-    'windows': Template('cycode-win$suffix.exe$ext'),
-}
 
 
 def is_arm() -> bool:
