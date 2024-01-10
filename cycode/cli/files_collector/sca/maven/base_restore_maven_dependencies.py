@@ -39,6 +39,22 @@ class BaseRestoreMavenDependencies(ABC):
             else document.path
         )
 
+    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+        manifest_file_path = self.get_manifest_file_path(document)
+        restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
+
+        if self._verify_restore_file_already_exist(restore_file_path):
+            with open(restore_file_path) as file:
+                restore_file_content = file.read()
+        else:
+            restore_file_content = execute_command(self.get_command(manifest_file_path), manifest_file_path,
+                                                   self.command_timeout)
+
+        return Document(restore_file_path, restore_file_content, self.is_git_diff)
+
+    def _verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
+        return False
+
     @abstractmethod
     def is_project(self, document: Document) -> bool:
         pass
@@ -50,11 +66,3 @@ class BaseRestoreMavenDependencies(ABC):
     @abstractmethod
     def get_lock_file_name(self) -> str:
         pass
-
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
-        manifest_file_path = self.get_manifest_file_path(document)
-        return Document(
-            build_dep_tree_path(document.path, self.get_lock_file_name()),
-            execute_command(self.get_command(manifest_file_path), manifest_file_path, self.command_timeout),
-            self.is_git_diff,
-        )

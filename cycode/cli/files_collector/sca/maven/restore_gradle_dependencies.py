@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import click
@@ -22,3 +23,6 @@ class RestoreGradleDependencies(BaseRestoreMavenDependencies):
 
     def get_lock_file_name(self) -> str:
         return BUILD_GRADLE_DEP_TREE_FILE_NAME
+
+    def _verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
+        return os.path.isfile(restore_file_path)
