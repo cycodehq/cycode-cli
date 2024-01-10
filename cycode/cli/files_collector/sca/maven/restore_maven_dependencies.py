@@ -30,7 +30,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
 
     def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        False
+        return False
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         restore_dependencies_document = super().try_restore_dependencies(document)
