@@ -119,9 +119,9 @@ def get_scan_detections_count_response(url: str) -> responses.Response:
     return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 
 
-def get_scan_detections_url(scan_client: ScanClient) -> str:
+def get_scan_detections_url(scan_client: ScanClient, scan_type: str) -> str:
     api_url = scan_client.scan_cycode_client.api_url
-    service_url = scan_client.get_scan_detections_path()
+    service_url = scan_client.get_scan_detections_path(scan_type)
     return f'{api_url}/{service_url}'
 
 
@@ -168,7 +168,9 @@ def mock_scan_async_responses(
     responses_module.add(get_scan_details_response(get_scan_details_url(scan_id, scan_client), scan_id))
     responses_module.add(get_detection_rules_response(get_detection_rules_url(scan_client)))
     responses_module.add(get_scan_detections_count_response(get_scan_detections_count_url(scan_client)))
-    responses_module.add(get_scan_detections_response(get_scan_detections_url(scan_client), scan_id, zip_content_path))
+    responses_module.add(
+        get_scan_detections_response(get_scan_detections_url(scan_client, scan_type), scan_id, zip_content_path)
+    )
     responses_module.add(get_report_scan_status_response(get_report_scan_status_url(scan_type, scan_id, scan_client)))
 
 
