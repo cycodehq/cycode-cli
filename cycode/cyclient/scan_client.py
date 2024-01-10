@@ -47,11 +47,6 @@ class ScanClient:
         controller_path = self.get_scan_controller_path(scan_type)
         return f'{service_path}/{controller_path}'
 
-    def get_scan_url_path(self, scan_type: str) -> str:
-        prefix_path = self.scan_config.get_scans_prefix()
-        controller_path = self.get_scan_controller_path(scan_type)
-        return f'{prefix_path}/{controller_path}'
-
     def content_scan(self, scan_type: str, file_name: str, content: str, is_git_diff: bool = True) -> models.ScanResult:
         path = f'{self.get_scan_service_url_path(scan_type)}/content'
         body = {'name': file_name, 'content': content, 'is_git_diff': is_git_diff}
@@ -80,7 +75,7 @@ class ScanClient:
     def get_zipped_file_scan_async_url_path(self, scan_type: str) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
         async_entity_type = self.scan_config.get_async_entity_type(scan_type)
-        return f'{self.get_scan_url_path(scan_type)}/{async_scan_type}/{async_entity_type}'
+        return f'{self.get_scan_service_url_path(scan_type)}/{async_scan_type}/{async_entity_type}'
 
     def zipped_file_scan_async(
         self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False
@@ -101,7 +96,7 @@ class ScanClient:
         scan_parameters: dict,
         is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
-        url_path = f'{self.get_scan_url_path(scan_type)}/{scan_type}/repository/commit-range'
+        url_path = f'{self.get_scan_service_url_path(scan_type)}/{scan_type}/repository/commit-range'
         files = {
             'file_from_commit': ('multiple_files_scan.zip', from_commit_zip_file.read()),
             'file_to_commit': ('multiple_files_scan.zip', to_commit_zip_file.read()),
@@ -114,7 +109,7 @@ class ScanClient:
         return models.ScanInitializationResponseSchema().load(response.json())
 
     def get_scan_details_path(self, scan_type: str, scan_id: str) -> str:
-        return f'{self.get_scan_url_path(scan_type)}/{scan_id}'
+        return f'{self.get_scan_service_url_path(scan_type)}/{scan_id}'
 
     def get_scan_details(self, scan_type: str, scan_id: str) -> models.ScanDetailsResponse:
         path = self.get_scan_details_path(scan_type, scan_id)
