@@ -20,8 +20,8 @@ class ScanClient:
         self.scan_cycode_client = scan_cycode_client
         self.scan_config = scan_config
 
-        self.SCAN_CONTROLLER_PATH = 'api/v1/cli-scan'
-        self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections/cli'
+        self.SCAN_CONTROLLER_PATH = 'api/v1/scan'
+        self.DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
         self.POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
 
         self._hide_response_log = hide_response_log
@@ -151,7 +151,7 @@ class ScanClient:
         return self._filter_detection_rules_by_ids(self.parse_detection_rules_response(response), detection_rules_ids)
 
     def get_scan_detections_path(self) -> str:
-        return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}/detections'
+        return f'{self.scan_config.get_detections_prefix()}/{self.DETECTIONS_SERVICE_CONTROLLER_PATH}'
 
     def get_scan_detections(self, scan_id: str) -> List[dict]:
         params = {'scan_id': scan_id}
