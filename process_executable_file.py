@@ -51,7 +51,12 @@ def get_hashes_of_every_file_in_the_directory(dir_path: Path) -> DirHashes:
     hashes = []
 
     for root, _, files in os.walk(dir_path):
-        hashes.extend(get_hashes_of_many_files(root, files,))
+        hashes.extend(
+            get_hashes_of_many_files(
+                root,
+                files,
+            )
+        )
 
     return hashes
 
@@ -60,7 +65,7 @@ def normalize_hashes_db(hashes: DirHashes, dir_path: Path) -> DirHashes:
     normalized_hashes = []
 
     for file_hash, file_path in hashes:
-        relative_file_path = file_path[file_path.find(dir_path.name):]
+        relative_file_path = file_path[file_path.find(dir_path.name) :]
         normalized_hashes.append((file_hash, relative_file_path))
 
     # sort by file path

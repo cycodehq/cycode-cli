@@ -10,12 +10,6 @@ def test_get_service_name() -> None:
     assert default_scan_config.get_service_name('sast') == 'scans'
 
 
-def test_get_scans_prefix() -> None:
-    default_scan_config = DefaultScanConfig()
-
-    assert default_scan_config.get_scans_prefix() == 'scans'
-
-
 def test_get_detections_prefix() -> None:
     default_scan_config = DefaultScanConfig()
 
