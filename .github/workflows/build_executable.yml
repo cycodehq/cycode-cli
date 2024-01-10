@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-31141-zip-onedir-cli-to-attach-to-git-hub-releases
 
 permissions:
   contents: write
