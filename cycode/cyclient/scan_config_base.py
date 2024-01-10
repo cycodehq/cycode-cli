@@ -21,10 +21,6 @@ class ScanConfigBase(ABC):
         return 'repository'
 
     @abstractmethod
-    def get_scans_prefix(self) -> str:
-        ...
-
-    @abstractmethod
     def get_detections_prefix(self) -> str:
         ...
 
@@ -39,9 +35,6 @@ class DevScanConfig(ScanConfigBase):
         # sca and sast
         return '5004'
 
-    def get_scans_prefix(self) -> str:
-        return '5004'
-
     def get_detections_prefix(self) -> str:
         return '5016'
 
@@ -54,9 +47,6 @@ class DefaultScanConfig(ScanConfigBase):
             return 'iac'
 
         # sca and sast
-        return 'scans'
-
-    def get_scans_prefix(self) -> str:
         return 'scans'
 
     def get_detections_prefix(self) -> str:

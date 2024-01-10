@@ -439,7 +439,7 @@ def perform_scan_async(
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
 
-    return poll_scan_results(cycode_client, scan_async_result.scan_id)
+    return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type)
 
 
 def perform_commit_range_scan_async(
@@ -455,11 +455,14 @@ def perform_commit_range_scan_async(
     )
 
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
-    return poll_scan_results(cycode_client, scan_async_result.scan_id, timeout)
+    return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, timeout)
 
 
 def poll_scan_results(
-    cycode_client: 'ScanClient', scan_id: str, polling_timeout: Optional[int] = None
+    cycode_client: 'ScanClient',
+    scan_id: str,
+    scan_type: str,
+    polling_timeout: Optional[int] = None,
 ) -> ZippedFileScanResult:
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
@@ -468,14 +471,14 @@ def poll_scan_results(
     end_polling_time = time.time() + polling_timeout
 
     while time.time() < end_polling_time:
-        scan_details = cycode_client.get_scan_details(scan_id)
+        scan_details = cycode_client.get_scan_details(scan_type, scan_id)
 
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
             last_scan_update_at = scan_details.scan_update_at
             print_debug_scan_details(scan_details)
 
         if scan_details.scan_status == consts.SCAN_STATUS_COMPLETED:
-            return _get_scan_result(cycode_client, scan_id, scan_details)
+            return _get_scan_result(cycode_client, scan_type, scan_id, scan_details)
 
         if scan_details.scan_status == consts.SCAN_STATUS_ERROR:
             raise custom_exceptions.ScanAsyncError(
@@ -759,14 +762,14 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
 
 
 def _get_scan_result(
-    cycode_client: 'ScanClient', scan_id: str, scan_details: 'ScanDetailsResponse'
+    cycode_client: 'ScanClient', scan_type: str, scan_id: str, scan_details: 'ScanDetailsResponse'
 ) -> ZippedFileScanResult:
     if not scan_details.detections_count:
         return init_default_scan_result(scan_id, scan_details.metadata)
 
-    wait_for_detections_creation(cycode_client, scan_id, scan_details.detections_count)
+    wait_for_detections_creation(cycode_client, scan_type, scan_id, scan_details.detections_count)
 
-    scan_detections = cycode_client.get_scan_detections(scan_id)
+    scan_detections = cycode_client.get_scan_detections(scan_type, scan_id)
     return ZippedFileScanResult(
         did_detect=True,
         detections_per_file=_map_detections_per_file(scan_detections),
@@ -792,7 +795,9 @@ def _try_get_report_url(metadata_json: Optional[str]) -> Optional[str]:
         return None
 
 
-def wait_for_detections_creation(cycode_client: 'ScanClient', scan_id: str, expected_detections_count: int) -> None:
+def wait_for_detections_creation(
+    cycode_client: 'ScanClient', scan_type: str, scan_id: str, expected_detections_count: int
+) -> None:
     logger.debug('Waiting for detections to be created')
 
     scan_persisted_detections_count = 0
@@ -800,7 +805,7 @@ def wait_for_detections_creation(cycode_client: 'ScanClient', scan_id: str, expe
     end_polling_time = time.time() + polling_timeout
 
     while time.time() < end_polling_time:
-        scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_id)
+        scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_type, scan_id)
         logger.debug(
             f'Excepted {expected_detections_count} detections, got {scan_persisted_detections_count} detections '
             f'({expected_detections_count - scan_persisted_detections_count} more; '

@@ -10,12 +10,6 @@ def test_get_service_name() -> None:
     assert dev_scan_config.get_service_name('sast') == '5004'
 
 
-def test_get_scans_prefix() -> None:
-    dev_scan_config = DevScanConfig()
-
-    assert dev_scan_config.get_scans_prefix() == '5004'
-
-
 def test_get_detections_prefix() -> None:
     dev_scan_config = DevScanConfig()
 
