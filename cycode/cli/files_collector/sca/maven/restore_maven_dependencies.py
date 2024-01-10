@@ -29,6 +29,9 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
 
+    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
+        False
+
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         restore_dependencies_document = super().try_restore_dependencies(document)
         manifest_file_path = self.get_manifest_file_path(document)
@@ -44,7 +47,7 @@ class RestoreMavenDependencies(BaseRestoreMavenDependencies):
         return restore_dependencies_document
 
     def restore_from_secondary_command(
-        self, document: Document, manifest_file_path: str, restore_dependencies_document: Optional[Document]
+            self, document: Document, manifest_file_path: str, restore_dependencies_document: Optional[Document]
     ) -> Optional[Document]:
         # TODO(MarshalX): does it even work? Ignored restore_dependencies_document arg
         secondary_restore_command = create_secondary_restore_command(manifest_file_path)

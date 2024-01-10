@@ -4,7 +4,7 @@ from typing import List, Optional
 import click
 
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_dir, join_paths
+from cycode.cli.utils.path_utils import get_file_dir, join_paths, get_file_content
 from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 
@@ -43,17 +43,17 @@ class BaseRestoreMavenDependencies(ABC):
         manifest_file_path = self.get_manifest_file_path(document)
         restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
 
-        if self._verify_restore_file_already_exist(restore_file_path):
-            with open(restore_file_path) as file:
-                restore_file_content = file.read()
+        if self.verify_restore_file_already_exist(restore_file_path):
+            restore_file_content = get_file_content(restore_file_path)
         else:
             restore_file_content = execute_command(self.get_command(manifest_file_path), manifest_file_path,
                                                    self.command_timeout)
 
         return Document(restore_file_path, restore_file_content, self.is_git_diff)
 
-    def _verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        return False
+    @abstractmethod
+    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
+        pass
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:
