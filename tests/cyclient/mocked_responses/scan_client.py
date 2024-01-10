@@ -109,7 +109,7 @@ def get_scan_details_response(url: str, scan_id: Optional[UUID] = None) -> respo
 
 def get_scan_detections_count_url(scan_client: ScanClient) -> str:
     api_url = scan_client.scan_cycode_client.api_url
-    service_url = scan_client.get_get_scan_detections_count_path()
+    service_url = scan_client.get_scan_detections_count_path()
     return f'{api_url}/{service_url}'
 
 
