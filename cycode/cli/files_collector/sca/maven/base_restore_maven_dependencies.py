@@ -4,7 +4,7 @@ from typing import List, Optional
 import click
 
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_dir, join_paths, get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 
