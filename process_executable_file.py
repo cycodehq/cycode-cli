@@ -12,10 +12,12 @@ import argparse
 import hashlib
 import os
 import platform
+import shutil
 from pathlib import Path
 from string import Template
 from typing import List, Tuple, Union
 
+_ARCHIVE_FORMAT = 'zip'
 _HASH_FILE_EXT = '.sha256'
 _OS_TO_CLI_DIST_TEMPLATE = {
     'darwin': Template('cycode-mac$suffix$ext'),
@@ -130,6 +132,14 @@ def get_cli_hash_path(output_path: Path, is_onedir: bool) -> str:
     return os.path.join(output_path, get_cli_hash_filename(is_onedir))
 
 
+def get_cli_archive_filename(is_onedir: bool) -> str:
+    return get_cli_file_name(suffix=get_cli_file_suffix(is_onedir))
+
+
+def get_cli_archive_path(output_path: Path, is_onedir: bool) -> str:
+    return os.path.join(output_path, get_cli_archive_filename(is_onedir))
+
+
 def process_executable_file(input_path: Path, is_onedir: bool) -> str:
     output_path = input_path.parent
     hash_file_path = get_cli_hash_path(output_path, is_onedir)
@@ -138,6 +148,10 @@ def process_executable_file(input_path: Path, is_onedir: bool) -> str:
         hashes = get_hashes_of_every_file_in_the_directory(input_path)
         normalized_hashes = normalize_hashes_db(hashes, input_path)
         write_hashes_db_to_file(normalized_hashes, hash_file_path)
+
+        archived_file_path = get_cli_archive_path(output_path, is_onedir)
+        shutil.make_archive(archived_file_path, _ARCHIVE_FORMAT, input_path)
+        shutil.rmtree(input_path)
     else:
         file_hash = get_hash_of_file(input_path)
         write_hash_to_file(file_hash, hash_file_path)
