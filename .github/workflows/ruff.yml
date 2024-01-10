@@ -1,11 +1,10 @@
-name: Ruff (linter)
+name: Ruff (linter and code formatter)
 
 on: [ pull_request, push ]
 
 jobs:
   ruff:
     runs-on: ubuntu-latest
-
     steps:
       - name: Run Cimon
         uses: cycodelabs/cimon-action@v0
@@ -47,3 +46,6 @@ jobs:
 
       - name: Run linter check
         run: poetry run ruff check .
+
+      - name: Run code style check
+        run: poetry run ruff format --check .
