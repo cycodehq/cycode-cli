@@ -46,8 +46,9 @@ class BaseRestoreMavenDependencies(ABC):
         if self.verify_restore_file_already_exist(restore_file_path):
             restore_file_content = get_file_content(restore_file_path)
         else:
-            restore_file_content = execute_command(self.get_command(manifest_file_path), manifest_file_path,
-                                                   self.command_timeout)
+            restore_file_content = execute_command(
+                self.get_command(manifest_file_path), manifest_file_path, self.command_timeout
+            )
 
         return Document(restore_file_path, restore_file_content, self.is_git_diff)
 
