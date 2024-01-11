@@ -171,6 +171,13 @@ class ScanClient:
     def get_scan_detections_path(self, scan_type: str) -> str:
         return f'{self.scan_config.get_detections_prefix()}/{self.get_detections_service_controller_path(scan_type)}'
 
+    def get_scan_detections_list_path(self, scan_type: str) -> str:
+        suffix = ''
+        if scan_type == consts.SCA_SCAN_TYPE:
+            suffix = '/detections'
+
+        return f'{self.get_scan_detections_path(scan_type)}{suffix}'
+
     def get_scan_detections(self, scan_type: str, scan_id: str) -> List[dict]:
         params = {'scan_id': scan_id}
 
@@ -184,9 +191,8 @@ class ScanClient:
             params['page_size'] = page_size
             params['page_number'] = page_number
 
-            path = f'{self.get_scan_detections_path(scan_type)}/detections'
             response = self.scan_cycode_client.get(
-                url_path=path,
+                url_path=self.get_scan_detections_list_path(scan_type),
                 params=params,
                 hide_response_content_log=self._hide_response_log,
             ).json()
@@ -197,12 +203,12 @@ class ScanClient:
 
         return detections
 
-    def get_get_scan_detections_count_path(self, scan_type: str) -> str:
+    def get_scan_detections_count_path(self, scan_type: str) -> str:
         return f'{self.get_scan_detections_path(scan_type)}/count'
 
     def get_scan_detections_count(self, scan_type: str, scan_id: str) -> int:
         response = self.scan_cycode_client.get(
-            url_path=self.get_get_scan_detections_count_path(scan_type), params={'scan_id': scan_id}
+            url_path=self.get_scan_detections_count_path(scan_type), params={'scan_id': scan_id}
         )
         return response.json().get('count', 0)
 
