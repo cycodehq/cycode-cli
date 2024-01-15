@@ -16,6 +16,7 @@ VERSION_PLACEHOLDER = '0.0.0'
 CLI_VERSION = _dunamai.get_version('cycode', first_choice=_dunamai.Version.from_git).serialize(
     metadata=False, bump=True, style=_dunamai.Style.Pep440
 )
+CLI_VERSION = '1.7.1'
 
 # write the version from Git Tag to freeze the value and don't depend on Git
 with open(_INIT_FILE_PATH, 'w', encoding='UTF-8') as file:

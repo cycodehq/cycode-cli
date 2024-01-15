@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-31321-multiprocessing-doesnt-work-well-with-pyinstaller-and-python-3-12
 
 permissions:
   contents: write
