@@ -9,7 +9,6 @@ from cycode.cli.printers.tables.table import Table
 from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidths
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
 from cycode.cli.utils.string_utils import shortcut_dependency_paths
-from cycode.cyclient import logger
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
@@ -75,10 +74,8 @@ class ScaTablePrinter(TablePrinterBase):
     @staticmethod
     def __severity_sort_key(detection: Detection) -> int:
         severity = detection.detection_details.get('advisory_severity')
-        value = Severity.try_get_value(severity)
-        if value is None:
-            logger.debug(f"missing severity in enum: {severity}")
-            return -2
+        value = Severity.get_member_weight(severity)
+
         return value
 
     def _sort_detections_by_severity(self, detections: List[Detection]) -> List[Detection]:
