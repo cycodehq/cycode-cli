@@ -47,7 +47,7 @@ class Severity(Enum):
     def get_member_weight(name: str) -> any:
         weight = Severity.try_get_value(name)
         if weight is None:
-            logger.debug(f"missing severity in enum: {name}")
+            logger.debug(f'missing severity in enum: {name}')
             return -2
         return weight
 
