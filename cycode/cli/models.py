@@ -38,7 +38,7 @@ class Severity(Enum):
     @staticmethod
     def try_get_value(name: str) -> any:
         if name not in Severity.__members__:
-            return None
+            return -2
 
         return Severity[name].value
 
