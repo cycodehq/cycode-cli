@@ -74,7 +74,10 @@ class ScaTablePrinter(TablePrinterBase):
     @staticmethod
     def __severity_sort_key(detection: Detection) -> int:
         severity = detection.detection_details.get('advisory_severity')
-        return Severity.try_get_value(severity)
+        value = Severity.try_get_value(severity)
+        if value is None:
+            -2
+        return value
 
     def _sort_detections_by_severity(self, detections: List[Detection]) -> List[Detection]:
         return sorted(detections, key=self.__severity_sort_key, reverse=True)
