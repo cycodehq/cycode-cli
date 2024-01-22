@@ -586,7 +586,6 @@ def get_scan_parameters(context: click.Context, paths: Tuple[str]) -> dict:
         return scan_parameters
 
     scan_parameters['paths'] = paths
-    scan_parameters['path'] = paths[0]
 
     if len(paths) != 1:
         # ignore remote url if multiple paths are provided
