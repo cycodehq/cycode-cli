@@ -1,5 +1,5 @@
-from . import config
-from .cycode_client_base import CycodeClientBase
+from cycode.cyclient import config
+from cycode.cyclient.cycode_client_base import CycodeClientBase
 
 
 class CycodeClient(CycodeClientBase):

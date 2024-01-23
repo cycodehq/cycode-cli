@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 
-from .config import dev_tenant_id
-from .cycode_client_base import CycodeClientBase
+from cycode.cyclient.config import dev_tenant_id
+from cycode.cyclient.cycode_client_base import CycodeClientBase
 
 """
 Send requests with api token
