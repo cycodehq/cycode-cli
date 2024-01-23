@@ -35,7 +35,7 @@ def test_configure_command_no_exist_values_in_file(mocker: 'MockerFixture') -> N
     )
 
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
     mocked_update_api_base_url = mocker.patch(
         'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
@@ -80,7 +80,7 @@ def test_configure_command_update_current_configs_in_files(mocker: 'MockerFixtur
     )
 
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
     mocked_update_api_base_url = mocker.patch(
         'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
@@ -110,7 +110,7 @@ def test_set_credentials_update_only_client_id(mocker: 'MockerFixture') -> None:
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch('click.prompt', side_effect=['', '', client_id_user_input, ''])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
 
     # Act
@@ -133,7 +133,7 @@ def test_configure_command_update_only_client_secret(mocker: 'MockerFixture') ->
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch('click.prompt', side_effect=['', '', '', client_secret_user_input])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
 
     # Act
@@ -166,7 +166,7 @@ def test_configure_command_update_only_api_url(mocker: 'MockerFixture') -> None:
     mocked_update_api_base_url.assert_called_once_with(api_url_user_input)
 
 
-def test_configure_command_should_not_update_credentials_file(mocker: 'MockerFixture') -> None:
+def test_configure_command_should_not_update_credentials(mocker: 'MockerFixture') -> None:
     # Arrange
     client_id_user_input = ''
     client_secret_user_input = ''
@@ -179,7 +179,7 @@ def test_configure_command_should_not_update_credentials_file(mocker: 'MockerFix
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch('click.prompt', side_effect=['', '', client_id_user_input, client_secret_user_input])
     mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials_file'
+        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
 
     # Act
