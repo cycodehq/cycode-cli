@@ -40,6 +40,18 @@ poetry version
 
 You are ready to write code!
 
+To run the project use:
+
+```shell
+poetry run cycode
+```
+
+or main entry point in an activated virtual environment:
+
+```shell
+python cycode/cli/main.py
+```
+
 ### Code linting and formatting
 
 We use `ruff` and `ruff format`.
@@ -65,7 +77,7 @@ We use the `main` branch as the main one.
 All development should be done in feature branches.
 When you are ready create a Pull Request to the `main` branch.
 
-Each commit in the `main` branch will be built and published to PyPI as pre-release!
+Each commit in the `main` branch will be built and published to PyPI as a pre-release!
 Such builds could be installed with the `--pre` flag. For example:
 
 ```shell
@@ -97,7 +109,7 @@ poetry run pytest
 ```
 
 The library used for sending requests is [requests](https://github.com/psf/requests).
-To mock requests, we are using [responses](https://github.com/getsentry/responses) library.
+To mock requests, we are using the [responses](https://github.com/getsentry/responses) library.
 All requests must be mocked.
 
 To see the code coverage of the project, you can run:
@@ -118,7 +130,7 @@ The report will be generated in the `htmlcov` folder.
 
 Keep [README.md](README.md) up to date.
 All CLI commands are documented automatically if you add a docstring to the command.
-Clean up changelog before release.
+Clean up the changelog before release.
 
 ### Publishing
 
@@ -143,7 +155,7 @@ It will create a `dist` folder with the package (sdist and wheel). You can insta
 pip install dist/cycode-{version}-py3-none-any.whl
 ```
 
-To create executable file locally, you should run:
+To create an executable file locally, you should run:
 
 ```shell
 poetry run pyinstaller pyinstaller.spec
