@@ -10,7 +10,7 @@ from cycode.cyclient import models
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 
 if TYPE_CHECKING:
-    from .scan_config_base import ScanConfigBase
+    from cycode.cyclient.scan_config_base import ScanConfigBase
 
 
 class ScanClient:

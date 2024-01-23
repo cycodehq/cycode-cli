@@ -6,9 +6,7 @@ from requests import Response, exceptions, request
 from cycode import __version__
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-from cycode.cyclient import logger
-
-from . import config
+from cycode.cyclient import config, logger
 
 
 def get_cli_user_agent() -> str:
