@@ -50,7 +50,7 @@ def authorization_check(context: click.Context) -> None:
         return
 
     try:
-        if CycodeTokenBasedClient(client_id, client_secret).api_token:
+        if CycodeTokenBasedClient(client_id, client_secret).get_access_token():
             printer.print_result(passed_auth_check_res)
             return
     except (NetworkError, HttpUnauthorizedError):

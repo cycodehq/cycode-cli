@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import Optional
 
 import pytest
 import responses
 
+from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cyclient.client_creator import create_scan_client
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from cycode.cyclient.scan_client import ScanClient
@@ -29,9 +31,22 @@ def scan_client() -> ScanClient:
     return create_scan_client(_CLIENT_ID, _CLIENT_SECRET, hide_response_log=False)
 
 
+def create_token_based_client(
+    client_id: Optional[str] = None, client_secret: Optional[str] = None
+) -> CycodeTokenBasedClient:
+    CredentialsManager.FILE_NAME = 'unit-tests-credentials.yaml'
+
+    if client_id is None:
+        client_id = _CLIENT_ID
+    if client_secret is None:
+        client_secret = _CLIENT_SECRET
+
+    return CycodeTokenBasedClient(client_id, client_secret)
+
+
 @pytest.fixture(scope='session')
 def token_based_client() -> CycodeTokenBasedClient:
-    return CycodeTokenBasedClient(_CLIENT_ID, _CLIENT_SECRET)
+    return create_token_based_client()
 
 
 @pytest.fixture(scope='session')
@@ -57,4 +72,4 @@ def api_token_response(api_token_url: str) -> responses.Response:
 @responses.activate
 def api_token(token_based_client: CycodeTokenBasedClient, api_token_response: responses.Response) -> str:
     responses.add(api_token_response)
-    return token_based_client.api_token
+    return token_based_client.get_access_token()

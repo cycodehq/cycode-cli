@@ -75,7 +75,7 @@ class AuthManager:
         raise AuthProcessError('session expired')
 
     def save_api_token(self, api_token: 'ApiToken') -> None:
-        self.credentials_manager.update_credentials_file(api_token.client_id, api_token.secret)
+        self.credentials_manager.update_credentials(api_token.client_id, api_token.secret)
 
     def _build_login_url(self, code_challenge: str, session_id: str) -> str:
         app_url = self.configuration_manager.get_cycode_app_url()
