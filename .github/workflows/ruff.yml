@@ -45,7 +45,7 @@ jobs:
         run: poetry install
 
       - name: Run linter check
-        run: poetry run ruff check .
+        run: poetry run ruff check --output-format=github .
 
       - name: Run code style check
         run: poetry run ruff format --check .
