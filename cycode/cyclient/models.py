@@ -171,17 +171,13 @@ class ScanDetailsResponse(Schema):
         self.err = err
 
 
-class ScanReportUrlResponse(Schema):
-    def __init__(
-        self,
-        report_url: str,
-    ) -> None:
-        super().__init__()
-        self.report_url = report_url
+@dataclass
+class ScanReportUrlResponse:
+    report_url: str
 
 
 class ScanReportUrlResponseSchema(Schema):
-    report_url = fields
+    report_url = fields.String()
 
     @post_load
     def build_dto(self, data: Dict[str, Any], **_) -> 'ScanReportUrlResponse':

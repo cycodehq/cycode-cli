@@ -88,7 +88,7 @@ def get_scan_report_url(scan_id: Optional[UUID], scan_client: ScanClient, scan_t
 def get_scan_report_url_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
-    json_response = {'report_url': 'https://app.domain/on-demand-scans/{scan_id}'.format(scan_id=scan_id)}
+    json_response = {'report_url': f'https://app.domain/on-demand-scans/{scan_id}'}
 
     return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 

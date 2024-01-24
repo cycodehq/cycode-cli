@@ -99,7 +99,7 @@ def set_issue_detected_by_scan_results(context: click.Context, scan_results: Lis
 
 
 def _should_use_scan_service(scan_type: str, scan_parameters: Optional[dict] = None) -> bool:
-    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters['report'] is True
+    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters is not None and scan_parameters['report'] is True
 
 
 def _enrich_scan_result_with_data_from_detection_rules(
@@ -326,14 +326,13 @@ def scan_commit_range_documents(
     local_scan_result = error_message = None
     scan_completed = False
     scan_id = str(_generate_unique_id())
-    should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
     from_commit_zipped_documents = InMemoryZip()
     to_commit_zipped_documents = InMemoryZip()
 
     try:
         progress_bar.set_section_length(ScanProgressBarSection.SCAN, 1)
 
-        scan_result = init_default_scan_result(cycode_client, scan_id, scan_type, should_use_scan_service)
+        scan_result = init_default_scan_result(cycode_client, scan_id, scan_type)
         if should_scan_documents(from_documents_to_scan, to_documents_to_scan):
             logger.debug('Preparing from-commit zip')
             from_commit_zipped_documents = zip_documents(scan_type, from_documents_to_scan)
@@ -348,7 +347,6 @@ def scan_commit_range_documents(
                 scan_type,
                 scan_parameters,
                 timeout,
-                should_use_scan_service,
             )
 
         progress_bar.update(ScanProgressBarSection.SCAN)
@@ -443,7 +441,7 @@ def perform_scan(
     should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
-        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, should_use_scan_service)
+        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
 
     if is_commit_range:
         return cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id)
@@ -456,11 +454,8 @@ def perform_scan_async(
     zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
-    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
-    scan_async_result = cycode_client.zipped_file_scan_async(
-        zipped_documents, scan_type, scan_parameters, should_use_scan_service=should_use_scan_service
-    )
+    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
 
     return poll_scan_results(
@@ -468,7 +463,6 @@ def perform_scan_async(
         scan_async_result.scan_id,
         scan_type,
         scan_parameters.get('report'),
-        should_use_scan_service=should_use_scan_service,
     )
 
 
@@ -479,7 +473,6 @@ def perform_commit_range_scan_async(
     scan_type: str,
     scan_parameters: dict,
     timeout: Optional[int] = None,
-    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.multiple_zipped_file_scan_async(
         from_commit_zipped_documents, to_commit_zipped_documents, scan_type, scan_parameters
@@ -487,12 +480,7 @@ def perform_commit_range_scan_async(
 
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
     return poll_scan_results(
-        cycode_client,
-        scan_async_result.scan_id,
-        scan_type,
-        scan_parameters.get('report'),
-        timeout,
-        should_use_scan_service,
+        cycode_client, scan_async_result.scan_id, scan_type, scan_parameters.get('report'), timeout
     )
 
 
@@ -502,7 +490,6 @@ def poll_scan_results(
     scan_type: str,
     should_get_report: bool = False,
     polling_timeout: Optional[int] = None,
-    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
@@ -511,7 +498,7 @@ def poll_scan_results(
     end_polling_time = time.time() + polling_timeout
 
     while time.time() < end_polling_time:
-        scan_details = cycode_client.get_scan_details(scan_type, scan_id, should_use_scan_service)
+        scan_details = cycode_client.get_scan_details(scan_type, scan_id)
 
         if scan_details.scan_update_at is not None and scan_details.scan_update_at != last_scan_update_at:
             last_scan_update_at = scan_details.scan_update_at
@@ -610,6 +597,7 @@ def get_default_scan_parameters(context: click.Context) -> dict:
         'report': context.obj.get('report'),
         'package_vulnerabilities': context.obj.get('package-vulnerabilities'),
         'license_compliance': context.obj.get('license-compliance'),
+        'command_type': context.info_name,
     }
 
 

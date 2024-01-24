@@ -76,10 +76,10 @@ class ScanClient:
         response = self.scan_cycode_client.get(url_path=self.get_scan_report_url_path(scan_id, scan_type))
         return models.ScanReportUrlResponseSchema().build_dto(response.json())
 
-    def get_zipped_file_scan_async_url_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
+    def get_zipped_file_scan_async_url_path(self, scan_type: str) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
         async_entity_type = self.scan_config.get_async_entity_type(scan_type)
-        scan_service_url_path = self.get_scan_service_url_path(scan_type, should_use_scan_service)
+        scan_service_url_path = self.get_scan_service_url_path(scan_type, True)
         return f'{scan_service_url_path}/{async_scan_type}/{async_entity_type}'
 
     def zipped_file_scan_async(
@@ -88,11 +88,10 @@ class ScanClient:
         scan_type: str,
         scan_parameters: dict,
         is_git_diff: bool = False,
-        should_use_scan_service: bool = False,
     ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
-            url_path=self.get_zipped_file_scan_async_url_path(scan_type, should_use_scan_service),
+            url_path=self.get_zipped_file_scan_async_url_path(scan_type),
             data={'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
             files=files,
         )
@@ -118,16 +117,14 @@ class ScanClient:
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
-    def get_scan_details_path(self, scan_type: str, scan_id: str, should_use_scan_service: bool = False) -> str:
-        return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service)}/{scan_id}'
+    def get_scan_details_path(self, scan_type: str, scan_id: str) -> str:
+        return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}/{scan_id}'
 
     def get_scan_report_url_path(self, scan_id: str, scan_type: str) -> str:
-        return f'{self.get_scan_service_url_path(scan_type, True)}/reportUrl/{scan_id}'
+        return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}/reportUrl/{scan_id}'
 
-    def get_scan_details(
-        self, scan_type: str, scan_id: str, should_use_scan_service: bool = False
-    ) -> models.ScanDetailsResponse:
-        path = self.get_scan_details_path(scan_type, scan_id, should_use_scan_service)
+    def get_scan_details(self, scan_type: str, scan_id: str) -> models.ScanDetailsResponse:
+        path = self.get_scan_details_path(scan_type, scan_id)
         response = self.scan_cycode_client.get(url_path=path)
         return models.ScanDetailsResponseSchema().load(response.json())
 
