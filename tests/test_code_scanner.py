@@ -26,8 +26,9 @@ def test_try_get_report_url_if_needed_return_none(scan_type: str, scan_client: S
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
-def test_try_get_report_url_if_needed_return_result(scan_type: str, scan_client: ScanClient,
-                                                    api_token_response: responses.Response) -> None:
+def test_try_get_report_url_if_needed_return_result(
+    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+) -> None:
     scan_id = uuid4()
     url = get_scan_report_url(scan_id, scan_client, scan_type)
     responses.add(api_token_response)  # mock token based client

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class ScanClient:
     def __init__(
-            self, scan_cycode_client: CycodeClientBase, scan_config: 'ScanConfigBase', hide_response_log: bool = True
+        self, scan_cycode_client: CycodeClientBase, scan_config: 'ScanConfigBase', hide_response_log: bool = True
     ) -> None:
         self.scan_cycode_client = scan_cycode_client
         self.scan_config = scan_config
@@ -59,7 +59,7 @@ class ScanClient:
         return f'{self.get_scan_service_url_path(scan_type)}/zipped-file'
 
     def zipped_file_scan(
-            self, scan_type: str, zip_file: InMemoryZip, scan_id: str, scan_parameters: dict, is_git_diff: bool = False
+        self, scan_type: str, zip_file: InMemoryZip, scan_id: str, scan_parameters: dict, is_git_diff: bool = False
     ) -> models.ZippedFileScanResult:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
 
@@ -82,8 +82,12 @@ class ScanClient:
         return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service)}/{async_scan_type}/{async_entity_type}'
 
     def zipped_file_scan_async(
-            self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False,
-            should_use_scan_service: bool = False
+        self,
+        zip_file: InMemoryZip,
+        scan_type: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
+        should_use_scan_service: bool = False,
     ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
@@ -94,12 +98,12 @@ class ScanClient:
         return models.ScanInitializationResponseSchema().load(response.json())
 
     def multiple_zipped_file_scan_async(
-            self,
-            from_commit_zip_file: InMemoryZip,
-            to_commit_zip_file: InMemoryZip,
-            scan_type: str,
-            scan_parameters: dict,
-            is_git_diff: bool = False,
+        self,
+        from_commit_zip_file: InMemoryZip,
+        to_commit_zip_file: InMemoryZip,
+        scan_type: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
         url_path = f'{self.get_scan_service_url_path(scan_type)}/{scan_type}/repository/commit-range'
         files = {
@@ -119,8 +123,9 @@ class ScanClient:
     def get_scan_report_url_path(self, scan_id: str, scan_type: str) -> str:
         return f'{self.get_scan_service_url_path(scan_type, True)}/reportUrl/{scan_id}'
 
-    def get_scan_details(self, scan_type: str, scan_id: str,
-                         should_use_scan_service: bool = False) -> models.ScanDetailsResponse:
+    def get_scan_details(
+        self, scan_type: str, scan_id: str, should_use_scan_service: bool = False
+    ) -> models.ScanDetailsResponse:
         path = self.get_scan_details_path(scan_type, scan_id, should_use_scan_service)
         response = self.scan_cycode_client.get(url_path=path)
         return models.ScanDetailsResponseSchema().load(response.json())
@@ -148,7 +153,7 @@ class ScanClient:
 
     @staticmethod
     def _filter_detection_rules_by_ids(
-            detection_rules: List[models.DetectionRule], detection_rules_ids: Union[Set[str], List[str]]
+        detection_rules: List[models.DetectionRule], detection_rules_ids: Union[Set[str], List[str]]
     ) -> List[models.DetectionRule]:
         ids = set(detection_rules_ids)  # cast to set to perform faster search
         return [rule for rule in detection_rules if rule.detection_rule_id in ids]
@@ -158,7 +163,7 @@ class ScanClient:
         return models.DetectionRuleSchema().load(response.json(), many=True)
 
     def get_detection_rules(
-            self, scan_type: str, detection_rules_ids: Union[Set[str], List[str]]
+        self, scan_type: str, detection_rules_ids: Union[Set[str], List[str]]
     ) -> List[models.DetectionRule]:
         # TODO(MarshalX): use filter by list of IDs instead of policy_type when BE will be ready
         params = {
@@ -222,7 +227,7 @@ class ScanClient:
         return response.json().get('count', 0)
 
     def commit_range_zipped_file_scan(
-            self, scan_type: str, zip_file: InMemoryZip, scan_id: str
+        self, scan_type: str, zip_file: InMemoryZip, scan_id: str
     ) -> models.ZippedFileScanResult:
         url_path = f'{self.get_scan_service_url_path(scan_type)}/commit-range-zipped-file'
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
@@ -234,11 +239,15 @@ class ScanClient:
     def get_report_scan_status_path(self, scan_type: str, scan_id: str, should_use_scan_service: bool = False) -> str:
         return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service)}/{scan_id}/status'
 
-    def report_scan_status(self, scan_type: str, scan_id: str, scan_status: dict,
-                           should_use_scan_service: bool = False) -> None:
-        self.scan_cycode_client.post(url_path=self.get_report_scan_status_path(scan_type, scan_id,
-                                                                               should_use_scan_service=should_use_scan_service),
-                                     body=scan_status)
+    def report_scan_status(
+        self, scan_type: str, scan_id: str, scan_status: dict, should_use_scan_service: bool = False
+    ) -> None:
+        self.scan_cycode_client.post(
+            url_path=self.get_report_scan_status_path(
+                scan_type, scan_id, should_use_scan_service=should_use_scan_service
+            ),
+            body=scan_status,
+        )
 
     @staticmethod
     def parse_scan_response(response: Response) -> models.ScanResult:

@@ -52,7 +52,6 @@ class DevScanConfig(ScanConfigBase):
 
 
 class DefaultScanConfig(ScanConfigBase):
-
     def get_service_name(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         if should_use_scan_service:
             return self.get_scan_service_prefix()

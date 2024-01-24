@@ -16,7 +16,7 @@ def get_zipped_file_scan_url(scan_type: str, scan_client: ScanClient) -> str:
 
 
 def get_zipped_file_scan_response(
-        url: str, zip_content_path: Path, scan_id: Optional[UUID] = None
+    url: str, zip_content_path: Path, scan_id: Optional[UUID] = None
 ) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
@@ -174,7 +174,7 @@ def get_detection_rules_response(url: str) -> responses.Response:
 
 
 def mock_scan_async_responses(
-        responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
+    responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
     responses_module.add(
         get_zipped_file_scan_async_response(get_zipped_file_scan_async_url(scan_type, scan_client), scan_id)
@@ -189,7 +189,7 @@ def mock_scan_async_responses(
 
 
 def mock_scan_responses(
-        responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
+    responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
     responses_module.add(
         get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client), zip_content_path)

@@ -15,8 +15,12 @@ from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import Document
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import ZIP_CONTENT_PATH
-from tests.cyclient.mocked_responses.scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url, \
-    get_scan_report_url_response, get_scan_report_url
+from tests.cyclient.mocked_responses.scan_client import (
+    get_zipped_file_scan_response,
+    get_zipped_file_scan_url,
+    get_scan_report_url_response,
+    get_scan_report_url,
+)
 
 
 def zip_scan_resources(scan_type: str, scan_client: ScanClient) -> Tuple[str, InMemoryZip]:
@@ -71,13 +75,13 @@ def test_get_scan_report_url(scan_type: str, scan_client: ScanClient, api_token_
     responses.add(get_scan_report_url_response(url, scan_id))
 
     scan_report_url_response = scan_client.get_scan_report_url(str(scan_id), scan_type)
-    assert scan_report_url_response.report_url == "https://app.domain/on-demand-scans/{scan_id}".format(scan_id=scan_id)
+    assert scan_report_url_response.report_url == 'https://app.domain/on-demand-scans/{scan_id}'.format(scan_id=scan_id)
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_unauthorized_error(
-        scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
@@ -94,7 +98,7 @@ def test_zipped_file_scan_unauthorized_error(
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_bad_request_error(
-        scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
@@ -115,7 +119,7 @@ def test_zipped_file_scan_bad_request_error(
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_timeout_error(
-        scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     scan_url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex
@@ -144,7 +148,7 @@ def test_zipped_file_scan_timeout_error(
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 @responses.activate
 def test_zipped_file_scan_connection_error(
-        scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     url, zip_file = zip_scan_resources(scan_type, scan_client)
     expected_scan_id = uuid4().hex

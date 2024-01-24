@@ -6,13 +6,13 @@ from marshmallow import EXCLUDE, Schema, fields, post_load
 
 class Detection(Schema):
     def __init__(
-            self,
-            detection_type_id: str,
-            type: str,
-            message: str,
-            detection_details: dict,
-            detection_rule_id: str,
-            severity: Optional[str] = None,
+        self,
+        detection_type_id: str,
+        type: str,
+        message: str,
+        detection_details: dict,
+        detection_rule_id: str,
+        severity: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.message = message
@@ -72,12 +72,12 @@ class DetectionsPerFileSchema(Schema):
 
 class ZippedFileScanResult(Schema):
     def __init__(
-            self,
-            did_detect: bool,
-            detections_per_file: List[DetectionsPerFile],
-            report_url: Optional[str] = None,
-            scan_id: Optional[str] = None,
-            err: Optional[str] = None,
+        self,
+        did_detect: bool,
+        detections_per_file: List[DetectionsPerFile],
+        report_url: Optional[str] = None,
+        scan_id: Optional[str] = None,
+        err: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.did_detect = did_detect
@@ -104,11 +104,11 @@ class ZippedFileScanResultSchema(Schema):
 
 class ScanResult(Schema):
     def __init__(
-            self,
-            did_detect: bool,
-            scan_id: Optional[str] = None,
-            detections: Optional[List[Detection]] = None,
-            err: Optional[str] = None,
+        self,
+        did_detect: bool,
+        scan_id: Optional[str] = None,
+        detections: Optional[List[Detection]] = None,
+        err: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.did_detect = did_detect
@@ -152,14 +152,14 @@ class ScanInitializationResponseSchema(Schema):
 
 class ScanDetailsResponse(Schema):
     def __init__(
-            self,
-            id: Optional[str] = None,
-            scan_status: Optional[str] = None,
-            results_count: Optional[int] = None,
-            metadata: Optional[str] = None,
-            message: Optional[str] = None,
-            scan_update_at: Optional[str] = None,
-            err: Optional[str] = None,
+        self,
+        id: Optional[str] = None,
+        scan_status: Optional[str] = None,
+        results_count: Optional[int] = None,
+        metadata: Optional[str] = None,
+        message: Optional[str] = None,
+        scan_update_at: Optional[str] = None,
+        err: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.id = id
@@ -173,8 +173,8 @@ class ScanDetailsResponse(Schema):
 
 class ScanReportUrlResponse(Schema):
     def __init__(
-            self,
-            report_url: str,
+        self,
+        report_url: str,
     ) -> None:
         super().__init__()
         self.report_url = report_url

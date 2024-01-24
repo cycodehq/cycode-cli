@@ -103,7 +103,7 @@ def _should_use_scan_service(scan_type: str, scan_parameters: Optional[dict] = N
 
 
 def _enrich_scan_result_with_data_from_detection_rules(
-        cycode_client: 'ScanClient', scan_type: str, scan_result: ZippedFileScanResult
+    cycode_client: 'ScanClient', scan_type: str, scan_result: ZippedFileScanResult
 ) -> None:
     # TODO(MarshalX): remove scan_type arg after migration to new backend filter
     if scan_type != consts.SECRET_SCAN_TYPE:
@@ -136,7 +136,7 @@ def _enrich_scan_result_with_data_from_detection_rules(
 
 
 def _get_scan_documents_thread_func(
-        context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
+    context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
 ) -> Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]]:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
@@ -156,8 +156,14 @@ def _get_scan_documents_thread_func(
             zipped_documents = zip_documents(scan_type, batch)
             zip_file_size = zipped_documents.size
             scan_result = perform_scan(
-                cycode_client, zipped_documents, scan_type, scan_id, is_git_diff, is_commit_range, scan_parameters,
-                should_use_scan_service
+                cycode_client,
+                zipped_documents,
+                scan_type,
+                scan_id,
+                is_git_diff,
+                is_commit_range,
+                scan_parameters,
+                should_use_scan_service,
             )
 
             _enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_type, scan_result)
@@ -196,7 +202,7 @@ def _get_scan_documents_thread_func(
             zip_file_size,
             command_scan_type,
             error_message,
-            should_use_scan_service
+            should_use_scan_service,
         )
 
         return scan_id, error, local_scan_result
@@ -205,7 +211,7 @@ def _get_scan_documents_thread_func(
 
 
 def scan_commit_range(
-        context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None
+    context: click.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None
 ) -> None:
     scan_type = context.obj['scan_type']
 
@@ -268,11 +274,11 @@ def scan_commit_range(
 
 
 def scan_documents(
-        context: click.Context,
-        documents_to_scan: List[Document],
-        is_git_diff: bool = False,
-        is_commit_range: bool = False,
-        scan_parameters: Optional[dict] = None,
+    context: click.Context,
+    documents_to_scan: List[Document],
+    is_git_diff: bool = False,
+    is_commit_range: bool = False,
+    scan_parameters: Optional[dict] = None,
 ) -> None:
     progress_bar = context.obj['progress_bar']
 
@@ -300,11 +306,11 @@ def scan_documents(
 
 
 def scan_commit_range_documents(
-        context: click.Context,
-        from_documents_to_scan: List[Document],
-        to_documents_to_scan: List[Document],
-        scan_parameters: Optional[dict] = None,
-        timeout: Optional[int] = None,
+    context: click.Context,
+    from_documents_to_scan: List[Document],
+    to_documents_to_scan: List[Document],
+    scan_parameters: Optional[dict] = None,
+    timeout: Optional[int] = None,
 ) -> None:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
@@ -337,7 +343,7 @@ def scan_commit_range_documents(
                 scan_type,
                 scan_parameters,
                 timeout,
-                should_use_scan_service
+                should_use_scan_service,
             )
 
         progress_bar.update(ScanProgressBarSection.SCAN)
@@ -387,7 +393,7 @@ def scan_commit_range_documents(
         zip_file_size,
         scan_command_type,
         error_message,
-        should_use_scan_service
+        should_use_scan_service,
     )
 
 
@@ -396,11 +402,11 @@ def should_scan_documents(from_documents_to_scan: List[Document], to_documents_t
 
 
 def create_local_scan_result(
-        scan_result: ZippedFileScanResult,
-        documents_to_scan: List[Document],
-        command_scan_type: str,
-        scan_type: str,
-        severity_threshold: str,
+    scan_result: ZippedFileScanResult,
+    documents_to_scan: List[Document],
+    command_scan_type: str,
+    scan_type: str,
+    severity_threshold: str,
 ) -> LocalScanResult:
     document_detections = get_document_detections(scan_result, documents_to_scan)
     relevant_document_detections_list = exclude_irrelevant_document_detections(
@@ -423,14 +429,14 @@ def create_local_scan_result(
 
 
 def perform_scan(
-        cycode_client: 'ScanClient',
-        zipped_documents: 'InMemoryZip',
-        scan_type: str,
-        scan_id: str,
-        is_git_diff: bool,
-        is_commit_range: bool,
-        scan_parameters: dict,
-        should_use_scan_service: bool = False
+    cycode_client: 'ScanClient',
+    zipped_documents: 'InMemoryZip',
+    scan_type: str,
+    scan_id: str,
+    is_git_diff: bool,
+    is_commit_range: bool,
+    scan_parameters: dict,
+    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
         return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, should_use_scan_service)
@@ -442,42 +448,57 @@ def perform_scan(
 
 
 def perform_scan_async(
-        cycode_client: 'ScanClient', zipped_documents: 'InMemoryZip', scan_type: str, scan_parameters: dict,
-        should_use_scan_service: bool = False
+    cycode_client: 'ScanClient',
+    zipped_documents: 'InMemoryZip',
+    scan_type: str,
+    scan_parameters: dict,
+    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
-    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters,
-                                                             should_use_scan_service=should_use_scan_service)
+    scan_async_result = cycode_client.zipped_file_scan_async(
+        zipped_documents, scan_type, scan_parameters, should_use_scan_service=should_use_scan_service
+    )
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
 
-    return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters.get('report'),
-                             should_use_scan_service=should_use_scan_service)
+    return poll_scan_results(
+        cycode_client,
+        scan_async_result.scan_id,
+        scan_type,
+        scan_parameters.get('report'),
+        should_use_scan_service=should_use_scan_service,
+    )
 
 
 def perform_commit_range_scan_async(
-        cycode_client: 'ScanClient',
-        from_commit_zipped_documents: 'InMemoryZip',
-        to_commit_zipped_documents: 'InMemoryZip',
-        scan_type: str,
-        scan_parameters: dict,
-        timeout: Optional[int] = None,
-        should_use_scan_service: bool = False
+    cycode_client: 'ScanClient',
+    from_commit_zipped_documents: 'InMemoryZip',
+    to_commit_zipped_documents: 'InMemoryZip',
+    scan_type: str,
+    scan_parameters: dict,
+    timeout: Optional[int] = None,
+    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.multiple_zipped_file_scan_async(
         from_commit_zipped_documents, to_commit_zipped_documents, scan_type, scan_parameters
     )
 
     logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
-    return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters.get('report'),
-                             timeout, should_use_scan_service)
+    return poll_scan_results(
+        cycode_client,
+        scan_async_result.scan_id,
+        scan_type,
+        scan_parameters.get('report'),
+        timeout,
+        should_use_scan_service,
+    )
 
 
 def poll_scan_results(
-        cycode_client: 'ScanClient',
-        scan_id: str,
-        scan_type: str,
-        should_get_report: bool = False,
-        polling_timeout: Optional[int] = None,
-        should_use_scan_service: bool = False
+    cycode_client: 'ScanClient',
+    scan_id: str,
+    scan_type: str,
+    should_get_report: bool = False,
+    polling_timeout: Optional[int] = None,
+    should_use_scan_service: bool = False,
 ) -> ZippedFileScanResult:
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
@@ -514,15 +535,14 @@ def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> No
 
 
 def print_results(
-        context: click.Context, local_scan_results: List[LocalScanResult],
-        errors: Optional[Dict[str, 'CliError']] = None
+    context: click.Context, local_scan_results: List[LocalScanResult], errors: Optional[Dict[str, 'CliError']] = None
 ) -> None:
     printer = ConsolePrinter(context)
     printer.print_scan_results(local_scan_results, errors)
 
 
 def get_document_detections(
-        scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
+    scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
 ) -> List[DocumentDetections]:
     logger.debug('Get document detections')
 
@@ -540,8 +560,7 @@ def get_document_detections(
 
 
 def exclude_irrelevant_document_detections(
-        document_detections_list: List[DocumentDetections], scan_type: str, command_scan_type: str,
-        severity_threshold: str
+    document_detections_list: List[DocumentDetections], scan_type: str, command_scan_type: str, severity_threshold: str
 ) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
@@ -621,7 +640,7 @@ def try_get_git_remote_url(path: str) -> Optional[str]:
 
 
 def exclude_irrelevant_detections(
-        detections: List[Detection], scan_type: str, command_scan_type: str, severity_threshold: str
+    detections: List[Detection], scan_type: str, command_scan_type: str, severity_threshold: str
 ) -> List[Detection]:
     relevant_detections = _exclude_detections_by_exclusions_configuration(detections, scan_type)
     relevant_detections = _exclude_detections_by_scan_type(relevant_detections, scan_type, command_scan_type)
@@ -629,7 +648,7 @@ def exclude_irrelevant_detections(
 
 
 def _exclude_detections_by_severity(
-        detections: List[Detection], scan_type: str, severity_threshold: str
+    detections: List[Detection], scan_type: str, severity_threshold: str
 ) -> List[Detection]:
     if scan_type != consts.SCA_SCAN_TYPE or severity_threshold is None:
         return detections
@@ -644,16 +663,16 @@ def _exclude_detections_by_severity(
 
 
 def _exclude_detections_by_scan_type(
-        detections: List[Detection], scan_type: str, command_scan_type: str
+    detections: List[Detection], scan_type: str, command_scan_type: str
 ) -> List[Detection]:
     if command_scan_type == consts.PRE_COMMIT_COMMAND_SCAN_TYPE:
         return exclude_detections_in_deleted_lines(detections)
 
     exclude_in_deleted_lines = configuration_manager.get_should_exclude_detections_in_deleted_lines(command_scan_type)
     if (
-            command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
-            and scan_type == consts.SECRET_SCAN_TYPE
-            and exclude_in_deleted_lines
+        command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
+        and scan_type == consts.SECRET_SCAN_TYPE
+        and exclude_in_deleted_lines
     ):
         return exclude_detections_in_deleted_lines(detections)
 
@@ -725,7 +744,7 @@ def _get_package_name(detection: Detection) -> str:
 
 
 def _get_document_by_file_name(
-        documents: List[Document], file_name: str, unique_id: Optional[str] = None
+    documents: List[Document], file_name: str, unique_id: Optional[str] = None
 ) -> Optional[Document]:
     for document in documents:
         if _normalize_file_path(document.path) == _normalize_file_path(file_name) and document.unique_id == unique_id:
@@ -735,17 +754,17 @@ def _get_document_by_file_name(
 
 
 def _report_scan_status(
-        cycode_client: 'ScanClient',
-        scan_type: str,
-        scan_id: str,
-        scan_completed: bool,
-        output_detections_count: int,
-        all_detections_count: int,
-        files_to_scan_count: int,
-        zip_size: int,
-        command_scan_type: str,
-        error_message: Optional[str],
-        should_use_scan_service: bool = False
+    cycode_client: 'ScanClient',
+    scan_type: str,
+    scan_id: str,
+    scan_completed: bool,
+    output_detections_count: int,
+    all_detections_count: int,
+    files_to_scan_count: int,
+    zip_size: int,
+    command_scan_type: str,
+    error_message: Optional[str],
+    should_use_scan_service: bool = False,
 ) -> None:
     try:
         end_scan_time = time.time()
@@ -780,8 +799,11 @@ def _does_severity_match_severity_threshold(severity: str, severity_threshold: s
 
 
 def _get_scan_result(
-        cycode_client: 'ScanClient', scan_type: str, scan_id: str, scan_details: 'ScanDetailsResponse',
-        should_get_report: bool = False
+    cycode_client: 'ScanClient',
+    scan_type: str,
+    scan_id: str,
+    scan_details: 'ScanDetailsResponse',
+    should_get_report: bool = False,
 ) -> ZippedFileScanResult:
     if not scan_details.detections_count:
         return init_default_scan_result(cycode_client, scan_id, scan_type, should_get_report)
@@ -798,15 +820,20 @@ def _get_scan_result(
     )
 
 
-def init_default_scan_result(cycode_client: 'ScanClient', scan_id: str, scan_type: str,
-                             should_get_report: bool = False) -> ZippedFileScanResult:
+def init_default_scan_result(
+    cycode_client: 'ScanClient', scan_id: str, scan_type: str, should_get_report: bool = False
+) -> ZippedFileScanResult:
     return ZippedFileScanResult(
-        did_detect=False, detections_per_file=[], scan_id=scan_id,
-        report_url=_try_get_report_url_if_needed(cycode_client, should_get_report, scan_id, scan_type)
+        did_detect=False,
+        detections_per_file=[],
+        scan_id=scan_id,
+        report_url=_try_get_report_url_if_needed(cycode_client, should_get_report, scan_id, scan_type),
     )
 
 
-def _try_get_report_url_if_needed(cycode_client: 'ScanClient', should_get_report: bool, scan_id: str, scan_type: str) -> Optional[str]:
+def _try_get_report_url_if_needed(
+    cycode_client: 'ScanClient', should_get_report: bool, scan_id: str, scan_type: str
+) -> Optional[str]:
     if not should_get_report:
         return None
 
@@ -818,7 +845,7 @@ def _try_get_report_url_if_needed(cycode_client: 'ScanClient', should_get_report
 
 
 def wait_for_detections_creation(
-        cycode_client: 'ScanClient', scan_type: str, scan_id: str, expected_detections_count: int
+    cycode_client: 'ScanClient', scan_type: str, scan_id: str, expected_detections_count: int
 ) -> None:
     logger.debug('Waiting for detections to be created')
 
