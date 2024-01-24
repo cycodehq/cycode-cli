@@ -79,7 +79,7 @@ class ScanClient:
     def get_zipped_file_scan_async_url_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
         async_entity_type = self.scan_config.get_async_entity_type(scan_type)
-        scan_service_url_path=self.get_scan_service_url_path(scan_type, should_use_scan_service)
+        scan_service_url_path = self.get_scan_service_url_path(scan_type, should_use_scan_service)
         return f'{scan_service_url_path}/{async_scan_type}/{async_entity_type}'
 
     def zipped_file_scan_async(
