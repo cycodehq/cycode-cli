@@ -7,8 +7,8 @@ import responses
 from cycode.cli.commands.scan.code_scanner import _try_get_report_url_if_needed
 from cycode.cli.config import config
 from cycode.cli.files_collector.excluder import _is_relevant_file_to_scan
-from tests.conftest import TEST_FILES_PATH
 from cycode.cyclient.scan_client import ScanClient
+from tests.conftest import TEST_FILES_PATH
 from tests.cyclient.mocked_responses.scan_client import get_scan_report_url, get_scan_report_url_response
 
 

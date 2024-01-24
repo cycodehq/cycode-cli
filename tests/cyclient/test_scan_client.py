@@ -16,10 +16,10 @@ from cycode.cli.models import Document
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import ZIP_CONTENT_PATH
 from tests.cyclient.mocked_responses.scan_client import (
+    get_scan_report_url,
+    get_scan_report_url_response,
     get_zipped_file_scan_response,
     get_zipped_file_scan_url,
-    get_scan_report_url_response,
-    get_scan_report_url,
 )
 
 
