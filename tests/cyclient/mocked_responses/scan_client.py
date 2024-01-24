@@ -16,7 +16,7 @@ def get_zipped_file_scan_url(scan_type: str, scan_client: ScanClient) -> str:
 
 
 def get_zipped_file_scan_response(
-    url: str, zip_content_path: Path, scan_id: Optional[UUID] = None
+        url: str, zip_content_path: Path, scan_id: Optional[UUID] = None
 ) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
@@ -77,6 +77,20 @@ def get_scan_details_url(scan_id: Optional[UUID], scan_client: ScanClient) -> st
     api_url = scan_client.scan_cycode_client.api_url
     service_url = scan_client.get_scan_details_path(str(scan_id))
     return f'{api_url}/{service_url}'
+
+
+def get_scan_report_url(scan_id: Optional[UUID], scan_client: ScanClient, scan_type: str) -> str:
+    api_url = scan_client.scan_cycode_client.api_url
+    service_url = scan_client.get_scan_report_url_path(str(scan_id), scan_type)
+    return f'{api_url}/{service_url}'
+
+
+def get_scan_report_url_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
+    if not scan_id:
+        scan_id = uuid4()
+    json_response = {'report_url': 'https://app.domain/on-demand-scans/{scan_id}'.format(scan_id=scan_id)}
+
+    return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 
 
 def get_scan_details_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
@@ -160,7 +174,7 @@ def get_detection_rules_response(url: str) -> responses.Response:
 
 
 def mock_scan_async_responses(
-    responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
+        responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
     responses_module.add(
         get_zipped_file_scan_async_response(get_zipped_file_scan_async_url(scan_type, scan_client), scan_id)
@@ -175,10 +189,11 @@ def mock_scan_async_responses(
 
 
 def mock_scan_responses(
-    responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
+        responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
     responses_module.add(
         get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client), zip_content_path)
     )
     responses_module.add(get_detection_rules_response(get_detection_rules_url(scan_client)))
     responses_module.add(get_report_scan_status_response(get_report_scan_status_url(scan_type, scan_id, scan_client)))
+    responses_module.add(get_scan_report_url_response(get_scan_report_url(scan_id, scan_client, scan_type)))
