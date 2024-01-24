@@ -48,7 +48,7 @@ def configure_command() -> None:
     credentials_updated = False
     if _should_update_value(current_client_id, client_id) or _should_update_value(current_client_secret, client_secret):
         credentials_updated = True
-        _CREDENTIALS_MANAGER.update_credentials_file(client_id, client_secret)
+        _CREDENTIALS_MANAGER.update_credentials(client_id, client_secret)
 
     if config_updated:
         click.echo(_get_urls_update_result_message())

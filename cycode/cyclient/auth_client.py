@@ -3,9 +3,8 @@ from typing import Optional
 from requests import Response
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
-
-from . import models
-from .cycode_client import CycodeClient
+from cycode.cyclient import models
+from cycode.cyclient.cycode_client import CycodeClient
 
 
 class AuthClient:

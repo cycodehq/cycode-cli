@@ -143,11 +143,13 @@ def _get_scan_documents_thread_func(
     severity_threshold = context.obj['severity_threshold']
     command_scan_type = context.info_name
 
+    scan_parameters['aggregation_id'] = str(_generate_unique_id())
+
     def _scan_batch_thread_func(batch: List[Document]) -> Tuple[str, CliError, LocalScanResult]:
         local_scan_result = error = error_message = None
         detections_count = relevant_detections_count = zip_file_size = 0
 
-        scan_id = str(_get_scan_id())
+        scan_id = str(_generate_unique_id())
         scan_completed = False
         should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
 
@@ -280,6 +282,9 @@ def scan_documents(
         is_commit_range: bool = False,
         scan_parameters: Optional[dict] = None,
 ) -> None:
+    if not scan_parameters:
+        scan_parameters = get_default_scan_parameters(context)
+
     progress_bar = context.obj['progress_bar']
 
     if not documents_to_scan:
@@ -320,7 +325,7 @@ def scan_commit_range_documents(
 
     local_scan_result = error_message = None
     scan_completed = False
-    scan_id = str(_get_scan_id())
+    scan_id = str(_generate_unique_id())
     should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
     from_commit_zipped_documents = InMemoryZip()
     to_commit_zipped_documents = InMemoryZip()
@@ -393,7 +398,6 @@ def scan_commit_range_documents(
         zip_file_size,
         scan_command_type,
         error_message,
-        should_use_scan_service,
     )
 
 
@@ -614,6 +618,11 @@ def get_default_scan_parameters(context: click.Context) -> dict:
 def get_scan_parameters(context: click.Context, paths: Tuple[str]) -> dict:
     scan_parameters = get_default_scan_parameters(context)
 
+    if not paths:
+        return scan_parameters
+
+    scan_parameters['paths'] = paths
+
     if len(paths) != 1:
         # ignore remote url if multiple paths are provided
         return scan_parameters
@@ -622,11 +631,7 @@ def get_scan_parameters(context: click.Context, paths: Tuple[str]) -> dict:
     if remote_url:
         # TODO(MarshalX): remove hardcode in context
         context.obj['remote_url'] = remote_url
-        scan_parameters.update(
-            {
-                'remote_url': remote_url,
-            }
-        )
+        scan_parameters['remote_url'] = remote_url
 
     return scan_parameters
 
@@ -788,7 +793,7 @@ def _report_scan_status(
         logger.debug('Failed to report scan status, %s', {'exception_message': str(e)})
 
 
-def _get_scan_id() -> UUID:
+def _generate_unique_id() -> UUID:
     return uuid4()
 
 
