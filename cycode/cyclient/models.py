@@ -171,6 +171,19 @@ class ScanDetailsResponse(Schema):
         self.err = err
 
 
+@dataclass
+class ScanReportUrlResponse:
+    report_url: str
+
+
+class ScanReportUrlResponseSchema(Schema):
+    report_url = fields.String()
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanReportUrlResponse':
+        return ScanReportUrlResponse(**data)
+
+
 class ScanDetailsResponseSchema(Schema):
     class Meta:
         unknown = EXCLUDE

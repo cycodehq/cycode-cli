@@ -8,6 +8,7 @@ def test_get_service_name() -> None:
     assert dev_scan_config.get_service_name('iac') == '5026'
     assert dev_scan_config.get_service_name('sca') == '5004'
     assert dev_scan_config.get_service_name('sast') == '5004'
+    assert dev_scan_config.get_service_name('secret', should_use_scan_service=True) == '5004'
 
 
 def test_get_detections_prefix() -> None:

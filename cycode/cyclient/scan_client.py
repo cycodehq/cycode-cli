@@ -30,7 +30,9 @@ class ScanClient:
 
         self._hide_response_log = hide_response_log
 
-    def get_scan_controller_path(self, scan_type: str) -> str:
+    def get_scan_controller_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
+        if should_use_scan_service:
+            return self._SCAN_CONTROLLER_PATH
         if scan_type == consts.SCA_SCAN_TYPE:
             return self._SCAN_CONTROLLER_PATH_SCA
 
@@ -42,9 +44,9 @@ class ScanClient:
 
         return self._DETECTIONS_SERVICE_CONTROLLER_PATH
 
-    def get_scan_service_url_path(self, scan_type: str) -> str:
-        service_path = self.scan_config.get_service_name(scan_type)
-        controller_path = self.get_scan_controller_path(scan_type)
+    def get_scan_service_url_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
+        service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
+        controller_path = self.get_scan_controller_path(scan_type, should_use_scan_service)
         return f'{service_path}/{controller_path}'
 
     def content_scan(self, scan_type: str, file_name: str, content: str, is_git_diff: bool = True) -> models.ScanResult:
@@ -72,13 +74,22 @@ class ScanClient:
 
         return self.parse_zipped_file_scan_response(response)
 
+    def get_scan_report_url(self, scan_id: str, scan_type: str) -> models.ScanReportUrlResponse:
+        response = self.scan_cycode_client.get(url_path=self.get_scan_report_url_path(scan_id, scan_type))
+        return models.ScanReportUrlResponseSchema().build_dto(response.json())
+
     def get_zipped_file_scan_async_url_path(self, scan_type: str) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
         async_entity_type = self.scan_config.get_async_entity_type(scan_type)
-        return f'{self.get_scan_service_url_path(scan_type)}/{async_scan_type}/{async_entity_type}'
+        scan_service_url_path = self.get_scan_service_url_path(scan_type, True)
+        return f'{scan_service_url_path}/{async_scan_type}/{async_entity_type}'
 
     def zipped_file_scan_async(
-        self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict, is_git_diff: bool = False
+        self,
+        zip_file: InMemoryZip,
+        scan_type: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
@@ -109,7 +120,10 @@ class ScanClient:
         return models.ScanInitializationResponseSchema().load(response.json())
 
     def get_scan_details_path(self, scan_type: str, scan_id: str) -> str:
-        return f'{self.get_scan_service_url_path(scan_type)}/{scan_id}'
+        return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}/{scan_id}'
+
+    def get_scan_report_url_path(self, scan_id: str, scan_type: str) -> str:
+        return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}/reportUrl/{scan_id}'
 
     def get_scan_details(self, scan_type: str, scan_id: str) -> models.ScanDetailsResponse:
         path = self.get_scan_details_path(scan_type, scan_id)
@@ -222,11 +236,18 @@ class ScanClient:
         )
         return self.parse_zipped_file_scan_response(response)
 
-    def get_report_scan_status_path(self, scan_type: str, scan_id: str) -> str:
-        return f'{self.get_scan_service_url_path(scan_type)}/{scan_id}/status'
+    def get_report_scan_status_path(self, scan_type: str, scan_id: str, should_use_scan_service: bool = False) -> str:
+        return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service)}/{scan_id}/status'
 
-    def report_scan_status(self, scan_type: str, scan_id: str, scan_status: dict) -> None:
-        self.scan_cycode_client.post(url_path=self.get_report_scan_status_path(scan_type, scan_id), body=scan_status)
+    def report_scan_status(
+        self, scan_type: str, scan_id: str, scan_status: dict, should_use_scan_service: bool = False
+    ) -> None:
+        self.scan_cycode_client.post(
+            url_path=self.get_report_scan_status_path(
+                scan_type, scan_id, should_use_scan_service=should_use_scan_service
+            ),
+            body=scan_status,
+        )
 
     @staticmethod
     def parse_scan_response(response: Response) -> models.ScanResult:
