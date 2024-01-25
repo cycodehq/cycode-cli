@@ -329,56 +329,21 @@ When using this option, the scan results from this scan will appear in the knowl
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
 
 `cycode scan -t sca --report repository ~/home/git/codebase`
+`cycode scan -t secrets --report repository ~/home/git/codebase`
+
 
 or:
 
 `cycode scan --scan-type sca --report repository ~/home/git/codebase`
+`cycode scan --scan-type secrets --report repository ~/home/git/codebase`
 
 When using this option, the scan results from this scan will appear in the On-Demand Scans section of Cycode. To get to this page, click the link that appears after the printed results:
 
 > :warning: **NOTE**<br/>
 > You must be an `owner` or an `admin` in Cycode to view this page.
 
-```bash
-Scan Results: (scan_id: e04e06e5-6dd8-474f-b409-33bbee67270b)
-⛔  Found issue of type: Security vulnerability in package 'vyper' referenced in project '': Multiple evaluation of contract address in call in vyper (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: ./requirements.txt   ⛔
+![cli-report](https://github.com/cycodehq/cycode-cli/assets/135120640/09709f10-c59b-43b9-ab22-9b42553c78be)
 
-1 | PyYAML~=5.3.1
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
-
-⛔  Found issue of type: Security vulnerability in package 'vyper' referenced in project '': Integer bounds error in Vyper (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: ./requirements.txt   ⛔
-
-1 | PyYAML~=5.3.1
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
-
-⛔  Found issue of type: Security vulnerability in package 'pyyaml' referenced in project '': Improper Input Validation in PyYAML (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: ./requirements.txt   ⛔
-
-1 | PyYAML~=5.3.1
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
-
-⛔  Found issue of type: Security vulnerability in package 'cleo' referenced in project '': cleo is vulnerable to Regular Expression Denial of Service (ReDoS) (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: ./requirements.txt   ⛔
-
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
-4 |
-
-⛔  Found issue of type: Security vulnerability in package 'vyper' referenced in project '': Incorrect Comparison in Vyper (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: ./requirements.txt   ⛔
-
-1 | PyYAML~=5.3.1
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
-
-⛔  Found issue of type: Security vulnerability in package 'vyper' referenced in project '': Buffer Overflow in vyper (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: ./requirements.txt   ⛔
-
-1 | PyYAML~=5.3.1
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
-
-Report URL: https://app.cycode.com/on-demand-scans/617ecc3d-9ff2-493e-8be8-2c1fecaf6939
-```
 
 The report page will look something like below:
 
