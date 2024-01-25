@@ -324,7 +324,7 @@ When using this option, the scan results from this scan will appear in the knowl
 ### Report Option
 
 > [!NOTE]
-> This option is only available to SCA scans.
+> This option is only available to SCA and Secret scans.
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
 
