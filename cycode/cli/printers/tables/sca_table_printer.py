@@ -160,15 +160,6 @@ class ScaTablePrinter(TablePrinterBase):
         table.set(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.set(LICENSE_COLUMN, detection_details.get('license'))
 
-    @staticmethod
-    def _print_report_urls(local_scan_results: List['LocalScanResult']) -> None:
-        report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
-        if not report_urls:
-            return
-
-        click.echo('Report URLs:')
-        for report_url in report_urls:
-            click.echo(f'- {report_url}')
 
     @staticmethod
     def _print_summary_issues(detections_count: int, title: str) -> None:

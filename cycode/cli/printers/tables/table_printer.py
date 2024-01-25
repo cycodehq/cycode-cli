@@ -59,13 +59,12 @@ class TablePrinter(TablePrinterBase):
 
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
-                report_url = local_scan_result.report_url if local_scan_result.report_url else 'N/A'
                 for detection in document_detections.detections:
-                    table.set(REPORT_URL_COLUMN, report_url)
                     table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
         self._print_table(table)
+        self._print_report_urls(local_scan_results)
 
     def _get_table(self) -> Table:
         table = Table()
@@ -85,9 +84,6 @@ class TablePrinter(TablePrinterBase):
             table.add(VIOLATION_LENGTH_COLUMN)
             table.add(VIOLATION_COLUMN)
 
-        if self.context.obj.get('report'):
-            table.add(REPORT_URL_COLUMN)
-
         return table
 
     def _enrich_table_with_values(self, table: Table, detection: Detection, document: Document) -> None:
@@ -95,7 +91,7 @@ class TablePrinter(TablePrinterBase):
         self._enrich_table_with_detection_code_segment_values(table, detection, document)
 
     def _enrich_table_with_detection_summary_values(
-        self, table: Table, detection: Detection, document: Document
+            self, table: Table, detection: Detection, document: Document
     ) -> None:
         issue_type = detection.message
         if self.scan_type == SECRET_SCAN_TYPE:
@@ -108,7 +104,7 @@ class TablePrinter(TablePrinterBase):
         table.set(COMMIT_SHA_COLUMN, detection.detection_details.get('commit_id', ''))
 
     def _enrich_table_with_detection_code_segment_values(
-        self, table: Table, detection: Detection, document: Document
+            self, table: Table, detection: Detection, document: Document
     ) -> None:
         detection_details = detection.detection_details
 
@@ -123,7 +119,7 @@ class TablePrinter(TablePrinterBase):
         file_content_lines = document.content.splitlines()
         if detection_line < len(file_content_lines):
             line = file_content_lines[detection_line]
-            violation = line[detection_column : detection_column + violation_length]
+            violation = line[detection_column: detection_column + violation_length]
 
             if not self.show_secret:
                 violation = obfuscate_text(violation)
