@@ -160,7 +160,6 @@ class ScaTablePrinter(TablePrinterBase):
         table.set(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.set(LICENSE_COLUMN, detection_details.get('license'))
 
-
     @staticmethod
     def _print_summary_issues(detections_count: int, title: str) -> None:
         click.echo(f'⛔ Found {detections_count} issues of type: {click.style(title, bold=True)}')
