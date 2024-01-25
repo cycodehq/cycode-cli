@@ -329,20 +329,20 @@ When using this option, the scan results from this scan will appear in the knowl
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
 
 `cycode scan -t sca --report repository ~/home/git/codebase`
-`cycode scan -t secrets --report repository ~/home/git/codebase`
+`cycode scan -t secret --report repository ~/home/git/codebase`
 
 
 or:
 
 `cycode scan --scan-type sca --report repository ~/home/git/codebase`
-`cycode scan --scan-type secrets --report repository ~/home/git/codebase`
+`cycode scan --scan-type secret --report repository ~/home/git/codebase`
 
 When using this option, the scan results from this scan will appear in the On-Demand Scans section of Cycode. To get to this page, click the link that appears after the printed results:
 
 > :warning: **NOTE**<br/>
 > You must be an `owner` or an `admin` in Cycode to view this page.
 
-![cli-report](https://github.com/cycodehq/cycode-cli/assets/135120640/09709f10-c59b-43b9-ab22-9b42553c78be)
+![cli-report](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/sca_report_url.png)
 
 
 The report page will look something like below:
