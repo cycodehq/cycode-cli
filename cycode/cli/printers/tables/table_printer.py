@@ -25,7 +25,6 @@ COLUMN_NUMBER_COLUMN = column_builder.build(name='Column Number')
 VIOLATION_LENGTH_COLUMN = column_builder.build(name='Violation Length')
 VIOLATION_COLUMN = column_builder.build(name='Violation')
 SCAN_ID_COLUMN = column_builder.build(name='Scan ID')
-REPORT_URL_COLUMN = column_builder.build(name='Report URL')
 
 COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
     SECRET_SCAN_TYPE: {
@@ -59,13 +58,12 @@ class TablePrinter(TablePrinterBase):
 
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
-                report_url = local_scan_result.report_url if local_scan_result.report_url else 'N/A'
                 for detection in document_detections.detections:
-                    table.set(REPORT_URL_COLUMN, report_url)
                     table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
         self._print_table(table)
+        self._print_report_urls(local_scan_results)
 
     def _get_table(self) -> Table:
         table = Table()
@@ -84,9 +82,6 @@ class TablePrinter(TablePrinterBase):
             table.add(SECRET_SHA_COLUMN)
             table.add(VIOLATION_LENGTH_COLUMN)
             table.add(VIOLATION_COLUMN)
-
-        if self.context.obj.get('report'):
-            table.add(REPORT_URL_COLUMN)
 
         return table
 

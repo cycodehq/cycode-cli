@@ -56,3 +56,13 @@ class TablePrinterBase(PrinterBase, abc.ABC):
     def _print_table(table: 'Table') -> None:
         if table.get_rows():
             click.echo(table.get_table().draw())
+
+    @staticmethod
+    def _print_report_urls(local_scan_results: List['LocalScanResult']) -> None:
+        report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
+        if not report_urls:
+            return
+
+        click.echo('Report URLs:')
+        for report_url in report_urls:
+            click.echo(f'- {report_url}')
