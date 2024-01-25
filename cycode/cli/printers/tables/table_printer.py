@@ -25,7 +25,6 @@ COLUMN_NUMBER_COLUMN = column_builder.build(name='Column Number')
 VIOLATION_LENGTH_COLUMN = column_builder.build(name='Violation Length')
 VIOLATION_COLUMN = column_builder.build(name='Violation')
 SCAN_ID_COLUMN = column_builder.build(name='Scan ID')
-REPORT_URL_COLUMN = column_builder.build(name='Report URL')
 
 COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
     SECRET_SCAN_TYPE: {
