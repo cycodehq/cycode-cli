@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional, Type
 
-from cycode.cyclient import logger
 from cycode.cyclient.models import Detection
 
 
