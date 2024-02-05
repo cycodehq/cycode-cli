@@ -46,8 +46,7 @@ class Severity(Enum):
     @staticmethod
     def get_member_weight(name: str) -> any:
         weight = Severity.try_get_value(name)
-        if weight is None:
-            logger.debug(f'missing severity in enum: {name}')
+        if weight is None:  # if License Compliance
             return -2
         return weight
 
