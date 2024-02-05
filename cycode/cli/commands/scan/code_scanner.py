@@ -103,11 +103,7 @@ def _should_use_scan_service(scan_type: str, scan_parameters: Optional[dict] = N
 
 
 def _should_use_sync_flow(scan_type: str, sync_options: bool, scan_parameters: Optional[dict] = None) -> bool:
-    return (
-        sync_options
-        and scan_type == consts.SCA_SCAN_TYPE
-        and scan_parameters.get('report') is not True
-    )
+    return sync_options and scan_type == consts.SCA_SCAN_TYPE and scan_parameters.get('report') is not True
 
 
 def _enrich_scan_result_with_data_from_detection_rules(
