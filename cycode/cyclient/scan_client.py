@@ -31,17 +31,18 @@ class ScanClient:
         self._hide_response_log = hide_response_log
 
     def get_scan_controller_path(self, scan_type: str) -> str:
-        # FIXME(MarshalX): add Secrets when BE will be ready
-        if scan_type in {consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE}:
-            return self._SCAN_SERVICE_CLI_CONTROLLER_PATH
+        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+            # we don't use async flow for IaC scan yet
+            return self._SCAN_SERVICE_CONTROLLER_PATH
 
-        return self._SCAN_SERVICE_CONTROLLER_PATH
+        return self._SCAN_SERVICE_CLI_CONTROLLER_PATH
 
     def get_detections_service_controller_path(self, scan_type: str) -> str:
-        if scan_type in {consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE}:
-            return self._DETECTIONS_SERVICE_CLI_CONTROLLER_PATH
+        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+            # we don't use async flow for IaC scan yet
+            return self._DETECTIONS_SERVICE_CONTROLLER_PATH
 
-        return self._DETECTIONS_SERVICE_CONTROLLER_PATH
+        return self._DETECTIONS_SERVICE_CLI_CONTROLLER_PATH
 
     def get_scan_service_url_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
@@ -186,10 +187,11 @@ class ScanClient:
 
     @staticmethod
     def get_scan_detections_list_path_suffix(scan_type: str) -> str:
-        if scan_type in {consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE}:
-            return '/detections'
+        # we don't use async flow for IaC scan yet
+        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+            return ''
 
-        return ''
+        return '/detections'
 
     def get_scan_detections_list_path(self, scan_type: str) -> str:
         return f'{self.get_scan_detections_path(scan_type)}{self.get_scan_detections_list_path_suffix(scan_type)}'
