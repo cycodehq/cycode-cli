@@ -30,9 +30,13 @@ class ScanClient:
 
         self._hide_response_log = hide_response_log
 
-    def get_scan_controller_path(self, scan_type: str) -> str:
+    def get_scan_controller_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
+            return self._SCAN_SERVICE_CONTROLLER_PATH
+        if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE:
+            # if a secret scan goes to detector directly, we should not use CLI controller.
+            # CLI controller belongs to the scan service only
             return self._SCAN_SERVICE_CONTROLLER_PATH
 
         return self._SCAN_SERVICE_CLI_CONTROLLER_PATH
@@ -46,7 +50,7 @@ class ScanClient:
 
     def get_scan_service_url_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
-        controller_path = self.get_scan_controller_path(scan_type)
+        controller_path = self.get_scan_controller_path(scan_type, should_use_scan_service)
         return f'{service_path}/{controller_path}'
 
     def content_scan(self, scan_type: str, file_name: str, content: str, is_git_diff: bool = True) -> models.ScanResult:
