@@ -50,7 +50,7 @@ class ScanClient:
 
     def get_scan_service_url_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
-        controller_path = self.get_scan_controller_path(scan_type, should_use_scan_service)
+        controller_path = self.get_scan_controller_path(scan_type)
         return f'{service_path}/{controller_path}'
 
     def content_scan(self, scan_type: str, file_name: str, content: str, is_git_diff: bool = True) -> models.ScanResult:
