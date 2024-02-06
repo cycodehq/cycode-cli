@@ -98,12 +98,21 @@ def set_issue_detected_by_scan_results(context: click.Context, scan_results: Lis
     set_issue_detected(context, any(scan_result.issue_detected for scan_result in scan_results))
 
 
-def _should_use_scan_service(scan_type: str, scan_parameters: Optional[dict] = None) -> bool:
-    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters is not None and scan_parameters['report'] is True
+def _should_use_scan_service(scan_type: str, scan_parameters: dict) -> bool:
+    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters.get('report') is True
 
 
-def _should_use_sync_flow(scan_type: str, sync_options: bool, scan_parameters: Optional[dict] = None) -> bool:
-    return sync_options and scan_type == consts.SCA_SCAN_TYPE and scan_parameters.get('report') is not True
+def _should_use_sync_flow(scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None) -> bool:
+    if not sync_option:
+        return False
+
+    if scan_type not in (consts.SCA_SCAN_TYPE,):
+        raise ValueError(f'Sync scan is not available for {scan_type} scan type.')
+
+    if scan_parameters.get('report') is True:
+        raise ValueError('You can not use sync flow with report option. Either remove "report" or "sync" option.')
+
+    return True
 
 
 def _enrich_scan_result_with_data_from_detection_rules(
@@ -156,6 +165,7 @@ def _get_scan_documents_thread_func(
 
         scan_id = str(_generate_unique_id())
         scan_completed = False
+
         should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
         should_use_sync_flow = _should_use_sync_flow(scan_type, sync_option, scan_parameters)
 

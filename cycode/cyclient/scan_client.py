@@ -105,6 +105,7 @@ class ScanClient:
             data={'scan_parameters': json.dumps(scan_parameters)},
             files=files,
             hide_response_content_log=self._hide_response_log,
+            timeout=60,
         )
         return models.ScanResultsSyncFlowSchema().load(response.json())
 

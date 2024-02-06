@@ -62,9 +62,14 @@ class CycodeClientBase:
         url = self.build_full_url(self.api_url, endpoint)
         logger.debug(f'Executing {method.upper()} request to {url}')
 
+        timeout = self.timeout
+        if 'timeout' in kwargs:
+            timeout = kwargs['timeout']
+            del kwargs['timeout']
+
         try:
             headers = self.get_request_headers(headers, without_auth=without_auth)
-            response = request(method=method, url=url, timeout=self.timeout, headers=headers, **kwargs)
+            response = request(method=method, url=url, timeout=timeout, headers=headers, **kwargs)
 
             content = 'HIDDEN' if hide_response_content_log else response.text
             logger.debug(f'Response {response.status_code} from {url}. Content: {content}')
