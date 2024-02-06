@@ -34,7 +34,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
     '--scan-type',
     '-t',
     default='secret',
-    help='Specify the type of scan you wish to execute (the default is Secrets)',
+    help='Specify the type of scan you wish to execute (the default is Secrets).',
     type=click.Choice(config['scans']['supported_scans']),
 )
 @click.option(
@@ -104,7 +104,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
     '--sync',
     is_flag=True,
     default=False,
-    help='Run scan synchronously (default is asynchronous).',
+    help='Run scan synchronously (the default is asynchronous).',
     type=bool,
     required=False,
 )
