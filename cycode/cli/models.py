@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional, Type
 
-from cycode.cyclient import logger
 from cycode.cyclient.models import Detection
 
 
@@ -46,8 +45,7 @@ class Severity(Enum):
     @staticmethod
     def get_member_weight(name: str) -> any:
         weight = Severity.try_get_value(name)
-        if weight is None:
-            logger.debug(f'missing severity in enum: {name}')
+        if weight is None:  # if License Compliance
             return -2
         return weight
 

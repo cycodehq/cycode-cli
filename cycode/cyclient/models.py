@@ -453,3 +453,21 @@ class DetectionRuleSchema(Schema):
     @post_load
     def build_dto(self, data: Dict[str, Any], **_) -> DetectionRule:
         return DetectionRule(**data)
+
+
+@dataclass
+class ScanResultsSyncFlow:
+    id: str
+    detection_messages: List[Dict]
+
+
+class ScanResultsSyncFlowSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.String()
+    detection_messages = fields.List(fields.Dict())
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> ScanResultsSyncFlow:
+        return ScanResultsSyncFlow(**data)

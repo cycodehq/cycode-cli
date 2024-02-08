@@ -34,7 +34,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
     '--scan-type',
     '-t',
     default='secret',
-    help='Specify the type of scan you wish to execute (the default is Secrets)',
+    help='Specify the type of scan you wish to execute (the default is Secrets).',
     type=click.Choice(config['scans']['supported_scans']),
 )
 @click.option(
@@ -100,6 +100,14 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
     type=bool,
     required=False,
 )
+@click.option(
+    '--sync',
+    is_flag=True,
+    default=False,
+    help='Run scan synchronously (the default is asynchronous).',
+    type=bool,
+    required=False,
+)
 @click.pass_context
 def scan_command(
     context: click.Context,
@@ -113,6 +121,7 @@ def scan_command(
     monitor: bool,
     report: bool,
     no_restore: bool,
+    sync: bool,
 ) -> int:
     """Scans for Secrets, IaC, SCA or SAST violations."""
     if show_secret:
@@ -127,6 +136,7 @@ def scan_command(
 
     context.obj['client'] = get_scan_cycode_client(client_id, secret, not context.obj['show_secret'])
     context.obj['scan_type'] = scan_type
+    context.obj['sync'] = sync
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report

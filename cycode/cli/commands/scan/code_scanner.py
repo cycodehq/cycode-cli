@@ -98,8 +98,21 @@ def set_issue_detected_by_scan_results(context: click.Context, scan_results: Lis
     set_issue_detected(context, any(scan_result.issue_detected for scan_result in scan_results))
 
 
-def _should_use_scan_service(scan_type: str, scan_parameters: Optional[dict] = None) -> bool:
-    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters is not None and scan_parameters['report'] is True
+def _should_use_scan_service(scan_type: str, scan_parameters: dict) -> bool:
+    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters.get('report') is True
+
+
+def _should_use_sync_flow(scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None) -> bool:
+    if not sync_option:
+        return False
+
+    if scan_type not in (consts.SCA_SCAN_TYPE,):
+        raise ValueError(f'Sync scan is not available for {scan_type} scan type.')
+
+    if scan_parameters.get('report') is True:
+        raise ValueError('You can not use sync flow with report option. Either remove "report" or "sync" option.')
+
+    return True
 
 
 def _enrich_scan_result_with_data_from_detection_rules(
@@ -141,6 +154,7 @@ def _get_scan_documents_thread_func(
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
+    sync_option = context.obj['sync']
     command_scan_type = context.info_name
 
     scan_parameters['aggregation_id'] = str(_generate_unique_id())
@@ -151,7 +165,9 @@ def _get_scan_documents_thread_func(
 
         scan_id = str(_generate_unique_id())
         scan_completed = False
+
         should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
+        should_use_sync_flow = _should_use_sync_flow(scan_type, sync_option, scan_parameters)
 
         try:
             logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
@@ -166,6 +182,7 @@ def _get_scan_documents_thread_func(
                 is_commit_range,
                 scan_parameters,
                 should_use_scan_service,
+                should_use_sync_flow,
             )
 
             _enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_type, scan_result)
@@ -439,7 +456,11 @@ def perform_scan(
     is_commit_range: bool,
     scan_parameters: dict,
     should_use_scan_service: bool = False,
+    should_use_sync_flow: bool = False,
 ) -> ZippedFileScanResult:
+    if should_use_sync_flow:
+        return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters)
+
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
         return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
 
@@ -463,6 +484,21 @@ def perform_scan_async(
         scan_async_result.scan_id,
         scan_type,
         scan_parameters.get('report'),
+    )
+
+
+def perform_scan_sync(
+    cycode_client: 'ScanClient',
+    zipped_documents: 'InMemoryZip',
+    scan_type: str,
+    scan_parameters: dict,
+) -> ZippedFileScanResult:
+    scan_results = cycode_client.zipped_file_scan_sync(zipped_documents, scan_type, scan_parameters)
+    logger.debug('scan request has been triggered successfully, scan id: %s', scan_results.id)
+    return ZippedFileScanResult(
+        did_detect=True,
+        detections_per_file=_map_detections_per_file(scan_results.detection_messages),
+        scan_id=scan_results.id,
     )
 
 
@@ -888,10 +924,10 @@ def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
 
 
 def _get_file_name_from_detection(detection: dict) -> str:
-    if detection['category'] == 'SAST':
+    if detection.get('category') == 'SAST':
         return detection['detection_details']['file_path']
 
-    if detection['category'] == 'SecretDetection':
+    if detection.get('category') == 'SecretDetection':
         return _get_secret_file_name_from_detection(detection)
 
     return detection['detection_details']['file_name']
