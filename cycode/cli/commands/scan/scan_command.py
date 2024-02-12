@@ -136,11 +136,15 @@ def scan_command(
 
     context.obj['client'] = get_scan_cycode_client(client_id, secret, not context.obj['show_secret'])
     context.obj['scan_type'] = scan_type
-    context.obj['sync'] = sync
     context.obj['severity_threshold'] = severity_threshold
     context.obj['monitor'] = monitor
     context.obj['report'] = report
+
+    context.obj['sync'] = sync
     context.obj[SCA_SKIP_RESTORE_DEPENDENCIES_FLAG] = no_restore
+    if sync:
+        # sync flow exists for fast SCA scans, so we don't want to lose time on restore
+        context.obj[SCA_SKIP_RESTORE_DEPENDENCIES_FLAG] = True
 
     _sca_scan_to_context(context, sca_scan)
 
