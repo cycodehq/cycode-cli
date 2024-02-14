@@ -1,4 +1,3 @@
-import traceback
 from typing import Optional
 
 import click
@@ -14,8 +13,7 @@ def handle_scan_exception(
 ) -> Optional[CliError]:
     context.obj['did_fail'] = True
 
-    if context.obj['verbose']:
-        click.secho(f'Error: {traceback.format_exc()}', fg='red')
+    ConsolePrinter(context).print_exception()
 
     errors: CliErrors = {
         custom_exceptions.NetworkError: CliError(

@@ -1,4 +1,3 @@
-import traceback
 from typing import Optional
 
 import click
@@ -9,8 +8,7 @@ from cycode.cli.printers import ConsolePrinter
 
 
 def handle_report_exception(context: click.Context, err: Exception) -> Optional[CliError]:
-    if context.obj['verbose']:
-        click.secho(f'Error: {traceback.format_exc()}', fg='red')
+    ConsolePrinter(context).print_exception()
 
     errors: CliErrors = {
         custom_exceptions.NetworkError: CliError(
