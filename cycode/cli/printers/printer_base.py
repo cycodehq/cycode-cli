@@ -1,3 +1,4 @@
+import traceback
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, List, Optional
 
@@ -30,3 +31,18 @@ class PrinterBase(ABC):
     @abstractmethod
     def print_error(self, error: CliError) -> None:
         pass
+
+    def print_exception(self, e: Optional[BaseException] = None) -> None:
+        """We are printing it in stderr so, we don't care about supporting JSON and TABLE outputs.
+
+        Note:
+            Called only when the verbose flag is set.
+        """
+        if e is None:
+            # gets the most recent exception caught by an except clause
+            message = f'Error: {traceback.format_exc()}'
+        else:
+            traceback_message = ''.join(traceback.format_exception(e))
+            message = f'Error: {traceback_message}'
+
+        click.secho(message, err=True, fg=self.RED_COLOR_NAME)

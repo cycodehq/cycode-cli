@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional
+from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Type
 
 import click
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class ConsolePrinter:
-    _AVAILABLE_PRINTERS: ClassVar[Dict[str, 'PrinterBase']] = {
+    _AVAILABLE_PRINTERS: ClassVar[Dict[str, Type['PrinterBase']]] = {
         'text': TextPrinter,
         'json': JsonPrinter,
         'table': TablePrinter,
@@ -53,3 +53,8 @@ class ConsolePrinter:
 
     def print_error(self, error: CliError) -> None:
         self._printer_class(self.context).print_error(error)
+
+    def print_exception(self, e: Optional[BaseException] = None, force_print: bool = False) -> None:
+        """Print traceback message in stderr if verbose mode is set."""
+        if force_print or self.context.obj.get('verbose', False):
+            self._printer_class(self.context).print_exception(e)

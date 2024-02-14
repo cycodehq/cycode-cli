@@ -1,5 +1,3 @@
-import traceback
-
 import click
 
 from cycode.cli.commands.auth.auth_manager import AuthManager
@@ -54,16 +52,14 @@ def authorization_check(context: click.Context) -> None:
             printer.print_result(passed_auth_check_res)
             return
     except (NetworkError, HttpUnauthorizedError):
-        if context.obj['verbose']:
-            click.secho(f'Error: {traceback.format_exc()}', fg='red')
+        ConsolePrinter(context).print_exception()
 
         printer.print_result(failed_auth_check_res)
         return
 
 
 def _handle_exception(context: click.Context, e: Exception) -> None:
-    if context.obj['verbose']:
-        click.secho(f'Error: {traceback.format_exc()}', fg='red')
+    ConsolePrinter(context).print_exception()
 
     errors: CliErrors = {
         AuthProcessError: CliError(
