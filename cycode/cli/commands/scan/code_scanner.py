@@ -288,7 +288,8 @@ def scan_commit_range(
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
     logger.debug('Starting to scan commit range (It may take a few minutes)')
 
-    scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
+    scan_parameters = get_scan_parameters(context, (path,))
+    scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True, scan_parameters=scan_parameters)
     return None
 
 
@@ -568,6 +569,33 @@ def print_results(
     printer.print_scan_results(local_scan_results, errors)
 
 
+def _is_hex(string: str) -> bool:
+    try:
+        int(string, 16)
+        return True
+    except ValueError:
+        return False
+
+
+def _unify_detection_per_file(detection: DetectionsPerFile) -> None:
+    """Provide the same format for commit_id and file_name for all detections.
+
+    The format is different between scan service and secret detector.
+    """
+    if detection.commit_id:
+        # detector flow. nothing to do
+        return
+
+    possible_commit_hash = detection.file_name[:40]
+    if _is_hex(possible_commit_hash):
+        # scan service flow. need to unify
+        detection.commit_id = possible_commit_hash
+        detection.file_name = detection.file_name[41:]
+        return
+
+    return
+
+
 def get_document_detections(
     scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
 ) -> List[DocumentDetections]:
@@ -575,6 +603,8 @@ def get_document_detections(
 
     document_detections = []
     for detections_per_file in scan_result.detections_per_file:
+        _unify_detection_per_file(detections_per_file)
+
         file_name = get_path_by_os(detections_per_file.file_name)
         commit_id = detections_per_file.commit_id
 

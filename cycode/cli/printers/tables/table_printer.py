@@ -32,6 +32,7 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
         RULE_ID_COLUMN: 2,
         FILE_PATH_COLUMN: 2,
         SECRET_SHA_COLUMN: 2,
+        COMMIT_SHA_COLUMN: 2,
         VIOLATION_COLUMN: 2,
         SCAN_ID_COLUMN: 2,
     },
@@ -100,7 +101,7 @@ class TablePrinter(TablePrinterBase):
         table.set(RULE_ID_COLUMN, detection.detection_rule_id)
         table.set(FILE_PATH_COLUMN, click.format_filename(document.path))
         table.set(SECRET_SHA_COLUMN, detection.detection_details.get('sha512', ''))
-        table.set(COMMIT_SHA_COLUMN, detection.detection_details.get('commit_id', ''))
+        table.set(COMMIT_SHA_COLUMN, document.unique_id)
 
     def _enrich_table_with_detection_code_segment_values(
         self, table: Table, detection: Detection, document: Document
