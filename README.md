@@ -38,6 +38,7 @@ This guide will guide you through both installation and usage.
             2. [IaC Result Example](#iac-result-example)
             3. [SCA Result Example](#sca-result-example)
             4. [SAST Result Example](#sast-result-example)
+        4. [Company’s Custom Remediation Guidelines](#companys-custom-remediation-guidelines) 
     3. [Ignoring Scan Results](#ignoring-scan-results)
         1. [Ignoring a Secret Value](#ignoring-a-secret-value)
         2. [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value)
@@ -558,6 +559,10 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  �
 3 | res = requests.get('http://example.com', timeout=1)
 4 | print(res.content)
 ```
+
+### Company’s Custom Remediation Guidelines
+
+If your company has set custom remediation guidelines in the relevant policy via the Cycode portal, you'll see a field for “Company Guidelines” that contains the remediation guidelines you added. Note that if you haven't added any company guideline, this field will not appear in the CLI tool.
 
 ## Ignoring Scan Results
 
