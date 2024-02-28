@@ -38,6 +38,7 @@ This guide will guide you through both installation and usage.
             2. [IaC Result Example](#iac-result-example)
             3. [SCA Result Example](#sca-result-example)
             4. [SAST Result Example](#sast-result-example)
+        4. [Company’s Custom Remediation Guidelines](#companys-custom-remediation-guidelines) 
     3. [Ignoring Scan Results](#ignoring-scan-results)
         1. [Ignoring a Secret Value](#ignoring-a-secret-value)
         2. [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value)
@@ -68,9 +69,10 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 1. Open your command line or terminal application.
 
-2. Execute the following command:
+2. Execute one of the following commands:
 
-   `pip3 install cycode`
+   - `pip3 install cycode` - to install from PyPI
+   - `brew install cycode` - to install from Homebrew
 
 3. Navigate to the top directory of the local repository you wish to scan.
 
@@ -324,13 +326,12 @@ When using this option, the scan results from this scan will appear in the knowl
 ### Report Option
 
 > [!NOTE]
-> This option is only available to SCA and Secret scans.
+> This option is not available to IaC scans.
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
 
 `cycode scan -t sca --report repository ~/home/git/codebase`
 `cycode scan -t secret --report repository ~/home/git/codebase`
-
 
 or:
 
@@ -558,6 +559,10 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  �
 3 | res = requests.get('http://example.com', timeout=1)
 4 | print(res.content)
 ```
+
+### Company’s Custom Remediation Guidelines
+
+If your company has set custom remediation guidelines in the relevant policy via the Cycode portal, you'll see a field for “Company Guidelines” that contains the remediation guidelines you added. Note that if you haven't added any company guideline, this field will not appear in the CLI tool.
 
 ## Ignoring Scan Results
 
