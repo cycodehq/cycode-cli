@@ -68,9 +68,10 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 1. Open your command line or terminal application.
 
-2. Execute the following command:
+2. Execute one of the following commands:
 
-   `pip3 install cycode`
+   - `pip3 install cycode` - to install from PyPI
+   - `brew install cycode` - to install from Homebrew
 
 3. Navigate to the top directory of the local repository you wish to scan.
 
@@ -324,13 +325,12 @@ When using this option, the scan results from this scan will appear in the knowl
 ### Report Option
 
 > [!NOTE]
-> This option is only available to SCA and Secret scans.
+> This option is not available to IaC scans.
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
 
 `cycode scan -t sca --report repository ~/home/git/codebase`
 `cycode scan -t secret --report repository ~/home/git/codebase`
-
 
 or:
 
