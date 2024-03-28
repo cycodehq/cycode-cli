@@ -119,7 +119,7 @@ def _enrich_scan_result_with_data_from_detection_rules(
     cycode_client: 'ScanClient', scan_type: str, scan_result: ZippedFileScanResult
 ) -> None:
     # TODO(MarshalX): remove scan_type arg after migration to new backend filter
-    if scan_type != consts.SECRET_SCAN_TYPE:
+    if scan_type not in {consts.SECRET_SCAN_TYPE, consts.INFRA_CONFIGURATION_SCAN_TYPE}:
         # not yet
         return
 
