@@ -440,6 +440,8 @@ class DetectionRule:
     classification_data: List[ClassificationData]
     detection_rule_id: str
     custom_remediation_guidelines: Optional[str] = None
+    remediation_guidelines: Optional[str] = None
+    description: Optional[str] = None
 
 
 class DetectionRuleSchema(Schema):
@@ -449,6 +451,8 @@ class DetectionRuleSchema(Schema):
     classification_data = fields.Nested(ClassificationDataSchema, many=True)
     detection_rule_id = fields.String()
     custom_remediation_guidelines = fields.String(allow_none=True)
+    remediation_guidelines = fields.String(allow_none=True)
+    description = fields.String(allow_none=True)
 
     @post_load
     def build_dto(self, data: Dict[str, Any], **_) -> DetectionRule:

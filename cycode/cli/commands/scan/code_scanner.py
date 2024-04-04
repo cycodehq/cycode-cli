@@ -146,6 +146,8 @@ def _enrich_scan_result_with_data_from_detection_rules(
 
             # detection_details never was typed properly. so not a problem for now
             detection.detection_details['custom_remediation_guidelines'] = detection_rule.custom_remediation_guidelines
+            detection.detection_details['remediation_guidelines'] = detection_rule.remediation_guidelines
+            detection.detection_details['description'] = detection_rule.description
 
 
 def _get_scan_documents_thread_func(
