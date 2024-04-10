@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 from typing import List, Optional
 
 from cycode.cli import consts
@@ -36,5 +37,10 @@ def zip_documents(scan_type: str, documents: List[Document], zip_file: Optional[
     end_zip_creation_time = time.time()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
     logger.debug('finished to create zip file, %s', {'zip_creation_time': zip_creation_time})
+
+    if zip_file.configuration_manager.get_debug_flag():
+        zip_file_path = Path.joinpath(Path.cwd(), f'{scan_type}_scan_{end_zip_creation_time}.zip')
+        logger.debug('writing zip file to disk, %s', {'zip_file_path': zip_file_path})
+        zip_file.write_on_disk(zip_file_path)
 
     return zip_file

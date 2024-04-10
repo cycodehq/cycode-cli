@@ -46,6 +46,13 @@ class ConfigurationManager:
 
         return consts.DEFAULT_CYCODE_APP_URL
 
+    def get_debug_flag_from_environment_variables(self) -> bool:
+        value = self._get_value_from_environment_variables(consts.DEBUG_ENV_VAR_NAME, '')
+        return value.lower() in {'true', '1'}
+
+    def get_debug_flag(self) -> bool:
+        return self.get_debug_flag_from_environment_variables()
+
     def get_verbose_flag(self) -> bool:
         verbose_flag_env_var = self.get_verbose_flag_from_environment_variables()
         verbose_flag_local_config = self.local_config_file_manager.get_verbose_flag()
