@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import click
 
 from cycode.cli.models import CliError, CliResult
+from cycode.cyclient.headers import get_correlation_id
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
@@ -46,3 +47,6 @@ class PrinterBase(ABC):
             message = f'Error: {traceback_message}'
 
         click.secho(message, err=True, fg=self.RED_COLOR_NAME)
+
+        correlation_message = f'Correlation ID: {get_correlation_id()}'
+        click.secho(correlation_message, err=True, fg=self.RED_COLOR_NAME)

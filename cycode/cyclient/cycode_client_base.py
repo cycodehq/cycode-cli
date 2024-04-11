@@ -1,33 +1,17 @@
-import platform
 from typing import ClassVar, Dict, Optional
 
 from requests import Response, exceptions, request
 
-from cycode import __version__
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
-from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cyclient import config, logger
-
-
-def get_cli_user_agent() -> str:
-    """Return base User-Agent of CLI.
-
-    Example: CycodeCLI/0.2.3 (OS: Darwin; Arch: arm64; Python: 3.8.16; InstallID: *uuid4*)
-    """
-    app_name = 'CycodeCLI'
-    version = __version__
-
-    os = platform.system()
-    arch = platform.machine()
-    python_version = platform.python_version()
-
-    install_id = ConfigurationManager().get_or_create_installation_id()
-
-    return f'{app_name}/{version} (OS: {os}; Arch: {arch}; Python: {python_version}; InstallID: {install_id})'
+from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
 
 
 class CycodeClientBase:
-    MANDATORY_HEADERS: ClassVar[Dict[str, str]] = {'User-Agent': get_cli_user_agent()}
+    MANDATORY_HEADERS: ClassVar[Dict[str, str]] = {
+        'User-Agent': get_cli_user_agent(),
+        'X-Correlation-Id': get_correlation_id(),
+    }
 
     def __init__(self, api_url: str) -> None:
         self.timeout = config.timeout
