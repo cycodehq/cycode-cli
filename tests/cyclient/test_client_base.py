@@ -1,10 +1,12 @@
 from cycode.cyclient import config
-from cycode.cyclient.cycode_client_base import CycodeClientBase, get_cli_user_agent
+from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
 
 
 def test_mandatory_headers() -> None:
     expected_headers = {
         'User-Agent': get_cli_user_agent(),
+        'X-Correlation-Id': get_correlation_id(),
     }
 
     client = CycodeClientBase(config.cycode_api_url)

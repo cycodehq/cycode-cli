@@ -59,7 +59,7 @@ def test_handle_exception_verbose(monkeypatch: 'MonkeyPatch') -> None:
     ctx = click.Context(click.Command('path'), obj={'verbose': True, 'output': 'text'})
 
     def mock_secho(msg: str, *_, **__) -> None:
-        assert 'Error:' in msg
+        assert 'Error:' in msg or 'Correlation ID:' in msg
 
     monkeypatch.setattr(click, 'secho', mock_secho)
 
