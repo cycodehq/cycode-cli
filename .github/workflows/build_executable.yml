@@ -2,6 +2,7 @@ name: Build executable version of CLI and upload artifact. On dispatch event bui
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches:
       - main
@@ -15,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, macos-11, macos-13-xlarge, windows-2019 ]
+        os: [ ubuntu-20.04, macos-11, macos-14, windows-2019 ]
         mode: [ 'onefile', 'onedir' ]
         exclude:
           - os: ubuntu-20.04
