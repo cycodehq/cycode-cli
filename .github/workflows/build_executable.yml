@@ -143,6 +143,7 @@ jobs:
       - name: Test macOS signed executable
         if: runner.os == 'macOS'
         run: |
+          file -b $PATH_TO_CYCODE_CLI_EXECUTABLE
           time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
           # verify signature
