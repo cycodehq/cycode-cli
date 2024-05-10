@@ -52,6 +52,11 @@ This guide will guide you through both installation and usage.
 
 # Prerequisites
 
+> [!WARNING]  
+> Python 3.7 end-of-life was on 2023-06-27. 
+> It is recommended to use Python 3.8 or later. 
+> We will drop support for Python 3.7 soon.
+
 - The Cycode CLI application requires Python version 3.7 or later.
 - Use the [`cycode auth` command](#using-the-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, you can obtain a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/reference/creating-a-service-account-access-token) and [Personal Access Token](https://docs.cycode.com/reference/creating-a-personal-access-token-1) pages, which contain details on obtaining these values.
