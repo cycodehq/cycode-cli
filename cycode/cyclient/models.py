@@ -441,6 +441,8 @@ class DetectionRule:
     custom_remediation_guidelines: Optional[str] = None
     remediation_guidelines: Optional[str] = None
     description: Optional[str] = None
+    policy_name: Optional[str] = None
+    display_name: Optional[str] = None
 
 
 class DetectionRuleSchema(Schema):
@@ -452,6 +454,8 @@ class DetectionRuleSchema(Schema):
     custom_remediation_guidelines = fields.String(allow_none=True)
     remediation_guidelines = fields.String(allow_none=True)
     description = fields.String(allow_none=True)
+    policy_name = fields.String(allow_none=True)
+    display_name = fields.String(allow_none=True)
 
     @post_load
     def build_dto(self, data: Dict[str, Any], **_) -> DetectionRule:

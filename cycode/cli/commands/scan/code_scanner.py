@@ -143,6 +143,7 @@ def _enrich_scan_result_with_data_from_detection_rules(
             detection.detection_details['custom_remediation_guidelines'] = detection_rule.custom_remediation_guidelines
             detection.detection_details['remediation_guidelines'] = detection_rule.remediation_guidelines
             detection.detection_details['description'] = detection_rule.description
+            detection.detection_details['policy_display_name'] = detection_rule.display_name
 
 
 def _get_scan_documents_thread_func(
