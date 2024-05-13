@@ -164,7 +164,7 @@ class ScanClient:
         return (
             f'{self.scan_config.get_detections_prefix()}/'
             f'{self.POLICIES_SERVICE_CONTROLLER_PATH_V3}/'
-            f'detection_rules'
+            f'detection_rules/byIds'
         )
 
     @staticmethod
@@ -182,35 +182,17 @@ class ScanClient:
         return scan_type_to_policy_type[scan_type]
 
     @staticmethod
-    def _filter_detection_rules_by_ids(
-        detection_rules: List[models.DetectionRule], detection_rules_ids: Union[Set[str], List[str]]
-    ) -> List[models.DetectionRule]:
-        ids = set(detection_rules_ids)  # cast to set to perform faster search
-        return [rule for rule in detection_rules if rule.detection_rule_id in ids]
-
-    @staticmethod
     def parse_detection_rules_response(response: Response) -> List[models.DetectionRule]:
         return models.DetectionRuleSchema().load(response.json(), many=True)
 
-    def get_detection_rules(
-        self, scan_type: str, detection_rules_ids: Union[Set[str], List[str]]
-    ) -> List[models.DetectionRule]:
-        # TODO(MarshalX): use filter by list of IDs instead of policy_type when BE will be ready
-        params = {
-            'include_hidden': False,
-            'include_only_enabled_detection_rules': True,
-            'page_number': 0,
-            'page_size': 5000,
-            'policy_types_v2': self._get_policy_type_by_scan_type(scan_type),
-        }
+    def get_detection_rules(self, detection_rules_ids: Union[Set[str], List[str]]) -> List[models.DetectionRule]:
         response = self.scan_cycode_client.get(
             url_path=self.get_detection_rules_path(),
-            params=params,
+            params={'ids': detection_rules_ids},
             hide_response_content_log=self._hide_response_log,
         )
 
-        # we are filtering rules by ids in-place for smooth migration when backend will be ready
-        return self._filter_detection_rules_by_ids(self.parse_detection_rules_response(response), detection_rules_ids)
+        return self.parse_detection_rules_response(response)
 
     def get_scan_detections_path(self, scan_type: str) -> str:
         return f'{self.scan_config.get_detections_prefix()}/{self.get_detections_service_controller_path(scan_type)}'
