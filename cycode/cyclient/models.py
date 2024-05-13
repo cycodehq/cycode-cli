@@ -38,8 +38,7 @@ class DetectionSchema(Schema):
 
     message = fields.String()
     type = fields.String()
-    severity = fields.String(missing='High')
-    # TODO(MarshalX): Remove "missing" arg when IaC and Secrets scans will have classifications
+    severity = fields.String(missing=None)
     detection_type_id = fields.String()
     detection_details = fields.Dict()
     detection_rule_id = fields.String()

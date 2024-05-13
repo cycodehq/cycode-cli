@@ -116,19 +116,14 @@ def _should_use_sync_flow(scan_type: str, sync_option: bool, scan_parameters: Op
 
 
 def _enrich_scan_result_with_data_from_detection_rules(
-    cycode_client: 'ScanClient', scan_type: str, scan_result: ZippedFileScanResult
+    cycode_client: 'ScanClient', scan_result: ZippedFileScanResult
 ) -> None:
-    # TODO(MarshalX): remove scan_type arg after migration to new backend filter
-    if scan_type not in {consts.SECRET_SCAN_TYPE, consts.INFRA_CONFIGURATION_SCAN_TYPE}:
-        # not yet
-        return
-
     detection_rule_ids = set()
     for detections_per_file in scan_result.detections_per_file:
         for detection in detections_per_file.detections:
             detection_rule_ids.add(detection.detection_rule_id)
 
-    detection_rules = cycode_client.get_detection_rules(scan_type, detection_rule_ids)
+    detection_rules = cycode_client.get_detection_rules(detection_rule_ids)
     detection_rules_by_id = {detection_rule.detection_rule_id: detection_rule for detection_rule in detection_rules}
 
     for detections_per_file in scan_result.detections_per_file:
@@ -138,9 +133,9 @@ def _enrich_scan_result_with_data_from_detection_rules(
                 # we want to make sure that BE returned it. better to not map data instead of failed scan
                 continue
 
-            if detection_rule.classification_data:
+            if not detection.severity and detection_rule.classification_data:
                 # it's fine to take the first one, because:
-                # - for "secrets" and "iac" there is only one classification rule per detection rule
+                # - for "secrets" and "iac" there is only one classification rule per-detection rule
                 # - for "sca" and "sast" we get severity from detection service
                 detection.severity = detection_rule.classification_data[0].severity
 
@@ -187,7 +182,7 @@ def _get_scan_documents_thread_func(
                 should_use_sync_flow,
             )
 
-            _enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_type, scan_result)
+            _enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
 
             local_scan_result = create_local_scan_result(
                 scan_result, batch, command_scan_type, scan_type, severity_threshold

@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, macos-11, macos-13-xlarge, windows-2019 ]
+        os: [ ubuntu-20.04, macos-12, macos-14, windows-2019 ]
         mode: [ 'onefile', 'onedir' ]
         exclude:
           - os: ubuntu-20.04
@@ -142,6 +142,7 @@ jobs:
       - name: Test macOS signed executable
         if: runner.os == 'macOS'
         run: |
+          file -b $PATH_TO_CYCODE_CLI_EXECUTABLE
           time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
           # verify signature
