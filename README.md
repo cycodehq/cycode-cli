@@ -522,7 +522,7 @@ Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  â›
 Using the soft fail feature will not fail the CI/CD step within the pipeline if the Cycode scan detects an issue.
 If an issue occurs during the Cycode scan, using a soft fail feature will automatically execute with success (`0`) to avoid interference.
 
-Adding the `--soft-fail` option to any type of scans to configure this feature will force the scan results to succeed (exit code `0`).
+To configure this feature, add the `--soft-fail` option to any type of scan. This will force the scan results to succeed (exit code `0`).
 
 Scan results are assigned with a value of exit code `1` when issues are found in the scan results; this will result in a failure within the CI/CD tool. Use the option `--soft-fail` to force the results with the exit code `0` to have no impact (i.e., to have a successful result).
 
