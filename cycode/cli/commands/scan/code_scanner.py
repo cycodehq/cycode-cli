@@ -333,7 +333,7 @@ def scan_documents(
 def _try_get_aggregation_report_url_if_needed(
     scan_parameters: dict, cycode_client: 'ScanClient', scan_type: str
 ) -> Optional[str]:
-    aggregation_id = scan_parameters['aggregation_id']
+    aggregation_id = scan_parameters.get('aggregation_id')
     if not scan_parameters.get('report'):
         return None
     if aggregation_id is None:

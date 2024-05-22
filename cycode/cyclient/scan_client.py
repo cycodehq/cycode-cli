@@ -30,9 +30,7 @@ class ScanClient:
 
         self._hide_response_log = hide_response_log
 
-    def get_scan_controller_path(
-        self, scan_type: str, should_use_scan_service: bool = False
-    ) -> str:
+    def get_scan_controller_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
         if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
             return self._SCAN_SERVICE_CONTROLLER_PATH
@@ -58,10 +56,7 @@ class ScanClient:
         return ''
 
     def get_scan_service_url_path(
-        self,
-        scan_type: str,
-        should_use_scan_service: bool = False,
-        should_use_sync_flow: bool = False
+        self, scan_type: str, should_use_scan_service: bool = False, should_use_sync_flow: bool = False
     ) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
         controller_path = self.get_scan_controller_path(scan_type, should_use_scan_service)
