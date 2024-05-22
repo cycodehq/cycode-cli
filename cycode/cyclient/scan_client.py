@@ -31,12 +31,12 @@ class ScanClient:
         self._hide_response_log = hide_response_log
 
     def get_scan_controller_path(
-        self, scan_type: str, should_use_scan_service: bool = False, should_use_cli_path: bool = False
+        self, scan_type: str, should_use_scan_service: bool = False
     ) -> str:
         if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
             return self._SCAN_SERVICE_CONTROLLER_PATH
-        if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE and not should_use_cli_path:
+        if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE:
             # if a secret scan goes to detector directly, we should not use CLI controller.
             # CLI controller belongs to the scan service only
             return self._SCAN_SERVICE_CONTROLLER_PATH
@@ -61,11 +61,10 @@ class ScanClient:
         self,
         scan_type: str,
         should_use_scan_service: bool = False,
-        should_use_sync_flow: bool = False,
-        should_use_cli_path: bool = False,
+        should_use_sync_flow: bool = False
     ) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
-        controller_path = self.get_scan_controller_path(scan_type, should_use_cli_path=should_use_cli_path)
+        controller_path = self.get_scan_controller_path(scan_type, should_use_scan_service)
         flow_type = self.get_scan_flow_type(should_use_sync_flow)
         return f'{service_path}/{controller_path}{flow_type}'
 
@@ -169,7 +168,7 @@ class ScanClient:
 
     def get_scan_aggregation_report_url_path(self, aggregation_id: str, scan_type: str) -> str:
         return (
-            f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True, should_use_cli_path=True)}'
+            f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}'
             f'/reportUrlByAggregationId/{aggregation_id}'
         )
 

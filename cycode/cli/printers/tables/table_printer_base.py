@@ -66,7 +66,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:
-            click.echo(f'Aggregation report URL: {aggregation_report_url}')
+            click.echo(f'Report URL: {aggregation_report_url}')
             return
 
         click.echo('Report URLs:')

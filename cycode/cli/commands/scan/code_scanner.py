@@ -148,7 +148,7 @@ def _enrich_scan_result_with_data_from_detection_rules(
 
 def _get_scan_documents_thread_func(
     context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
-) -> tuple[Callable[[list[Document]], tuple[str, CliError, LocalScanResult]], str]:
+) -> List[Tuple[Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]], str]]:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
@@ -319,7 +319,7 @@ def scan_documents(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
     aggregation_report_url = _try_get_aggregation_report_url_if_needed(
-        scan_parameters, context.obj['client'], context.obj['scan_type'], aggregation_id
+        scan_parameters, context.obj['client'], context.obj['scan_type']
     )
 
     progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
@@ -331,8 +331,9 @@ def scan_documents(
 
 
 def _try_get_aggregation_report_url_if_needed(
-    scan_parameters: dict, cycode_client: 'ScanClient', scan_type: str, aggregation_id: str = ''
+    scan_parameters: dict, cycode_client: 'ScanClient', scan_type: str
 ) -> Optional[str]:
+    aggregation_id = scan_parameters['aggregation_id']
     if not scan_parameters.get('report'):
         return None
     if aggregation_id is None:
