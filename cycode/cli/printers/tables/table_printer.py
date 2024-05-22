@@ -51,7 +51,7 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
 
 
 class TablePrinter(TablePrinterBase):
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
         table = self._get_table()
         if self.scan_type in COLUMN_WIDTHS_CONFIG:
             table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
@@ -63,7 +63,7 @@ class TablePrinter(TablePrinterBase):
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
         self._print_table(table)
-        self._print_report_urls(local_scan_results)
+        self._print_report_urls(local_scan_results, aggregation_report_url)
 
     def _get_table(self) -> Table:
         table = Table()

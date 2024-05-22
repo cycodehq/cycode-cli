@@ -30,11 +30,13 @@ class ScanClient:
 
         self._hide_response_log = hide_response_log
 
-    def get_scan_controller_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
+    def get_scan_controller_path(
+        self, scan_type: str, should_use_scan_service: bool = False, should_use_cli_path: bool = False
+    ) -> str:
         if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
             return self._SCAN_SERVICE_CONTROLLER_PATH
-        if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE:
+        if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE and not should_use_cli_path:
             # if a secret scan goes to detector directly, we should not use CLI controller.
             # CLI controller belongs to the scan service only
             return self._SCAN_SERVICE_CONTROLLER_PATH
@@ -56,10 +58,14 @@ class ScanClient:
         return ''
 
     def get_scan_service_url_path(
-        self, scan_type: str, should_use_scan_service: bool = False, should_use_sync_flow: bool = False
+        self,
+        scan_type: str,
+        should_use_scan_service: bool = False,
+        should_use_sync_flow: bool = False,
+        should_use_cli_path: bool = False,
     ) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
-        controller_path = self.get_scan_controller_path(scan_type)
+        controller_path = self.get_scan_controller_path(scan_type, should_use_cli_path=should_use_cli_path)
         flow_type = self.get_scan_flow_type(should_use_sync_flow)
         return f'{service_path}/{controller_path}{flow_type}'
 
@@ -90,6 +96,12 @@ class ScanClient:
 
     def get_scan_report_url(self, scan_id: str, scan_type: str) -> models.ScanReportUrlResponse:
         response = self.scan_cycode_client.get(url_path=self.get_scan_report_url_path(scan_id, scan_type))
+        return models.ScanReportUrlResponseSchema().build_dto(response.json())
+
+    def get_scan_aggregation_report_url(self, aggregation_id: str, scan_type: str) -> models.ScanReportUrlResponse:
+        response = self.scan_cycode_client.get(
+            url_path=self.get_scan_aggregation_report_url_path(aggregation_id, scan_type)
+        )
         return models.ScanReportUrlResponseSchema().build_dto(response.json())
 
     def get_zipped_file_scan_async_url_path(self, scan_type: str, should_use_sync_flow: bool = False) -> str:
@@ -154,6 +166,12 @@ class ScanClient:
 
     def get_scan_report_url_path(self, scan_id: str, scan_type: str) -> str:
         return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}/reportUrl/{scan_id}'
+
+    def get_scan_aggregation_report_url_path(self, aggregation_id: str, scan_type: str) -> str:
+        return (
+            f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True, should_use_cli_path=True)}'
+            f'/reportUrlByAggregationId/{aggregation_id}'
+        )
 
     def get_scan_details(self, scan_type: str, scan_id: str) -> models.ScanDetailsResponse:
         path = self.get_scan_details_path(scan_type, scan_id)

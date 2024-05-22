@@ -34,10 +34,13 @@ class ConsolePrinter:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self,
+        local_scan_results: List['LocalScanResult'],
+        errors: Optional[Dict[str, 'CliError']] = None,
+        aggregation_report_url: str = '',
     ) -> None:
         printer = self._get_scan_printer()
-        printer.print_scan_results(local_scan_results, errors)
+        printer.print_scan_results(local_scan_results, errors, aggregation_report_url=aggregation_report_url)
 
     def _get_scan_printer(self) -> 'PrinterBase':
         printer_class = self._printer_class

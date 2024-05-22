@@ -25,13 +25,16 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         TextPrinter(self.context).print_error(error)
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self,
+        local_scan_results: List['LocalScanResult'],
+        errors: Optional[Dict[str, 'CliError']] = None,
+        aggregation_report_url: str = '',
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return
 
-        self._print_results(local_scan_results)
+        self._print_results(local_scan_results, aggregation_report_url=aggregation_report_url)
 
         if not errors:
             return
@@ -49,7 +52,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         return self.context.obj.get('remote_url') is not None
 
     @abc.abstractmethod
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
         raise NotImplementedError
 
     @staticmethod
@@ -58,9 +61,12 @@ class TablePrinterBase(PrinterBase, abc.ABC):
             click.echo(table.get_table().draw())
 
     @staticmethod
-    def _print_report_urls(local_scan_results: List['LocalScanResult']) -> None:
+    def _print_report_urls(local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
-        if not report_urls:
+        if not report_urls and not aggregation_report_url:
+            return
+        if aggregation_report_url:
+            click.echo(f'Aggregation report URL: {aggregation_report_url}')
             return
 
         click.echo('Report URLs:')

@@ -23,7 +23,10 @@ class JsonPrinter(PrinterBase):
         click.echo(self.get_data_json(result))
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self,
+        local_scan_results: List['LocalScanResult'],
+        errors: Optional[Dict[str, 'CliError']] = None,
+        aggregation_report_url: str = '',
     ) -> None:
         scan_ids = []
         report_urls = []

@@ -13,7 +13,6 @@ from cycode.cli.utils.string_utils import shortcut_dependency_paths
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
 
-
 column_builder = ColumnInfoBuilder()
 
 # Building must have strict order. Represents the order of the columns in the table (from left to right)
@@ -29,7 +28,6 @@ LICENSE_COLUMN = column_builder.build(name='License')
 DIRECT_DEPENDENCY_COLUMN = column_builder.build(name='Direct Dependency')
 DEVELOPMENT_DEPENDENCY_COLUMN = column_builder.build(name='Development Dependency')
 
-
 COLUMN_WIDTHS_CONFIG: ColumnWidths = {
     REPOSITORY_COLUMN: 2,
     CODE_PROJECT_COLUMN: 2,
@@ -41,7 +39,7 @@ COLUMN_WIDTHS_CONFIG: ColumnWidths = {
 
 
 class ScaTablePrinter(TablePrinterBase):
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
         detections_per_policy_id = self._extract_detections_per_policy_id(local_scan_results)
         for policy_id, detections in detections_per_policy_id.items():
             table = self._get_table(policy_id)
@@ -53,7 +51,7 @@ class ScaTablePrinter(TablePrinterBase):
             self._print_summary_issues(len(detections), self._get_title(policy_id))
             self._print_table(table)
 
-        self._print_report_urls(local_scan_results)
+        self._print_report_urls(local_scan_results, aggregation_report_url)
 
     @staticmethod
     def _get_title(policy_id: str) -> str:
