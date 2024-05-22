@@ -31,10 +31,10 @@ class TextPrinter(PrinterBase):
         click.secho(error.message, fg=self.RED_COLOR_NAME)
 
     def print_scan_results(
-            self,
-            local_scan_results: List['LocalScanResult'],
-            errors: Optional[Dict[str, 'CliError']] = None,
-            aggregation_report_url: Optional[str] = None
+        self,
+        local_scan_results: List['LocalScanResult'],
+        errors: Optional[Dict[str, 'CliError']] = None,
+        aggregation_report_url: Optional[str] = None,
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
@@ -58,19 +58,14 @@ class TextPrinter(PrinterBase):
             click.echo(f'- {scan_id}: ', nl=False)
             self.print_error(error)
 
-
-    def _print_document_detections(
-            self, document_detections: DocumentDetections, scan_id: str
-    ) -> None:
+    def _print_document_detections(self, document_detections: DocumentDetections, scan_id: str) -> None:
         document = document_detections.document
         lines_to_display = self._get_lines_to_display_count()
         for detection in document_detections.detections:
             self._print_detection_summary(detection, document.path, scan_id)
             self._print_detection_code_segment(detection, document, lines_to_display)
 
-    def _print_detection_summary(
-            self, detection: Detection, document_path: str, scan_id: str
-    ) -> None:
+    def _print_detection_summary(self, detection: Detection, document_path: str, scan_id: str) -> None:
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
         detection_name_styled = click.style(detection_name, fg='bright_red', bold=True)
 
@@ -120,13 +115,13 @@ class TextPrinter(PrinterBase):
         return 0 if start_line < 0 else start_line
 
     def _print_line_of_code_segment(
-            self,
-            document: Document,
-            line: str,
-            line_number: int,
-            detection_position_in_line: int,
-            violation_length: int,
-            is_detection_line: bool,
+        self,
+        document: Document,
+        line: str,
+        line_number: int,
+        detection_position_in_line: int,
+        violation_length: int,
+        is_detection_line: bool,
     ) -> None:
         if is_detection_line:
             self._print_detection_line(document, line, line_number, detection_position_in_line, violation_length)
@@ -134,8 +129,7 @@ class TextPrinter(PrinterBase):
             self._print_line(document, line, line_number)
 
     def _print_detection_line(
-            self, document: Document, line: str, line_number: int, detection_position_in_line: int,
-            violation_length: int
+        self, document: Document, line: str, line_number: int, detection_position_in_line: int, violation_length: int
     ) -> None:
         detection_line = self._get_detection_line_style(
             line, document.is_git_diff_format, detection_position_in_line, violation_length
@@ -154,12 +148,12 @@ class TextPrinter(PrinterBase):
         if self.scan_type != SECRET_SCAN_TYPE or start_position < 0 or length < 0:
             return self._get_line_style(line, is_git_diff, line_color)
 
-        violation = line[start_position: start_position + length]
+        violation = line[start_position : start_position + length]
         if not self.show_secret:
             violation = obfuscate_text(violation)
 
         line_to_violation = line[0:start_position]
-        line_from_violation = line[start_position + length:]
+        line_from_violation = line[start_position + length :]
 
         return (
             f'{self._get_line_style(line_to_violation, is_git_diff, line_color)}'
@@ -168,7 +162,7 @@ class TextPrinter(PrinterBase):
         )
 
     def _get_line_style(
-            self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False
+        self, line: str, is_git_diff: bool, color: Optional[str] = None, underline: bool = False
     ) -> str:
         if color is None:
             color = self._get_line_color(line, is_git_diff)

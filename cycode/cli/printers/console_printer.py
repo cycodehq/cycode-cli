@@ -37,7 +37,7 @@ class ConsolePrinter:
         self,
         local_scan_results: List['LocalScanResult'],
         errors: Optional[Dict[str, 'CliError']] = None,
-        aggregation_report_url: Optional[str] = None
+        aggregation_report_url: Optional[str] = None,
     ) -> None:
         printer = self._get_scan_printer()
         printer.print_scan_results(local_scan_results, errors, aggregation_report_url=aggregation_report_url)
