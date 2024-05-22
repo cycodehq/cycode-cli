@@ -24,7 +24,7 @@ class PrinterBase(ABC):
         self,
         local_scan_results: List['LocalScanResult'],
         errors: Optional[Dict[str, 'CliError']] = None,
-        aggregation_report_url: str = '',
+        aggregation_report_url: Optional[str] = None
     ) -> None:
         pass
 

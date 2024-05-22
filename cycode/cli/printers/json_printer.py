@@ -23,10 +23,10 @@ class JsonPrinter(PrinterBase):
         click.echo(self.get_data_json(result))
 
     def print_scan_results(
-        self,
-        local_scan_results: List['LocalScanResult'],
-        errors: Optional[Dict[str, 'CliError']] = None,
-        aggregation_report_url: str = '',
+            self,
+            local_scan_results: List['LocalScanResult'],
+            errors: Optional[Dict[str, 'CliError']] = None,
+            aggregation_report_url: Optional[str] = None
     ) -> None:
         scan_ids = []
         report_urls = []
@@ -35,9 +35,10 @@ class JsonPrinter(PrinterBase):
         for local_scan_result in local_scan_results:
             scan_ids.append(local_scan_result.scan_id)
 
-            if local_scan_result.report_url:
+            if aggregation_report_url:
+                report_urls.append(aggregation_report_url)
+            elif local_scan_result.report_url:
                 report_urls.append(local_scan_result.report_url)
-
             for document_detections in local_scan_result.document_detections:
                 detections.extend(document_detections.detections)
 
@@ -51,7 +52,7 @@ class JsonPrinter(PrinterBase):
         click.echo(self._get_json_scan_result(scan_ids, detections_dict, report_urls, inlined_errors))
 
     def _get_json_scan_result(
-        self, scan_ids: List[str], detections: dict, report_urls: List[str], errors: List[dict]
+            self, scan_ids: List[str], detections: dict, report_urls: List[str], errors: List[dict]
     ) -> str:
         result = {
             'scan_id': 'DEPRECATED',  # backward compatibility
