@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
 
@@ -39,7 +39,9 @@ COLUMN_WIDTHS_CONFIG: ColumnWidths = {
 
 
 class ScaTablePrinter(TablePrinterBase):
-    def _print_results(self, local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
+    def _print_results(
+        self, local_scan_results: List['LocalScanResult'], aggregation_report_url: Optional[str] = None
+    ) -> None:
         detections_per_policy_id = self._extract_detections_per_policy_id(local_scan_results)
         for policy_id, detections in detections_per_policy_id.items():
             table = self._get_table(policy_id)

@@ -98,7 +98,7 @@ class TextPrinter(PrinterBase):
         self._print_detection_from_file(detection, document, code_segment_size)
 
     @staticmethod
-    def _print_report_urls(report_urls: List[str], aggregation_report_url: str = '') -> None:
+    def _print_report_urls(report_urls: List[str], aggregation_report_url: Optional[str] = None) -> None:
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:

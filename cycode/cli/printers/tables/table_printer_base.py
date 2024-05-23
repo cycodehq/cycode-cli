@@ -52,7 +52,9 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         return self.context.obj.get('remote_url') is not None
 
     @abc.abstractmethod
-    def _print_results(self, local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
+    def _print_results(
+        self, local_scan_results: List['LocalScanResult'], aggregation_report_url: Optional[str] = None
+    ) -> None:
         raise NotImplementedError
 
     @staticmethod
@@ -61,7 +63,10 @@ class TablePrinterBase(PrinterBase, abc.ABC):
             click.echo(table.get_table().draw())
 
     @staticmethod
-    def _print_report_urls(local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
+    def _print_report_urls(
+        local_scan_results: List['LocalScanResult'],
+        aggregation_report_url: Optional[str] = None,
+    ) -> None:
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
         if not report_urls and not aggregation_report_url:
             return

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 import click
 
@@ -51,7 +51,11 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
 
 
 class TablePrinter(TablePrinterBase):
-    def _print_results(self, local_scan_results: List['LocalScanResult'], aggregation_report_url: str = '') -> None:
+    def _print_results(
+        self,
+        local_scan_results: List['LocalScanResult'],
+        aggregation_report_url: Optional[str] = None,
+    ) -> None:
         table = self._get_table()
         if self.scan_type in COLUMN_WIDTHS_CONFIG:
             table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
