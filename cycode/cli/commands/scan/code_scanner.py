@@ -330,7 +330,7 @@ def scan_documents(
     print_results(context, local_scan_results, errors)
 
 
-def set_aggregation_report_url(context: click.Context, aggregation_report_url: str = '') -> None:
+def set_aggregation_report_url(context: click.Context, aggregation_report_url: Optional[str] = None) -> None:
     context.obj['aggregation_report_url'] = aggregation_report_url
 
 
