@@ -28,7 +28,7 @@ class ConsolePrinter:
         self.context = context
         self.scan_type = self.context.obj.get('scan_type')
         self.output_type = self.context.obj.get('output')
-
+        self.aggregation_report_url = self.context.obj.get('aggregation_report_url')
         self._printer_class = self._AVAILABLE_PRINTERS.get(self.output_type)
         if self._printer_class is None:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
@@ -37,10 +37,9 @@ class ConsolePrinter:
         self,
         local_scan_results: List['LocalScanResult'],
         errors: Optional[Dict[str, 'CliError']] = None,
-        aggregation_report_url: Optional[str] = None,
     ) -> None:
         printer = self._get_scan_printer()
-        printer.print_scan_results(local_scan_results, errors, aggregation_report_url=aggregation_report_url)
+        printer.print_scan_results(local_scan_results, errors)
 
     def _get_scan_printer(self) -> 'PrinterBase':
         printer_class = self._printer_class

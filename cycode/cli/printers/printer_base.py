@@ -21,10 +21,7 @@ class PrinterBase(ABC):
 
     @abstractmethod
     def print_scan_results(
-        self,
-        local_scan_results: List['LocalScanResult'],
-        errors: Optional[Dict[str, 'CliError']] = None,
-        aggregation_report_url: Optional[str] = None,
+        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         pass
 

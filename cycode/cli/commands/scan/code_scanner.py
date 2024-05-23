@@ -587,8 +587,7 @@ def print_results(
     context: click.Context, local_scan_results: List[LocalScanResult], errors: Optional[Dict[str, 'CliError']] = None
 ) -> None:
     printer = ConsolePrinter(context)
-    aggregation_report_url = context.obj.get('aggregation_report_url')
-    printer.print_scan_results(local_scan_results, errors, aggregation_report_url=aggregation_report_url)
+    printer.print_scan_results(local_scan_results, errors)
 
 
 def get_document_detections(

@@ -31,10 +31,7 @@ class TextPrinter(PrinterBase):
         click.secho(error.message, fg=self.RED_COLOR_NAME)
 
     def print_scan_results(
-        self,
-        local_scan_results: List['LocalScanResult'],
-        errors: Optional[Dict[str, 'CliError']] = None,
-        aggregation_report_url: Optional[str] = None,
+        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
@@ -45,7 +42,8 @@ class TextPrinter(PrinterBase):
                 self._print_document_detections(document_detections, local_scan_result.scan_id)
 
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
-        self._print_report_urls(report_urls, aggregation_report_url)
+
+        self._print_report_urls(report_urls, self.context.obj.get('aggregation_report_url'))
         if not errors:
             return
 
