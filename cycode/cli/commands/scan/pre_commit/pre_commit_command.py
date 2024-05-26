@@ -2,7 +2,6 @@ import os
 from typing import List
 
 import click
-from git import Repo
 
 from cycode.cli import consts
 from cycode.cli.commands.scan.code_scanner import scan_documents, scan_sca_pre_commit
@@ -12,6 +11,7 @@ from cycode.cli.files_collector.repository_documents import (
     get_diff_file_path,
 )
 from cycode.cli.models import Document
+from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import (
     get_path_by_os,
 )
@@ -31,7 +31,7 @@ def pre_commit_command(context: click.Context, ignored_args: List[str]) -> None:
         scan_sca_pre_commit(context)
         return
 
-    diff_files = Repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
+    diff_files = git_proxy.get_repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
 

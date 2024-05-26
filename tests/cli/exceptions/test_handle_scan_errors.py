@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING
 import click
 import pytest
 from click import ClickException
-from git import InvalidGitRepositoryError
 from requests import Response
 
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.utils.git_proxy import git_proxy
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -26,7 +26,7 @@ def ctx() -> click.Context:
         (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
         (custom_exceptions.ZipTooLargeError(1000), True),
         (custom_exceptions.TfplanKeyError('msg'), True),
-        (InvalidGitRepositoryError(), None),
+        (git_proxy.get_invalid_git_repository_error()(), None),
     ],
 )
 def test_handle_exception_soft_fail(

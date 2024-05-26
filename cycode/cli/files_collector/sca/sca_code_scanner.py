@@ -2,16 +2,18 @@ import os
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
-from git import GitCommandError, Repo
 
 from cycode.cli import consts
 from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
 from cycode.cli.models import Document
+from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
 from cycode.cyclient import logger
 
 if TYPE_CHECKING:
+    from git import Repo
+
     from cycode.cli.files_collector.sca.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
@@ -27,7 +29,7 @@ def perform_pre_commit_range_scan_actions(
     to_commit_documents: List[Document],
     to_commit_rev: str,
 ) -> None:
-    repo = Repo(path)
+    repo = git_proxy.get_repo(path)
     add_ecosystem_related_files_if_exists(from_commit_documents, repo, from_commit_rev)
     add_ecosystem_related_files_if_exists(to_commit_documents, repo, to_commit_rev)
 
@@ -35,13 +37,13 @@ def perform_pre_commit_range_scan_actions(
 def perform_pre_hook_range_scan_actions(
     git_head_documents: List[Document], pre_committed_documents: List[Document]
 ) -> None:
-    repo = Repo(os.getcwd())
+    repo = git_proxy.get_repo(os.getcwd())
     add_ecosystem_related_files_if_exists(git_head_documents, repo, consts.GIT_HEAD_COMMIT_REV)
     add_ecosystem_related_files_if_exists(pre_committed_documents)
 
 
 def add_ecosystem_related_files_if_exists(
-    documents: List[Document], repo: Optional[Repo] = None, commit_rev: Optional[str] = None
+    documents: List[Document], repo: Optional['Repo'] = None, commit_rev: Optional[str] = None
 ) -> None:
     documents_to_add: List[Document] = []
     for doc in documents:
@@ -56,7 +58,7 @@ def add_ecosystem_related_files_if_exists(
 
 
 def get_doc_ecosystem_related_project_files(
-    doc: Document, documents: List[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional[Repo]
+    doc: Document, documents: List[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
 ) -> List[Document]:
     documents_to_add: List[Document] = []
     for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
@@ -136,10 +138,10 @@ def get_manifest_file_path(document: Document, is_monitor_action: bool, project_
     return join_paths(project_path, document.path) if is_monitor_action else document.path
 
 
-def get_file_content_from_commit(repo: Repo, commit: str, file_path: str) -> Optional[str]:
+def get_file_content_from_commit(repo: 'Repo', commit: str, file_path: str) -> Optional[str]:
     try:
         return repo.git.show(f'{commit}:{file_path}')
-    except GitCommandError:
+    except git_proxy.get_git_command_error():
         return None
 
 

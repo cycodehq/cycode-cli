@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import click
-from git import NULL_TREE, Repo
 
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
@@ -28,9 +27,8 @@ from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, DocumentDetections, LocalScanResult, Severity
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.utils import scan_utils
-from cycode.cli.utils.path_utils import (
-    get_path_by_os,
-)
+from cycode.cli.utils.git_proxy import git_proxy
+from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
@@ -244,7 +242,7 @@ def scan_commit_range(
     documents_to_scan = []
     commit_ids_to_scan = []
 
-    repo = Repo(path)
+    repo = git_proxy.get_repo(path)
     total_commits_count = int(repo.git.rev_list('--count', commit_range))
     logger.debug(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
 
@@ -261,7 +259,7 @@ def scan_commit_range(
 
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
-        parent = commit.parents[0] if commit.parents else NULL_TREE
+        parent = commit.parents[0] if commit.parents else git_proxy.get_null_tree()
         diff = commit.diff(parent, create_patch=True, R=True)
         commit_documents_to_scan = []
         for blob in diff:
@@ -658,7 +656,7 @@ def get_scan_parameters(context: click.Context, paths: Tuple[str]) -> dict:
 
 def try_get_git_remote_url(path: str) -> Optional[str]:
     try:
-        remote_url = Repo(path).remotes[0].config_reader.get('url')
+        remote_url = git_proxy.get_repo(path).remotes[0].config_reader.get('url')
         logger.debug(f'Found Git remote URL "{remote_url}" in path "{path}"')
         return remote_url
     except Exception as e:

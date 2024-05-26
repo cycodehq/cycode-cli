@@ -1,11 +1,11 @@
 from typing import Optional
 
 import click
-from git import InvalidGitRepositoryError
 
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.printers import ConsolePrinter
+from cycode.cli.utils.git_proxy import git_proxy
 
 
 def handle_scan_exception(
@@ -49,7 +49,7 @@ def handle_scan_exception(
             'Please make sure that your file is well formed '
             'and execute the scan again',
         ),
-        InvalidGitRepositoryError: CliError(
+        git_proxy.get_invalid_git_repository_error(): CliError(
             soft_fail=False,
             code='invalid_git_error',
             message='The path you supplied does not correlate to a git repository. '
