@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from functools import cache
+from functools import lru_cache
 from typing import TYPE_CHECKING, Optional, Type
 
 _GIT_ERROR_MESSAGE = """
@@ -62,7 +62,7 @@ class _GitProxy(_AbstractGitProxy):
     def get_null_tree(self) -> object:
         return git.NULL_TREE
 
-    @cache  # noqa: B019
+    @lru_cache(maxsize=None)  # noqa: B019
     def get_invalid_git_repository_error(self) -> Type[GitProxyError]:
         # we must cache it because we want to return the same class every time
         class InvalidGitRepositoryError(GitProxyError, git.InvalidGitRepositoryError):
@@ -70,7 +70,7 @@ class _GitProxy(_AbstractGitProxy):
 
         return InvalidGitRepositoryError
 
-    @cache  # noqa: B019
+    @lru_cache(maxsize=None)  # noqa: B019
     def get_git_command_error(self) -> Type[GitProxyError]:
         # we must cache it because we want to return the same class every time
         class GitCommandError(GitProxyError, git.GitCommandError):
