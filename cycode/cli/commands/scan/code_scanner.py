@@ -556,8 +556,7 @@ def poll_scan_results(
 
 def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> None:
     logger.debug(
-        'Scan update, %s',
-        {'scan_id': scan_details_response.id, 'scan_status': scan_details_response.scan_status}
+        'Scan update, %s', {'scan_id': scan_details_response.id, 'scan_status': scan_details_response.scan_status}
     )
 
     if scan_details_response.message:
@@ -582,8 +581,7 @@ def get_document_detections(
         commit_id = detections_per_file.commit_id
 
         logger.debug(
-            'Going to find the document of the violated file., %s',
-            {'file_name': file_name, 'commit_id': commit_id}
+            'Going to find the document of the violated file., %s', {'file_name': file_name, 'commit_id': commit_id}
         )
 
         document = _get_document_by_file_name(documents_to_scan, file_name, commit_id)
