@@ -38,7 +38,7 @@ class _CorrelationId:
         if self._id is None:
             # example: 16fd2706-8baf-433b-82eb-8c7fada847da
             self._id = str(uuid4())
-            logger.debug(f'Correlation ID: {self._id}')
+            logger.debug('Correlation ID: %s', self._id)
 
         return self._id
 

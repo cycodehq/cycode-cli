@@ -32,14 +32,14 @@ def pre_receive_command(context: click.Context, ignored_args: List[str]) -> None
 
         if should_skip_pre_receive_scan():
             logger.info(
-                'A scan has been skipped as per your request.'
-                ' Please note that this may leave your system vulnerable to secrets that have not been detected'
+                'A scan has been skipped as per your request. '
+                'Please note that this may leave your system vulnerable to secrets that have not been detected'
             )
             return
 
         if is_verbose_mode_requested_in_pre_receive_scan():
             enable_verbose_mode(context)
-            logger.debug('Verbose mode enabled, all log levels will be displayed')
+            logger.debug('Verbose mode enabled: all log levels will be displayed.')
 
         command_scan_type = context.info_name
         timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
@@ -51,7 +51,8 @@ def pre_receive_command(context: click.Context, ignored_args: List[str]) -> None
             commit_range = calculate_pre_receive_commit_range(branch_update_details)
             if not commit_range:
                 logger.info(
-                    'No new commits found for pushed branch, %s', {'branch_update_details': branch_update_details}
+                    'No new commits found for pushed branch, %s',
+                    {'branch_update_details': branch_update_details},
                 )
                 return
 

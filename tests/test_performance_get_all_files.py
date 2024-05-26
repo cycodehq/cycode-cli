@@ -69,15 +69,15 @@ def test_get_all_files_performance(test_files_path: str) -> None:
         executed_time = timeit.default_timer() - start_time
         results[name] = (files_count, executed_time)
 
-        logger.info(f'Time result {name}: {executed_time}')
-        logger.info(f'Files count {name}: {files_count}')
+        logger.info('Time result %s: %s', name, executed_time)
+        logger.info('Files count %s: %s', name, files_count)
 
     files_counts = [result[0] for result in results.values()]
     assert len(set(files_counts)) == 1  # all should be equal
 
-    logger.info(f'Benchmark TOP with ({files_counts[0]}) files:')
+    logger.info('Benchmark TOP with (%s) files:', files_counts[0])
     for func_name, result in sorted(results.items(), key=lambda x: x[1][1]):
-        logger.info(f'- {func_name}: {result[1]}')
+        logger.info('- %s: %s', func_name, result[1])
 
     # according to my (MarshalX) local tests, the fastest is get_all_files_walk
 
