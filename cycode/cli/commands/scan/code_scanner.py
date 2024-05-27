@@ -198,7 +198,7 @@ def _get_scan_documents_thread_func(
             scan_id = local_scan_result.scan_id
 
         logger.debug(
-            'Finished scan process, %s',
+            'Processing scan results, %s',
             {
                 'all_violations_count': detections_count,
                 'relevant_violations_count': relevant_detections_count,
@@ -244,14 +244,14 @@ def scan_commit_range(
 
     repo = git_proxy.get_repo(path)
     total_commits_count = int(repo.git.rev_list('--count', commit_range))
-    logger.debug(f'Calculating diffs for {total_commits_count} commits in the commit range {commit_range}')
+    logger.debug('Calculating diffs for %s commits in the commit range %s', total_commits_count, commit_range)
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
     scanned_commits_count = 0
     for commit in repo.iter_commits(rev=commit_range):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
-            logger.debug(f'Reached to max commits to scan count. Going to scan only {max_commits_count} last commits')
+            logger.debug('Reached to max commits to scan count. Going to scan only %s last commits', max_commits_count)
             progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
             break
 
@@ -282,7 +282,7 @@ def scan_commit_range(
         scanned_commits_count += 1
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
-    logger.debug('Starting to scan commit range (It may take a few minutes)')
+    logger.debug('Starting to scan commit range (it may take a few minutes)')
 
     scan_documents(context, documents_to_scan, is_git_diff=True, is_commit_range=True)
     return None
@@ -305,7 +305,8 @@ def scan_documents(
         ConsolePrinter(context).print_error(
             CliError(
                 code='no_relevant_files',
-                message='Error: The scan could not be completed - relevant files to scan are not found.',
+                message='Error: The scan could not be completed - relevant files to scan are not found. '
+                'Enable verbose mode to see more details.',
             )
         )
         return
@@ -390,7 +391,7 @@ def scan_commit_range_documents(
         scan_id = local_scan_result.scan_id
 
     logger.debug(
-        'Finished scan process, %s',
+        'Processing commit range scan results, %s',
         {
             'all_violations_count': detections_count,
             'relevant_violations_count': relevant_detections_count,
@@ -473,7 +474,7 @@ def perform_scan_async(
     scan_parameters: dict,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
-    logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
+    logger.debug('Async scan request has been triggered successfully, %s', {'scan_id': scan_async_result.scan_id})
 
     return poll_scan_results(
         cycode_client,
@@ -490,7 +491,7 @@ def perform_scan_sync(
     scan_parameters: dict,
 ) -> ZippedFileScanResult:
     scan_results = cycode_client.zipped_file_scan_sync(zipped_documents, scan_type, scan_parameters)
-    logger.debug('scan request has been triggered successfully, scan id: %s', scan_results.id)
+    logger.debug('Sync scan request has been triggered successfully, %s', {'scan_id': scan_results.id})
     return ZippedFileScanResult(
         did_detect=True,
         detections_per_file=_map_detections_per_file(scan_results.detection_messages),
@@ -510,7 +511,9 @@ def perform_commit_range_scan_async(
         from_commit_zipped_documents, to_commit_zipped_documents, scan_type, scan_parameters
     )
 
-    logger.debug('scan request has been triggered successfully, scan id: %s', scan_async_result.scan_id)
+    logger.debug(
+        'Async commit range scan request has been triggered successfully, %s', {'scan_id': scan_async_result.scan_id}
+    )
     return poll_scan_results(
         cycode_client, scan_async_result.scan_id, scan_type, scan_parameters.get('report'), timeout
     )
@@ -550,11 +553,12 @@ def poll_scan_results(
 
 
 def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> None:
-    logger.debug(f'Scan update: (scan_id: {scan_details_response.id})')
-    logger.debug(f'Scan status: {scan_details_response.scan_status}')
+    logger.debug(
+        'Scan update, %s', {'scan_id': scan_details_response.id, 'scan_status': scan_details_response.scan_status}
+    )
 
     if scan_details_response.message:
-        logger.debug(f'Scan message: {scan_details_response.message}')
+        logger.debug('Scan message: %s', scan_details_response.message)
 
 
 def print_results(
@@ -567,14 +571,16 @@ def print_results(
 def get_document_detections(
     scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
 ) -> List[DocumentDetections]:
-    logger.debug('Get document detections')
+    logger.debug('Getting document detections')
 
     document_detections = []
     for detections_per_file in scan_result.detections_per_file:
         file_name = get_path_by_os(detections_per_file.file_name)
         commit_id = detections_per_file.commit_id
 
-        logger.debug('Going to find document of violated file, %s', {'file_name': file_name, 'commit_id': commit_id})
+        logger.debug(
+            'Going to find the document of the violated file., %s', {'file_name': file_name, 'commit_id': commit_id}
+        )
 
         document = _get_document_by_file_name(documents_to_scan, file_name, commit_id)
         document_detections.append(DocumentDetections(document=document, detections=detections_per_file.detections))
@@ -657,10 +663,10 @@ def get_scan_parameters(context: click.Context, paths: Tuple[str]) -> dict:
 def try_get_git_remote_url(path: str) -> Optional[str]:
     try:
         remote_url = git_proxy.get_repo(path).remotes[0].config_reader.get('url')
-        logger.debug(f'Found Git remote URL "{remote_url}" in path "{path}"')
+        logger.debug('Found Git remote URL, %s', {'remote_url': remote_url, 'path': path})
         return remote_url
     except Exception as e:
-        logger.debug('Failed to get git remote URL. %s', {'exception_message': str(e)})
+        logger.debug('Failed to get Git remote URL', exc_info=e)
         return None
 
 
@@ -717,15 +723,15 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     exclusions_by_value = exclusions.get(consts.EXCLUSIONS_BY_VALUE_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_value):
         logger.debug(
-            'Going to ignore violations because is in the values to ignore list, %s',
-            {'sha': detection.detection_details.get('sha512', '')},
+            'Going to ignore violations because they are on the values-to-ignore list, %s',
+            {'value_sha': detection.detection_details.get('sha512', '')},
         )
         return True
 
     exclusions_by_sha = exclusions.get(consts.EXCLUSIONS_BY_SHA_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_sha):
         logger.debug(
-            'Going to ignore violations because is in the shas to ignore list, %s',
+            'Going to ignore violations because they are on the SHA ignore list, %s',
             {'sha': detection.detection_details.get('sha512', '')},
         )
         return True
@@ -735,7 +741,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
         detection_rule = detection.detection_rule_id
         if detection_rule in exclusions_by_rule:
             logger.debug(
-                'Going to ignore violations because is in the shas to ignore list, %s',
+                'Going to ignore violations because they are on the Rule ID ignore list, %s',
                 {'detection_rule': detection_rule},
             )
             return True
@@ -745,7 +751,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
         package = _get_package_name(detection)
         if package in exclusions_by_package:
             logger.debug(
-                'Going to ignore violations because is in the packages to ignore list, %s', {'package': package}
+                'Going to ignore violations because they are on the packages-to-ignore list, %s', {'package': package}
             )
             return True
 
@@ -808,7 +814,7 @@ def _report_scan_status(
 
         cycode_client.report_scan_status(scan_type, scan_id, scan_status, should_use_scan_service)
     except Exception as e:
-        logger.debug('Failed to report scan status, %s', {'exception_message': str(e)})
+        logger.debug('Failed to report scan status', exc_info=e)
 
 
 def _generate_unique_id() -> UUID:
@@ -866,7 +872,7 @@ def _try_get_report_url_if_needed(
         report_url_response = cycode_client.get_scan_report_url(scan_id, scan_type)
         return report_url_response.report_url
     except Exception as e:
-        logger.debug('Failed to get report url: %s', str(e))
+        logger.debug('Failed to get report URL', exc_info=e)
 
 
 def wait_for_detections_creation(
@@ -881,16 +887,18 @@ def wait_for_detections_creation(
     while time.time() < end_polling_time:
         scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_type, scan_id)
         logger.debug(
-            f'Excepted {expected_detections_count} detections, got {scan_persisted_detections_count} detections '
-            f'({expected_detections_count - scan_persisted_detections_count} more; '
-            f'{round(end_polling_time - time.time())} seconds left)'
+            'Excepting %s detections, got %s detections (%s more; %s seconds left)',
+            expected_detections_count,
+            scan_persisted_detections_count,
+            expected_detections_count - scan_persisted_detections_count,
+            round(end_polling_time - time.time()),
         )
         if scan_persisted_detections_count == expected_detections_count:
             return
 
         time.sleep(consts.DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
 
-    logger.debug(f'{scan_persisted_detections_count} detections has been created')
+    logger.debug('%s detections has been created', scan_persisted_detections_count)
     raise custom_exceptions.ScanAsyncError(
         f'Failed to wait for detections to be created after {polling_timeout} seconds'
     )
@@ -903,14 +911,14 @@ def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
             detection['message'] = detection['correlation_message']
             file_name = _get_file_name_from_detection(detection)
             if file_name is None:
-                logger.debug('file name is missing from detection with id %s', detection.get('id'))
+                logger.debug('File name is missing from detection with ID %s', detection.get('id'))
                 continue
             if detections_per_files.get(file_name) is None:
                 detections_per_files[file_name] = [DetectionSchema().load(detection)]
             else:
                 detections_per_files[file_name].append(DetectionSchema().load(detection))
         except Exception as e:
-            logger.debug('Failed to parse detection: %s', str(e))
+            logger.debug('Failed to parse detection', exc_info=e)
             continue
 
     return [

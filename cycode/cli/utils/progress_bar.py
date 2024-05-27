@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from click._termui_impl import ProgressBar
     from click.termui import V as ProgressBarValue
 
-
-logger = get_logger('progress bar')
+# use LOGGING_LEVEL=DEBUG env var to see debug logs of this module
+logger = get_logger('progress bar', control_level_in_runtime=False)
 
 
 class ProgressBarSection(AutoCountEnum):
@@ -184,7 +184,7 @@ class CompositeProgressBar(BaseProgressBar):
             self.__exit__(None, None, None)
 
     def set_section_length(self, section: 'ProgressBarSection', length: int = 0) -> None:
-        logger.debug(f'set_section_length: {section} {length}')
+        logger.debug('Calling set_section_length, %s', {'section': str(section), 'length': length})
         self._section_lengths[section] = length
 
         if length == 0:
@@ -203,8 +203,11 @@ class CompositeProgressBar(BaseProgressBar):
     def _increment_section_value(self, section: 'ProgressBarSection', value: int) -> None:
         self._section_values[section] = self._section_values.get(section, 0) + value
         logger.debug(
-            f'_increment_section_value: {section} +{value}. '
-            f'{self._section_values[section]}/{self._section_lengths[section]}'
+            'Calling _increment_section_value: %s +%s. %s/%s',
+            section,
+            value,
+            self._section_values[section],
+            self._section_lengths[section],
         )
 
     def _rerender_progress_bar(self) -> None:
@@ -225,7 +228,9 @@ class CompositeProgressBar(BaseProgressBar):
         cur_val = self._section_values.get(self._current_section.section, 0)
         if cur_val >= max_val:
             next_section = self._progress_bar_sections[self._current_section.section.next()]
-            logger.debug(f'_update_current_section: {self._current_section.section} -> {next_section.section}')
+            logger.debug(
+                'Calling _update_current_section:  %s -> %s', self._current_section.section, next_section.section
+            )
 
             self._current_section = next_section
             self._current_section_value = 0

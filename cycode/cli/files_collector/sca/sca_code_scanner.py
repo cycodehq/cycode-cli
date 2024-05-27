@@ -49,7 +49,7 @@ def add_ecosystem_related_files_if_exists(
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
-            logger.debug('failed to resolve project file ecosystem: %s', doc.path)
+            logger.debug('Failed to resolve project file ecosystem: %s', doc.path)
             continue
 
         documents_to_add.extend(get_doc_ecosystem_related_project_files(doc, documents, ecosystem, commit_rev, repo))
@@ -96,20 +96,20 @@ def try_restore_dependencies(
     if restore_dependencies.is_project(document):
         restore_dependencies_document = restore_dependencies.restore(document)
         if restore_dependencies_document is None:
-            logger.warning('Error occurred while trying to generate dependencies tree. %s', {'filename': document.path})
+            logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
             return
 
         if restore_dependencies_document.content is None:
-            logger.warning('Error occurred while trying to generate dependencies tree. %s', {'filename': document.path})
+            logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
             restore_dependencies_document.content = ''
         else:
             is_monitor_action = context.obj.get('monitor')
             project_path = context.params.get('path')
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
-            logger.debug(f'Succeeded to generate dependencies tree on path: {manifest_file_path}')
+            logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
 
         if restore_dependencies_document.path in documents_to_add:
-            logger.debug(f'Duplicate document on restore for path: {restore_dependencies_document.path}')
+            logger.debug('Duplicate document on restore for path: %s', restore_dependencies_document.path)
         else:
             documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
 
@@ -149,5 +149,5 @@ def perform_pre_scan_documents_actions(
     context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
     if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(consts.SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
-        logger.debug('Perform pre scan document add_dependencies_tree_document action')
+        logger.debug('Perform pre-scan document add_dependencies_tree_document action')
         add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
