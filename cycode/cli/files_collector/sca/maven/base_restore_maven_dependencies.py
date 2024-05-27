@@ -17,7 +17,7 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
     try:
         dependencies = shell(command, command_timeout)
     except Exception as e:
-        logger.debug('Failed to restore dependencies shell comment. %s', {'filename': file_name, 'exception': str(e)})
+        logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
         return None
 
     return dependencies

@@ -70,7 +70,7 @@ def send_report_feedback(
 
         client.report_status(report_execution_id, scan_status)
     except Exception as e:
-        logger.debug(f'Failed to send report feedback: {e}')
+        logger.debug('Failed to send report feedback', exc_info=e)
 
 
 def create_sbom_report(

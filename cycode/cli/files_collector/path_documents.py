@@ -74,7 +74,7 @@ def _get_relevant_files(
     progress_bar.set_section_length(progress_bar_section, progress_bar_section_len)
 
     logger.debug(
-        'Found all relevant files for scanning %s', {'paths': paths, 'file_to_scan_count': len(relevant_files_to_scan)}
+        'Found all relevant files for scanning, %s', {'paths': paths, 'file_to_scan_count': len(relevant_files_to_scan)}
     )
 
     return relevant_files_to_scan

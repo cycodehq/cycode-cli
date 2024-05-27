@@ -29,20 +29,20 @@ class AuthManager:
         self.auth_client = AuthClient()
 
     def authenticate(self) -> None:
-        logger.debug('generating pkce code pair')
+        logger.debug('Generating PKCE code pair')
         code_challenge, code_verifier = self._generate_pkce_code_pair()
 
-        logger.debug('starting authentication session')
+        logger.debug('Starting authentication session')
         session_id = self.start_session(code_challenge)
-        logger.debug('authentication session created, %s', {'session_id': session_id})
+        logger.debug('Authentication session created, %s', {'session_id': session_id})
 
-        logger.debug('opening browser and redirecting to cycode login page')
+        logger.debug('Opening browser and redirecting to Cycode login page')
         self.redirect_to_login_page(code_challenge, session_id)
 
-        logger.debug('starting get api token process')
+        logger.debug('Getting API token')
         api_token = self.get_api_token(session_id, code_verifier)
 
-        logger.debug('saving get api token')
+        logger.debug('Saving API token')
         self.save_api_token(api_token)
 
     def start_session(self, code_challenge: str) -> str:
@@ -56,20 +56,20 @@ class AuthManager:
     def get_api_token(self, session_id: str, code_verifier: str) -> 'ApiToken':
         api_token = self.get_api_token_polling(session_id, code_verifier)
         if api_token is None:
-            raise AuthProcessError('getting api token is completed, but the token is missing')
+            raise AuthProcessError('API token pulling is completed, but the token is missing')
         return api_token
 
     def get_api_token_polling(self, session_id: str, code_verifier: str) -> 'ApiToken':
         end_polling_time = time.time() + self.POLLING_TIMEOUT_IN_SECONDS
         while time.time() < end_polling_time:
-            logger.debug('trying to get api token...')
+            logger.debug('Trying to get API token...')
             api_token_polling_response = self.auth_client.get_api_token(session_id, code_verifier)
             if self._is_api_token_process_completed(api_token_polling_response):
-                logger.debug('get api token process completed')
+                logger.debug('Got API token process completion response')
                 return api_token_polling_response.api_token
             if self._is_api_token_process_failed(api_token_polling_response):
-                logger.debug('get api token process failed')
-                raise AuthProcessError('error during getting api token')
+                logger.debug('Got API token process failure response')
+                raise AuthProcessError('Error while obtaining API token')
             time.sleep(self.POLLING_WAIT_INTERVAL_IN_SECONDS)
 
         raise AuthProcessError('session expired')

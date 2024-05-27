@@ -62,23 +62,36 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 
 def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
     if _is_subpath_of_cycode_configuration_folder(filename):
-        logger.debug('file is irrelevant because it is in cycode configuration directory, %s', {'filename': filename})
+        logger.debug(
+            'The file is irrelevant because it is in the Cycode configuration directory, %s',
+            {'filename': filename, 'configuration_directory': consts.CYCODE_CONFIGURATION_DIRECTORY},
+        )
         return False
 
     if _is_path_configured_in_exclusions(scan_type, filename):
-        logger.debug('file is irrelevant because the file path is in the ignore paths list, %s', {'filename': filename})
+        logger.debug('The file is irrelevant because its path is in the ignore paths list, %s', {'filename': filename})
         return False
 
     if not _is_file_extension_supported(scan_type, filename):
-        logger.debug('file is irrelevant because the file extension is not supported, %s', {'filename': filename})
+        logger.debug(
+            'The file is irrelevant because its extension is not supported, %s',
+            {'scan_type': scan_type, 'filename': filename},
+        )
         return False
 
     if is_binary_file(filename):
-        logger.debug('file is irrelevant because it is binary file, %s', {'filename': filename})
+        logger.debug('The file is irrelevant because it is a binary file, %s', {'filename': filename})
         return False
 
     if scan_type != consts.SCA_SCAN_TYPE and _does_file_exceed_max_size_limit(filename):
-        logger.debug('file is irrelevant because its exceeded max size limit, %s', {'filename': filename})
+        logger.debug(
+            'The file is irrelevant because it has exceeded the maximum size limit, %s',
+            {
+                'max_file_size': consts.FILE_MAX_SIZE_LIMIT_IN_BYTES,
+                'file_size': get_file_size(filename),
+                'filename': filename,
+            },
+        )
         return False
 
     if scan_type == consts.SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename):
@@ -89,7 +102,9 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
 
 def _is_file_relevant_for_sca_scan(filename: str) -> bool:
     if any(sca_excluded_path in filename for sca_excluded_path in consts.SCA_EXCLUDED_PATHS):
-        logger.debug("file is irrelevant because it is from node_modules's inner path, %s", {'filename': filename})
+        logger.debug(
+            'The file is irrelevant because it is from the inner path of node_modules, %s', {'filename': filename}
+        )
         return False
 
     return True
@@ -98,27 +113,39 @@ def _is_file_relevant_for_sca_scan(filename: str) -> bool:
 def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -> bool:
     if _is_subpath_of_cycode_configuration_folder(filename):
         logger.debug(
-            'document is irrelevant because it is in cycode configuration directory, %s', {'filename': filename}
+            'The document is irrelevant because it is in the Cycode configuration directory, %s',
+            {'filename': filename, 'configuration_directory': consts.CYCODE_CONFIGURATION_DIRECTORY},
         )
         return False
 
     if _is_path_configured_in_exclusions(scan_type, filename):
         logger.debug(
-            'document is irrelevant because the document path is in the ignore paths list, %s', {'filename': filename}
+            'The document is irrelevant because its path is in the ignore paths list, %s', {'filename': filename}
         )
         return False
 
     if not _is_file_extension_supported(scan_type, filename):
-        logger.debug('document is irrelevant because the file extension is not supported, %s', {'filename': filename})
+        logger.debug(
+            'The document is irrelevant because its extension is not supported, %s',
+            {'scan_type': scan_type, 'filename': filename},
+        )
         return False
 
     if is_binary_content(content):
-        logger.debug('document is irrelevant because it is binary, %s', {'filename': filename})
+        logger.debug('The document is irrelevant because it is a binary file, %s', {'filename': filename})
         return False
 
     if scan_type != consts.SCA_SCAN_TYPE and _does_document_exceed_max_size_limit(content):
-        logger.debug('document is irrelevant because its exceeded max size limit, %s', {'filename': filename})
+        logger.debug(
+            'The document is irrelevant because it has exceeded the maximum size limit, %s',
+            {
+                'max_document_size': consts.FILE_MAX_SIZE_LIMIT_IN_BYTES,
+                'document_size': get_content_size(content),
+                'filename': filename,
+            },
+        )
         return False
+
     return True
 
 

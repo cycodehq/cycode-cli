@@ -96,6 +96,7 @@ extend-select = [
     "TCH",
     "TID",
     "YTT",
+    "G",
 ]
 line-length = 120
 target-version = "py37"
