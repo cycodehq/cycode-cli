@@ -33,7 +33,7 @@ def pre_receive_command(context: click.Context, ignored_args: List[str]) -> None
         if should_skip_pre_receive_scan():
             logger.info(
                 'A scan has been skipped as per your request. '
-                'Please note that this may leave your system vulnerable to secrets that have not been detected'
+                'Please note that this may leave your system vulnerable to secrets that have not been detected.'
             )
             return
 
