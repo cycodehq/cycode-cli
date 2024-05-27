@@ -7,7 +7,7 @@ Cycode CLI needs the git executable to be installed on the system.
 Git executable must be available in the PATH.
 Git 1.7.x or newer is required.
 You can help Cycode CLI to locate the Git executable
-by setting GIT_PYTHON_GIT_EXECUTABLE=<path/to/git> environment variable.
+by setting the GIT_PYTHON_GIT_EXECUTABLE=<path/to/git> environment variable.
 """.strip().replace('\n', ' ')
 
 try:
