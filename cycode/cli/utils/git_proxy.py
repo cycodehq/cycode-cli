@@ -1,5 +1,5 @@
+import types
 from abc import ABC, abstractmethod
-from functools import lru_cache
 from typing import TYPE_CHECKING, Optional, Type
 
 _GIT_ERROR_MESSAGE = """
@@ -25,7 +25,7 @@ class GitProxyError(Exception):
 
 class _AbstractGitProxy(ABC):
     @abstractmethod
-    def get_repo(self, path: Optional['PathLike'] = None) -> 'Repo':
+    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
         ...
 
     @abstractmethod
@@ -33,50 +33,46 @@ class _AbstractGitProxy(ABC):
         ...
 
     @abstractmethod
-    def get_invalid_git_repository_error(self) -> Type[GitProxyError]:
+    def get_invalid_git_repository_error(self) -> Type[BaseException]:
         ...
 
     @abstractmethod
-    def get_git_command_error(self) -> Type[GitProxyError]:
+    def get_git_command_error(self) -> Type[BaseException]:
         ...
 
 
 class _DummyGitProxy(_AbstractGitProxy):
-    def get_repo(self, path: Optional['PathLike'] = None) -> 'Repo':
+    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
         raise RuntimeError(_GIT_ERROR_MESSAGE)
 
     def get_null_tree(self) -> object:
-        return object()
+        raise RuntimeError(_GIT_ERROR_MESSAGE)
 
-    def get_invalid_git_repository_error(self) -> Type[GitProxyError]:
+    def get_invalid_git_repository_error(self) -> Type[BaseException]:
         return GitProxyError
 
-    def get_git_command_error(self) -> Type[GitProxyError]:
+    def get_git_command_error(self) -> Type[BaseException]:
         return GitProxyError
 
 
 class _GitProxy(_AbstractGitProxy):
-    def get_repo(self, path: Optional['PathLike'] = None) -> 'Repo':
-        return git.Repo(path)
+    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
+        return git.Repo(path, *args, **kwargs)
 
     def get_null_tree(self) -> object:
         return git.NULL_TREE
 
-    @lru_cache(maxsize=None)  # noqa: B019
-    def get_invalid_git_repository_error(self) -> Type[GitProxyError]:
+    def get_invalid_git_repository_error(self) -> Type[BaseException]:
         # we must cache it because we want to return the same class every time
-        class InvalidGitRepositoryError(GitProxyError, git.InvalidGitRepositoryError):
-            ...
+        return git.InvalidGitRepositoryError
 
-        return InvalidGitRepositoryError
-
-    @lru_cache(maxsize=None)  # noqa: B019
-    def get_git_command_error(self) -> Type[GitProxyError]:
+    def get_git_command_error(self) -> Type[BaseException]:
         # we must cache it because we want to return the same class every time
-        class GitCommandError(GitProxyError, git.GitCommandError):
-            ...
-
-        return GitCommandError
+        return git.GitCommandError
 
 
-git_proxy = _GitProxy() if git else _DummyGitProxy()
+def get_git_proxy(git_module: Optional[types.ModuleType]) -> _AbstractGitProxy:
+    return _GitProxy() if git_module else _DummyGitProxy()
+
+
+git_proxy = get_git_proxy(git)
