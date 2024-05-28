@@ -11,7 +11,7 @@ _SUBPROCESS_DEFAULT_TIMEOUT_SEC = 60
 def shell(
     command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC, execute_in_shell: bool = False
 ) -> Optional[str]:
-    logger.debug(f'Executing shell command: {command}')
+    logger.debug('Executing shell command: %s', command)
 
     try:
         result = subprocess.run(
@@ -24,7 +24,7 @@ def shell(
 
         return result.stdout.decode('UTF-8').strip()
     except subprocess.CalledProcessError as e:
-        logger.debug(f'Error occurred while running shell command. Exception: {e.stderr}')
+        logger.debug('Error occurred while running shell command', exc_info=e)
     except subprocess.TimeoutExpired as e:
         raise click.Abort(f'Command "{command}" timed out') from e
     except Exception as e:

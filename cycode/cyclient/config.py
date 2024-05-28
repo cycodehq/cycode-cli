@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import Optional, Union
+from typing import NamedTuple, Optional, Set, Union
 from urllib.parse import urlparse
 
 from cycode.cli import consts
@@ -42,7 +42,13 @@ DEFAULT_CONFIGURATION = {
 
 configuration = dict(DEFAULT_CONFIGURATION, **os.environ)
 
-_CREATED_LOGGERS = set()
+
+class CreatedLogger(NamedTuple):
+    logger: logging.Logger
+    control_level_in_runtime: bool
+
+
+_CREATED_LOGGERS: Set[CreatedLogger] = set()
 
 
 def get_logger_level() -> Optional[Union[int, str]]:
@@ -50,18 +56,19 @@ def get_logger_level() -> Optional[Union[int, str]]:
     return logging.getLevelName(config_level)
 
 
-def get_logger(logger_name: Optional[str] = None) -> logging.Logger:
+def get_logger(logger_name: Optional[str] = None, control_level_in_runtime: bool = True) -> logging.Logger:
     new_logger = logging.getLogger(logger_name)
     new_logger.setLevel(get_logger_level())
 
-    _CREATED_LOGGERS.add(new_logger)
+    _CREATED_LOGGERS.add(CreatedLogger(logger=new_logger, control_level_in_runtime=control_level_in_runtime))
 
     return new_logger
 
 
 def set_logging_level(level: int) -> None:
     for created_logger in _CREATED_LOGGERS:
-        created_logger.setLevel(level)
+        if created_logger.control_level_in_runtime:
+            created_logger.logger.setLevel(level)
 
 
 def get_val_as_string(key: str) -> str:
@@ -83,10 +90,9 @@ def get_val_as_int(key: str) -> Optional[int]:
 
 def is_valid_url(url: str) -> bool:
     try:
-        urlparse(url)
-        return True
-    except ValueError as e:
-        logger.warning(f'Invalid cycode api url: {url}, using default value', e)
+        parsed_url = urlparse(url)
+        return all([parsed_url.scheme, parsed_url.netloc])
+    except ValueError:
         return False
 
 
@@ -95,6 +101,9 @@ configuration_manager = ConfigurationManager()
 
 cycode_api_url = configuration_manager.get_cycode_api_url()
 if not is_valid_url(cycode_api_url):
+    logger.warning(
+        'Invalid Cycode API URL: %s, using default value (%s)', cycode_api_url, consts.DEFAULT_CYCODE_API_URL
+    )
     cycode_api_url = consts.DEFAULT_CYCODE_API_URL
 
 timeout = get_val_as_int(consts.CYCODE_CLI_REQUEST_TIMEOUT_ENV_VAR_NAME)
