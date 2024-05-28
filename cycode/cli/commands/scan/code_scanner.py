@@ -148,14 +148,14 @@ def _enrich_scan_result_with_data_from_detection_rules(
 
 def _get_scan_documents_thread_func(
     context: click.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
-) -> Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]]:
+) -> Tuple[Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]], str]:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
     sync_option = context.obj['sync']
     command_scan_type = context.info_name
-
-    scan_parameters['aggregation_id'] = str(_generate_unique_id())
+    aggregation_id = str(_generate_unique_id())
+    scan_parameters['aggregation_id'] = aggregation_id
 
     def _scan_batch_thread_func(batch: List[Document]) -> Tuple[str, CliError, LocalScanResult]:
         local_scan_result = error = error_message = None
@@ -224,7 +224,7 @@ def _get_scan_documents_thread_func(
 
         return scan_id, error, local_scan_result
 
-    return _scan_batch_thread_func
+    return _scan_batch_thread_func, aggregation_id
 
 
 def scan_commit_range(
@@ -313,17 +313,41 @@ def scan_documents(
         )
         return
 
-    scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
+    scan_batch_thread_func, aggregation_id = _get_scan_documents_thread_func(
+        context, is_git_diff, is_commit_range, scan_parameters
+    )
     errors, local_scan_results = run_parallel_batched_scan(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
-
+    aggregation_report_url = _try_get_aggregation_report_url_if_needed(
+        scan_parameters, context.obj['client'], context.obj['scan_type']
+    )
+    set_aggregation_report_url(context, aggregation_report_url)
     progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
     progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
     progress_bar.stop()
 
     set_issue_detected_by_scan_results(context, local_scan_results)
     print_results(context, local_scan_results, errors)
+
+
+def set_aggregation_report_url(context: click.Context, aggregation_report_url: Optional[str] = None) -> None:
+    context.obj['aggregation_report_url'] = aggregation_report_url
+
+
+def _try_get_aggregation_report_url_if_needed(
+    scan_parameters: dict, cycode_client: 'ScanClient', scan_type: str
+) -> Optional[str]:
+    aggregation_id = scan_parameters.get('aggregation_id')
+    if not scan_parameters.get('report'):
+        return None
+    if aggregation_id is None:
+        return None
+    try:
+        report_url_response = cycode_client.get_scan_aggregation_report_url(aggregation_id, scan_type)
+        return report_url_response.report_url
+    except Exception as e:
+        logger.debug('Failed to get aggregation report url: %s', str(e))
 
 
 def scan_commit_range_documents(
