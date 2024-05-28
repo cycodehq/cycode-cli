@@ -63,11 +63,9 @@ class _GitProxy(_AbstractGitProxy):
         return git.NULL_TREE
 
     def get_invalid_git_repository_error(self) -> Type[BaseException]:
-        # we must cache it because we want to return the same class every time
         return git.InvalidGitRepositoryError
 
     def get_git_command_error(self) -> Type[BaseException]:
-        # we must cache it because we want to return the same class every time
         return git.GitCommandError
 
 
