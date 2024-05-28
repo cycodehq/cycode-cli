@@ -43,7 +43,7 @@ class PrinterBase(ABC):
             # gets the most recent exception caught by an except clause
             message = f'Error: {traceback.format_exc()}'
         else:
-            traceback_message = ''.join(traceback.format_exception(e))
+            traceback_message = ''.join(traceback.format_exception(None, e, e.__traceback__))
             message = f'Error: {traceback_message}'
 
         click.secho(message, err=True, fg=self.RED_COLOR_NAME)

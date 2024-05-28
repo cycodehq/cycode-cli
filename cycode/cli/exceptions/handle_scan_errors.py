@@ -1,11 +1,11 @@
 from typing import Optional
 
 import click
-from git import InvalidGitRepositoryError
 
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.printers import ConsolePrinter
+from cycode.cli.utils.git_proxy import git_proxy
 
 
 def handle_scan_exception(
@@ -13,7 +13,7 @@ def handle_scan_exception(
 ) -> Optional[CliError]:
     context.obj['did_fail'] = True
 
-    ConsolePrinter(context).print_exception()
+    ConsolePrinter(context).print_exception(e)
 
     errors: CliErrors = {
         custom_exceptions.NetworkError: CliError(
@@ -49,7 +49,7 @@ def handle_scan_exception(
             'Please make sure that your file is well formed '
             'and execute the scan again',
         ),
-        InvalidGitRepositoryError: CliError(
+        git_proxy.get_invalid_git_repository_error(): CliError(
             soft_fail=False,
             code='invalid_git_error',
             message='The path you supplied does not correlate to a git repository. '
@@ -69,10 +69,13 @@ def handle_scan_exception(
         ConsolePrinter(context).print_error(error)
         return None
 
+    unknown_error = CliError(code='unknown_error', message=str(e))
+
     if return_exception:
-        return CliError(code='unknown_error', message=str(e))
+        return unknown_error
 
     if isinstance(e, click.ClickException):
         raise e
 
-    raise click.ClickException(str(e))
+    ConsolePrinter(context).print_error(unknown_error)
+    exit(1)

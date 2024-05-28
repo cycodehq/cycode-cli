@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Iterator, List, Optional, Tuple, Union
 from cycode.cli import consts
 from cycode.cli.files_collector.sca import sca_code_scanner
 from cycode.cli.models import Document
+from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_path_by_os
 
 if TYPE_CHECKING:
@@ -13,8 +14,6 @@ if TYPE_CHECKING:
 
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
-from git import Repo
-
 
 def should_process_git_object(obj: 'Blob', _: int) -> bool:
     return obj.type == 'blob' and obj.size > 0
@@ -23,14 +22,14 @@ def should_process_git_object(obj: 'Blob', _: int) -> bool:
 def get_git_repository_tree_file_entries(
     path: str, branch: str
 ) -> Union[Iterator['IndexObjUnion'], Iterator['TraversedTreeTup']]:
-    return Repo(path).tree(branch).traverse(predicate=should_process_git_object)
+    return git_proxy.get_repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
 def parse_commit_range(commit_range: str, path: str) -> Tuple[str, str]:
     from_commit_rev = None
     to_commit_rev = None
 
-    for commit in Repo(path).iter_commits(rev=commit_range):
+    for commit in git_proxy.get_repo(path).iter_commits(rev=commit_range):
         if not to_commit_rev:
             to_commit_rev = commit.hexsha
         from_commit_rev = commit.hexsha
@@ -52,7 +51,7 @@ def get_pre_commit_modified_documents(
     git_head_documents = []
     pre_committed_documents = []
 
-    repo = Repo(os.getcwd())
+    repo = git_proxy.get_repo(os.getcwd())
     diff_files = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
     progress_bar.set_section_length(progress_bar_section, len(diff_files))
     for file in diff_files:
@@ -82,7 +81,7 @@ def get_commit_range_modified_documents(
     from_commit_documents = []
     to_commit_documents = []
 
-    repo = Repo(path)
+    repo = git_proxy.get_repo(path)
     diff = repo.commit(from_commit_rev).diff(to_commit_rev)
 
     modified_files_diff = [
@@ -131,7 +130,8 @@ def _get_end_commit_from_branch_update_details(update_details: str) -> str:
 def _get_oldest_unupdated_commit_for_branch(commit: str) -> Optional[str]:
     # get a list of commits by chronological order that are not in the remote repository yet
     # more info about rev-list command: https://git-scm.com/docs/git-rev-list
-    not_updated_commits = Repo(os.getcwd()).git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
+    repo = git_proxy.get_repo(os.getcwd())
+    not_updated_commits = repo.git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
 
     commits = not_updated_commits.splitlines()
     if not commits:
