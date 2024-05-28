@@ -28,13 +28,15 @@ class JsonPrinter(PrinterBase):
         scan_ids = []
         report_urls = []
         detections = []
+        aggregation_report_url = self.context.obj.get('aggregation_report_url')
+        if aggregation_report_url:
+            report_urls.append(aggregation_report_url)
 
         for local_scan_result in local_scan_results:
             scan_ids.append(local_scan_result.scan_id)
 
-            if local_scan_result.report_url:
+            if not aggregation_report_url and local_scan_result.report_url:
                 report_urls.append(local_scan_result.report_url)
-
             for document_detections in local_scan_result.document_detections:
                 detections.extend(document_detections.detections)
 

@@ -58,9 +58,15 @@ class TablePrinterBase(PrinterBase, abc.ABC):
             click.echo(table.get_table().draw())
 
     @staticmethod
-    def _print_report_urls(local_scan_results: List['LocalScanResult']) -> None:
+    def _print_report_urls(
+        local_scan_results: List['LocalScanResult'],
+        aggregation_report_url: Optional[str] = None,
+    ) -> None:
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
-        if not report_urls:
+        if not report_urls and not aggregation_report_url:
+            return
+        if aggregation_report_url:
+            click.echo(f'Report URL: {aggregation_report_url}')
             return
 
         click.echo('Report URLs:')

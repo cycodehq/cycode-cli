@@ -59,7 +59,7 @@ class ScanClient:
         self, scan_type: str, should_use_scan_service: bool = False, should_use_sync_flow: bool = False
     ) -> str:
         service_path = self.scan_config.get_service_name(scan_type, should_use_scan_service)
-        controller_path = self.get_scan_controller_path(scan_type)
+        controller_path = self.get_scan_controller_path(scan_type, should_use_scan_service)
         flow_type = self.get_scan_flow_type(should_use_sync_flow)
         return f'{service_path}/{controller_path}{flow_type}'
 
@@ -90,6 +90,12 @@ class ScanClient:
 
     def get_scan_report_url(self, scan_id: str, scan_type: str) -> models.ScanReportUrlResponse:
         response = self.scan_cycode_client.get(url_path=self.get_scan_report_url_path(scan_id, scan_type))
+        return models.ScanReportUrlResponseSchema().build_dto(response.json())
+
+    def get_scan_aggregation_report_url(self, aggregation_id: str, scan_type: str) -> models.ScanReportUrlResponse:
+        response = self.scan_cycode_client.get(
+            url_path=self.get_scan_aggregation_report_url_path(aggregation_id, scan_type)
+        )
         return models.ScanReportUrlResponseSchema().build_dto(response.json())
 
     def get_zipped_file_scan_async_url_path(self, scan_type: str, should_use_sync_flow: bool = False) -> str:
@@ -154,6 +160,12 @@ class ScanClient:
 
     def get_scan_report_url_path(self, scan_id: str, scan_type: str) -> str:
         return f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}/reportUrl/{scan_id}'
+
+    def get_scan_aggregation_report_url_path(self, aggregation_id: str, scan_type: str) -> str:
+        return (
+            f'{self.get_scan_service_url_path(scan_type, should_use_scan_service=True)}'
+            f'/reportUrlByAggregationId/{aggregation_id}'
+        )
 
     def get_scan_details(self, scan_type: str, scan_id: str) -> models.ScanDetailsResponse:
         path = self.get_scan_details_path(scan_type, scan_id)

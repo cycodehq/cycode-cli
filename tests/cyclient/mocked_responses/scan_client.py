@@ -85,10 +85,24 @@ def get_scan_report_url(scan_id: Optional[UUID], scan_client: ScanClient, scan_t
     return f'{api_url}/{service_url}'
 
 
+def get_scan_aggregation_report_url(aggregation_id: Optional[UUID], scan_client: ScanClient, scan_type: str) -> str:
+    api_url = scan_client.scan_cycode_client.api_url
+    service_url = scan_client.get_scan_aggregation_report_url_path(str(aggregation_id), scan_type)
+    return f'{api_url}/{service_url}'
+
+
 def get_scan_report_url_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
     json_response = {'report_url': f'https://app.domain/on-demand-scans/{scan_id}'}
+
+    return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
+
+
+def get_scan_aggregation_report_url_response(url: str, aggregation_id: Optional[UUID] = None) -> responses.Response:
+    if not aggregation_id:
+        aggregation_id = uuid4()
+    json_response = {'report_url': f'https://app.domain/cli-logs-aggregation/{aggregation_id}'}
 
     return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 

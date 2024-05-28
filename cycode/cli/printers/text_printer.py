@@ -39,10 +39,11 @@ class TextPrinter(PrinterBase):
 
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
-                self._print_document_detections(
-                    document_detections, local_scan_result.scan_id, local_scan_result.report_url
-                )
+                self._print_document_detections(document_detections, local_scan_result.scan_id)
 
+        report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
+
+        self._print_report_urls(report_urls, self.context.obj.get('aggregation_report_url'))
         if not errors:
             return
 
@@ -55,18 +56,14 @@ class TextPrinter(PrinterBase):
             click.echo(f'- {scan_id}: ', nl=False)
             self.print_error(error)
 
-    def _print_document_detections(
-        self, document_detections: DocumentDetections, scan_id: str, report_url: Optional[str]
-    ) -> None:
+    def _print_document_detections(self, document_detections: DocumentDetections, scan_id: str) -> None:
         document = document_detections.document
         lines_to_display = self._get_lines_to_display_count()
         for detection in document_detections.detections:
-            self._print_detection_summary(detection, document.path, scan_id, report_url)
+            self._print_detection_summary(detection, document.path, scan_id)
             self._print_detection_code_segment(detection, document, lines_to_display)
 
-    def _print_detection_summary(
-        self, detection: Detection, document_path: str, scan_id: str, report_url: Optional[str]
-    ) -> None:
+    def _print_detection_summary(self, detection: Detection, document_path: str, scan_id: str) -> None:
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
         detection_name_styled = click.style(detection_name, fg='bright_red', bold=True)
 
@@ -74,8 +71,6 @@ class TextPrinter(PrinterBase):
         detection_sha_message = f'\nSecret SHA: {detection_sha}' if detection_sha else ''
 
         scan_id_message = f'\nScan ID: {scan_id}'
-        report_url_message = f'\nReport URL: {report_url}' if report_url else ''
-
         detection_commit_id = detection.detection_details.get('commit_id')
         detection_commit_id_message = f'\nCommit SHA: {detection_commit_id}' if detection_commit_id else ''
 
@@ -88,7 +83,6 @@ class TextPrinter(PrinterBase):
             f'(rule ID: {detection.detection_rule_id}) in file: {click.format_filename(document_path)} '
             f'{detection_sha_message}'
             f'{scan_id_message}'
-            f'{report_url_message}'
             f'{detection_commit_id_message}'
             f'{company_guidelines_message}'
             f'  ⛔'
@@ -100,6 +94,18 @@ class TextPrinter(PrinterBase):
             return
 
         self._print_detection_from_file(detection, document, code_segment_size)
+
+    @staticmethod
+    def _print_report_urls(report_urls: List[str], aggregation_report_url: Optional[str] = None) -> None:
+        if not report_urls and not aggregation_report_url:
+            return
+        if aggregation_report_url:
+            click.echo(f'Report URL: {aggregation_report_url}')
+            return
+
+        click.echo('Report URLs:')
+        for report_url in report_urls:
+            click.echo(f'- {report_url}')
 
     @staticmethod
     def _get_code_segment_start_line(detection_line: int, code_segment_size: int) -> int:

@@ -63,7 +63,7 @@ class TablePrinter(TablePrinterBase):
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
         self._print_table(table)
-        self._print_report_urls(local_scan_results)
+        self._print_report_urls(local_scan_results, self.context.obj.get('aggregation_report_url'))
 
     def _get_table(self) -> Table:
         table = Table()
