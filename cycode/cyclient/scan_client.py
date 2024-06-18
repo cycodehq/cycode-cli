@@ -245,15 +245,6 @@ class ScanClient:
 
         return detections
 
-    def get_scan_detections_count_path(self, scan_type: str) -> str:
-        return f'{self.get_scan_detections_path(scan_type)}/count'
-
-    def get_scan_detections_count(self, scan_type: str, scan_id: str) -> int:
-        response = self.scan_cycode_client.get(
-            url_path=self.get_scan_detections_count_path(scan_type), params={'scan_id': scan_id}
-        )
-        return response.json().get('count', 0)
-
     def commit_range_zipped_file_scan(
         self, scan_type: str, zip_file: InMemoryZip, scan_id: str
     ) -> models.ZippedFileScanResult:
