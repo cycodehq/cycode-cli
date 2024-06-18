@@ -317,10 +317,14 @@ def scan_documents(
     errors, local_scan_results = run_parallel_batched_scan(
         scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
     )
-    aggregation_report_url = _try_get_aggregation_report_url_if_needed(
-        scan_parameters, context.obj['client'], context.obj['scan_type']
-    )
-    set_aggregation_report_url(context, aggregation_report_url)
+
+    if len(local_scan_results) > 1:
+        # if we used more than one batch, we need to fetch aggregate report url
+        aggregation_report_url = _try_get_aggregation_report_url_if_needed(
+            scan_parameters, context.obj['client'], context.obj['scan_type']
+        )
+        set_aggregation_report_url(context, aggregation_report_url)
+
     progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
     progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
     progress_bar.stop()
@@ -863,8 +867,6 @@ def _get_scan_result(
     if not scan_details.detections_count:
         return init_default_scan_result(cycode_client, scan_id, scan_type, should_get_report)
 
-    wait_for_detections_creation(cycode_client, scan_type, scan_id, scan_details.detections_count)
-
     scan_detections = cycode_client.get_scan_detections(scan_type, scan_id)
 
     return ZippedFileScanResult(
@@ -897,35 +899,6 @@ def _try_get_report_url_if_needed(
         return report_url_response.report_url
     except Exception as e:
         logger.debug('Failed to get report URL', exc_info=e)
-
-
-def wait_for_detections_creation(
-    cycode_client: 'ScanClient', scan_type: str, scan_id: str, expected_detections_count: int
-) -> None:
-    logger.debug('Waiting for detections to be created')
-
-    scan_persisted_detections_count = 0
-    polling_timeout = consts.DETECTIONS_COUNT_VERIFICATION_TIMEOUT_IN_SECONDS
-    end_polling_time = time.time() + polling_timeout
-
-    while time.time() < end_polling_time:
-        scan_persisted_detections_count = cycode_client.get_scan_detections_count(scan_type, scan_id)
-        logger.debug(
-            'Excepting %s detections, got %s detections (%s more; %s seconds left)',
-            expected_detections_count,
-            scan_persisted_detections_count,
-            expected_detections_count - scan_persisted_detections_count,
-            round(end_polling_time - time.time()),
-        )
-        if scan_persisted_detections_count == expected_detections_count:
-            return
-
-        time.sleep(consts.DETECTIONS_COUNT_VERIFICATION_WAIT_INTERVAL_IN_SECONDS)
-
-    logger.debug('%s detections has been created', scan_persisted_detections_count)
-    raise custom_exceptions.ScanAsyncError(
-        f'Failed to wait for detections to be created after {polling_timeout} seconds'
-    )
 
 
 def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
