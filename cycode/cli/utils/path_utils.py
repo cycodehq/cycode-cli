@@ -3,7 +3,9 @@ import os
 from functools import lru_cache
 from typing import AnyStr, List, Optional
 
-from binaryornot.check import is_binary
+from binaryornot.helpers import is_binary_string
+
+from cycode.cyclient import logger
 
 
 @lru_cache(maxsize=None)
@@ -22,8 +24,28 @@ def get_absolute_path(path: str) -> str:
     return os.path.abspath(path)
 
 
+def _get_starting_chunk(filename: str, length: int = 1024) -> Optional[bytes]:
+    # We are using our own implementation of get_starting_chunk
+    # because the original one from binaryornot uses print()...
+
+    try:
+        with open(filename, 'rb') as f:
+            return f.read(length)
+    except IOError as e:
+        logger.debug('Failed to read the starting chunk from file: %s', filename, exc_info=e)
+
+    return None
+
+
 def is_binary_file(filename: str) -> bool:
-    return is_binary(filename)
+    # Check if the file extension is in a list of known binary types
+    binary_extensions = ('.pyc',)
+    if filename.endswith(binary_extensions):
+        return True
+
+    # Check if the starting chunk is a binary string
+    chunk = _get_starting_chunk(filename)
+    return is_binary_string(chunk)
 
 
 def get_file_size(filename: str) -> int:
@@ -56,6 +78,8 @@ def get_file_content(file_path: str) -> Optional[AnyStr]:
             return f.read()
     except (FileNotFoundError, UnicodeDecodeError):
         return None
+    except PermissionError:
+        logger.warn('Permission denied to read the file: %s', file_path)
 
 
 def load_json(txt: str) -> Optional[dict]:
