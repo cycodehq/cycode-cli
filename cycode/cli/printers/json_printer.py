@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class JsonPrinter(PrinterBase):
     def print_result(self, result: CliResult) -> None:
-        result = {'result': result.success, 'message': result.message}
+        result = {'result': result.success, 'message': result.message, 'data': result.data}
 
         click.echo(self.get_data_json(result))
 

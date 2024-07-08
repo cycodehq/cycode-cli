@@ -5,6 +5,7 @@ import click
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.printers import ConsolePrinter
+from cycode.cli.sentry import capture_exception
 from cycode.cli.utils.git_proxy import git_proxy
 
 
@@ -69,13 +70,14 @@ def handle_scan_exception(
         ConsolePrinter(context).print_error(error)
         return None
 
-    unknown_error = CliError(code='unknown_error', message=str(e))
-
-    if return_exception:
-        return unknown_error
-
     if isinstance(e, click.ClickException):
         raise e
+
+    capture_exception(e)
+
+    unknown_error = CliError(code='unknown_error', message=str(e))
+    if return_exception:
+        return unknown_error
 
     ConsolePrinter(context).print_error(unknown_error)
     exit(1)

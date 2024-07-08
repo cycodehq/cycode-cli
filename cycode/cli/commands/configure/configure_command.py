@@ -3,6 +3,7 @@ from typing import Optional
 import click
 
 from cycode.cli import config, consts
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.utils.string_utils import obfuscate_text
@@ -26,6 +27,8 @@ _CONFIGURATION_MANAGER = ConfigurationManager()
 @click.command(short_help='Initial command to configure your CLI client authentication.')
 def configure_command() -> None:
     """Configure your CLI client authentication manually."""
+    add_breadcrumb('configure')
+
     global_config_manager = _CONFIGURATION_MANAGER.global_config_file_manager
 
     current_api_url = global_config_manager.get_api_url()

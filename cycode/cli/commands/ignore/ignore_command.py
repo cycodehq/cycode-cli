@@ -5,6 +5,7 @@ import click
 
 from cycode.cli import consts
 from cycode.cli.config import config, configuration_manager
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cli.utils.path_utils import get_absolute_path
 from cycode.cli.utils.string_utils import hash_string_to_sha256
 from cycode.cyclient import logger
@@ -67,6 +68,8 @@ def ignore_command(
     by_value: str, by_sha: str, by_path: str, by_rule: str, by_package: str, scan_type: str, is_global: bool
 ) -> None:
     """Ignores a specific value, path or rule ID."""
+    add_breadcrumb('ignore')
+
     if not by_value and not by_sha and not by_path and not by_rule and not by_package:
         raise click.ClickException('ignore by type is missing')
 

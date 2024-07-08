@@ -62,6 +62,7 @@ CliErrors = Dict[Type[Exception], CliError]
 class CliResult(NamedTuple):
     success: bool
     message: str
+    data: Optional[Dict[str, any]] = None
 
 
 class LocalScanResult(NamedTuple):

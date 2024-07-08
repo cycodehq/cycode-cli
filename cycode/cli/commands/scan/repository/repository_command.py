@@ -9,6 +9,7 @@ from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_
 from cycode.cli.files_collector.repository_documents import get_git_repository_tree_file_entries
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.models import Document
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cyclient import logger
@@ -27,6 +28,8 @@ from cycode.cyclient import logger
 @click.pass_context
 def repository_command(context: click.Context, path: str, branch: str) -> None:
     try:
+        add_breadcrumb('repository')
+
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
 
         scan_type = context.obj['scan_type']

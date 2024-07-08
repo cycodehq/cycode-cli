@@ -2,6 +2,7 @@ import click
 
 from cycode.cli.commands.scan.code_scanner import scan_commit_range
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cyclient import logger
 
 
@@ -18,6 +19,8 @@ from cycode.cyclient import logger
 @click.pass_context
 def commit_history_command(context: click.Context, path: str, commit_range: str) -> None:
     try:
+        add_breadcrumb('commit_history')
+
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
         scan_commit_range(context, path=path, commit_range=commit_range)
     except Exception as e:

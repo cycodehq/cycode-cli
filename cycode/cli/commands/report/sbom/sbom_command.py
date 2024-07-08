@@ -6,6 +6,7 @@ import click
 from cycode.cli.commands.report.sbom.path.path_command import path_command
 from cycode.cli.commands.report.sbom.repository_url.repository_url_command import repository_url_command
 from cycode.cli.config import config
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cyclient.report_client import ReportParameters
 
 
@@ -64,6 +65,8 @@ def sbom_command(
     include_dev_dependencies: bool,
 ) -> int:
     """Generate SBOM report."""
+    add_breadcrumb('sbom')
+
     sbom_format_parts = format.split('-')
     if len(sbom_format_parts) != 2:
         raise click.ClickException('Invalid SBOM format.')

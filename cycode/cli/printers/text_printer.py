@@ -27,6 +27,13 @@ class TextPrinter(PrinterBase):
 
         click.secho(result.message, fg=color)
 
+        if not result.data:
+            return
+
+        click.secho('\nAdditional data:', fg=color)
+        for name, value in result.data.items():
+            click.secho(f'- {name}: {value}', fg=color)
+
     def print_error(self, error: CliError) -> None:
         click.secho(error.message, fg=self.RED_COLOR_NAME)
 
