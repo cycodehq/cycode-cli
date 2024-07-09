@@ -4,6 +4,7 @@ import click
 
 from cycode.cli.commands.scan.code_scanner import scan_commit_range
 from cycode.cli.commands.scan.scan_ci.ci_integrations import get_commit_range
+from cycode.cli.sentry import add_breadcrumb
 
 # This command is not finished yet. It is not used in the codebase.
 
@@ -14,4 +15,5 @@ from cycode.cli.commands.scan.scan_ci.ci_integrations import get_commit_range
 )
 @click.pass_context
 def scan_ci_command(context: click.Context) -> None:
+    add_breadcrumb('ci')
     scan_commit_range(context, path=os.getcwd(), commit_range=get_commit_range())

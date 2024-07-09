@@ -3,6 +3,7 @@ from typing import Tuple
 import click
 
 from cycode.cli.commands.scan.code_scanner import scan_disk_files
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cyclient import logger
 
 
@@ -10,6 +11,8 @@ from cycode.cyclient import logger
 @click.argument('paths', nargs=-1, type=click.Path(exists=True, resolve_path=True), required=True)
 @click.pass_context
 def path_command(context: click.Context, paths: Tuple[str]) -> None:
+    add_breadcrumb('path')
+
     progress_bar = context.obj['progress_bar']
     progress_bar.start()
 

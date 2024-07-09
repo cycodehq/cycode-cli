@@ -1,4 +1,5 @@
 PROGRAM_NAME = 'cycode'
+APP_NAME = 'CycodeCLI'
 CLI_CONTEXT_SETTINGS = {
     'terminal_width': 10**9,
     'max_content_width': 10**9,
@@ -141,6 +142,14 @@ SCAN_BATCH_MAX_FILES_COUNT = 1000
 # if we increase this values, the server doesn't allow connecting (ConnectionError)
 SCAN_BATCH_MAX_PARALLEL_SCANS = 5
 SCAN_BATCH_SCANS_PER_CPU = 1
+
+# sentry
+SENTRY_DSN = 'https://5e26b304b30ced3a34394b6f81f1076d@o1026942.ingest.us.sentry.io/4507543840096256'
+SENTRY_DEBUG = False
+SENTRY_SAMPLE_RATE = 1.0
+SENTRY_SEND_DEFAULT_PII = False
+SENTRY_INCLUDE_LOCAL_VARIABLES = False
+SENTRY_MAX_REQUEST_BODY_SIZE = 'never'
 
 # report with polling
 REPORT_POLLING_WAIT_INTERVAL_IN_SECONDS = 5

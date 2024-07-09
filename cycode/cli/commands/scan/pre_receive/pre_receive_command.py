@@ -17,6 +17,7 @@ from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.repository_documents import (
     calculate_pre_receive_commit_range,
 )
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cli.utils.task_timer import TimeoutAfter
 from cycode.cyclient import logger
 
@@ -26,6 +27,8 @@ from cycode.cyclient import logger
 @click.pass_context
 def pre_receive_command(context: click.Context, ignored_args: List[str]) -> None:
     try:
+        add_breadcrumb('pre_receive')
+
         scan_type = context.obj['scan_type']
         if scan_type != consts.SECRET_SCAN_TYPE:
             raise click.ClickException(f'Commit range scanning for {scan_type.upper()} is not supported')

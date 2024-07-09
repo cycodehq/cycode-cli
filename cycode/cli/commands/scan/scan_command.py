@@ -15,6 +15,7 @@ from cycode.cli.consts import (
     SCA_SKIP_RESTORE_DEPENDENCIES_FLAG,
 )
 from cycode.cli.models import Severity
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 
@@ -124,6 +125,8 @@ def scan_command(
     sync: bool,
 ) -> int:
     """Scans for Secrets, IaC, SCA or SAST violations."""
+    add_breadcrumb('scan')
+
     if show_secret:
         context.obj['show_secret'] = show_secret
     else:
@@ -155,6 +158,8 @@ def _sca_scan_to_context(context: click.Context, sca_scan_user_selected: List[st
 @scan_command.result_callback()
 @click.pass_context
 def finalize(context: click.Context, *_, **__) -> None:
+    add_breadcrumb('scan_finalize')
+
     progress_bar = context.obj.get('progress_bar')
     if progress_bar:
         progress_bar.stop()

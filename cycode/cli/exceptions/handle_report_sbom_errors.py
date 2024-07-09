@@ -5,6 +5,7 @@ import click
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.printers import ConsolePrinter
+from cycode.cli.sentry import capture_exception
 
 
 def handle_report_exception(context: click.Context, err: Exception) -> Optional[CliError]:
@@ -41,5 +42,7 @@ def handle_report_exception(context: click.Context, err: Exception) -> Optional[
 
     if isinstance(err, click.ClickException):
         raise err
+
+    capture_exception(err)
 
     raise click.ClickException(str(err))

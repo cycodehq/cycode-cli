@@ -9,7 +9,8 @@ from cycode.cyclient.client_creator import create_scan_client
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from cycode.cyclient.scan_client import ScanClient
 
-_EXPECTED_API_TOKEN = 'someJWT'
+# not real JWT with userId and tenantId fields
+_EXPECTED_API_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOiJibGFibGEiLCJ0ZW5hbnRJZCI6ImJsYWJsYSJ9.8RfoWBfciuj8nwc7UB8uOUJchVuaYpYlgf1G2QHiWTk'  # noqa: E501
 
 _CLIENT_ID = 'b1234568-0eaa-1234-beb8-6f0c12345678'
 _CLIENT_SECRET = 'a12345a-42b2-1234-3bdd-c0130123456'

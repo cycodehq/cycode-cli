@@ -11,6 +11,7 @@ from cycode.cli.files_collector.repository_documents import (
     get_diff_file_path,
 )
 from cycode.cli.models import Document
+from cycode.cli.sentry import add_breadcrumb
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import (
     get_path_by_os,
@@ -22,6 +23,8 @@ from cycode.cli.utils.progress_bar import ScanProgressBarSection
 @click.argument('ignored_args', nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
 def pre_commit_command(context: click.Context, ignored_args: List[str]) -> None:
+    add_breadcrumb('pre_commit')
+
     scan_type = context.obj['scan_type']
 
     progress_bar = context.obj['progress_bar']

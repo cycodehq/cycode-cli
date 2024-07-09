@@ -4,7 +4,9 @@ from cycode.cli.commands.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.custom_exceptions import AuthProcessError, HttpUnauthorizedError, NetworkError
 from cycode.cli.models import CliError, CliErrors, CliResult
 from cycode.cli.printers import ConsolePrinter
+from cycode.cli.sentry import add_breadcrumb, capture_exception
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
+from cycode.cli.utils.jwt_utils import get_user_and_tenant_ids_from_access_token
 from cycode.cyclient import logger
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
@@ -15,6 +17,8 @@ from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 @click.pass_context
 def auth_command(context: click.Context) -> None:
     """Authenticates your machine."""
+    add_breadcrumb('auth')
+
     if context.invoked_subcommand is not None:
         # if it is a subcommand, do nothing
         return
@@ -37,9 +41,10 @@ def auth_command(context: click.Context) -> None:
 @click.pass_context
 def authorization_check(context: click.Context) -> None:
     """Validates that your Cycode account has permission to work with the CLI."""
+    add_breadcrumb('check')
+
     printer = ConsolePrinter(context)
 
-    passed_auth_check_res = CliResult(success=True, message='Cycode authentication verified')
     failed_auth_check_res = CliResult(success=False, message='Cycode authentication failed')
 
     client_id, client_secret = CredentialsManager().get_credentials()
@@ -48,9 +53,21 @@ def authorization_check(context: click.Context) -> None:
         return
 
     try:
-        if CycodeTokenBasedClient(client_id, client_secret).get_access_token():
-            printer.print_result(passed_auth_check_res)
+        access_token = CycodeTokenBasedClient(client_id, client_secret).get_access_token()
+        if not access_token:
+            printer.print_result(failed_auth_check_res)
             return
+
+        user_id, tenant_id = get_user_and_tenant_ids_from_access_token(access_token)
+        printer.print_result(
+            CliResult(
+                success=True,
+                message='Cycode authentication verified',
+                data={'user_id': user_id, 'tenant_id': tenant_id},
+            )
+        )
+
+        return
     except (NetworkError, HttpUnauthorizedError):
         ConsolePrinter(context).print_exception()
 
@@ -77,5 +94,7 @@ def _handle_exception(context: click.Context, e: Exception) -> None:
 
     if isinstance(e, click.ClickException):
         raise e
+
+    capture_exception(e)
 
     raise click.ClickException(str(e))
