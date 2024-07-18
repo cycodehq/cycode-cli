@@ -73,4 +73,29 @@ def get_git_proxy(git_module: Optional[types.ModuleType]) -> _AbstractGitProxy:
     return _GitProxy() if git_module else _DummyGitProxy()
 
 
-git_proxy = get_git_proxy(git)
+class GitProxyManager(_AbstractGitProxy):
+    """We are using this manager for easy unit testing and mocking of the git module."""
+
+    def __init__(self) -> None:
+        self._git_proxy = get_git_proxy(git)
+
+    def _set_dummy_git_proxy(self) -> None:
+        self._git_proxy = _DummyGitProxy()
+
+    def _set_git_proxy(self) -> None:
+        self._git_proxy = _GitProxy()
+
+    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
+        return self._git_proxy.get_repo(path, *args, **kwargs)
+
+    def get_null_tree(self) -> object:
+        return self._git_proxy.get_null_tree()
+
+    def get_invalid_git_repository_error(self) -> Type[BaseException]:
+        return self._git_proxy.get_invalid_git_repository_error()
+
+    def get_git_command_error(self) -> Type[BaseException]:
+        return self._git_proxy.get_git_command_error()
+
+
+git_proxy = GitProxyManager()
