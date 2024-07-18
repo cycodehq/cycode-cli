@@ -33,6 +33,7 @@ jobs:
             files.pythonhosted.org
             install.python-poetry.org
             pypi.org
+            *.ingest.us.sentry.io
 
       - name: Checkout repository
         uses: actions/checkout@v4

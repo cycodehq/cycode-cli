@@ -12,6 +12,7 @@ from cycode.cli.commands.version.version_command import version_command
 from cycode.cli.consts import (
     CLI_CONTEXT_SETTINGS,
 )
+from cycode.cli.sentry import add_breadcrumb, init_sentry
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
 from cycode.cyclient.config import set_logging_level
@@ -60,6 +61,9 @@ from cycode.cyclient.models import UserAgentOptionScheme
 def main_cli(
     context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]
 ) -> None:
+    init_sentry()
+    add_breadcrumb('cycode')
+
     context.ensure_object(dict)
     configuration_manager = ConfigurationManager()
 
