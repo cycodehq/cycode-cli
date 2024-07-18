@@ -20,6 +20,7 @@ jobs:
             files.pythonhosted.org
             install.python-poetry.org
             pypi.org
+            sentry.io
 
       - name: Checkout repository
         uses: actions/checkout@v3
