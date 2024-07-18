@@ -1,14 +1,19 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 import jwt
 
+_JWT_PAYLOAD_POSSIBLE_USER_ID_FIELD_NAMES = ('userId', 'internalId', 'token-user-id')
 
-def get_user_and_tenant_ids_from_access_token(access_token: str) -> Tuple[str, str]:
+
+def get_user_and_tenant_ids_from_access_token(access_token: str) -> Tuple[Optional[str], Optional[str]]:
     payload = jwt.decode(access_token, options={'verify_signature': False})
-    user_id = payload.get('userId')
-    tenant_id = payload.get('tenantId')
 
-    if not user_id or not tenant_id:
-        raise ValueError('Invalid access token')
+    user_id = None
+    for field in _JWT_PAYLOAD_POSSIBLE_USER_ID_FIELD_NAMES:
+        user_id = payload.get(field)
+        if user_id:
+            break
+
+    tenant_id = payload.get('tenantId')
 
     return user_id, tenant_id

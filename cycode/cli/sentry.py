@@ -51,6 +51,7 @@ def init_sentry() -> None:
         dsn=consts.SENTRY_DSN,
         debug=consts.SENTRY_DEBUG,
         release=_get_sentry_release(),
+        server_name='',
         before_send=_before_sentry_event_send,
         sample_rate=consts.SENTRY_SAMPLE_RATE,
         send_default_pii=consts.SENTRY_SEND_DEFAULT_PII,
@@ -61,7 +62,6 @@ def init_sentry() -> None:
             AtexitIntegration(lambda _, __: None)  # disable output to stderr about pending events
         ],
     )
-    sentry_sdk.set_user(None)
 
 
 def setup_scope_from_access_token(access_token: Optional[str]) -> None:
