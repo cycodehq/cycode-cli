@@ -11,10 +11,7 @@ class BaseFileManager(ABC):
         ...
 
     def read_file(self) -> Dict[Hashable, Any]:
-        try:
-            return read_file(self.get_filename())
-        except FileNotFoundError:
-            return {}
+        return read_file(self.get_filename())
 
     def write_content_to_file(self, content: Dict[Hashable, Any]) -> None:
         filename = self.get_filename()
