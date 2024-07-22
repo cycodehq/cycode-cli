@@ -4,12 +4,16 @@ from typing import Optional
 
 import sentry_sdk
 from sentry_sdk.integrations.atexit import AtexitIntegration
+from sentry_sdk.integrations.dedupe import DedupeIntegration
+from sentry_sdk.integrations.excepthook import ExcepthookIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from cycode import __version__
 from cycode.cli import consts
 from cycode.cli.utils.jwt_utils import get_user_and_tenant_ids_from_access_token
 from cycode.cyclient import logger
+from cycode.cyclient.config import on_premise_installation
 
 # when Sentry is blocked on the machine, we want to keep clean output without retries warnings
 logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
@@ -36,9 +40,14 @@ def _get_sentry_local_release() -> str:
 
 
 _SENTRY_LOCAL_RELEASE = _get_sentry_local_release()
+_SENTRY_DISABLED = on_premise_installation
 
 
 def _before_sentry_event_send(event: dict, _: dict) -> Optional[dict]:
+    if _SENTRY_DISABLED:
+        # drop all events when Sentry is disabled
+        return None
+
     if event.get('release') == _SENTRY_LOCAL_RELEASE:
         logger.debug('Dropping Sentry event due to local development setup')
         return None
@@ -58,8 +67,12 @@ def init_sentry() -> None:
         include_local_variables=consts.SENTRY_INCLUDE_LOCAL_VARIABLES,
         max_request_body_size=consts.SENTRY_MAX_REQUEST_BODY_SIZE,
         event_scrubber=EventScrubber(denylist=_DENY_LIST, recursive=True),
+        default_integrations=False,
         integrations=[
-            AtexitIntegration(lambda _, __: None)  # disable output to stderr about pending events
+            AtexitIntegration(lambda _, __: None),  # disable output to stderr about pending events
+            ExcepthookIntegration(),
+            DedupeIntegration(),
+            LoggingIntegration(),
         ],
     )
 

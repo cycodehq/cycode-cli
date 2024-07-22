@@ -106,6 +106,13 @@ if not is_valid_url(cycode_api_url):
     )
     cycode_api_url = consts.DEFAULT_CYCODE_API_URL
 
+
+def _is_on_premise_installation(cycode_domain: str) -> bool:
+    return not cycode_api_url.endswith(cycode_domain)
+
+
+on_premise_installation = _is_on_premise_installation(consts.DEFAULT_CYCODE_DOMAIN)
+
 timeout = get_val_as_int(consts.CYCODE_CLI_REQUEST_TIMEOUT_ENV_VAR_NAME)
 if not timeout:
     timeout = get_val_as_int(consts.TIMEOUT_ENV_VAR_NAME)
