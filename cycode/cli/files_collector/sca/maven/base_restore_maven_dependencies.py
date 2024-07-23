@@ -34,7 +34,7 @@ class BaseRestoreMavenDependencies(ABC):
 
     def get_manifest_file_path(self, document: Document) -> str:
         return (
-            join_paths(self.context.params.get('path'), document.path)
+            join_paths(self.context.params['paths'][0], document.path)
             if self.context.obj.get('monitor')
             else document.path
         )
