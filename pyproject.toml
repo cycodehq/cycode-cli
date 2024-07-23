@@ -41,7 +41,6 @@ requests = ">=2.24,<3.0"
 urllib3 = "1.26.19"  # lock v1 to avoid issues with openssl and old Python versions (<3.9.11) on macOS
 sentry-sdk = ">=2.8.0,<3.0"
 pyjwt = ">=2.8.0,<3.0"
-pip-system-certs = ">=4.0,<5.0"
 
 [tool.poetry.group.test.dependencies]
 mock = ">=4.0.3,<4.1.0"
