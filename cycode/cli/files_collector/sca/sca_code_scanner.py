@@ -103,8 +103,8 @@ def try_restore_dependencies(
             logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
             restore_dependencies_document.content = ''
         else:
-            is_monitor_action = context.obj.get('monitor')
-            project_path = context.params.get('path')
+            is_monitor_action = context.obj['monitor']
+            project_path = context.params['paths'][0]
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
             logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
 
