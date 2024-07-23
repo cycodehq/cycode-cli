@@ -1,10 +1,40 @@
-from typing import ClassVar, Dict, Optional
+import os
+import platform
+import ssl
+from typing import Callable, ClassVar, Dict, Optional
 
-from requests import Response, exceptions, request
+import requests
+from requests import Response, exceptions
+from requests.adapters import HTTPAdapter
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
 from cycode.cyclient import config, logger
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
+
+
+class SystemStorageSslContext(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs) -> None:
+        default_context = ssl.create_default_context()
+        default_context.load_default_certs()
+        kwargs['ssl_context'] = default_context
+        return super().init_poolmanager(*args, **kwargs)
+
+    def cert_verify(self, *args, **kwargs) -> None:
+        super().cert_verify(*args, **kwargs)
+        conn = kwargs['conn'] if 'conn' in kwargs else args[0]
+        conn.ca_certs = None
+
+
+def _get_request_function() -> Callable:
+    if platform.system() == 'Darwin':
+        return requests.request
+
+    if os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE'):
+        return requests.request
+
+    session = requests.Session()
+    session.mount('https://', SystemStorageSslContext())
+    return session.request
 
 
 class CycodeClientBase:
@@ -56,6 +86,7 @@ class CycodeClientBase:
 
         try:
             headers = self.get_request_headers(headers, without_auth=without_auth)
+            request = _get_request_function()
             response = request(method=method, url=url, timeout=timeout, headers=headers, **kwargs)
 
             content = 'HIDDEN' if hide_response_content_log else response.text
