@@ -26,10 +26,10 @@ class SystemStorageSslContext(HTTPAdapter):
 
 
 def _get_request_function() -> Callable:
-    if platform.system() == 'Darwin':
+    if os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE'):
         return requests.request
 
-    if os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE'):
+    if platform.system() != 'Windows':
         return requests.request
 
     session = requests.Session()
