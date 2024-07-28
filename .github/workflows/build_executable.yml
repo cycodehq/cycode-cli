@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-37600-verify-new-win-cert
 
 permissions:
   contents: write
@@ -15,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, macos-12, macos-14, windows-2019 ]
+        os: [ windows-2019 ]
         mode: [ 'onefile', 'onedir' ]
         exclude:
           - os: ubuntu-20.04
