@@ -2,7 +2,7 @@ from typing import Optional
 
 from requests import Response
 
-from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, RequestHttpError
 from cycode.cyclient import models
 from cycode.cyclient.cycode_client import CycodeClient
 
@@ -25,7 +25,7 @@ class AuthClient:
         try:
             response = self.cycode_client.post(url_path=path, body=body, hide_response_content_log=True)
             return self.parse_api_token_polling_response(response)
-        except (NetworkError, HttpUnauthorizedError) as e:
+        except (RequestHttpError, HttpUnauthorizedError) as e:
             return self.parse_api_token_polling_response(e.response)
         except Exception:
             return None

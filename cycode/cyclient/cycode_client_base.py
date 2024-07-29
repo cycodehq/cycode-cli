@@ -7,7 +7,14 @@ import requests
 from requests import Response, exceptions
 from requests.adapters import HTTPAdapter
 
-from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, NetworkError
+from cycode.cli.exceptions.custom_exceptions import (
+    HttpUnauthorizedError,
+    RequestConnectionError,
+    RequestError,
+    RequestHttpError,
+    RequestSslError,
+    RequestTimeout,
+)
 from cycode.cyclient import config, logger
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
 
@@ -110,18 +117,19 @@ class CycodeClientBase:
 
     def _handle_exception(self, e: Exception) -> None:
         if isinstance(e, exceptions.Timeout):
-            raise NetworkError(504, 'Timeout Error', e.response)
-
+            raise RequestTimeout from e
         if isinstance(e, exceptions.HTTPError):
-            self._handle_http_exception(e)
-        elif isinstance(e, exceptions.ConnectionError):
-            raise NetworkError(502, 'Connection Error', e.response)
-        else:
-            raise e
+            raise self._get_http_exception(e) from e
+        if isinstance(e, exceptions.SSLError):
+            raise RequestSslError from e
+        if isinstance(e, exceptions.ConnectionError):
+            raise RequestConnectionError from e
+
+        raise e
 
     @staticmethod
-    def _handle_http_exception(e: exceptions.HTTPError) -> None:
+    def _get_http_exception(e: exceptions.HTTPError) -> RequestError:
         if e.response.status_code == 401:
-            raise HttpUnauthorizedError(e.response.text, e.response)
+            return HttpUnauthorizedError(e.response.text, e.response)
 
-        raise NetworkError(e.response.status_code, e.response.text, e.response)
+        return RequestHttpError(e.response.status_code, e.response.text, e.response)

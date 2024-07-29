@@ -9,7 +9,12 @@ from requests import Timeout
 from requests.exceptions import ProxyError
 
 from cycode.cli.config import config
-from cycode.cli.exceptions.custom_exceptions import CycodeError, HttpUnauthorizedError
+from cycode.cli.exceptions.custom_exceptions import (
+    CycodeError,
+    HttpUnauthorizedError,
+    RequestConnectionError,
+    RequestTimeout,
+)
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import Document
@@ -138,11 +143,8 @@ def test_zipped_file_scan_timeout_error(
     responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=scan_url, body=timeout_error, status=504)
 
-    with pytest.raises(CycodeError) as e_info:
+    with pytest.raises(RequestTimeout):
         scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
-
-    assert e_info.value.status_code == 504
-    assert e_info.value.error_message == 'Timeout Error'
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
@@ -156,8 +158,5 @@ def test_zipped_file_scan_connection_error(
     responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=url, body=ProxyError())
 
-    with pytest.raises(CycodeError) as e_info:
+    with pytest.raises(RequestConnectionError):
         scan_client.zipped_file_scan(scan_type, zip_file, scan_id=expected_scan_id, scan_parameters={})
-
-    assert e_info.value.status_code == 502
-    assert e_info.value.error_message == 'Connection Error'
