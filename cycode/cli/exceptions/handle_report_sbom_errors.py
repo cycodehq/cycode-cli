@@ -3,6 +3,7 @@ from typing import Optional
 import click
 
 from cycode.cli.exceptions import custom_exceptions
+from cycode.cli.exceptions.custom_exceptions import KNOWN_USER_FRIENDLY_REQUEST_ERRORS
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.sentry import capture_exception
@@ -12,11 +13,7 @@ def handle_report_exception(context: click.Context, err: Exception) -> Optional[
     ConsolePrinter(context).print_exception()
 
     errors: CliErrors = {
-        custom_exceptions.NetworkError: CliError(
-            code='cycode_error',
-            message='Cycode was unable to complete this report. '
-            'Please try again by executing the `cycode report` command',
-        ),
+        **KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
         custom_exceptions.ScanAsyncError: CliError(
             code='report_error',
             message='Cycode was unable to complete this report. '
@@ -26,11 +23,6 @@ def handle_report_exception(context: click.Context, err: Exception) -> Optional[
             code='report_error',
             message='Cycode was unable to complete this report. '
             'Please try again by executing the `cycode report` command',
-        ),
-        custom_exceptions.HttpUnauthorizedError: CliError(
-            code='auth_error',
-            message='Unable to authenticate to Cycode, your token is either invalid or has expired. '
-            'Please re-generate your token and reconfigure it by running the `cycode configure` command',
         ),
     }
 

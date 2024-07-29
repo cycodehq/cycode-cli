@@ -3,6 +3,7 @@ from typing import Optional
 import click
 
 from cycode.cli.exceptions import custom_exceptions
+from cycode.cli.exceptions.custom_exceptions import KNOWN_USER_FRIENDLY_REQUEST_ERRORS
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.sentry import capture_exception
@@ -17,23 +18,12 @@ def handle_scan_exception(
     ConsolePrinter(context).print_exception(e)
 
     errors: CliErrors = {
-        custom_exceptions.NetworkError: CliError(
-            soft_fail=True,
-            code='cycode_error',
-            message='Cycode was unable to complete this scan. '
-            'Please try again by executing the `cycode scan` command',
-        ),
+        **KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
         custom_exceptions.ScanAsyncError: CliError(
             soft_fail=True,
             code='scan_error',
             message='Cycode was unable to complete this scan. '
             'Please try again by executing the `cycode scan` command',
-        ),
-        custom_exceptions.HttpUnauthorizedError: CliError(
-            soft_fail=True,
-            code='auth_error',
-            message='Unable to authenticate to Cycode, your token is either invalid or has expired. '
-            'Please re-generate your token and reconfigure it by running the `cycode configure` command',
         ),
         custom_exceptions.ZipTooLargeError: CliError(
             soft_fail=True,

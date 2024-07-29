@@ -21,7 +21,7 @@ def ctx() -> click.Context:
 @pytest.mark.parametrize(
     'exception, expected_soft_fail',
     [
-        (custom_exceptions.NetworkError(400, 'msg', Response()), True),
+        (custom_exceptions.RequestHttpError(400, 'msg', Response()), True),
         (custom_exceptions.ScanAsyncError('msg'), True),
         (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
         (custom_exceptions.ZipTooLargeError(1000), True),

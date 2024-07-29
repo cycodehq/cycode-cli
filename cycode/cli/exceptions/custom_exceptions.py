@@ -1,11 +1,29 @@
 from requests import Response
 
+from cycode.cli.models import CliError, CliErrors
+
 
 class CycodeError(Exception):
     """Base class for all custom exceptions"""
 
 
-class NetworkError(CycodeError):
+class RequestError(CycodeError):
+    ...
+
+
+class RequestTimeout(RequestError):
+    ...
+
+
+class RequestConnectionError(RequestError):
+    ...
+
+
+class RequestSslError(RequestConnectionError):
+    ...
+
+
+class RequestHttpError(RequestError):
     def __init__(self, status_code: int, error_message: str, response: Response) -> None:
         self.status_code = status_code
         self.error_message = error_message
@@ -32,7 +50,7 @@ class ReportAsyncError(CycodeError):
     pass
 
 
-class HttpUnauthorizedError(CycodeError):
+class HttpUnauthorizedError(RequestError):
     def __init__(self, error_message: str, response: Response) -> None:
         self.status_code = 401
         self.error_message = error_message
@@ -68,3 +86,30 @@ class TfplanKeyError(CycodeError):
 
     def __str__(self) -> str:
         return f'Error occurred while parsing terraform plan file. Path: {self.file_path}'
+
+
+KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
+    RequestHttpError: CliError(
+        soft_fail=True,
+        code='cycode_error',
+        message='Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
+    ),
+    RequestTimeout: CliError(
+        soft_fail=True,
+        code='timeout_error',
+        message='The request timed out. Please try again by executing the `cycode scan` command',
+    ),
+    HttpUnauthorizedError: CliError(
+        soft_fail=True,
+        code='auth_error',
+        message='Unable to authenticate to Cycode, your token is either invalid or has expired. '
+        'Please re-generate your token and reconfigure it by running the `cycode configure` command',
+    ),
+    RequestSslError: CliError(
+        soft_fail=True,
+        code='ssl_error',
+        message='An SSL error occurred when trying to connect to the Cycode API. '
+        'If you use an on-premises installation or a proxy that intercepts SSL traffic '
+        'you should use the CURL_CA_BUNDLE environment variable to specify path to a valid .pem or similar.',
+    ),
+}

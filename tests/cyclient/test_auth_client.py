@@ -4,7 +4,7 @@ import responses
 from requests import Timeout
 
 from cycode.cli.commands.auth.auth_manager import AuthManager
-from cycode.cli.exceptions.custom_exceptions import CycodeError
+from cycode.cli.exceptions.custom_exceptions import CycodeError, RequestTimeout
 from cycode.cyclient.auth_client import AuthClient
 from cycode.cyclient.models import (
     ApiTokenGenerationPollingResponse,
@@ -73,10 +73,8 @@ def test_start_session_timeout(client: AuthClient, start_url: str, code_challeng
 
     responses.add(responses.POST, start_url, body=timeout_error)
 
-    with pytest.raises(CycodeError) as e_info:
+    with pytest.raises(RequestTimeout):
         client.start_session(code_challenge)
-
-    assert e_info.value.status_code == 504
 
 
 @responses.activate

@@ -1,7 +1,12 @@
 import click
 
 from cycode.cli.commands.auth.auth_manager import AuthManager
-from cycode.cli.exceptions.custom_exceptions import AuthProcessError, HttpUnauthorizedError, NetworkError
+from cycode.cli.exceptions.custom_exceptions import (
+    KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
+    AuthProcessError,
+    HttpUnauthorizedError,
+    RequestHttpError,
+)
 from cycode.cli.models import CliError, CliErrors, CliResult
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.sentry import add_breadcrumb, capture_exception
@@ -68,7 +73,7 @@ def authorization_check(context: click.Context) -> None:
         )
 
         return
-    except (NetworkError, HttpUnauthorizedError):
+    except (RequestHttpError, HttpUnauthorizedError):
         ConsolePrinter(context).print_exception()
 
         printer.print_result(failed_auth_check_res)
@@ -79,11 +84,9 @@ def _handle_exception(context: click.Context, e: Exception) -> None:
     ConsolePrinter(context).print_exception()
 
     errors: CliErrors = {
+        **KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
         AuthProcessError: CliError(
             code='auth_error', message='Authentication failed. Please try again later using the command `cycode auth`'
-        ),
-        NetworkError: CliError(
-            code='cycode_error', message='Authentication failed. Please try again later using the command `cycode auth`'
         ),
     }
 
