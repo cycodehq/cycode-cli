@@ -92,12 +92,12 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
     RequestHttpError: CliError(
         soft_fail=True,
         code='cycode_error',
-        message='Cycode was unable to complete this scan. ' 'Please try again by executing the `cycode scan` command',
+        message='Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
     ),
     RequestTimeout: CliError(
         soft_fail=True,
         code='timeout_error',
-        message='The request timed out. ' 'Please try again by executing the `cycode scan` command',
+        message='The request timed out. Please try again by executing the `cycode scan` command',
     ),
     HttpUnauthorizedError: CliError(
         soft_fail=True,
