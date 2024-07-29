@@ -110,6 +110,6 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
         code='ssl_error',
         message='An SSL error occurred when trying to connect to the Cycode API. '
         'If you use an on-premises installation or a proxy that intercepts SSL traffic '
-        'you should use the CURL_CA_BUNDLE environment variable to specify path to a valid .pem-like file',
+        'you should use the CURL_CA_BUNDLE environment variable to specify path to a valid .pem or similar.',
     ),
 }
