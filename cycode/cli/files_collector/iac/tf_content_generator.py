@@ -1,5 +1,6 @@
 import json
 import time
+import uuid
 from typing import List
 
 from cycode.cli import consts
@@ -43,7 +44,7 @@ def _generate_tf_content(resource_changes: List[ResourceChange]) -> str:
 
 
 def _generate_resource_content(resource_change: ResourceChange) -> str:
-    resource_content = f'resource "{resource_change.resource_type}" "{resource_change.name}" {{\n'
+    resource_content = f'resource "{resource_change.resource_type}" "{resource_change.name}-{uuid.uuid4()}" {{\n'
     if resource_change.values is not None:
         for key, value in resource_change.values.items():
             resource_content += f'  {key} = {json.dumps(value)}\n'
