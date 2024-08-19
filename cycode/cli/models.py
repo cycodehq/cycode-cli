@@ -76,10 +76,10 @@ class LocalScanResult(NamedTuple):
 
 @dataclass
 class ResourceChange:
-    module_address: str
+    module_address: Optional[str]
     resource_type: str
     name: str
-    index: int
+    index: Optional[int]
     actions: List[str]
     values: Dict[str, str]
 
