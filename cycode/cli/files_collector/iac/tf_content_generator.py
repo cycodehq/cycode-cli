@@ -1,6 +1,5 @@
 import json
 import time
-import uuid
 from typing import List
 
 from cycode.cli import consts
@@ -44,12 +43,23 @@ def _generate_tf_content(resource_changes: List[ResourceChange]) -> str:
 
 
 def _generate_resource_content(resource_change: ResourceChange) -> str:
-    resource_content = f'resource "{resource_change.resource_type}" "{resource_change.name}-{uuid.uuid4()}" {{\n'
+    resource_content = f'resource "{resource_change.resource_type}" "{_get_resource_name(resource_change)}" {{\n'
     if resource_change.values is not None:
         for key, value in resource_change.values.items():
             resource_content += f'  {key} = {json.dumps(value)}\n'
     resource_content += '}\n\n'
     return resource_content
+
+
+def _get_resource_name(resource_change: ResourceChange) -> str:
+    parts = [resource_change.module_address, resource_change.name]
+
+    if resource_change.index is not None:
+        parts.append(str(resource_change.index))
+
+    valid_parts = [part for part in parts if part]
+
+    return '-'.join(valid_parts).replace('.', '-')
 
 
 def _extract_resources(tfplan: str, filename: str) -> List[ResourceChange]:
@@ -60,8 +70,10 @@ def _extract_resources(tfplan: str, filename: str) -> List[ResourceChange]:
         for resource_change in resource_changes:
             resources.append(
                 ResourceChange(
+                    module_address=resource_change.get('module_address'),
                     resource_type=resource_change['type'],
                     name=resource_change['name'],
+                    index=resource_change.get('index'),
                     actions=resource_change['change']['actions'],
                     values=resource_change['change']['after'],
                 )
