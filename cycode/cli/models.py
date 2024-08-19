@@ -7,7 +7,7 @@ from cycode.cyclient.models import Detection
 
 class Document:
     def __init__(
-            self, path: str, content: str, is_git_diff_format: bool = False, unique_id: Optional[str] = None
+        self, path: str, content: str, is_git_diff_format: bool = False, unique_id: Optional[str] = None
     ) -> None:
         self.path = path
         self.content = content
