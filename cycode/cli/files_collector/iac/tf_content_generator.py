@@ -57,9 +57,7 @@ def _get_resource_name(resource_change: ResourceChange) -> str:
     if resource_change.index is not None:
         parts.append(str(resource_change.index))
 
-    resource_name = "-".join(filter(None, parts)).replace(".", "-")
-
-    return resource_name
+    return '-'.join(filter(None, parts)).replace('.', '-')
 
 
 def _extract_resources(tfplan: str, filename: str) -> List[ResourceChange]:
