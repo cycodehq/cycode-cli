@@ -59,7 +59,7 @@ def _get_resource_name(resource_change: ResourceChange) -> str:
 
     valid_parts = [part for part in parts if part]
 
-    return '-'.join(valid_parts).replace('.', '-')
+    return '.'.join(valid_parts)
 
 
 def _extract_resources(tfplan: str, filename: str) -> List[ResourceChange]:

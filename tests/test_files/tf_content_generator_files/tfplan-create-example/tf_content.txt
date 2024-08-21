@@ -79,7 +79,7 @@ resource "aws_sfn_state_machine" "terra_ci_runner" {
   type = "STANDARD"
 }
 
-resource "aws_route" "private-1" {
+resource "aws_route" "private.1" {
   carrier_gateway_id = null
   destination_cidr_block = "172.25.16.0/20"
   destination_ipv6_cidr_block = null
@@ -95,7 +95,7 @@ resource "aws_route" "private-1" {
   vpc_peering_connection_id = null
 }
 
-resource "aws_route" "private-rtb-00cf8381520103cfb" {
+resource "aws_route" "private.rtb-00cf8381520103cfb" {
   carrier_gateway_id = null
   destination_cidr_block = "172.25.16.0/20"
   destination_ipv6_cidr_block = null
