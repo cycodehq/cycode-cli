@@ -126,13 +126,16 @@ class ScanClient:
         scan_type: str,
         scan_parameters: dict,
         is_git_diff: bool = False,
-        is_commit_range: bool = False
+        is_commit_range: bool = False,
     ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
         response = self.scan_cycode_client.post(
             url_path=self.get_zipped_file_scan_async_url_path(scan_type),
-            data={'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters),
-                  'is_commit_range': is_commit_range},
+            data={
+                'is_git_diff': is_git_diff,
+                'scan_parameters': json.dumps(scan_parameters),
+                'is_commit_range': is_commit_range,
+            },
             files=files,
         )
         return models.ScanInitializationResponseSchema().load(response.json())

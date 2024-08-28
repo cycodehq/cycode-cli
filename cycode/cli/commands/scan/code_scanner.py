@@ -503,7 +503,8 @@ def perform_scan_async(
     is_commit_range: bool,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(
-        zipped_documents, scan_type, scan_parameters, is_commit_range=is_commit_range)
+        zipped_documents, scan_type, scan_parameters, is_commit_range=is_commit_range
+    )
     logger.debug('Async scan request has been triggered successfully, %s', {'scan_id': scan_async_result.scan_id})
 
     return poll_scan_results(
