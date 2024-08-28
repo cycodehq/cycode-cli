@@ -293,7 +293,7 @@ def scan_documents(
     documents_to_scan: List[Document],
     is_git_diff: bool = False,
     is_commit_range: bool = False,
-    scan_parameters: Optional[dict] = None
+    scan_parameters: Optional[dict] = None,
 ) -> None:
     if not scan_parameters:
         scan_parameters = get_default_scan_parameters(context)
@@ -357,7 +357,7 @@ def scan_commit_range_documents(
     from_documents_to_scan: List[Document],
     to_documents_to_scan: List[Document],
     scan_parameters: Optional[dict] = None,
-    timeout: Optional[int] = None
+    timeout: Optional[int] = None,
 ) -> None:
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
@@ -481,7 +481,7 @@ def perform_scan(
     is_commit_range: bool,
     scan_parameters: dict,
     should_use_scan_service: bool = False,
-    should_use_sync_flow: bool = False
+    should_use_sync_flow: bool = False,
 ) -> ZippedFileScanResult:
     if should_use_sync_flow:
         return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters)
