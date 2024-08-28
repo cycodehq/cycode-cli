@@ -909,21 +909,25 @@ def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
     for detection in detections:
         try:
             detection['message'] = detection['correlation_message']
+
             file_name = _get_file_name_from_detection(detection)
+            commit_id = detection.get('detection_details', {}).get('commit_id')
+            group_key = (file_name, commit_id)
+
             if file_name is None:
                 logger.debug('File name is missing from detection with ID %s', detection.get('id'))
                 continue
-            if detections_per_files.get(file_name) is None:
-                detections_per_files[file_name] = [DetectionSchema().load(detection)]
+            if detections_per_files.get(group_key) is None:
+                detections_per_files[group_key] = [DetectionSchema().load(detection)]
             else:
-                detections_per_files[file_name].append(DetectionSchema().load(detection))
+                detections_per_files[group_key].append(DetectionSchema().load(detection))
         except Exception as e:
             logger.debug('Failed to parse detection', exc_info=e)
             continue
 
     return [
-        DetectionsPerFile(file_name=file_name, detections=file_detections)
-        for file_name, file_detections in detections_per_files.items()
+        DetectionsPerFile(file_name=file_name, detections=file_detections, commit_id=commit_id)
+        for (file_name, commit_id), file_detections in detections_per_files.items()
     ]
 
 
