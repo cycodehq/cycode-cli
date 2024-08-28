@@ -446,11 +446,11 @@ def should_scan_documents(from_documents_to_scan: List[Document], to_documents_t
 
 
 def create_local_scan_result(
-        scan_result: ZippedFileScanResult,
-        documents_to_scan: List[Document],
-        command_scan_type: str,
-        scan_type: str,
-        severity_threshold: str,
+    scan_result: ZippedFileScanResult,
+    documents_to_scan: List[Document],
+    command_scan_type: str,
+    scan_type: str,
+    severity_threshold: str,
 ) -> LocalScanResult:
     document_detections = get_document_detections(scan_result, documents_to_scan)
     relevant_document_detections_list = exclude_irrelevant_document_detections(
@@ -592,15 +592,14 @@ def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> No
 
 
 def print_results(
-    context: click.Context, local_scan_results: List[LocalScanResult],
-    errors: Optional[Dict[str, 'CliError']] = None
+    context: click.Context, local_scan_results: List[LocalScanResult], errors: Optional[Dict[str, 'CliError']] = None
 ) -> None:
     printer = ConsolePrinter(context)
     printer.print_scan_results(local_scan_results, errors)
 
 
 def get_document_detections(
-        scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
+    scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
 ) -> List[DocumentDetections]:
     logger.debug('Getting document detections')
 
@@ -620,8 +619,7 @@ def get_document_detections(
 
 
 def exclude_irrelevant_document_detections(
-    document_detections_list: List[DocumentDetections], scan_type: str, command_scan_type: str,
-    severity_threshold: str
+    document_detections_list: List[DocumentDetections], scan_type: str, command_scan_type: str, severity_threshold: str
 ) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
