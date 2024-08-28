@@ -487,7 +487,7 @@ def perform_scan(
         return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters)
 
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
-        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters)
+        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
 
     if is_commit_range:
         return cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id)
@@ -500,8 +500,11 @@ def perform_scan_async(
     zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
+    is_commit_range: bool,
 ) -> ZippedFileScanResult:
-    scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters)
+    scan_async_result = cycode_client.zipped_file_scan_async(
+        zipped_documents, scan_type, scan_parameters, is_commit_range=is_commit_range
+    )
     logger.debug('Async scan request has been triggered successfully, %s', {'scan_id': scan_async_result.scan_id})
 
     return poll_scan_results(
