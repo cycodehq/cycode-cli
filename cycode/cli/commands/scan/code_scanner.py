@@ -500,7 +500,7 @@ def perform_scan_async(
     zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
-    is_commit_range: bool
+    is_commit_range: bool,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(zipped_documents, scan_type, scan_parameters,
                                                              is_commit_range=is_commit_range)
