@@ -225,12 +225,12 @@ class ScanClient:
     def get_scan_detections_list_path(self, scan_type: str) -> str:
         return f'{self.get_scan_detections_path(scan_type)}{self.get_scan_detections_list_path_suffix(scan_type)}'
 
-    def get_scan_detections(self, scan_type: str, scan_id: str) -> List[dict]:
+    def get_scan_raw_detections(self, scan_type: str, scan_id: str) -> List[dict]:
         params = {'scan_id': scan_id}
 
         page_size = 200
 
-        detections = []
+        raw_detections = []
 
         page_number = 0
         last_response_size = 0
@@ -243,12 +243,12 @@ class ScanClient:
                 params=params,
                 hide_response_content_log=self._hide_response_log,
             ).json()
-            detections.extend(response)
+            raw_detections.extend(response)
 
             page_number += 1
             last_response_size = len(response)
 
-        return detections
+        return raw_detections
 
     def commit_range_zipped_file_scan(
         self, scan_type: str, zip_file: InMemoryZip, scan_id: str
