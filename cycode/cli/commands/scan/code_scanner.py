@@ -525,7 +525,7 @@ def perform_scan_sync(
     logger.debug('Sync scan request has been triggered successfully, %s', {'scan_id': scan_results.id})
     return ZippedFileScanResult(
         did_detect=True,
-        detections_per_file=_map_detections_per_file(scan_results.detection_messages),
+        detections_per_file=_map_detections_per_file_and_commit_id(scan_results.detection_messages),
         scan_id=scan_results.id,
     )
 
@@ -870,11 +870,11 @@ def _get_scan_result(
     if not scan_details.detections_count:
         return init_default_scan_result(cycode_client, scan_id, scan_type, should_get_report)
 
-    scan_detections = cycode_client.get_scan_detections(scan_type, scan_id)
+    scan_raw_detections = cycode_client.get_scan_raw_detections(scan_type, scan_id)
 
     return ZippedFileScanResult(
         did_detect=True,
-        detections_per_file=_map_detections_per_file(scan_detections),
+        detections_per_file=_map_detections_per_file_and_commit_id(scan_raw_detections),
         scan_id=scan_id,
         report_url=_try_get_report_url_if_needed(cycode_client, should_get_report, scan_id, scan_type),
     )
@@ -904,42 +904,58 @@ def _try_get_report_url_if_needed(
         logger.debug('Failed to get report URL', exc_info=e)
 
 
-def _map_detections_per_file(detections: List[dict]) -> List[DetectionsPerFile]:
+def _map_detections_per_file_and_commit_id(raw_detections: List[dict]) -> List[DetectionsPerFile]:
+    """Converts list of detections (async flow) to list of DetectionsPerFile objects (sync flow).
+
+    Args:
+        raw_detections: List of detections as is returned from the server.
+
+    Note:
+        This method fakes server response structure
+        to be able to use the same logic for both async and sync scans.
+
+    Note:
+        Aggregation is performed by file name and commit ID (if available)
+    """
     detections_per_files = {}
-    for detection in detections:
+    for raw_detection in raw_detections:
         try:
-            detection['message'] = detection['correlation_message']
-            file_name = _get_file_name_from_detection(detection)
-            if file_name is None:
-                logger.debug('File name is missing from detection with ID %s', detection.get('id'))
-                continue
-            if detections_per_files.get(file_name) is None:
-                detections_per_files[file_name] = [DetectionSchema().load(detection)]
+            # FIXME(MarshalX): investigate this field mapping
+            raw_detection['message'] = raw_detection['correlation_message']
+
+            file_name = _get_file_name_from_detection(raw_detection)
+            detection: Detection = DetectionSchema().load(raw_detection)
+            commit_id: Optional[str] = detection.detection_details.get('commit_id')  # could be None
+            group_by_key = (file_name, commit_id)
+
+            if group_by_key in detections_per_files:
+                detections_per_files[group_by_key].append(detection)
             else:
-                detections_per_files[file_name].append(DetectionSchema().load(detection))
+                detections_per_files[group_by_key] = [detection]
         except Exception as e:
             logger.debug('Failed to parse detection', exc_info=e)
             continue
 
     return [
-        DetectionsPerFile(file_name=file_name, detections=file_detections)
-        for file_name, file_detections in detections_per_files.items()
+        DetectionsPerFile(file_name=file_name, detections=file_detections, commit_id=commit_id)
+        for (file_name, commit_id), file_detections in detections_per_files.items()
     ]
 
 
-def _get_file_name_from_detection(detection: dict) -> str:
-    if detection.get('category') == 'SAST':
-        return detection['detection_details']['file_path']
+def _get_file_name_from_detection(raw_detection: dict) -> str:
+    category = raw_detection.get('category')
 
-    if detection.get('category') == 'SecretDetection':
-        return _get_secret_file_name_from_detection(detection)
+    if category == 'SAST':
+        return raw_detection['detection_details']['file_path']
+    if category == 'SecretDetection':
+        return _get_secret_file_name_from_detection(raw_detection)
 
-    return detection['detection_details']['file_name']
+    return raw_detection['detection_details']['file_name']
 
 
-def _get_secret_file_name_from_detection(detection: dict) -> str:
-    file_path: str = detection['detection_details']['file_path']
-    file_name: str = detection['detection_details']['file_name']
+def _get_secret_file_name_from_detection(raw_detection: dict) -> str:
+    file_path: str = raw_detection['detection_details']['file_path']
+    file_name: str = raw_detection['detection_details']['file_name']
     return os.path.join(file_path, file_name)
 
 
