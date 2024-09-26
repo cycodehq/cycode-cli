@@ -3,9 +3,7 @@ name: Build and Publish Docker Image. On dispatch event build the latest tag and
 on:
   workflow_dispatch:
   push:
-    branches:
-      - CM-40289-update-docker-image
-#    tags: [ 'v*.*.*' ]
+    tags: [ 'v*.*.*' ]
 
 jobs:
   docker:
@@ -46,5 +44,5 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: false # TEMP FOR TESTS
+          push: true
           tags: cycodehq/cycode_cli:${{ steps.latest_tag.outputs.LATEST_TAG }},cycodehq/cycode_cli:latest
