@@ -31,7 +31,7 @@ class ScanClient:
         self._hide_response_log = hide_response_log
 
     def get_scan_controller_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if not should_use_scan_service and scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
             return self._SCAN_SERVICE_CONTROLLER_PATH
         if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE:
@@ -106,14 +106,31 @@ class ScanClient:
         )
         return f'{scan_service_url_path}/{async_scan_type}/{async_entity_type}'
 
+    def get_zipped_file_scan_sync_url_path(self, scan_type: str) -> str:
+        server_scan_type = self.scan_config.get_async_scan_type(scan_type)
+        scan_service_url_path = self.get_scan_service_url_path(
+            scan_type, should_use_scan_service=True, should_use_sync_flow=True
+        )
+        return f'{scan_service_url_path}/{server_scan_type}/repository'
+
     def zipped_file_scan_sync(
-        self, zip_file: InMemoryZip, scan_type: str, scan_parameters: dict
+        self,
+        zip_file: InMemoryZip,
+        scan_type: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
     ) -> models.ScanResultsSyncFlow:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
-        del scan_parameters['report']  # BE raises validation error instead of ignoring it
+
+        if 'report' in scan_parameters:
+            del scan_parameters['report']  # BE raises validation error instead of ignoring it
+
         response = self.scan_cycode_client.post(
-            url_path=self.get_zipped_file_scan_async_url_path(scan_type, should_use_sync_flow=True),
-            data={'scan_parameters': json.dumps(scan_parameters)},
+            url_path=self.get_zipped_file_scan_sync_url_path(scan_type),
+            data={
+                'is_git_diff': is_git_diff,
+                'scan_parameters': json.dumps(scan_parameters),
+            },
             files=files,
             hide_response_content_log=self._hide_response_log,
             timeout=60,
