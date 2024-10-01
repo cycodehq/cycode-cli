@@ -491,7 +491,7 @@ def perform_scan(
     should_use_sync_flow: bool = False,
 ) -> ZippedFileScanResult:
     if should_use_sync_flow:
-        # it does not commit range scans; should_use_sync_flow handles it
+        # it does not support commit range scans; should_use_sync_flow handles it
         return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
@@ -952,11 +952,9 @@ def _map_detections_per_file_and_commit_id(scan_type: str, raw_detections: List[
 
 
 def _get_file_name_from_detection(scan_type: str, raw_detection: dict) -> str:
-    scan_type = scan_type.lower()
-
-    if scan_type == 'sast':
+    if scan_type == consts.SAST_SCAN_TYPE:
         return raw_detection['detection_details']['file_path']
-    if scan_type == 'secret':
+    if scan_type == consts.SECRET_SCAN_TYPE:
         return _get_secret_file_name_from_detection(raw_detection)
 
     return raw_detection['detection_details']['file_name']
