@@ -100,9 +100,14 @@ def _should_use_scan_service(scan_type: str, scan_parameters: dict) -> bool:
     return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters.get('report') is True
 
 
-def _should_use_sync_flow(scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None) -> bool:
+def _should_use_sync_flow(
+    command_scan_type: str, scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None
+) -> bool:
     if not sync_option:
         return False
+
+    if command_scan_type not in {'path', 'repository'}:
+        raise ValueError(f'Sync flow is not available for "{command_scan_type}" command type. Remove --sync option.')
 
     if scan_type is consts.SAST_SCAN_TYPE:
         raise ValueError('Sync scan is not available for SAST scan type.')
@@ -163,7 +168,7 @@ def _get_scan_documents_thread_func(
         scan_completed = False
 
         should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
-        should_use_sync_flow = _should_use_sync_flow(scan_type, sync_option, scan_parameters)
+        should_use_sync_flow = _should_use_sync_flow(command_scan_type, scan_type, sync_option, scan_parameters)
 
         try:
             logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
@@ -485,7 +490,8 @@ def perform_scan(
     should_use_scan_service: bool = False,
     should_use_sync_flow: bool = False,
 ) -> ZippedFileScanResult:
-    if not is_commit_range and should_use_sync_flow:
+    if should_use_sync_flow:
+        # it does not commit range scans; should_use_sync_flow handles it
         return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
