@@ -8,6 +8,12 @@ from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.user_settings.jwt_creator import JwtCreator
 from cycode.cyclient.cycode_client import CycodeClient
 
+_NGINX_PLAIN_ERRORS = [
+    b'Invalid JWT Token',
+    b'JWT Token Needed',
+    b'JWT Token validation failed',
+]
+
 
 class CycodeTokenBasedClient(CycodeClient):
     """Send requests with JWT."""
@@ -82,7 +88,8 @@ class CycodeTokenBasedClient(CycodeClient):
         response = super()._execute(*args, **kwargs)
 
         # backend returns 200 and plain text. no way to catch it with .raise_for_status()
-        if response.status_code == 200 and response.content in {b'Invalid JWT Token\n\n', b'JWT Token Needed\n\n'}:
+        nginx_error_response = any(response.content.startswith(plain_error) for plain_error in _NGINX_PLAIN_ERRORS)
+        if response.status_code == 200 and nginx_error_response:
             # if cached token is invalid, try to refresh it and retry the request
             self.refresh_access_token()
             response = super()._execute(*args, **kwargs)

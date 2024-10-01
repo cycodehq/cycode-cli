@@ -53,11 +53,10 @@ def repository_command(context: click.Context, path: str, branch: str) -> None:
 
         documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
 
-        perform_pre_scan_documents_actions(context, scan_type, documents_to_scan, is_git_diff=False)
+        perform_pre_scan_documents_actions(context, scan_type, documents_to_scan)
 
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        scan_documents(
-            context, documents_to_scan, is_git_diff=False, scan_parameters=get_scan_parameters(context, (path,))
-        )
+        scan_parameters = get_scan_parameters(context, (path,))
+        scan_documents(context, documents_to_scan, scan_parameters=scan_parameters)
     except Exception as e:
         handle_scan_exception(context, e)

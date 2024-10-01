@@ -100,12 +100,17 @@ def _should_use_scan_service(scan_type: str, scan_parameters: dict) -> bool:
     return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters.get('report') is True
 
 
-def _should_use_sync_flow(scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None) -> bool:
+def _should_use_sync_flow(
+    command_scan_type: str, scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None
+) -> bool:
     if not sync_option:
         return False
 
-    if scan_type not in (consts.SCA_SCAN_TYPE,):
-        raise ValueError(f'Sync scan is not available for {scan_type} scan type.')
+    if command_scan_type not in {'path', 'repository'}:
+        raise ValueError(f'Sync flow is not available for "{command_scan_type}" command type. Remove --sync option.')
+
+    if scan_type is consts.SAST_SCAN_TYPE:
+        raise ValueError('Sync scan is not available for SAST scan type.')
 
     if scan_parameters.get('report') is True:
         raise ValueError('You can not use sync flow with report option. Either remove "report" or "sync" option.')
@@ -163,7 +168,7 @@ def _get_scan_documents_thread_func(
         scan_completed = False
 
         should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
-        should_use_sync_flow = _should_use_sync_flow(scan_type, sync_option, scan_parameters)
+        should_use_sync_flow = _should_use_sync_flow(command_scan_type, scan_type, sync_option, scan_parameters)
 
         try:
             logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
@@ -217,7 +222,7 @@ def _get_scan_documents_thread_func(
             zip_file_size,
             command_scan_type,
             error_message,
-            should_use_scan_service,
+            should_use_scan_service or should_use_sync_flow,  # sync flow implies scan service
         )
 
         return scan_id, error, local_scan_result
@@ -359,6 +364,8 @@ def scan_commit_range_documents(
     scan_parameters: Optional[dict] = None,
     timeout: Optional[int] = None,
 ) -> None:
+    """Used by SCA only"""
+
     cycode_client = context.obj['client']
     scan_type = context.obj['scan_type']
     severity_threshold = context.obj['severity_threshold']
@@ -484,7 +491,8 @@ def perform_scan(
     should_use_sync_flow: bool = False,
 ) -> ZippedFileScanResult:
     if should_use_sync_flow:
-        return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters)
+        # it does not support commit range scans; should_use_sync_flow handles it
+        return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
     if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
         return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
@@ -520,12 +528,13 @@ def perform_scan_sync(
     zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
+    is_git_diff: bool = False,
 ) -> ZippedFileScanResult:
-    scan_results = cycode_client.zipped_file_scan_sync(zipped_documents, scan_type, scan_parameters)
+    scan_results = cycode_client.zipped_file_scan_sync(zipped_documents, scan_type, scan_parameters, is_git_diff)
     logger.debug('Sync scan request has been triggered successfully, %s', {'scan_id': scan_results.id})
     return ZippedFileScanResult(
         did_detect=True,
-        detections_per_file=_map_detections_per_file_and_commit_id(scan_results.detection_messages),
+        detections_per_file=_map_detections_per_file_and_commit_id(scan_type, scan_results.detection_messages),
         scan_id=scan_results.id,
     )
 
@@ -610,7 +619,7 @@ def get_document_detections(
         commit_id = detections_per_file.commit_id
 
         logger.debug(
-            'Going to find the document of the violated file., %s', {'file_name': file_name, 'commit_id': commit_id}
+            'Going to find the document of the violated file, %s', {'file_name': file_name, 'commit_id': commit_id}
         )
 
         document = _get_document_by_file_name(documents_to_scan, file_name, commit_id)
@@ -874,7 +883,7 @@ def _get_scan_result(
 
     return ZippedFileScanResult(
         did_detect=True,
-        detections_per_file=_map_detections_per_file_and_commit_id(scan_raw_detections),
+        detections_per_file=_map_detections_per_file_and_commit_id(scan_type, scan_raw_detections),
         scan_id=scan_id,
         report_url=_try_get_report_url_if_needed(cycode_client, should_get_report, scan_id, scan_type),
     )
@@ -904,7 +913,7 @@ def _try_get_report_url_if_needed(
         logger.debug('Failed to get report URL', exc_info=e)
 
 
-def _map_detections_per_file_and_commit_id(raw_detections: List[dict]) -> List[DetectionsPerFile]:
+def _map_detections_per_file_and_commit_id(scan_type: str, raw_detections: List[dict]) -> List[DetectionsPerFile]:
     """Converts list of detections (async flow) to list of DetectionsPerFile objects (sync flow).
 
     Args:
@@ -923,7 +932,7 @@ def _map_detections_per_file_and_commit_id(raw_detections: List[dict]) -> List[D
             # FIXME(MarshalX): investigate this field mapping
             raw_detection['message'] = raw_detection['correlation_message']
 
-            file_name = _get_file_name_from_detection(raw_detection)
+            file_name = _get_file_name_from_detection(scan_type, raw_detection)
             detection: Detection = DetectionSchema().load(raw_detection)
             commit_id: Optional[str] = detection.detection_details.get('commit_id')  # could be None
             group_by_key = (file_name, commit_id)
@@ -942,12 +951,10 @@ def _map_detections_per_file_and_commit_id(raw_detections: List[dict]) -> List[D
     ]
 
 
-def _get_file_name_from_detection(raw_detection: dict) -> str:
-    category = raw_detection.get('category')
-
-    if category == 'SAST':
+def _get_file_name_from_detection(scan_type: str, raw_detection: dict) -> str:
+    if scan_type == consts.SAST_SCAN_TYPE:
         return raw_detection['detection_details']['file_path']
-    if category == 'SecretDetection':
+    if scan_type == consts.SECRET_SCAN_TYPE:
         return _get_secret_file_name_from_detection(raw_detection)
 
     return raw_detection['detection_details']['file_name']
