@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import click
 
-from cycode.cli.files_collector.sca.maven.base_restore_maven_dependencies import (
-    BaseRestoreMavenDependencies,
+from cycode.cli.files_collector.sca.base_restore_dependencies import (
+    BaseRestoreDependencies,
     build_dep_tree_path,
     execute_command,
 )
@@ -16,7 +16,7 @@ MAVEN_CYCLONE_DEP_TREE_FILE_NAME = 'bom.json'
 MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
 
 
-class RestoreMavenDependencies(BaseRestoreMavenDependencies):
+class RestoreMavenDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(context, is_git_diff, command_timeout)
 

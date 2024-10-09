@@ -23,7 +23,7 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
     return dependencies
 
 
-class BaseRestoreMavenDependencies(ABC):
+class BaseRestoreDependencies(ABC):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         self.context = context
         self.is_git_diff = is_git_diff

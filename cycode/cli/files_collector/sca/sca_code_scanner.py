@@ -6,6 +6,8 @@ import click
 from cycode.cli import consts
 from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
+from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
+from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
@@ -14,13 +16,10 @@ from cycode.cyclient import logger
 if TYPE_CHECKING:
     from git import Repo
 
-    from cycode.cli.files_collector.sca.maven.base_restore_maven_dependencies import BaseRestoreMavenDependencies
+    from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 
-BUILD_GRADLE_FILE_NAME = 'build.gradle'
-BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
-BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
 BUILD_GRADLE_DEP_TREE_TIMEOUT = 180
-
+BUILD_NUGET_DEP_TREE_TIMEOUT = 180
 
 def perform_pre_commit_range_scan_actions(
     path: str,
@@ -90,7 +89,7 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 def try_restore_dependencies(
     context: click.Context,
     documents_to_add: Dict[str, Document],
-    restore_dependencies: 'BaseRestoreMavenDependencies',
+    restore_dependencies: 'BaseRestoreDependencies',
     document: Document,
 ) -> None:
     if restore_dependencies.is_project(document):
@@ -104,7 +103,7 @@ def try_restore_dependencies(
             restore_dependencies_document.content = ''
         else:
             is_monitor_action = context.obj['monitor']
-            project_path = context.params['paths'][0]
+            project_path = context.params['path'][0]
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
             logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
 
@@ -127,10 +126,11 @@ def add_dependencies_tree_document(
     documents_to_scan.extend(list(documents_to_add.values()))
 
 
-def restore_handlers(context: click.Context, is_git_diff: bool) -> List[RestoreGradleDependencies]:
+def restore_handlers(context: click.Context, is_git_diff: bool) -> List[BaseRestoreDependencies]:
     return [
         RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
         RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
+        RestoreNugetDependencies(context, is_git_diff, BUILD_NUGET_DEP_TREE_TIMEOUT),
     ]
 
 
