@@ -16,8 +16,6 @@ from cycode.cyclient import logger
 if TYPE_CHECKING:
     from git import Repo
 
-    from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
-
 BUILD_GRADLE_DEP_TREE_TIMEOUT = 180
 BUILD_NUGET_DEP_TREE_TIMEOUT = 180
 
