@@ -21,11 +21,11 @@ BUILD_NUGET_DEP_TREE_TIMEOUT = 180
 
 
 def perform_pre_commit_range_scan_actions(
-        path: str,
-        from_commit_documents: List[Document],
-        from_commit_rev: str,
-        to_commit_documents: List[Document],
-        to_commit_rev: str,
+    path: str,
+    from_commit_documents: List[Document],
+    from_commit_rev: str,
+    to_commit_documents: List[Document],
+    to_commit_rev: str,
 ) -> None:
     repo = git_proxy.get_repo(path)
     add_ecosystem_related_files_if_exists(from_commit_documents, repo, from_commit_rev)
@@ -33,7 +33,7 @@ def perform_pre_commit_range_scan_actions(
 
 
 def perform_pre_hook_range_scan_actions(
-        git_head_documents: List[Document], pre_committed_documents: List[Document]
+    git_head_documents: List[Document], pre_committed_documents: List[Document]
 ) -> None:
     repo = git_proxy.get_repo(os.getcwd())
     add_ecosystem_related_files_if_exists(git_head_documents, repo, consts.GIT_HEAD_COMMIT_REV)
@@ -41,7 +41,7 @@ def perform_pre_hook_range_scan_actions(
 
 
 def add_ecosystem_related_files_if_exists(
-        documents: List[Document], repo: Optional['Repo'] = None, commit_rev: Optional[str] = None
+    documents: List[Document], repo: Optional['Repo'] = None, commit_rev: Optional[str] = None
 ) -> None:
     documents_to_add: List[Document] = []
     for doc in documents:
@@ -56,7 +56,7 @@ def add_ecosystem_related_files_if_exists(
 
 
 def get_doc_ecosystem_related_project_files(
-        doc: Document, documents: List[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
+    doc: Document, documents: List[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
 ) -> List[Document]:
     documents_to_add: List[Document] = []
     for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
@@ -86,10 +86,10 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 
 def try_restore_dependencies(
-        context: click.Context,
-        documents_to_add: Dict[str, Document],
-        restore_dependencies: 'BaseRestoreDependencies',
-        document: Document,
+    context: click.Context,
+    documents_to_add: Dict[str, Document],
+    restore_dependencies: 'BaseRestoreDependencies',
+    document: Document,
 ) -> None:
     if restore_dependencies.is_project(document):
         restore_dependencies_document = restore_dependencies.restore(document)
@@ -115,7 +115,7 @@ def try_restore_dependencies(
 
 
 def add_dependencies_tree_document(
-        context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False
+    context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
     documents_to_add: Dict[str, Document] = {}
     restore_dependencies_list = restore_handlers(context, is_git_diff)
@@ -147,7 +147,7 @@ def get_file_content_from_commit(repo: 'Repo', commit: str, file_path: str) -> O
 
 
 def perform_pre_scan_documents_actions(
-        context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
+    context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
     if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(consts.SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
         logger.debug('Perform pre-scan document add_dependencies_tree_document action')
