@@ -103,7 +103,11 @@ def try_restore_dependencies(
             restore_dependencies_document.content = ''
         else:
             is_monitor_action = context.obj['monitor']
-            project_path = context.params['path'][0]
+
+            project_path = context.params.get('paths', [None])
+            if project_path is None:
+                project_path = context.params['path'][0]
+
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
             logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
 

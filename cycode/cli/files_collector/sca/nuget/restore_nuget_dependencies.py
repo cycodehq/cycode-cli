@@ -15,13 +15,6 @@ class RestoreNugetDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(context, is_git_diff, command_timeout)
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
-        restore_dependencies_document = super().try_restore_dependencies(document)
-        # clean_obj_folder
-        project_directory = os.path.dirname(document.path)
-        self.clean_obj_folder(project_directory)
-        return restore_dependencies_document
-
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NUGET_PROJECT_FILE_EXTENSIONS)
 
@@ -34,9 +27,4 @@ class RestoreNugetDependencies(BaseRestoreDependencies):
     def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
         return os.path.isfile(restore_file_path)
 
-    def clean_obj_folder(self, project_directory: str) -> None:
-        # Define the obj folder path
-        obj_folder_path = os.path.join(project_directory, 'obj')
-        # Remove the obj folder if it exists
-        if os.path.isdir(obj_folder_path):
-            shutil.rmtree(obj_folder_path)
+
