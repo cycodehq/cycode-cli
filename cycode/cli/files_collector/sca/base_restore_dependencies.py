@@ -4,7 +4,7 @@ from typing import List, Optional
 import click
 
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
 from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 
@@ -23,7 +23,7 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
     return dependencies
 
 
-class BaseRestoreMavenDependencies(ABC):
+class BaseRestoreDependencies(ABC):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         self.context = context
         self.is_git_diff = is_git_diff
@@ -34,7 +34,7 @@ class BaseRestoreMavenDependencies(ABC):
 
     def get_manifest_file_path(self, document: Document) -> str:
         return (
-            join_paths(self.context.params['paths'][0], document.path)
+            join_paths(get_path_from_context(self.context), document.path)
             if self.context.obj.get('monitor')
             else document.path
         )

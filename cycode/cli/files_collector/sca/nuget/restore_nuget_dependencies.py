@@ -6,23 +6,22 @@ import click
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
 
-BUILD_GRADLE_FILE_NAME = 'build.gradle'
-BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
-BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
+NUGET_PROJECT_FILE_EXTENSIONS = ['.csproj', '.vbproj']
+NUGET_LOCK_FILE_NAME = 'packages.lock.json'
 
 
-class RestoreGradleDependencies(BaseRestoreDependencies):
+class RestoreNugetDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
-        return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
+        return any(document.path.endswith(ext) for ext in NUGET_PROJECT_FILE_EXTENSIONS)
 
     def get_command(self, manifest_file_path: str) -> List[str]:
-        return ['gradle', 'dependencies', '-b', manifest_file_path, '-q', '--console', 'plain']
+        return ['dotnet', 'restore', manifest_file_path, '--use-lock-file', '--verbosity', 'quiet']
 
     def get_lock_file_name(self) -> str:
-        return BUILD_GRADLE_DEP_TREE_FILE_NAME
+        return NUGET_LOCK_FILE_NAME
 
     def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
         return os.path.isfile(restore_file_path)
