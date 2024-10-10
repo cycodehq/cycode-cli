@@ -3,6 +3,7 @@ import os
 from functools import lru_cache
 from typing import AnyStr, List, Optional
 
+import click
 from binaryornot.helpers import is_binary_string
 
 from cycode.cyclient import logger
@@ -102,5 +103,8 @@ def concat_unique_id(filename: str, unique_id: str) -> str:
     return os.path.join(unique_id, filename)
 
 
-def get_path_from_context(context: dict) -> str:
-    return context.params['path'] if 'path' in context.params else context.params['paths'][0]
+def get_path_from_context(context: click.Context) -> Optional[str]:
+    path = context.params.get('path')
+    if path is None and 'paths' in context.params:
+        path = context.params['paths'][0]
+    return path
