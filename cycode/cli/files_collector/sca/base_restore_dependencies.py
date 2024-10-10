@@ -67,4 +67,3 @@ class BaseRestoreDependencies(ABC):
     @abstractmethod
     def get_lock_file_name(self) -> str:
         pass
-
