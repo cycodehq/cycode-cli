@@ -4,7 +4,7 @@ from typing import List, Optional
 import click
 
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths, get_path_from_context
 from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 
@@ -34,7 +34,7 @@ class BaseRestoreDependencies(ABC):
 
     def get_manifest_file_path(self, document: Document) -> str:
         return (
-            join_paths(self.context.params['paths'][0], document.path)
+            join_paths(get_path_from_context(self.context), document.path)
             if self.context.obj.get('monitor')
             else document.path
         )

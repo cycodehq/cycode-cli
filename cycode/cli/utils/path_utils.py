@@ -97,6 +97,10 @@ def change_filename_extension(filename: str, extension: str) -> str:
 def concat_unique_id(filename: str, unique_id: str) -> str:
     if filename.startswith(os.sep):
         # remove leading slash to join the path correctly
-        filename = filename[len(os.sep) :]
+        filename = filename[len(os.sep):]
 
     return os.path.join(unique_id, filename)
+
+
+def get_path_from_context(context: dict) -> str:
+    return context.params['path'] if 'path' in context.params else context.params['paths'][0]

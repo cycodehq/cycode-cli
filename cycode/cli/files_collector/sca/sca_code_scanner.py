@@ -10,7 +10,7 @@ from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestore
 from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
-from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
+from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths, get_path_from_context
 from cycode.cyclient import logger
 
 if TYPE_CHECKING:
@@ -104,9 +104,7 @@ def try_restore_dependencies(
         else:
             is_monitor_action = context.obj['monitor']
 
-            project_path = context.params.get('paths', [None])
-            if project_path is None:
-                project_path = context.params['path'][0]
+            project_path = get_path_from_context(context);
 
             manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
             logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
