@@ -27,7 +27,7 @@ classifiers = [
 cycode = "cycode.cli.main:main_cli"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.13"
+python = ">=3.7,<3.14"
 click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
