@@ -15,29 +15,29 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [tool.poetry.scripts]
 cycode = "cycode.cli.main:main_cli"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.13"
+python = ">=3.8,<3.14"
 click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
-marshmallow = ">=3.15.0,<3.21.0"
-pathspec = ">=0.11.1,<0.12.0"
+marshmallow = ">=3.15.0,<3.23.0" # 3.23 dropped support for Python 3.8
+pathspec = ">=0.11.1,<0.13.0"
 gitpython = ">=3.1.30,<3.2.0"
-arrow = ">=1.0.0,<1.3.0"
+arrow = ">=1.0.0,<1.4.0"
 binaryornot = ">=0.4.4,<0.5.0"
 texttable = ">=1.6.7,<1.8.0"
-requests = ">=2.24,<3.0"
+requests = ">=2.32.2,<3.0"
 urllib3 = "1.26.19"  # lock v1 to avoid issues with openssl and old Python versions (<3.9.11) on macOS
 sentry-sdk = ">=2.8.0,<3.0"
 pyjwt = ">=2.8.0,<3.0"
@@ -50,11 +50,11 @@ coverage = ">=7.2.3,<7.3.0"
 responses = ">=0.23.1,<0.24.0"
 
 [tool.poetry.group.executable.dependencies]
-pyinstaller = ">=5.13.2,<5.14.0"
-dunamai = ">=1.18.0,<1.19.0"
+pyinstaller = {version=">=5.13.2,<5.14.0", python=">=3.8,<3.13"}
+dunamai = ">=1.18.0,<1.22.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.1.11"
+ruff = "0.6.9"
 
 [tool.pytest.ini_options]
 log_cli = true
@@ -70,6 +70,10 @@ vcs = "git"
 style = "pep440"
 
 [tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
 extend-select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -100,8 +104,6 @@ extend-select = [
     "YTT",
     "G",
 ]
-line-length = 120
-target-version = "py37"
 ignore = [
     "ANN002", # Missing type annotation for `*args`
     "ANN003", # Missing type annotation for `**kwargs`
@@ -111,7 +113,7 @@ ignore = [
     "ISC001", # Conflicts with ruff format
 ]
 
-[tool.ruff.flake8-quotes]
+[tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
 multiline-quotes = "double"
 inline-quotes = "single"
@@ -119,7 +121,7 @@ inline-quotes = "single"
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["S101", "S105"]
 "cycode/*.py" = ["BLE001"]
 

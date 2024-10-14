@@ -69,6 +69,6 @@ def test_generate_document() -> None:
 
     generated_tfplan_document = _generate_document(path, consts.INFRA_CONFIGURATION_SCAN_TYPE, content, is_git_diff)
 
-    assert type(generated_tfplan_document) == Document
+    assert isinstance(generated_tfplan_document, Document)
     assert generated_tfplan_document.path.endswith('.tf')
     assert generated_tfplan_document.is_git_diff_format == is_git_diff

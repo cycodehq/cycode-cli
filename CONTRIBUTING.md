@@ -4,10 +4,9 @@
 
 ## How to contribute to Cycode CLI
 
-The minimum version of Python that we support is 3.7.
+The minimum version of Python that we support is 3.8.
 We recommend using this version for local development.
 But it’s fine to use a higher version without using new features from these versions.
-We prefer 3.8 because it comes with the support of Apple Silicon, and it is as low as possible.
 
 The project is under Poetry project management.
 To deal with it, you should install it on your system:

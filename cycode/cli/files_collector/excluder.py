@@ -94,10 +94,7 @@ def _is_relevant_file_to_scan(scan_type: str, filename: str) -> bool:
         )
         return False
 
-    if scan_type == consts.SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename):
-        return False
-
-    return True
+    return not (scan_type == consts.SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename))
 
 
 def _is_file_relevant_for_sca_scan(filename: str) -> bool:

@@ -14,10 +14,10 @@ def shell(
     logger.debug('Executing shell command: %s', command)
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             command,
             timeout=timeout,
-            shell=execute_in_shell,  # noqa: S603
+            shell=execute_in_shell,
             check=True,
             capture_output=True,
         )

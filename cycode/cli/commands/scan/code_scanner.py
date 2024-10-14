@@ -253,8 +253,7 @@ def scan_commit_range(
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
-    scanned_commits_count = 0
-    for commit in repo.iter_commits(rev=commit_range):
+    for scanned_commits_count, commit in enumerate(repo.iter_commits(rev=commit_range)):
         if _does_reach_to_max_commits_to_scan_limit(commit_ids_to_scan, max_commits_count):
             logger.debug('Reached to max commits to scan count. Going to scan only %s last commits', max_commits_count)
             progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count - scanned_commits_count)
@@ -284,7 +283,6 @@ def scan_commit_range(
         )
 
         documents_to_scan.extend(exclude_irrelevant_documents_to_scan(scan_type, commit_documents_to_scan))
-        scanned_commits_count += 1
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
     logger.debug('Starting to scan commit range (it may take a few minutes)')
