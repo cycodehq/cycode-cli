@@ -16,8 +16,7 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 def execute_command(command: List[str], file_name: str, command_timeout: int, dependencies_file_name: str = None) -> \
 Optional[str]:
     try:
-        dependencies = shell(command=command, timeout=command_timeout, execute_in_shell=False,
-                             output_file_path=dependencies_file_name)
+        dependencies = shell(command=command, timeout=command_timeout, output_file_path=dependencies_file_name)
     except Exception as e:
         logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
         return None
