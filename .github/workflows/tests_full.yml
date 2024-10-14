@@ -65,6 +65,7 @@ jobs:
         run: poetry install
 
       - name: Run executable test
+        if: matrix.python-version != '3.13'  # we will migrate pyinstaller to 3.13 later
         run: |
           poetry run pyinstaller pyinstaller.spec
           ./dist/cycode-cli version
