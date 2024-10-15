@@ -9,12 +9,11 @@ from cycode.cli.models import Document
 NPM_PROJECT_FILE_EXTENSIONS = ['.json']
 NPM_LOCK_FILE_NAME = 'package-lock.json'
 NPM_MANIFEST_FILE_NAME = 'package.json'
-OUTPUT_FILE_MANUALLY = False
 
 
 class RestoreNpmDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout, OUTPUT_FILE_MANUALLY)
+        super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NPM_PROJECT_FILE_EXTENSIONS)
@@ -30,4 +29,4 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         return os.path.isfile(restore_file_path)
 
     def prepare_manifest_file_path_for_command(self, manifest_file_path: str) -> str:
-        return '/' + manifest_file_path.strip('/' + NPM_MANIFEST_FILE_NAME)
+        return manifest_file_path.replace('/' + NPM_MANIFEST_FILE_NAME, '')

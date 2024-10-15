@@ -20,7 +20,7 @@ OUTPUT_FILE_MANUALLY = False
 
 class RestoreMavenDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout, False)
+        super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME

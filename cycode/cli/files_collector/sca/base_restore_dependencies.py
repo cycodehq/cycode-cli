@@ -16,7 +16,11 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 def execute_command(command: List[str], file_name: str, command_timeout: int, dependencies_file_name: str = None) -> \
 Optional[str]:
     try:
-        dependencies = shell(command=command, timeout=command_timeout, output_file_path=dependencies_file_name)
+        dependencies = shell(command=command, timeout=command_timeout)
+        # Write stdout output to the file if output_file_path is provided
+        if dependencies_file_name:
+            with open(dependencies_file_name, 'w') as output_file:
+                output_file.write(dependencies)
     except Exception as e:
         logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
         return None
@@ -26,7 +30,7 @@ Optional[str]:
 
 class BaseRestoreDependencies(ABC):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int,
-                 create_output_file_manually: bool) -> None:
+                 create_output_file_manually: bool = False) -> None:
         self.context = context
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
