@@ -9,7 +9,8 @@ _SUBPROCESS_DEFAULT_TIMEOUT_SEC = 60
 
 
 def shell(
-    command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC, execute_in_shell: bool = False
+        command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC,
+        output_file_path: Optional[str] = None
 ) -> Optional[str]:
     logger.debug('Executing shell command: %s', command)
 
@@ -17,10 +18,16 @@ def shell(
         result = subprocess.run(  # noqa: S603
             command,
             timeout=timeout,
-            shell=execute_in_shell,
+            shell=False,
             check=True,
             capture_output=True,
+            text=True,
         )
+
+        # Write stdout output to the file if output_file_path is provided
+        if output_file_path:
+            with open(output_file_path, 'w') as output_file:
+                output_file.write(result.stdout)
 
         return result.stdout.decode('UTF-8').strip()
     except subprocess.CalledProcessError as e:
