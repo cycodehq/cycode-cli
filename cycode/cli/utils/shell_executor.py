@@ -9,8 +9,9 @@ _SUBPROCESS_DEFAULT_TIMEOUT_SEC = 60
 
 
 def shell(
-        command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC,
-        output_file_path: Optional[str] = None
+    command: Union[str, List[str]],
+    timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC,
+    output_file_path: Optional[str] = None,
 ) -> Optional[str]:
     logger.debug('Executing shell command: %s', command)
 

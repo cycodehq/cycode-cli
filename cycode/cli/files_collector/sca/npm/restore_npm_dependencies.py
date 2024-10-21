@@ -20,8 +20,15 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         return any(document.path.endswith(ext) for ext in NPM_PROJECT_FILE_EXTENSIONS)
 
     def get_command(self, manifest_file_path: str) -> List[str]:
-        return ['npm', 'install', '--prefix', self.prepare_manifest_file_path_for_command(manifest_file_path),
-                '--package-lock-only', '--ignore-scripts', '--no-audit']
+        return [
+            'npm',
+            'install',
+            '--prefix',
+            self.prepare_manifest_file_path_for_command(manifest_file_path),
+            '--package-lock-only',
+            '--ignore-scripts',
+            '--no-audit',
+        ]
 
     def get_lock_file_name(self) -> str:
         return NPM_LOCK_FILE_NAME
