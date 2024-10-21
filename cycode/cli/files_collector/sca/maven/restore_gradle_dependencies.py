@@ -26,4 +26,3 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
 
     def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
         return os.path.isfile(restore_file_path)
-
