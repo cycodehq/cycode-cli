@@ -36,4 +36,4 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         return os.path.isfile(restore_file_path)
 
     def prepare_manifest_file_path_for_command(self, manifest_file_path: str) -> str:
-        return manifest_file_path.replace('/' + NPM_MANIFEST_FILE_NAME, '')
+        return manifest_file_path.replace(os.sep + NPM_MANIFEST_FILE_NAME, '')

@@ -28,4 +28,4 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         return os.path.isfile(restore_file_path)
 
     def prepare_tree_file_path_for_command(self, manifest_file_path: str) -> str:
-        return manifest_file_path.replace('/' + BUILD_GRADLE_FILE_NAME, '/' + BUILD_GRADLE_KTS_FILE_NAME)
+        return manifest_file_path.replace(os.sep + BUILD_GRADLE_FILE_NAME, os.sep + BUILD_GRADLE_KTS_FILE_NAME)
