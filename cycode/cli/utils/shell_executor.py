@@ -12,7 +12,12 @@ def shell(command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIM
     logger.debug('Executing shell command: %s', command)
 
     try:
-        result = subprocess.run(command, timeout=timeout, check=True, capture_output=True)
+        result = subprocess.run( # noqa: S603
+            command,
+            timeout=timeout,
+            check=True,
+            capture_output=True
+        )
 
         return result.stdout.decode('UTF-8').strip()
     except subprocess.CalledProcessError as e:
