@@ -13,8 +13,10 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
-def execute_command(command: List[str], file_name: str, command_timeout: int, dependencies_file_name: str = None) -> \
-        Optional[str]:
+def execute_command(command: List[str],
+                    file_name: str,
+                    command_timeout: int,
+                    dependencies_file_name: Optional[str] = None) -> Optional[str]:
     try:
         dependencies = shell(command=command, timeout=command_timeout)
         # Write stdout output to the file if output_file_path is provided
