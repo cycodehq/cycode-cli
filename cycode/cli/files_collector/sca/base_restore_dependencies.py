@@ -13,9 +13,15 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
-def execute_command(command: List[str], file_name: str, command_timeout: int) -> Optional[str]:
+def execute_command(
+    command: List[str], file_name: str, command_timeout: int, dependencies_file_name: Optional[str] = None
+) -> Optional[str]:
     try:
-        dependencies = shell(command, command_timeout)
+        dependencies = shell(command=command, timeout=command_timeout)
+        # Write stdout output to the file if output_file_path is provided
+        if dependencies_file_name:
+            with open(dependencies_file_name, 'w') as output_file:
+                output_file.write(dependencies)
     except Exception as e:
         logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
         return None
@@ -24,10 +30,13 @@ def execute_command(command: List[str], file_name: str, command_timeout: int) ->
 
 
 class BaseRestoreDependencies(ABC):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
+    def __init__(
+        self, context: click.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
+    ) -> None:
         self.context = context
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
+        self.create_output_file_manually = create_output_file_manually
 
     def restore(self, document: Document) -> Optional[Document]:
         return self.try_restore_dependencies(document)
@@ -46,9 +55,11 @@ class BaseRestoreDependencies(ABC):
         if self.verify_restore_file_already_exist(restore_file_path):
             restore_file_content = get_file_content(restore_file_path)
         else:
-            restore_file_content = execute_command(
-                self.get_command(manifest_file_path), manifest_file_path, self.command_timeout
+            output_file_path = restore_file_path if self.create_output_file_manually else None
+            execute_command(
+                self.get_command(manifest_file_path), manifest_file_path, self.command_timeout, output_file_path
             )
+            restore_file_content = get_file_content(restore_file_path)
 
         return Document(restore_file_path, restore_file_content, self.is_git_diff)
 
