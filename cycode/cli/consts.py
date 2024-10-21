@@ -48,7 +48,7 @@ SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
     '.model',
 )
 
-SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (
+SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (  # keep in lowercase
     'cargo.lock',
     'cargo.toml',
     'composer.json',
@@ -82,6 +82,8 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (
     'setup.py',
     'mix.exs',
     'mix.lock',
+    'package.swift',
+    'package.resolved',
 )
 
 SCA_EXCLUDED_PATHS = ('node_modules',)
@@ -101,6 +103,7 @@ PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     'pypi_requirements': ['requirements.txt'],
     'pypi_setup': ['setup.py'],
     'hex': ['mix.exs', 'mix.lock'],
+    'swift_pm': ['Package.swift', 'Package.resolved'],
 }
 
 COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES = [SECRET_SCAN_TYPE, SCA_SCAN_TYPE]
