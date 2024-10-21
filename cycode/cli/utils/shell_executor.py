@@ -8,18 +8,11 @@ from cycode.cyclient import logger
 _SUBPROCESS_DEFAULT_TIMEOUT_SEC = 60
 
 
-def shell(
-        command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC
-) -> Optional[str]:
+def shell(command: Union[str, List[str]], timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC) -> Optional[str]:
     logger.debug('Executing shell command: %s', command)
 
     try:
-        result = subprocess.run(
-            command,
-            timeout=timeout,
-            check=True,
-            capture_output=True
-        )
+        result = subprocess.run(command, timeout=timeout, check=True, capture_output=True)
 
         return result.stdout.decode('UTF-8').strip()
     except subprocess.CalledProcessError as e:

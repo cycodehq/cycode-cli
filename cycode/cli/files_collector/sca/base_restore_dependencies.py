@@ -13,10 +13,9 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
-def execute_command(command: List[str],
-                    file_name: str,
-                    command_timeout: int,
-                    dependencies_file_name: Optional[str] = None) -> Optional[str]:
+def execute_command(
+    command: List[str], file_name: str, command_timeout: int, dependencies_file_name: Optional[str] = None
+) -> Optional[str]:
     try:
         dependencies = shell(command=command, timeout=command_timeout)
         # Write stdout output to the file if output_file_path is provided
@@ -31,8 +30,9 @@ def execute_command(command: List[str],
 
 
 class BaseRestoreDependencies(ABC):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int,
-                 create_output_file_manually: bool = False) -> None:
+    def __init__(
+        self, context: click.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
+    ) -> None:
         self.context = context
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout

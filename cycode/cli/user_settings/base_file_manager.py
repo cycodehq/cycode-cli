@@ -7,7 +7,8 @@ from cycode.cli.utils.yaml_utils import read_file, update_file
 
 class BaseFileManager(ABC):
     @abstractmethod
-    def get_filename(self) -> str: ...
+    def get_filename(self) -> str:
+        ...
 
     def read_file(self) -> Dict[Hashable, Any]:
         return read_file(self.get_filename())

@@ -5,7 +5,8 @@ from cycode.cli import consts
 
 class ScanConfigBase(ABC):
     @abstractmethod
-    def get_service_name(self, scan_type: str, should_use_scan_service: bool = False) -> str: ...
+    def get_service_name(self, scan_type: str, should_use_scan_service: bool = False) -> str:
+        ...
 
     @staticmethod
     def get_async_scan_type(scan_type: str) -> str:
@@ -24,7 +25,8 @@ class ScanConfigBase(ABC):
         return 'repository'
 
     @abstractmethod
-    def get_detections_prefix(self) -> str: ...
+    def get_detections_prefix(self) -> str:
+        ...
 
 
 class DevScanConfig(ScanConfigBase):
