@@ -8,12 +8,11 @@ from cycode.cli.models import Document
 
 NUGET_PROJECT_FILE_EXTENSIONS = ['.csproj', '.vbproj']
 NUGET_LOCK_FILE_NAME = 'packages.lock.json'
-OUTPUT_FILE_MANUALLY = False
 
 
 class RestoreNugetDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout, OUTPUT_FILE_MANUALLY)
+        super().__init__(context, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NUGET_PROJECT_FILE_EXTENSIONS)
