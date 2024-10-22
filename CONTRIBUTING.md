@@ -53,7 +53,7 @@ python cycode/cli/main.py
 
 ### Code linting and formatting
 
-We use `ruff` and `ruff format`.
+We use `ruff`.
 It is configured well, so you don’t need to do anything.
 You can see all enabled rules in the `pyproject.toml` file.
 Both tests and the main codebase are checked.
@@ -63,7 +63,7 @@ GitHub Actions will check that your code is formatted well. You can run it local
 
 ```shell
 # lint
-poetry run ruff .
+poetry run ruff check .
 # format
 poetry run ruff format .
 ```
