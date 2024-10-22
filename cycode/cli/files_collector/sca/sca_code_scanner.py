@@ -93,27 +93,28 @@ def try_restore_dependencies(
     restore_dependencies: 'BaseRestoreDependencies',
     document: Document,
 ) -> None:
-    if restore_dependencies.is_project(document):
-        restore_dependencies_document = restore_dependencies.restore(document)
-        if restore_dependencies_document is None:
-            logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
-            return
+    if not restore_dependencies.is_project(document):
+        return
 
-        if restore_dependencies_document.content is None:
-            logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
-            restore_dependencies_document.content = ''
-        else:
-            is_monitor_action = context.obj['monitor']
+    restore_dependencies_document = restore_dependencies.restore(document)
+    if restore_dependencies_document is None:
+        logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
+        return
 
-            project_path = get_path_from_context(context)
+    if restore_dependencies_document.content is None:
+        logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
+        restore_dependencies_document.content = ''
+    else:
+        is_monitor_action = context.obj.get('monitor', False)
+        project_path = get_path_from_context(context)
 
-            manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
-            logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
+        manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
+        logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
 
-        if restore_dependencies_document.path in documents_to_add:
-            logger.debug('Duplicate document on restore for path: %s', restore_dependencies_document.path)
-        else:
-            documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
+    if restore_dependencies_document.path in documents_to_add:
+        logger.debug('Duplicate document on restore for path: %s', restore_dependencies_document.path)
+    else:
+        documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
 
 
 def add_dependencies_tree_document(
