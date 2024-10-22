@@ -13,7 +13,7 @@ BUILD_GO_FILE_NAME = 'go.mod'
 
 class RestoreGoDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout, True)
+        super().__init__(context, is_git_diff, command_timeout, create_output_file_manually=True)
 
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in GO_PROJECT_FILE_EXTENSIONS)
@@ -28,4 +28,4 @@ class RestoreGoDependencies(BaseRestoreDependencies):
         return os.path.isfile(restore_file_path)
 
     def prepare_tree_file_path_for_command(self, manifest_file_path: str) -> str:
-        return manifest_file_path.replace('/' + BUILD_GO_FILE_NAME, '')
+        return manifest_file_path.replace(os.sep + BUILD_GO_FILE_NAME, '')
