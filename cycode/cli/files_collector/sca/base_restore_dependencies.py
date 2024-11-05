@@ -14,10 +14,14 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 
 def execute_command(
-    command: List[str], file_name: str, command_timeout: int, dependencies_file_name: Optional[str] = None
+    command: List[str],
+    file_name: str,
+    command_timeout: int,
+    dependencies_file_name: Optional[str] = None,
+    working_directory: Optional[str] = None,
 ) -> Optional[str]:
     try:
-        dependencies = shell(command=command, timeout=command_timeout)
+        dependencies = shell(command=command, timeout=command_timeout, working_directory=working_directory)
         # Write stdout output to the file if output_file_path is provided
         if dependencies_file_name:
             with open(dependencies_file_name, 'w') as output_file:
@@ -51,17 +55,25 @@ class BaseRestoreDependencies(ABC):
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
         restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
+        working_directory_path = self.get_working_directory(document)
 
         if self.verify_restore_file_already_exist(restore_file_path):
             restore_file_content = get_file_content(restore_file_path)
         else:
             output_file_path = restore_file_path if self.create_output_file_manually else None
             execute_command(
-                self.get_command(manifest_file_path), manifest_file_path, self.command_timeout, output_file_path
+                self.get_command(manifest_file_path),
+                manifest_file_path,
+                self.command_timeout,
+                output_file_path,
+                working_directory_path,
             )
             restore_file_content = get_file_content(restore_file_path)
 
         return Document(restore_file_path, restore_file_content, self.is_git_diff)
+
+    def get_working_directory(self, document: Document) -> Optional[str]:
+        return None
 
     @abstractmethod
     def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:

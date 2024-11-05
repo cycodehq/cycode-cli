@@ -7,8 +7,7 @@ from cycode.cli import consts
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
-from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import RestoreNpmDependencies
-from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
+from cycode.cli.files_collector.sca.sbt.restore_sbt_dependencies import RestoreSbtDependencies
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
@@ -17,9 +16,7 @@ from cycode.cyclient import logger
 if TYPE_CHECKING:
     from git import Repo
 
-BUILD_GRADLE_DEP_TREE_TIMEOUT = 180
-BUILD_NUGET_DEP_TREE_TIMEOUT = 180
-BUILD_NPM_DEP_TREE_TIMEOUT = 180
+BUILD_DEP_TREE_TIMEOUT = 180
 
 
 def perform_pre_commit_range_scan_actions(
@@ -132,10 +129,9 @@ def add_dependencies_tree_document(
 
 def restore_handlers(context: click.Context, is_git_diff: bool) -> List[BaseRestoreDependencies]:
     return [
-        RestoreGradleDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
-        RestoreMavenDependencies(context, is_git_diff, BUILD_GRADLE_DEP_TREE_TIMEOUT),
-        RestoreNugetDependencies(context, is_git_diff, BUILD_NUGET_DEP_TREE_TIMEOUT),
-        RestoreNpmDependencies(context, is_git_diff, BUILD_NPM_DEP_TREE_TIMEOUT),
+        RestoreGradleDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreMavenDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreSbtDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
     ]
 
 
