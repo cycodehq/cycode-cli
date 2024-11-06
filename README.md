@@ -30,6 +30,8 @@ This guide will guide you through both installation and usage.
         6. [Commit History Scan](#commit-history-scan)
             1. [Commit Range Option](#commit-range-option)
         7. [Pre-Commit Scan](#pre-commit-scan)
+        8. [Lock Restore Options](#lock-restore-options)
+            1. [SBT Scan](#sbt-scan)
     2. [Scan Results](#scan-results)
         1. [Show/Hide Secrets](#showhide-secrets)
         2. [Soft Fail](#soft-fail)
@@ -495,6 +497,17 @@ A pre-commit scan automatically identifies any issues before you commit changes 
 After your install the pre-commit hook and, you may, on occasion, wish to skip scanning during a specific commit. Simply add the following to your `git` command to skip scanning for a single commit:
 
 `SKIP=cycode git commit -m <your commit message>`
+
+### Lock Restore Options
+
+#### SBT Scan
+
+We use sbt-dependency-lock plugin to restore the lock file for SBT projects.  
+To disable lock restore in use `--no-restore` option.
+
+Prerequisites
+* sbt-dependency-lock Plugin: Install the plugin by adding the following line to `project/plugins.sbt`:
+`addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")`
 
 ## Scan Results
 
