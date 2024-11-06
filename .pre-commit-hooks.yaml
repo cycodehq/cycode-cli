@@ -1,11 +1,11 @@
 - id: cycode
-  name: Cycode pre commit defender
+  name: Cycode Secrets pre-commit defender
   language: python
   language_version: python3
   entry: cycode
-  args: [ '--no-progress-meter', 'scan', 'pre_commit' ]
+  args: [ '--no-progress-meter', 'scan', '--scan-type', 'secret', 'pre_commit' ]
 - id: cycode-sca
-  name: Cycode SCA pre commit defender
+  name: Cycode SCA pre-commit defender
   language: python
   language_version: python3
   entry: cycode

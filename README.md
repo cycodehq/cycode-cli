@@ -199,33 +199,59 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 Cycode’s pre-commit hook can be set up within your local repository so that the Cycode CLI application will identify any issues with your code automatically before you commit it to your codebase.
 
+> [!NOTE]
+> pre-commit hook is only available to Secrets and SCA scans.
+
 Perform the following steps to install the pre-commit hook:
 
-1. Install the pre-commit framework:
+1. Install the pre-commit framework (Python 3.8 or higher must be installed):
 
    `pip3 install pre-commit`
 
-2. Navigate to the top directory of the local repository you wish to scan.
+2. Navigate to the top directory of the local Git repository you wish to configure.
 
 3. Create a new YAML file named `.pre-commit-config.yaml` (include the beginning `.`) in the repository’s top directory that contains the following:
 
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v1.4.0
+        rev: v1.11.0
         hooks:
           - id: cycode
             stages:
               - commit
     ```
 
-4. Install Cycode’s hook:
+4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. If you want to enable both, use this configuration:
+
+    ```yaml
+    repos:
+      - repo: https://github.com/cycodehq/cycode-cli
+        rev: v1.11.0
+        hooks:
+          - id: cycode
+            stages:
+              - commit
+          - id: cycode-sca
+            stages:
+              - commit
+    ```
+
+5. Install Cycode’s hook:
 
    `pre-commit install`
 
+   A successful hook installation will result in the message: `Pre-commit installed at .git/hooks/pre-commit`.
+
+6. Keep the pre-commit hook up to date:
+
+   `pre-commit autoupdate`
+
+   It will automatically bump "rev" in ".pre-commit-config.yaml" to the latest available version of Cycode CLI.
+
 > [!NOTE]
-> A successful hook installation will result in the message:<br/>
-`Pre-commit installed at .git/hooks/pre-commit`
+> Trigger happens on `git commit` command.
+> Hook triggers only on the files that are staged for commit.
 
 # Cycode CLI Commands
 
