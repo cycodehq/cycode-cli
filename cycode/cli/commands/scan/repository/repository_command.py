@@ -48,8 +48,15 @@ def repository_command(context: click.Context, path: str, branch: str) -> None:
             # FIXME(MarshalX): probably file could be tree or submodule too. we expect blob only
             progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
 
-            file_path = file.path if monitor else get_path_by_os(os.path.join(path, file.path))
-            documents_to_scan.append(Document(file_path, file.data_stream.read().decode('UTF-8', errors='replace')))
+            absolute_path = get_path_by_os(os.path.join(path, file.path))
+            file_path = file.path if monitor else absolute_path
+            documents_to_scan.append(
+                Document(
+                    file_path,
+                    file.data_stream.read().decode('UTF-8', errors='replace'),
+                    absolute_path=absolute_path,
+                )
+            )
 
         documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
 

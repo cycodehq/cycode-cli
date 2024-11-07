@@ -7,12 +7,18 @@ from cycode.cyclient.models import Detection
 
 class Document:
     def __init__(
-        self, path: str, content: str, is_git_diff_format: bool = False, unique_id: Optional[str] = None
+        self,
+        path: str,
+        content: str,
+        is_git_diff_format: bool = False,
+        unique_id: Optional[str] = None,
+        absolute_path: Optional[str] = None,
     ) -> None:
         self.path = path
         self.content = content
         self.is_git_diff_format = is_git_diff_format
         self.unique_id = unique_id
+        self.absolute_path = absolute_path
 
     def __repr__(self) -> str:
         return 'path:{0}, content:{1}'.format(self.path, self.content)

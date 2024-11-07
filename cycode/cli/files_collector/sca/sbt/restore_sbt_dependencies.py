@@ -22,4 +22,4 @@ class RestoreSbtDependencies(BaseRestoreDependencies):
         return os.path.isfile(restore_file_path)
 
     def get_working_directory(self, document: Document) -> Optional[str]:
-        return os.path.dirname(document.path)
+        return os.path.dirname(document.absolute_path)
