@@ -55,6 +55,7 @@ class BaseRestoreDependencies(ABC):
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
         restore_file_path = build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
+        relative_restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
         working_directory_path = self.get_working_directory(document)
 
         if self.verify_restore_file_already_exist(restore_file_path):
@@ -70,7 +71,7 @@ class BaseRestoreDependencies(ABC):
             )
             restore_file_content = get_file_content(restore_file_path)
 
-        return Document(restore_file_path, restore_file_content, self.is_git_diff)
+        return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
     def get_working_directory(self, document: Document) -> Optional[str]:
         return None
