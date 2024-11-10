@@ -84,7 +84,7 @@ def _generate_document(file: str, scan_type: str, content: str, is_git_diff: boo
     if is_iac(scan_type) and is_tfplan_file(file, content):
         return _handle_tfplan_file(file, content, is_git_diff)
 
-    return Document(file, content, is_git_diff)
+    return Document(file, content, is_git_diff, absolute_path=file)
 
 
 def _handle_tfplan_file(file: str, content: str, is_git_diff: bool) -> Document:
