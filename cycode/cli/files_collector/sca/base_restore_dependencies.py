@@ -28,11 +28,12 @@ def execute_commands(
             dependencies = shell(command=command, timeout=command_timeout, working_directory=working_directory)
             all_dependencies.append(dependencies)  # Collect each command's output
 
+        dependencies = '\n'.join(all_dependencies)
+
         # Write all collected outputs to the file if dependencies_file_name is provided
         if dependencies_file_name:
             with open(dependencies_file_name, 'w') as output_file:  # Open once in 'w' mode to start fresh
-                for dependencies in all_dependencies:
-                    output_file.write(dependencies + '\n')
+                output_file.writelines(dependencies)
     except Exception as e:
         logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
         return None
@@ -92,7 +93,7 @@ class BaseRestoreDependencies(ABC):
         pass
 
     @abstractmethod
-    def get_commands(self, manifest_file_path: str) -> List[str]:
+    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
         pass
 
     @abstractmethod
