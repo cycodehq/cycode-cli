@@ -13,19 +13,26 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
 
 
-def execute_command(
-    command: List[str],
+def execute_commands(
+    commands: List[List[str]],
     file_name: str,
     command_timeout: int,
     dependencies_file_name: Optional[str] = None,
     working_directory: Optional[str] = None,
 ) -> Optional[str]:
     try:
-        dependencies = shell(command=command, timeout=command_timeout, working_directory=working_directory)
-        # Write stdout output to the file if output_file_path is provided
+        all_dependencies = []
+
+        # Run all commands and collect outputs
+        for command in commands:
+            dependencies = shell(command=command, timeout=command_timeout, working_directory=working_directory)
+            all_dependencies.append(dependencies)  # Collect each command's output
+
+        # Write all collected outputs to the file if dependencies_file_name is provided
         if dependencies_file_name:
-            with open(dependencies_file_name, 'w') as output_file:
-                output_file.write(dependencies)
+            with open(dependencies_file_name, 'w') as output_file:  # Open once in 'w' mode to start fresh
+                for dependencies in all_dependencies:
+                    output_file.write(dependencies + '\n')
     except Exception as e:
         logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
         return None
@@ -62,8 +69,8 @@ class BaseRestoreDependencies(ABC):
             restore_file_content = get_file_content(restore_file_path)
         else:
             output_file_path = restore_file_path if self.create_output_file_manually else None
-            execute_command(
-                self.get_command(manifest_file_path),
+            execute_commands(
+                self.get_commands(manifest_file_path),
                 manifest_file_path,
                 self.command_timeout,
                 output_file_path,
@@ -85,7 +92,7 @@ class BaseRestoreDependencies(ABC):
         pass
 
     @abstractmethod
-    def get_command(self, manifest_file_path: str) -> List[str]:
+    def get_commands(self, manifest_file_path: str) -> List[str]:
         pass
 
     @abstractmethod

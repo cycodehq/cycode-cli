@@ -18,15 +18,17 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NPM_PROJECT_FILE_EXTENSIONS)
 
-    def get_command(self, manifest_file_path: str) -> List[str]:
+    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
         return [
-            'npm',
-            'install',
-            '--prefix',
-            self.prepare_manifest_file_path_for_command(manifest_file_path),
-            '--package-lock-only',
-            '--ignore-scripts',
-            '--no-audit',
+            [
+                'npm',
+                'install',
+                '--prefix',
+                self.prepare_manifest_file_path_for_command(manifest_file_path),
+                '--package-lock-only',
+                '--ignore-scripts',
+                '--no-audit',
+            ]
         ]
 
     def get_lock_file_name(self) -> str:

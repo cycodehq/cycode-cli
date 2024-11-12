@@ -1,5 +1,5 @@
 import subprocess
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import click
 
@@ -9,7 +9,7 @@ _SUBPROCESS_DEFAULT_TIMEOUT_SEC = 60
 
 
 def shell(
-    command: Union[str, List[str]],
+    command: List[List[str]],
     timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC,
     working_directory: Optional[str] = None,
 ) -> Optional[str]:

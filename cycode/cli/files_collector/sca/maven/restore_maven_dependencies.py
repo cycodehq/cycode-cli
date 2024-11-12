@@ -7,7 +7,7 @@ import click
 from cycode.cli.files_collector.sca.base_restore_dependencies import (
     BaseRestoreDependencies,
     build_dep_tree_path,
-    execute_command,
+    execute_commands,
 )
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
@@ -24,8 +24,8 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME
 
-    def get_command(self, manifest_file_path: str) -> List[str]:
-        return ['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]
+    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+        return [['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]]
 
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
@@ -52,7 +52,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
     ) -> Optional[Document]:
         # TODO(MarshalX): does it even work? Ignored restore_dependencies_document arg
         secondary_restore_command = create_secondary_restore_command(manifest_file_path)
-        backup_restore_content = execute_command(secondary_restore_command, manifest_file_path, self.command_timeout)
+        backup_restore_content = execute_commands(secondary_restore_command, manifest_file_path, self.command_timeout)
         restore_dependencies_document = Document(
             build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME), backup_restore_content, self.is_git_diff
         )

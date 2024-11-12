@@ -18,8 +18,8 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
 
-    def get_command(self, manifest_file_path: str) -> List[str]:
-        return ['gradle', 'dependencies', '-b', manifest_file_path, '-q', '--console', 'plain']
+    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+        return [['gradle', 'dependencies', '-b', manifest_file_path, '-q', '--console', 'plain']]
 
     def get_lock_file_name(self) -> str:
         return BUILD_GRADLE_DEP_TREE_FILE_NAME
