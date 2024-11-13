@@ -12,8 +12,8 @@ class RestoreSbtDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in SBT_PROJECT_FILE_EXTENSIONS)
 
-    def get_command(self, manifest_file_path: str) -> List[str]:
-        return ['sbt', 'dependencyLockWrite', '--verbose']
+    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+        return [['sbt', 'dependencyLockWrite', '--verbose']]
 
     def get_lock_file_name(self) -> str:
         return SBT_LOCK_FILE_NAME
