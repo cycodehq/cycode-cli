@@ -5,8 +5,11 @@ import click
 
 from cycode.cli import consts
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
+from cycode.cli.files_collector.sca.go.restore_go_dependencies import RestoreGoDependencies
 from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
+from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import RestoreNpmDependencies
+from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
 from cycode.cli.files_collector.sca.sbt.restore_sbt_dependencies import RestoreSbtDependencies
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
@@ -132,6 +135,9 @@ def restore_handlers(context: click.Context, is_git_diff: bool) -> List[BaseRest
         RestoreGradleDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
         RestoreMavenDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
         RestoreSbtDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreGoDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreNugetDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreNpmDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
     ]
 
 
