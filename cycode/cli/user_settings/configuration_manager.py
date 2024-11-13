@@ -106,6 +106,13 @@ class ConfigurationManager:
             )
         )
 
+    def get_sync_scan_timeout_in_seconds(self) -> int:
+        return int(
+            self._get_value_from_environment_variables(
+                consts.SYNC_SCAN_TIMEOUT_IN_SECONDS_ENV_VAR_NAME, consts.DEFAULT_SYNC_SCAN_TIMEOUT_IN_SECONDS
+            )
+        )
+
     def get_report_polling_timeout_in_seconds(self) -> int:
         return int(
             self._get_value_from_environment_variables(

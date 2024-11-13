@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, List, Optional, Set, Union
 from requests import Response
 
 from cycode.cli import consts
+from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cyclient import models
@@ -133,7 +134,7 @@ class ScanClient:
             },
             files=files,
             hide_response_content_log=self._hide_response_log,
-            timeout=60,
+            timeout=configuration_manager.get_sync_scan_timeout_in_seconds(),
         )
         return models.ScanResultsSyncFlowSchema().load(response.json())
 
