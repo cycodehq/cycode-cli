@@ -57,7 +57,6 @@ def get_cli_status() -> Status:
     )
 
 
-
 @click.command(short_help='Show the CLI status and exit.')
 @click.pass_context
 def status_command(context: click.Context) -> None:
