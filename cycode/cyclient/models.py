@@ -478,3 +478,41 @@ class ScanResultsSyncFlowSchema(Schema):
     @post_load
     def build_dto(self, data: Dict[str, Any], **_) -> ScanResultsSyncFlow:
         return ScanResultsSyncFlow(**data)
+
+
+@dataclass
+class SupportedModulesPreferences:
+    secret_scanning: bool
+    leak_scanning: bool
+    iac_scanning: bool
+    sca_scanning: bool
+    ci_cd_scanning: bool
+    sast_scanning: bool
+    container_scanning: bool
+    access_review: bool
+    asoc: bool
+    cimon: bool
+    ai_machine_learning: bool
+    ai_large_language_model: bool
+
+
+class SupportedModulesPreferencesSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    secret_scanning = fields.Boolean()
+    leak_scanning = fields.Boolean()
+    iac_scanning = fields.Boolean()
+    sca_scanning = fields.Boolean()
+    ci_cd_scanning = fields.Boolean()
+    sast_scanning = fields.Boolean()
+    container_scanning = fields.Boolean()
+    access_review = fields.Boolean()
+    asoc = fields.Boolean()
+    cimon = fields.Boolean()
+    ai_machine_learning = fields.Boolean()
+    ai_large_language_model = fields.Boolean()
+
+    @post_load
+    def build_dto(self, data: Dict[str, Any], **_) -> 'SupportedModulesPreferences':
+        return SupportedModulesPreferences(**data)
