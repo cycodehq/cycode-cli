@@ -1,19 +1,15 @@
 import click
 
 from cycode.cli.commands.auth.auth_manager import AuthManager
+from cycode.cli.commands.auth_common import get_authorization_info
 from cycode.cli.exceptions.custom_exceptions import (
     KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
     AuthProcessError,
-    HttpUnauthorizedError,
-    RequestHttpError,
 )
 from cycode.cli.models import CliError, CliErrors, CliResult
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.sentry import add_breadcrumb, capture_exception
-from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cli.utils.jwt_utils import get_user_and_tenant_ids_from_access_token
 from cycode.cyclient import logger
-from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
 
 @click.group(
@@ -49,35 +45,18 @@ def authorization_check(context: click.Context) -> None:
     add_breadcrumb('check')
 
     printer = ConsolePrinter(context)
-
-    failed_auth_check_res = CliResult(success=False, message='Cycode authentication failed')
-
-    client_id, client_secret = CredentialsManager().get_credentials()
-    if not client_id or not client_secret:
-        printer.print_result(failed_auth_check_res)
+    auth_info = get_authorization_info(context)
+    if auth_info is None:
+        printer.print_result(CliResult(success=False, message='Cycode authentication failed'))
         return
 
-    try:
-        access_token = CycodeTokenBasedClient(client_id, client_secret).get_access_token()
-        if not access_token:
-            printer.print_result(failed_auth_check_res)
-            return
-
-        user_id, tenant_id = get_user_and_tenant_ids_from_access_token(access_token)
-        printer.print_result(
-            CliResult(
-                success=True,
-                message='Cycode authentication verified',
-                data={'user_id': user_id, 'tenant_id': tenant_id},
-            )
+    printer.print_result(
+        CliResult(
+            success=True,
+            message='Cycode authentication verified',
+            data={'user_id': auth_info.user_id, 'tenant_id': auth_info.tenant_id},
         )
-
-        return
-    except (RequestHttpError, HttpUnauthorizedError):
-        ConsolePrinter(context).print_exception()
-
-        printer.print_result(failed_auth_check_res)
-        return
+    )
 
 
 def _handle_exception(context: click.Context, e: Exception) -> None:

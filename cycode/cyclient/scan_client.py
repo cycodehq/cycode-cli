@@ -27,7 +27,7 @@ class ScanClient:
         self._DETECTIONS_SERVICE_CONTROLLER_PATH = 'api/v1/detections'
         self._DETECTIONS_SERVICE_CLI_CONTROLLER_PATH = 'api/v1/detections/cli'
 
-        self.POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
+        self._POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
 
         self._hide_response_log = hide_response_log
 
@@ -198,9 +198,13 @@ class ScanClient:
     def get_detection_rules_path(self) -> str:
         return (
             f'{self.scan_config.get_detections_prefix()}/'
-            f'{self.POLICIES_SERVICE_CONTROLLER_PATH_V3}/'
+            f'{self._POLICIES_SERVICE_CONTROLLER_PATH_V3}/'
             f'detection_rules/byIds'
         )
+
+    def get_supported_modules_preferences(self) -> models.SupportedModulesPreferences:
+        response = self.scan_cycode_client.get(url_path='preferences/api/v1/supportedmodules')
+        return models.SupportedModulesPreferencesSchema().load(response.json())
 
     @staticmethod
     def _get_policy_type_by_scan_type(scan_type: str) -> str:
