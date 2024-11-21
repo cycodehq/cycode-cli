@@ -713,20 +713,26 @@ def exclude_irrelevant_detections(
 ) -> List[Detection]:
     relevant_detections = _exclude_detections_by_exclusions_configuration(detections, scan_type)
     relevant_detections = _exclude_detections_by_scan_type(relevant_detections, scan_type, command_scan_type)
-    return _exclude_detections_by_severity(relevant_detections, scan_type, severity_threshold)
+    return _exclude_detections_by_severity(relevant_detections, severity_threshold)
 
 
-def _exclude_detections_by_severity(
-    detections: List[Detection], scan_type: str, severity_threshold: str
-) -> List[Detection]:
-    if scan_type != consts.SCA_SCAN_TYPE or severity_threshold is None:
+def _exclude_detections_by_severity(detections: List[Detection], severity_threshold: str) -> List[Detection]:
+    if severity_threshold is None:
         return detections
 
     relevant_detections = []
     for detection in detections:
         severity = detection.detection_details.get('advisory_severity')
+        if not severity:
+            severity = detection.severity
+
         if _does_severity_match_severity_threshold(severity, severity_threshold):
             relevant_detections.append(detection)
+        else:
+            logger.debug(
+                'Going to ignore violations because they are below the severity threshold, %s',
+                {'severity': severity, 'severity_threshold': severity_threshold},
+            )
 
     return relevant_detections
 
@@ -861,10 +867,11 @@ def _generate_unique_id() -> UUID:
 
 def _does_severity_match_severity_threshold(severity: str, severity_threshold: str) -> bool:
     detection_severity_value = Severity.try_get_value(severity)
-    if detection_severity_value is None:
+    severity_threshold_value = Severity.try_get_value(severity_threshold)
+    if detection_severity_value is None or severity_threshold_value is None:
         return True
 
-    return detection_severity_value >= Severity.try_get_value(severity_threshold)
+    return detection_severity_value >= severity_threshold_value
 
 
 def _get_scan_result(
