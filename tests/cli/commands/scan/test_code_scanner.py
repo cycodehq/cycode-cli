@@ -75,7 +75,7 @@ def test_generate_document() -> None:
     assert generated_tfplan_document.is_git_diff_format == is_git_diff
 
 
-def test_does_severity_match_severity_threshold():
+def test_does_severity_match_severity_threshold() -> None:
     assert _does_severity_match_severity_threshold('INFO', 'LOW') is False
 
     assert _does_severity_match_severity_threshold('LOW', 'LOW') is True

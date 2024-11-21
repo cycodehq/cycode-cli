@@ -1,7 +1,7 @@
 from cycode.cli.models import Severity
 
 
-def test_try_get_value():
+def test_try_get_value() -> None:
     assert Severity.try_get_value('info') == -1
     assert Severity.try_get_value('iNfO') == -1
 
@@ -14,7 +14,7 @@ def test_try_get_value():
     assert Severity.try_get_value('NON_EXISTENT') is None
 
 
-def test_get_member_weight():
+def test_get_member_weight() -> None:
     assert Severity.get_member_weight('INFO') == -1
     assert Severity.get_member_weight('LOW') == 0
     assert Severity.get_member_weight('MEDIUM') == 1
