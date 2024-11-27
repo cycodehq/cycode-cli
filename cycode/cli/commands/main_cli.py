@@ -3,6 +3,7 @@ from typing import Optional
 
 import click
 
+from cycode.cli.commands.ai_remediation.ai_remediation_command import ai_remediation_command
 from cycode.cli.commands.auth.auth_command import auth_command
 from cycode.cli.commands.configure.configure_command import configure_command
 from cycode.cli.commands.ignore.ignore_command import ignore_command
@@ -30,6 +31,7 @@ from cycode.cyclient.models import UserAgentOptionScheme
         'auth': auth_command,
         'version': version_command,
         'status': status_command,
+        'ai_remediation': ai_remediation_command,
     },
     context_settings=CLI_CONTEXT_SETTINGS,
 )

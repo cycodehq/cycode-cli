@@ -13,8 +13,10 @@ class Detection(Schema):
         detection_details: dict,
         detection_rule_id: str,
         severity: Optional[str] = None,
+        id: Optional[str] = None,
     ) -> None:
         super().__init__()
+        self.id = id
         self.message = message
         self.type = type
         self.severity = severity
@@ -36,6 +38,7 @@ class DetectionSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
+    id = fields.String(missing=None)
     message = fields.String()
     type = fields.String()
     severity = fields.String(missing=None)
