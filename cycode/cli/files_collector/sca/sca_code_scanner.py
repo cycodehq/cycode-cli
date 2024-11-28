@@ -139,7 +139,7 @@ def restore_handlers(context: click.Context, is_git_diff: bool) -> List[BaseRest
         RestoreGoDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
         RestoreNugetDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
         RestoreNpmDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreRubyDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT)
+        RestoreRubyDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
     ]
 
 

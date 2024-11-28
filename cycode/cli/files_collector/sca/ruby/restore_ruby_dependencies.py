@@ -9,6 +9,7 @@ from cycode.cli.models import Document
 RUBY_PROJECT_FILE_EXTENSIONS = ['Gemfile']
 RUBY_LOCK_FILE_NAME = 'Gemfile.lock'
 
+
 class RestoreRubyDependencies(BaseRestoreDependencies):
     def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(context, is_git_diff, command_timeout)
