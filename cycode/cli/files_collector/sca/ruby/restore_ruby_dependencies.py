@@ -1,8 +1,6 @@
 import os
 from typing import List, Optional
 
-import click
-
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
 
@@ -11,14 +9,11 @@ RUBY_LOCK_FILE_NAME = 'Gemfile.lock'
 
 
 class RestoreRubyDependencies(BaseRestoreDependencies):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout)
-
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in RUBY_PROJECT_FILE_EXTENSIONS)
 
     def get_commands(self, manifest_file_path: str) -> List[List[str]]:
-        return [['/opt/homebrew/opt/ruby/bin/bundle', '--quiet']]
+        return [['bundle', '--quiet']]
 
     def get_lock_file_name(self) -> str:
         return RUBY_LOCK_FILE_NAME
