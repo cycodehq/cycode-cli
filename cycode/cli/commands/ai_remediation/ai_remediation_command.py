@@ -26,7 +26,7 @@ def _apply_fix(context: click.Context, diff: str, is_fix_available: bool) -> Non
         printer.print_result(CliResult(success=False, message='Fix is not available for this violation'))
         return
 
-    patch = fromstring(diff)
+    patch = fromstring(diff.encode('UTF-8'))
     if patch is False:
         printer.print_result(CliResult(success=False, message='Failed to parse fix diff'))
         return

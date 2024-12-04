@@ -215,8 +215,9 @@ class ScanClient:
 
         data = {
             'resolving_parameters': {
-                'git_diff': True,
+                'get_diff': True,
                 'use_code_snippet': True,
+                'add_diff_header': True,
             }
         }
         if not fix:
