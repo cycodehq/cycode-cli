@@ -43,6 +43,7 @@ class Severity(Enum):
 
     @staticmethod
     def try_get_value(name: str) -> any:
+        name = name.upper()
         if name not in Severity.__members__:
             return None
 

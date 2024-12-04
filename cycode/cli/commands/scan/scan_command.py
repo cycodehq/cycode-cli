@@ -66,7 +66,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
 @click.option(
     '--severity-threshold',
     default=None,
-    help='Show violations only for the specified level or higher (supported for SCA scan types only).',
+    help='Show violations only for the specified level or higher.',
     type=click.Choice([e.name for e in Severity]),
     required=False,
 )

@@ -8,6 +8,7 @@ from cycode.cli.commands.configure.configure_command import configure_command
 from cycode.cli.commands.ignore.ignore_command import ignore_command
 from cycode.cli.commands.report.report_command import report_command
 from cycode.cli.commands.scan.scan_command import scan_command
+from cycode.cli.commands.status.status_command import status_command
 from cycode.cli.commands.version.version_command import version_command
 from cycode.cli.consts import (
     CLI_CONTEXT_SETTINGS,
@@ -28,6 +29,7 @@ from cycode.cyclient.models import UserAgentOptionScheme
         'ignore': ignore_command,
         'auth': auth_command,
         'version': version_command,
+        'status': status_command,
     },
     context_settings=CLI_CONTEXT_SETTINGS,
 )
