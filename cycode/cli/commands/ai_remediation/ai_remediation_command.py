@@ -38,7 +38,7 @@ def _apply_fix(context: click.Context, diff: str, is_fix_available: bool) -> Non
         printer.print_result(CliResult(success=False, message='Failed to apply fix'))
 
 
-@click.command(short_help='Get AI remediation.')
+@click.command(short_help='Get AI remediation (INTERNAL).', hidden=True)
 @click.argument('detection_id', nargs=1, type=click.UUID, required=True)
 @click.option(
     '--fix',

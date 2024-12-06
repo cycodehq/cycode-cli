@@ -6,7 +6,7 @@ from cycode import __version__
 from cycode.cli.consts import PROGRAM_NAME
 
 
-@click.command(short_help='Show the CLI version and exit.')
+@click.command(short_help='Show the CLI version and exit. Use `cycode status` instead.', deprecated=True)
 @click.pass_context
 def version_command(context: click.Context) -> None:
     output = context.obj['output']
