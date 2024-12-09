@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-42034-add-ai-remediations
 
 permissions:
   contents: write
