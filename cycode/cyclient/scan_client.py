@@ -207,6 +207,28 @@ class ScanClient:
         return models.SupportedModulesPreferencesSchema().load(response.json())
 
     @staticmethod
+    def get_ai_remediation_path(detection_id: str) -> str:
+        return f'scm-remediator/api/v1/ContentRemediation/preview/{detection_id}'
+
+    def get_ai_remediation(self, detection_id: str, *, fix: bool = False) -> str:
+        path = self.get_ai_remediation_path(detection_id)
+
+        data = {
+            'resolving_parameters': {
+                'get_diff': True,
+                'use_code_snippet': True,
+                'add_diff_header': True,
+            }
+        }
+        if not fix:
+            data['resolving_parameters']['remediation_action'] = 'ReplyWithRemediationDetails'
+
+        response = self.scan_cycode_client.get(
+            url_path=path, json=data, timeout=configuration_manager.get_ai_remediation_timeout_in_seconds()
+        )
+        return response.text.strip()
+
+    @staticmethod
     def _get_policy_type_by_scan_type(scan_type: str) -> str:
         scan_type_to_policy_type = {
             consts.INFRA_CONFIGURATION_SCAN_TYPE: 'IaC',

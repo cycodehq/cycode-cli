@@ -3,19 +3,16 @@ from typing import Optional
 import click
 
 from cycode.cli.exceptions import custom_exceptions
+from cycode.cli.exceptions.common import handle_errors
 from cycode.cli.exceptions.custom_exceptions import KNOWN_USER_FRIENDLY_REQUEST_ERRORS
 from cycode.cli.models import CliError, CliErrors
-from cycode.cli.printers import ConsolePrinter
-from cycode.cli.sentry import capture_exception
 from cycode.cli.utils.git_proxy import git_proxy
 
 
 def handle_scan_exception(
-    context: click.Context, e: Exception, *, return_exception: bool = False
+    context: click.Context, err: Exception, *, return_exception: bool = False
 ) -> Optional[CliError]:
     context.obj['did_fail'] = True
-
-    ConsolePrinter(context).print_exception(e)
 
     errors: CliErrors = {
         **KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
@@ -35,7 +32,7 @@ def handle_scan_exception(
         custom_exceptions.TfplanKeyError: CliError(
             soft_fail=True,
             code='key_error',
-            message=f'\n{e!s}\n'
+            message=f'\n{err!s}\n'
             'A crucial field is missing in your terraform plan file. '
             'Please make sure that your file is well formed '
             'and execute the scan again',
@@ -48,26 +45,4 @@ def handle_scan_exception(
         ),
     }
 
-    if type(e) in errors:
-        error = errors[type(e)]
-
-        if error.soft_fail is True:
-            context.obj['soft_fail'] = True
-
-        if return_exception:
-            return error
-
-        ConsolePrinter(context).print_error(error)
-        return None
-
-    if isinstance(e, click.ClickException):
-        raise e
-
-    capture_exception(e)
-
-    unknown_error = CliError(code='unknown_error', message=str(e))
-    if return_exception:
-        return unknown_error
-
-    ConsolePrinter(context).print_error(unknown_error)
-    exit(1)
+    return handle_errors(context, err, errors, return_exception=return_exception)

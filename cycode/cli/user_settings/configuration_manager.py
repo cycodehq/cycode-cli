@@ -113,6 +113,13 @@ class ConfigurationManager:
             )
         )
 
+    def get_ai_remediation_timeout_in_seconds(self) -> int:
+        return int(
+            self._get_value_from_environment_variables(
+                consts.AI_REMEDIATION_TIMEOUT_IN_SECONDS_ENV_VAR_NAME, consts.DEFAULT_AI_REMEDIATION_TIMEOUT_IN_SECONDS
+            )
+        )
+
     def get_report_polling_timeout_in_seconds(self) -> int:
         return int(
             self._get_value_from_environment_variables(
