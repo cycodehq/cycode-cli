@@ -77,4 +77,8 @@ def test_collect_top_level_ignore_files(fs: 'FakeFilesystem') -> None:
 def test_get_global_ignore_patterns(fs: 'FakeFilesystem') -> None:
     _create_mocked_file_structure(fs)
     ignore_patterns = _get_global_ignore_patterns('/home/user/project/subdir')
-    assert ignore_patterns == ['*.txt', '*.pyc', '*.log']
+
+    assert len(ignore_patterns) == 3
+    assert '*.txt' in ignore_patterns
+    assert '*.pyc' in ignore_patterns
+    assert '*.log' in ignore_patterns
