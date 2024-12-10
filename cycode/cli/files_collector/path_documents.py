@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from typing import Set, TYPE_CHECKING, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Iterable, List, Set, Tuple
 
 import pathspec
 
@@ -76,7 +76,12 @@ def _get_all_existing_files_in_directory(path: str, *, apply_ignore_patterns: bo
                 path_to_ignore_patterns[root].extend(get_file_content(filepath).splitlines())
 
             if apply_ignore_patterns and root in path_to_ignore_patterns:
-                filtered_paths = _apply_ignore_patterns(path_to_ignore_patterns[root], {filepath,})
+                filtered_paths = _apply_ignore_patterns(
+                    path_to_ignore_patterns[root],
+                    {
+                        filepath,
+                    },
+                )
                 if filtered_paths:
                     files.update(filtered_paths)
             else:
