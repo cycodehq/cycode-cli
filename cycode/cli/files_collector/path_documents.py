@@ -1,5 +1,6 @@
 import os
-from typing import TYPE_CHECKING, Iterable, List, Tuple
+from collections import defaultdict
+from typing import Set, TYPE_CHECKING, Iterable, List, Tuple
 
 import pathspec
 
@@ -18,12 +19,72 @@ if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 
-def _get_all_existing_files_in_directory(path: str) -> List[str]:
-    files: List[str] = []
+def _walk_to_top(path: str) -> Iterable[str]:
+    while os.path.dirname(path) != path:
+        yield path
+        path = os.path.dirname(path)
+
+    if path:
+        yield path  # Include the top-level directory
+
+
+_SUPPORTED_IGNORE_PATTERN_FILES = {'.gitignore', '.cycodeignore'}
+
+
+def _collect_top_level_ignore_files(path: str) -> List[str]:
+    ignore_files = []
+    for dir_path in _walk_to_top(path):
+        for ignore_file in _SUPPORTED_IGNORE_PATTERN_FILES:
+            ignore_file_path = os.path.join(dir_path, ignore_file)
+            if os.path.exists(ignore_file_path):
+                logger.debug('Found top level ignore file: %s', ignore_file_path)
+                ignore_files.append(ignore_file_path)
+    return ignore_files
+
+
+def _get_global_ignore_patterns(path: str) -> List[str]:
+    ignore_patterns = []
+    for ignore_file in _collect_top_level_ignore_files(path):
+        file_patterns = get_file_content(ignore_file).splitlines()
+        ignore_patterns.extend(file_patterns)
+    return ignore_patterns
+
+
+def _apply_ignore_patterns(ignore_patterns: List[str], files: Set[str]) -> Set[str]:
+    if not ignore_patterns:
+        return files
+
+    path_spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, ignore_patterns)
+    excluded_file_paths = set(path_spec.match_files(files))
+
+    return files - excluded_file_paths
+
+
+def _get_all_existing_files_in_directory(path: str, *, apply_ignore_patterns: bool = True) -> Set[str]:
+    files: Set[str] = set()
+
+    global_ignore_patterns = _get_global_ignore_patterns(path)
+    path_to_ignore_patterns = defaultdict(list)
 
     for root, _, filenames in os.walk(path):
         for filename in filenames:
-            files.append(os.path.join(root, filename))
+            filepath = os.path.join(root, filename)
+
+            if filepath in _SUPPORTED_IGNORE_PATTERN_FILES:
+                logger.debug('Found ignore file: %s', filepath)
+                # TODO(MarshalX): accumulate ignore pattern from previous levels
+                path_to_ignore_patterns[root].extend(get_file_content(filepath).splitlines())
+
+            if apply_ignore_patterns and root in path_to_ignore_patterns:
+                filtered_paths = _apply_ignore_patterns(path_to_ignore_patterns[root], {filepath,})
+                if filtered_paths:
+                    files.update(filtered_paths)
+            else:
+                files.add(os.path.join(root, filename))
+
+    if apply_ignore_patterns:
+        logger.debug('Applying global ignore patterns %s', {'global_ignore_patterns': global_ignore_patterns})
+        return _apply_ignore_patterns(global_ignore_patterns, files)
 
     return files
 
@@ -37,7 +98,7 @@ def _get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> L
     if os.path.isfile(absolute_path):
         return [absolute_path]
 
-    all_file_paths = set(_get_all_existing_files_in_directory(absolute_path))
+    all_file_paths = _get_all_existing_files_in_directory(absolute_path)
 
     path_spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, exclude_patterns)
     excluded_file_paths = set(path_spec.match_files(all_file_paths))
