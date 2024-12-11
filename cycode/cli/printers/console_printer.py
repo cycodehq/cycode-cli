@@ -60,3 +60,15 @@ class ConsolePrinter:
         """Print traceback message in stderr if verbose mode is set."""
         if force_print or self.context.obj.get('verbose', False):
             self._printer_class(self.context).print_exception(e)
+
+    @property
+    def is_json_printer(self) -> bool:
+        return self._printer_class == JsonPrinter
+
+    @property
+    def is_table_printer(self) -> bool:
+        return self._printer_class == TablePrinter
+
+    @property
+    def is_text_printer(self) -> bool:
+        return self._printer_class == TextPrinter
