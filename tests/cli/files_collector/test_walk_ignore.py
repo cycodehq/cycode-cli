@@ -87,12 +87,10 @@ def test_get_global_ignore_patterns(fs: 'FakeFilesystem') -> None:
     _create_mocked_file_structure(fs)
     ignore_patterns = _get_global_ignore_patterns('/home/user/project/subdir')
 
-    assert len(ignore_patterns) == 7
+    assert len(ignore_patterns) == 5
     # default global:
-    assert '.git' in ignore_patterns
-    assert '.cycode' in ignore_patterns
-    assert '**/.git/**' in ignore_patterns
-    assert '**/.cycode/**' in ignore_patterns
+    assert '**/.git' in ignore_patterns
+    assert '**/.cycode' in ignore_patterns
     # additional:
     assert '*.txt' in ignore_patterns
     assert '*.pyc' in ignore_patterns

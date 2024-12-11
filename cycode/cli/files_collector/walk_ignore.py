@@ -10,10 +10,8 @@ from cycode.cyclient import logger
 
 _SUPPORTED_IGNORE_PATTERN_FILES = {'.gitignore', '.cycodeignore'}
 _DEFAULT_GLOBAL_IGNORE_PATTERNS = [
-    '.git',
-    '.cycode',
-    '**/.git/**',
-    '**/.cycode/**',
+    '**/.git',
+    '**/.cycode',
 ]
 
 
@@ -67,7 +65,7 @@ def walk_ignore(path: str) -> List[str]:
 
         # decrease recursion depth of os.walk() because of topdown=True by changing the list in-place
         # slicing ([:]) is mandatory to change dict in-place!
-        dirnames[:] = [d for d in dirnames if _should_include_path(ignore_patterns, d)]
-        filenames[:] = [f for f in filenames if _should_include_path(ignore_patterns, f)]
+        dirnames[:] = [d for d in dirnames if _should_include_path(ignore_patterns, os.path.join(dirpath, d))]
+        filenames[:] = [f for f in filenames if _should_include_path(ignore_patterns, os.path.join(dirpath, f))]
 
         yield dirpath, dirnames, filenames
