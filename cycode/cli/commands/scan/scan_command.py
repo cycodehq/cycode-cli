@@ -1,5 +1,5 @@
 import sys
-from typing import List
+from typing import List, Optional
 
 import click
 
@@ -117,7 +117,7 @@ def scan_command(
     client_id: str,
     show_secret: bool,
     soft_fail: bool,
-    severity_threshold: str,
+    severity_threshold: Optional[str],
     sca_scan: List[str],
     monitor: bool,
     report: bool,
