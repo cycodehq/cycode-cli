@@ -1,7 +1,7 @@
 from os.path import normpath
 from typing import TYPE_CHECKING
 
-from cycode.cli.files_collector.path_documents import (
+from cycode.cli.files_collector.walk_ignore import (
     _collect_top_level_ignore_files,
     _get_global_ignore_patterns,
     _walk_to_top,
@@ -87,7 +87,13 @@ def test_get_global_ignore_patterns(fs: 'FakeFilesystem') -> None:
     _create_mocked_file_structure(fs)
     ignore_patterns = _get_global_ignore_patterns('/home/user/project/subdir')
 
-    assert len(ignore_patterns) == 3
+    assert len(ignore_patterns) == 7
+    # default global:
+    assert '.git' in ignore_patterns
+    assert '.cycode' in ignore_patterns
+    assert '**/.git/**' in ignore_patterns
+    assert '**/.cycode/**' in ignore_patterns
+    # additional:
     assert '*.txt' in ignore_patterns
     assert '*.pyc' in ignore_patterns
     assert '*.log' in ignore_patterns
