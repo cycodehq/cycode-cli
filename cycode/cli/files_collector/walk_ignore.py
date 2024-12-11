@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from typing import Iterable, List
+from typing import Generator, Iterable, List, Tuple
 
 import pathspec
 from pathspec.util import StrPath
@@ -48,7 +48,7 @@ def _should_include_path(ignore_patterns: List[str], path: StrPath) -> bool:
     return not path_spec.match_file(path)  # works with both files and directories; negative match
 
 
-def walk_ignore(path: str) -> List[str]:
+def walk_ignore(path: str) -> Generator[Tuple[str, List[str], List[str]], None, None]:
     global_ignore_patterns = _get_global_ignore_patterns(path)
     path_to_ignore_patterns = defaultdict(list)
 
@@ -58,7 +58,14 @@ def walk_ignore(path: str) -> List[str]:
             filepath = os.path.join(dirpath, filename)
             if filename in _SUPPORTED_IGNORE_PATTERN_FILES:
                 logger.debug('Apply ignore file: %s', filepath)
-                # TODO(MarshalX): accumulate ignore pattern from previous levels
+
+                parent_dir = os.path.dirname(dirpath)
+                if dirpath not in path_to_ignore_patterns and parent_dir in path_to_ignore_patterns:
+                    # inherit ignore patterns from parent directory on first occurrence
+                    logger.debug('Inherit ignore patterns: %s', {'inherit_from': parent_dir, 'inherit_to': dirpath})
+                    path_to_ignore_patterns[dirpath].extend(path_to_ignore_patterns[parent_dir])
+
+                # always read ignore patterns for the current directory
                 path_to_ignore_patterns[dirpath].extend(get_file_content(filepath).splitlines())
 
         ignore_patterns = global_ignore_patterns + path_to_ignore_patterns.get(dirpath, [])
