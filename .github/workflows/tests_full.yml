@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local
-          key: poetry-${{ matrix.os }}-${{ matrix.python-version }}-1  # increment to reset cache
+          key: poetry-${{ matrix.os }}-${{ matrix.python-version }}-2  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
