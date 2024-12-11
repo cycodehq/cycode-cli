@@ -63,7 +63,7 @@ class CliError(NamedTuple):
     soft_fail: bool = False
 
 
-CliErrors = Dict[Type[Exception], CliError]
+CliErrors = Dict[Type[BaseException], CliError]
 
 
 class CliResult(NamedTuple):
