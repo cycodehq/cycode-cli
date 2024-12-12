@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Dict, List
 import click
 
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
-from cycode.cli.models import Detection, Severity
+from cycode.cli.models import SEVERITY_UNKNOWN_WEIGHT, Detection, Severity
 from cycode.cli.printers.tables.table import Table
 from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidths
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
@@ -73,7 +73,10 @@ class ScaTablePrinter(TablePrinterBase):
     @staticmethod
     def __severity_sort_key(detection: Detection) -> int:
         severity = detection.detection_details.get('advisory_severity')
-        return Severity.get_member_weight(severity)
+        if severity:
+            return Severity.get_member_weight(severity)
+
+        return SEVERITY_UNKNOWN_WEIGHT
 
     def _sort_detections_by_severity(self, detections: List[Detection]) -> List[Detection]:
         return sorted(detections, key=self.__severity_sort_key, reverse=True)
