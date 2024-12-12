@@ -1,5 +1,5 @@
 import sys
-from typing import List, Optional
+from typing import List
 
 import click
 
@@ -65,7 +65,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
 )
 @click.option(
     '--severity-threshold',
-    default=None,
+    default=Severity.INFO.name,
     help='Show violations only for the specified level or higher.',
     type=click.Choice([e.name for e in Severity]),
     required=False,
@@ -117,7 +117,7 @@ def scan_command(
     client_id: str,
     show_secret: bool,
     soft_fail: bool,
-    severity_threshold: Optional[str],
+    severity_threshold: str,
     sca_scan: List[str],
     monitor: bool,
     report: bool,

@@ -455,7 +455,7 @@ def create_local_scan_result(
     documents_to_scan: List[Document],
     command_scan_type: str,
     scan_type: str,
-    severity_threshold: Optional[str],
+    severity_threshold: str,
 ) -> LocalScanResult:
     document_detections = get_document_detections(scan_result, documents_to_scan)
     relevant_document_detections_list = exclude_irrelevant_document_detections(
@@ -630,7 +630,7 @@ def exclude_irrelevant_document_detections(
     document_detections_list: List[DocumentDetections],
     scan_type: str,
     command_scan_type: str,
-    severity_threshold: Optional[str],
+    severity_threshold: str,
 ) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
@@ -712,15 +712,11 @@ def try_get_git_remote_url(path: str) -> Optional[str]:
 
 
 def exclude_irrelevant_detections(
-    detections: List[Detection], scan_type: str, command_scan_type: str, severity_threshold: Optional[str]
+    detections: List[Detection], scan_type: str, command_scan_type: str, severity_threshold: str
 ) -> List[Detection]:
     relevant_detections = _exclude_detections_by_exclusions_configuration(detections, scan_type)
     relevant_detections = _exclude_detections_by_scan_type(relevant_detections, scan_type, command_scan_type)
-
-    if severity_threshold:
-        return _exclude_detections_by_severity(relevant_detections, severity_threshold)
-
-    return relevant_detections
+    return _exclude_detections_by_severity(relevant_detections, severity_threshold)
 
 
 def _exclude_detections_by_severity(detections: List[Detection], severity_threshold: str) -> List[Detection]:
