@@ -1,7 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Iterable, List, Tuple
-
-import pathspec
+from typing import TYPE_CHECKING, List, Tuple
 
 from cycode.cli.files_collector.excluder import exclude_irrelevant_files
 from cycode.cli.files_collector.iac.tf_content_generator import (
@@ -10,6 +8,7 @@ from cycode.cli.files_collector.iac.tf_content_generator import (
     is_iac,
     is_tfplan_file,
 )
+from cycode.cli.files_collector.walk_ignore import walk_ignore
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_absolute_path, get_file_content
 from cycode.cyclient import logger
@@ -18,17 +17,18 @@ if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 
-def _get_all_existing_files_in_directory(path: str) -> List[str]:
+def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns: bool = True) -> List[str]:
     files: List[str] = []
 
-    for root, _, filenames in os.walk(path):
+    walk_func = walk_ignore if walk_with_ignore_patterns else os.walk
+    for root, _, filenames in walk_func(path):
         for filename in filenames:
             files.append(os.path.join(root, filename))
 
     return files
 
 
-def _get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> List[str]:
+def _get_relevant_files_in_path(path: str) -> List[str]:
     absolute_path = get_absolute_path(path)
 
     if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
@@ -37,14 +37,8 @@ def _get_relevant_files_in_path(path: str, exclude_patterns: Iterable[str]) -> L
     if os.path.isfile(absolute_path):
         return [absolute_path]
 
-    all_file_paths = set(_get_all_existing_files_in_directory(absolute_path))
-
-    path_spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, exclude_patterns)
-    excluded_file_paths = set(path_spec.match_files(all_file_paths))
-
-    relevant_file_paths = all_file_paths - excluded_file_paths
-
-    return [file_path for file_path in relevant_file_paths if os.path.isfile(file_path)]
+    file_paths = _get_all_existing_files_in_directory(absolute_path)
+    return [file_path for file_path in file_paths if os.path.isfile(file_path)]
 
 
 def _get_relevant_files(
@@ -52,9 +46,7 @@ def _get_relevant_files(
 ) -> List[str]:
     all_files_to_scan = []
     for path in paths:
-        all_files_to_scan.extend(
-            _get_relevant_files_in_path(path=path, exclude_patterns=['**/.git/**', '**/.cycode/**'])
-        )
+        all_files_to_scan.extend(_get_relevant_files_in_path(path))
 
     # we are double the progress bar section length because we are going to process the files twice
     # first time to get the file list with respect of excluded patterns (excluding takes seconds to execute)
