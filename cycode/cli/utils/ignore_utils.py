@@ -294,7 +294,11 @@ class IgnoreFilterManager:
         self._path_filters = {}  # type: Dict[str, Optional[IgnoreFilter]]
         self._top_path = path
         self._global_filters = global_filters
+
         self._ignore_file_name = ignore_file_name
+        if self._ignore_file_name is None:
+            self._ignore_file_name = '.gitignore'
+
         self._ignore_case = ignore_case
 
     def __repr__(self) -> str:
@@ -388,16 +392,12 @@ class IgnoreFilterManager:
         """A wrapper for os.walk() without ignored files and subdirectories.
         kwargs are passed to walk()."""
 
-        for dirpath, dirnames, filenames in os.walk(self.path, **kwargs):
+        for dirpath, dirnames, filenames in os.walk(self.path, topdown=True, **kwargs):
             rel_dirpath = '' if dirpath == self.path else os.path.relpath(dirpath, self.path)
 
-            # remove ignored subdirectories
-            indices_to_remove = []
-            for i, dirname in enumerate(dirnames):
-                if self.is_ignored(os.path.join(rel_dirpath, dirname, '')):
-                    indices_to_remove.append(i)
-            for i in sorted(indices_to_remove, reverse=True):
-                del dirnames[i]
+            # decrease recursion depth of os.walk() by ignoring subdirectories because of topdown=True
+            # slicing ([:]) is mandatory to change dict in-place!
+            dirnames[:] = [dirname for dirname in dirnames if not self.is_ignored(os.path.join(rel_dirpath, dirname, ''))]
 
             # remove ignored files
             filenames = [os.path.basename(f) for f in filenames if not self.is_ignored(os.path.join(rel_dirpath, f))]
@@ -432,15 +432,20 @@ class IgnoreFilterManager:
 
         if hasattr(path, '__fspath__'):
             path = path.__fspath__()
+
         global_filters = []
         for p in global_ignore_file_paths:
             if hasattr(p, '__fspath__'):
                 p = p.__fspath__()
+
             p = os.path.expanduser(p)
             if not os.path.isabs(p):
                 p = os.path.join(path, p)
+
             with contextlib.suppress(IOError):
                 global_filters.append(IgnoreFilter.from_path(p))
+
         if global_patterns:
             global_filters.append(IgnoreFilter(global_patterns))
+
         return cls(path, global_filters=global_filters, ignore_file_name=ignore_file_name, ignore_case=ignore_case)
