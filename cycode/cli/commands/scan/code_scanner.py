@@ -627,7 +627,10 @@ def get_document_detections(
 
 
 def exclude_irrelevant_document_detections(
-    document_detections_list: List[DocumentDetections], scan_type: str, command_scan_type: str, severity_threshold: str
+    document_detections_list: List[DocumentDetections],
+    scan_type: str,
+    command_scan_type: str,
+    severity_threshold: str,
 ) -> List[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
@@ -717,9 +720,6 @@ def exclude_irrelevant_detections(
 
 
 def _exclude_detections_by_severity(detections: List[Detection], severity_threshold: str) -> List[Detection]:
-    if severity_threshold is None:
-        return detections
-
     relevant_detections = []
     for detection in detections:
         severity = detection.detection_details.get('advisory_severity')
