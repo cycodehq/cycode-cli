@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, List
 
 from cycode.cli.files_collector.walk_ignore import (
     _collect_top_level_ignore_files,
-    _get_global_ignore_patterns,
     _walk_to_top,
     walk_ignore,
 )
@@ -52,11 +51,9 @@ def _create_mocked_file_structure(fs: 'FakeFilesystem') -> None:
     fs.create_dir('/home/user/project/.git')
     fs.create_file('/home/user/project/.git/HEAD')
 
-    fs.create_file('/home/user/project/.gitignore', contents='*.pyc')
+    fs.create_file('/home/user/project/.gitignore', contents='*.pyc\n*.log')
     fs.create_file('/home/user/project/ignored.pyc')
     fs.create_file('/home/user/project/presented.txt')
-
-    fs.create_file('/home/user/project/.cycodeignore', contents='*.log')
     fs.create_file('/home/user/project/ignored2.log')
     fs.create_file('/home/user/project/ignored2.pyc')
     fs.create_file('/home/user/project/presented2.txt')
@@ -75,45 +72,27 @@ def test_collect_top_level_ignore_files(fs: 'FakeFilesystem') -> None:
     # Test with path inside the project
     path = normpath('/home/user/project/subproject')
     ignore_files = _collect_top_level_ignore_files(path)
-
-    assert len(ignore_files) == 3
+    assert len(ignore_files) == 2
     assert normpath('/home/user/project/subproject/.gitignore') in ignore_files
     assert normpath('/home/user/project/.gitignore') in ignore_files
-    assert normpath('/home/user/project/.cycodeignore') in ignore_files
-
-    # Test with a path that does not have any ignore files
-    fs.remove('/home/user/project/.gitignore')
-    path = normpath('/home/user')
-    ignore_files = _collect_top_level_ignore_files(path)
-
-    assert len(ignore_files) == 0
 
     # Test with path at the top level with no ignore files
     path = normpath('/home/user/.git')
     ignore_files = _collect_top_level_ignore_files(path)
-
     assert len(ignore_files) == 0
 
     # Test with path at the top level with a .gitignore
     path = normpath('/home/user/project')
     ignore_files = _collect_top_level_ignore_files(path)
-
     assert len(ignore_files) == 1
-    assert normpath('/home/user/project/.cycodeignore') in ignore_files
+    assert normpath('/home/user/project/.gitignore') in ignore_files
 
-
-def test_get_global_ignore_patterns(fs: 'FakeFilesystem') -> None:
-    _create_mocked_file_structure(fs)
-    ignore_patterns = _get_global_ignore_patterns('/home/user/project/subproject')
-
-    assert len(ignore_patterns) == 5
-    # default global:
-    assert '**/.git' in ignore_patterns
-    assert '**/.cycode' in ignore_patterns
-    # additional:
-    assert '*.txt' in ignore_patterns
-    assert '*.pyc' in ignore_patterns
-    assert '*.log' in ignore_patterns
+    # Test with a path that does not have any ignore files
+    fs.remove('/home/user/project/.gitignore')
+    path = normpath('/home/user')
+    ignore_files = _collect_top_level_ignore_files(path)
+    assert len(ignore_files) == 0
+    fs.create_file('/home/user/project/.gitignore', contents='*.pyc\n*.log')
 
 
 def _collect_walk_ignore_files(path: str) -> List[str]:
@@ -131,7 +110,7 @@ def test_walk_ignore(fs: 'FakeFilesystem') -> None:
     path = normpath('/home/user/project')
     result = _collect_walk_ignore_files(path)
 
-    assert len(result) == 6
+    assert len(result) == 5
     # ignored globally by default:
     assert normpath('/home/user/project/.git/HEAD') not in result
     assert normpath('/home/user/project/.cycode/config.yaml') not in result
@@ -146,7 +125,6 @@ def test_walk_ignore(fs: 'FakeFilesystem') -> None:
     assert normpath('/home/user/project/subproject/ignored.log') not in result
     # presented after both .gitignore and .cycodeignore:
     assert normpath('/home/user/project/.gitignore') in result
-    assert normpath('/home/user/project/.cycodeignore') in result
     assert normpath('/home/user/project/subproject/.gitignore') in result
     assert normpath('/home/user/project/presented.txt') in result
     assert normpath('/home/user/project/presented2.txt') in result

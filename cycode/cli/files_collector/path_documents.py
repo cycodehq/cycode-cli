@@ -1,7 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple
-
-import pathspec
+from typing import TYPE_CHECKING, List, Tuple
 
 from cycode.cli.files_collector.excluder import exclude_irrelevant_files
 from cycode.cli.files_collector.iac.tf_content_generator import (
@@ -30,7 +28,7 @@ def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns
     return files
 
 
-def _get_relevant_files_in_path(path: str, exclude_patterns: Optional[Iterable[str]] = None) -> List[str]:
+def _get_relevant_files_in_path(path: str) -> List[str]:
     absolute_path = get_absolute_path(path)
 
     if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
@@ -40,11 +38,6 @@ def _get_relevant_files_in_path(path: str, exclude_patterns: Optional[Iterable[s
         return [absolute_path]
 
     file_paths = _get_all_existing_files_in_directory(absolute_path)
-
-    if exclude_patterns:
-        path_spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, exclude_patterns)
-        file_paths = path_spec.match_files(file_paths, negate=True)
-
     return [file_path for file_path in file_paths if os.path.isfile(file_path)]
 
 

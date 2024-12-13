@@ -132,12 +132,11 @@ def read_ignore_patterns(f: BinaryIO) -> Iterable[bytes]:
       f: File-like object to read from
     Returns: List of patterns
     """
-
     for line in f:
         line = line.rstrip(b'\r\n')
 
         # Ignore blank lines, they're used for readability.
-        if not line:
+        if not line.strip():
             continue
 
         if line.startswith(b'#'):
@@ -397,7 +396,9 @@ class IgnoreFilterManager:
 
             # decrease recursion depth of os.walk() by ignoring subdirectories because of topdown=True
             # slicing ([:]) is mandatory to change dict in-place!
-            dirnames[:] = [dirname for dirname in dirnames if not self.is_ignored(os.path.join(rel_dirpath, dirname, ''))]
+            dirnames[:] = [
+                dirname for dirname in dirnames if not self.is_ignored(os.path.join(rel_dirpath, dirname, ''))
+            ]
 
             # remove ignored files
             filenames = [os.path.basename(f) for f in filenames if not self.is_ignored(os.path.join(rel_dirpath, f))]
@@ -429,6 +430,13 @@ class IgnoreFilterManager:
             global_ignore_file_paths = []
         if not global_patterns:
             global_patterns = []
+
+        global_ignore_file_paths.extend(
+            [
+                os.path.join('.git', 'info', 'exclude'),  # relative to an input path, so within the repo
+                os.path.expanduser(os.path.join('~', '.config', 'git', 'ignore')),  # absolute
+            ]
+        )
 
         if hasattr(path, '__fspath__'):
             path = path.__fspath__()
