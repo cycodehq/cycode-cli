@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modified from https://github.com/dulwich/dulwich/blob/master/dulwich/ignore.py
+# Modified from https://github.com/jelmer/dulwich/blob/master/dulwich/ignore.py
 
 # Copyright 2020 Ben Kehoe
 #
@@ -64,6 +64,9 @@ def _translate_segment(segment: bytes) -> bytes:  # noqa: C901
             res += b'[^/]*'
         elif c == b'?':
             res += b'[^/]'
+        elif c == b'\\':
+            res += re.escape(segment[i : i + 1])
+            i += 1
         elif c == b'[':
             j = i
             if j < n and segment[j : j + 1] == b'!':
@@ -190,7 +193,7 @@ class Pattern:
         return isinstance(other, type(self)) and self.pattern == other.pattern and self.ignore_case == other.ignore_case
 
     def __repr__(self) -> str:
-        return '%s(%r, %r)' % (type(self).__name__, self.pattern, self.ignore_case)
+        return f'{type(self).__name__}({self.pattern!r}, {self.ignore_case!r})'
 
     def match(self, path: bytes) -> bool:
         """Try to match a path against this ignore pattern.
@@ -272,8 +275,8 @@ class IgnoreFilter:
     def __repr__(self) -> str:
         path = getattr(self, '_path', None)
         if path is not None:
-            return '%s.from_path(%r)' % (type(self).__name__, path)
-        return '<%s>' % type(self).__name__
+            return f'{type(self).__name__}.from_path({path!r})'
+        return f'<{type(self).__name__}>'
 
 
 class IgnoreFilterManager:
@@ -295,7 +298,7 @@ class IgnoreFilterManager:
         self._ignore_case = ignore_case
 
     def __repr__(self) -> str:
-        return '%s(%s, %r, %r)' % (type(self).__name__, self._top_path, self._global_filters, self._ignore_case)
+        return f'{type(self).__name__}({self._top_path}, {self._global_filters!r}, {self._ignore_case!r})'
 
     def to_dict(self, include_path_filters: bool = True) -> Dict[str, Any]:
         d = {
@@ -338,21 +341,18 @@ class IgnoreFilterManager:
     def _find_matching(self, path: str) -> Iterable[Pattern]:
         """Find matching patterns for path.
 
-        Stops after the first ignore file with matches.
-
         Args:
-          path: Path to check, must be relative.
+          path: Path to check
         Returns:
           Iterator over Pattern instances
         """
-        if hasattr(path, '__fspath__'):
-            path = path.__fspath__()
         if os.path.isabs(path):
-            raise ValueError('%s is an absolute path' % path)
+            raise ValueError(f'{path} is an absolute path')
         filters = [(0, f) for f in self._global_filters]
         if os.path.sep != '/':
             path = path.replace(os.path.sep, '/')
         parts = path.split('/')
+        matches = []
         for i in range(len(parts) + 1):
             dirname = '/'.join(parts[:i])
             for s, f in filters:
@@ -361,13 +361,11 @@ class IgnoreFilterManager:
                     # Paths leading up to the final part are all directories,
                     # so need a trailing slash.
                     relpath += '/'
-                matches = list(f.find_matching(relpath))
-                if matches:
-                    return iter(matches)
+                matches += list(f.find_matching(relpath))
             ignore_filter = self._load_path(dirname)
             if ignore_filter is not None:
                 filters.insert(0, (i, ignore_filter))
-        return iter([])
+        return iter(matches)
 
     def is_ignored(self, path: str) -> Optional[bool]:
         """Check whether a path is ignored.
