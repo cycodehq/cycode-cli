@@ -764,58 +764,68 @@ def _exclude_detections_by_exclusions_configuration(detections: List[Detection],
 
 
 def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
+    # FIXME(MarshalX): what the difference between by_value and by_sha?
     exclusions_by_value = exclusions.get(consts.EXCLUSIONS_BY_VALUE_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_value):
         logger.debug(
-            'Going to ignore violations because they are on the values-to-ignore list, %s',
-            {'value_sha': detection.detection_details.get('sha512', '')},
+            'Ignoring violation because its value on the ignore list, %s',
+            {'value_sha': detection.detection_details.get('sha512')},
         )
         return True
 
     exclusions_by_sha = exclusions.get(consts.EXCLUSIONS_BY_SHA_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_sha):
         logger.debug(
-            'Going to ignore violations because they are on the SHA ignore list, %s',
-            {'sha': detection.detection_details.get('sha512', '')},
+            'Ignoring violation because its SHA value on the ignore list, %s',
+            {'sha': detection.detection_details.get('sha512')},
         )
         return True
 
     exclusions_by_rule = exclusions.get(consts.EXCLUSIONS_BY_RULE_SECTION_NAME, [])
-    if exclusions_by_rule:
-        detection_rule = detection.detection_rule_id
-        if detection_rule in exclusions_by_rule:
-            logger.debug(
-                'Going to ignore violations because they are on the Rule ID ignore list, %s',
-                {'detection_rule': detection_rule},
-            )
-            return True
+    detection_rule_id = detection.detection_rule_id
+    if detection_rule_id in exclusions_by_rule:
+        logger.debug(
+            'Ignoring violation because its Detection Rule ID on the ignore list, %s',
+            {'detection_rule_id': detection_rule_id},
+        )
+        return True
 
     exclusions_by_package = exclusions.get(consts.EXCLUSIONS_BY_PACKAGE_SECTION_NAME, [])
-    if exclusions_by_package:
-        package = _get_package_name(detection)
-        if package in exclusions_by_package:
-            logger.debug(
-                'Going to ignore violations because they are on the packages-to-ignore list, %s', {'package': package}
-            )
-            return True
+    package = _get_package_name(detection)
+    if package and package in exclusions_by_package:
+        logger.debug('Ignoring violation because its package@version on the ignore list, %s', {'package': package})
+        return True
+
+    exclusions_by_cve = exclusions.get(consts.EXCLUSIONS_BY_CVE_SECTION_NAME, [])
+    cve = _get_cve_identifier(detection)
+    if cve and cve in exclusions_by_cve:
+        logger.debug('Ignoring violation because its CVE in the ignore list, %s', {'cve': cve})
+        return True
 
     return False
 
 
 def _is_detection_sha_configured_in_exclusions(detection: Detection, exclusions: List[str]) -> bool:
-    detection_sha = detection.detection_details.get('sha512', '')
+    detection_sha = detection.detection_details.get('sha512')
     return detection_sha in exclusions
 
 
-def _get_package_name(detection: Detection) -> str:
-    package_name = detection.detection_details.get('vulnerable_component', '')
-    package_version = detection.detection_details.get('vulnerable_component_version', '')
+def _get_package_name(detection: Detection) -> Optional[str]:
+    package_name = detection.detection_details.get('vulnerable_component')
+    package_version = detection.detection_details.get('vulnerable_component_version')
 
-    if package_name == '':
-        package_name = detection.detection_details.get('package_name', '')
-        package_version = detection.detection_details.get('package_version', '')
+    if package_name is None:
+        package_name = detection.detection_details.get('package_name')
+        package_version = detection.detection_details.get('package_version')
 
-    return f'{package_name}@{package_version}'
+    if package_name and package_version:
+        return f'{package_name}@{package_version}'
+
+    return None
+
+
+def _get_cve_identifier(detection: Detection) -> Optional[str]:
+    return detection.detection_details.get('alert', {}).get('cve_identifier')
 
 
 def _get_document_by_file_name(
