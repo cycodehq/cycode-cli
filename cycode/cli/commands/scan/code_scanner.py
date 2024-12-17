@@ -785,7 +785,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     detection_rule_id = detection.detection_rule_id
     if detection_rule_id in exclusions_by_rule:
         logger.debug(
-            'Ignoring violation because its Detection Rule ID on the ignore list, %s',
+            'Ignoring violation because its Detection Rule ID is on the ignore list, %s',
             {'detection_rule_id': detection_rule_id},
         )
         return True
