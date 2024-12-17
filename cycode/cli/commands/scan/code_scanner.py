@@ -768,7 +768,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     exclusions_by_value = exclusions.get(consts.EXCLUSIONS_BY_VALUE_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_value):
         logger.debug(
-            'Ignoring violation because its value on the ignore list, %s',
+            'Ignoring violation because its value is on the ignore list, %s',
             {'value_sha': detection.detection_details.get('sha512')},
         )
         return True
