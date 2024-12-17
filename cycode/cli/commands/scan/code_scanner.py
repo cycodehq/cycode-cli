@@ -793,7 +793,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     exclusions_by_package = exclusions.get(consts.EXCLUSIONS_BY_PACKAGE_SECTION_NAME, [])
     package = _get_package_name(detection)
     if package and package in exclusions_by_package:
-        logger.debug('Ignoring violation because its package@version on the ignore list, %s', {'package': package})
+        logger.debug('Ignoring violation because its package@version is on the ignore list, %s', {'package': package})
         return True
 
     exclusions_by_cve = exclusions.get(consts.EXCLUSIONS_BY_CVE_SECTION_NAME, [])
