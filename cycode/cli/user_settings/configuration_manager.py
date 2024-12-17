@@ -79,7 +79,8 @@ class ConfigurationManager:
         config_file_manager = self.get_config_file_manager(scope)
         config_file_manager.add_exclusion(scan_type, exclusion_type, value)
 
-    def _merge_exclusions(self, local_exclusions: Dict, global_exclusions: Dict) -> Dict:
+    @staticmethod
+    def _merge_exclusions(local_exclusions: Dict, global_exclusions: Dict) -> Dict:
         keys = set(list(local_exclusions.keys()) + list(global_exclusions.keys()))
         return {key: local_exclusions.get(key, []) + global_exclusions.get(key, []) for key in keys}
 
