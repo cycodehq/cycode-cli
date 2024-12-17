@@ -799,7 +799,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     exclusions_by_cve = exclusions.get(consts.EXCLUSIONS_BY_CVE_SECTION_NAME, [])
     cve = _get_cve_identifier(detection)
     if cve and cve in exclusions_by_cve:
-        logger.debug('Ignoring violation because its CVE in the ignore list, %s', {'cve': cve})
+        logger.debug('Ignoring violation because its CVE is on the ignore list, %s', {'cve': cve})
         return True
 
     return False
