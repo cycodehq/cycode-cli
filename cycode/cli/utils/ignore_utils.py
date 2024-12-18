@@ -396,12 +396,10 @@ class IgnoreFilterManager:
 
             # decrease recursion depth of os.walk() by ignoring subdirectories because of topdown=True
             # slicing ([:]) is mandatory to change dict in-place!
-            dirnames[:] = [
-                dirname for dirname in dirnames if not self.is_ignored(os.path.join(rel_dirpath, dirname, ''))
-            ]
+            dirnames[:] = [d for d in dirnames if not self.is_ignored(os.path.join(rel_dirpath, d))]
 
             # remove ignored files
-            filenames = [os.path.basename(f) for f in filenames if not self.is_ignored(os.path.join(rel_dirpath, f))]
+            filenames = [f for f in filenames if not self.is_ignored(os.path.join(rel_dirpath, f))]
 
             yield dirpath, dirnames, filenames
 

@@ -140,3 +140,20 @@ def test_walk_ignore(fs: 'FakeFilesystem') -> None:
     assert normpath('/home/user/project/subproject/ignored.pyc') not in result
     # presented:
     assert normpath('/home/user/project/subproject/presented.py') in result
+
+
+def test_walk_ignore_top_level_ignores_order(fs: 'FakeFilesystem') -> None:
+    fs.create_file('/home/user/.gitignore', contents='*.log')
+    fs.create_file('/home/user/project/.gitignore', contents='!*.log')  # rollback *.log ignore for project
+    fs.create_dir('/home/user/project/subproject')
+
+    fs.create_file('/home/user/ignored.log')
+    fs.create_file('/home/user/project/presented.log')
+    fs.create_file('/home/user/project/subproject/presented.log')
+
+    path = normpath('/home/user/project')
+    result = _collect_walk_ignore_files(path)
+    assert len(result) == 3
+    assert normpath('/home/user/ignored.log') not in result
+    assert normpath('/home/user/project/presented.log') in result
+    assert normpath('/home/user/project/subproject/presented.log') in result
