@@ -151,8 +151,9 @@ def test_walk_ignore_top_level_ignores_order(fs: 'FakeFilesystem') -> None:
     fs.create_file('/home/user/project/presented.log')
     fs.create_file('/home/user/project/subproject/presented.log')
 
-    results = _collect_walk_ignore_files('/home/user/project')
-    assert len(results) == 3
-    assert normpath('/home/user/ignored.log') not in results
-    assert normpath('/home/user/project/presented.log') in results
-    assert normpath('/home/user/project/subproject/presented.log') in results
+    path = normpath('/home/user/project')
+    result = _collect_walk_ignore_files(path)
+    assert len(result) == 3
+    assert normpath('/home/user/ignored.log') not in result
+    assert normpath('/home/user/project/presented.log') in result
+    assert normpath('/home/user/project/subproject/presented.log') in result
