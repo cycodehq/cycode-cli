@@ -24,7 +24,8 @@ def _walk_to_top(path: str) -> Iterable[str]:
 
 def _collect_top_level_ignore_files(path: str) -> List[str]:
     ignore_files = []
-    for dir_path in _walk_to_top(path):
+    top_paths = reversed(list(_walk_to_top(path)))  # we must reverse it to make top levels more prioritized
+    for dir_path in top_paths:
         for ignore_file in _SUPPORTED_IGNORE_PATTERN_FILES:
             ignore_file_path = os.path.join(dir_path, ignore_file)
             if os.path.exists(ignore_file_path):
