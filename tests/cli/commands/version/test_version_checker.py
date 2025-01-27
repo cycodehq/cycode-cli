@@ -96,11 +96,9 @@ class TestVersionChecker:
         latest_version: str,
         expected_result: Optional[str],
     ) -> None:
-        with (
-            patch.object(version_checker_cached, '_should_check_update', return_value=True),
-            patch.object(version_checker_cached, 'get_latest_version', return_value=latest_version),
-            patch.object(version_checker_cached, '_update_last_check'),
-        ):
+        with patch.object(version_checker_cached, '_should_check_update', return_value=True), patch.object(
+            version_checker_cached, 'get_latest_version', return_value=latest_version
+        ), patch.object(version_checker_cached, '_update_last_check'):
             result = version_checker_cached.check_for_update(current_version)
             assert result == expected_result
 
