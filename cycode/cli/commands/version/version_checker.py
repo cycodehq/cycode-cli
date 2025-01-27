@@ -12,7 +12,7 @@ from cycode.cyclient.cycode_client_base import CycodeClientBase
 
 
 def _compare_versions(
-        current_parts: List[int],
+    current_parts: List[int],
     latest_parts: List[int],
     current_is_pre: bool,
     latest_is_pre: bool,
