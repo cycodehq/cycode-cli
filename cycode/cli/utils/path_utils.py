@@ -1,12 +1,15 @@
 import json
 import os
 from functools import lru_cache
-from typing import AnyStr, List, Optional
+from typing import TYPE_CHECKING, AnyStr, List, Optional, Union
 
 import click
 from binaryornot.helpers import is_binary_string
 
 from cycode.cyclient import logger
+
+if TYPE_CHECKING:
+    from os import PathLike
 
 
 @lru_cache(maxsize=None)
@@ -73,7 +76,7 @@ def join_paths(path: str, filename: str) -> str:
     return os.path.join(path, filename)
 
 
-def get_file_content(file_path: str) -> Optional[AnyStr]:
+def get_file_content(file_path: Union[str, 'PathLike']) -> Optional[AnyStr]:
     try:
         with open(file_path, 'r', encoding='UTF-8') as f:
             return f.read()

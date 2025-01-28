@@ -3,6 +3,7 @@ from typing import Optional
 
 import click
 
+from cycode import __version__
 from cycode.cli.commands.ai_remediation.ai_remediation_command import ai_remediation_command
 from cycode.cli.commands.auth.auth_command import auth_command
 from cycode.cli.commands.configure.configure_command import configure_command
@@ -10,6 +11,7 @@ from cycode.cli.commands.ignore.ignore_command import ignore_command
 from cycode.cli.commands.report.report_command import report_command
 from cycode.cli.commands.scan.scan_command import scan_command
 from cycode.cli.commands.status.status_command import status_command
+from cycode.cli.commands.version.version_checker import version_checker
 from cycode.cli.commands.version.version_command import version_command
 from cycode.cli.consts import (
     CLI_CONTEXT_SETTINGS,
@@ -49,6 +51,12 @@ from cycode.cyclient.models import UserAgentOptionScheme
     help='Do not show the progress meter.',
 )
 @click.option(
+    '--no-update-notifier',
+    is_flag=True,
+    default=False,
+    help='Do not check CLI for updates.',
+)
+@click.option(
     '--output',
     '-o',
     default='text',
@@ -63,7 +71,12 @@ from cycode.cyclient.models import UserAgentOptionScheme
 )
 @click.pass_context
 def main_cli(
-    context: click.Context, verbose: bool, no_progress_meter: bool, output: str, user_agent: Optional[str]
+    context: click.Context,
+    verbose: bool,
+    no_progress_meter: bool,
+    no_update_notifier: bool,
+    output: str,
+    user_agent: Optional[str],
 ) -> None:
     init_sentry()
     add_breadcrumb('cycode')
@@ -85,3 +98,20 @@ def main_cli(
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
         CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
+
+    if not no_update_notifier:
+        context.call_on_close(lambda: check_latest_version_on_close())
+
+
+@click.pass_context
+def check_latest_version_on_close(context: click.Context) -> None:
+    output = context.obj.get('output')
+    # don't print anything if the output is JSON
+    if output == 'json':
+        return
+
+    # we always want to check the latest version for "version" and "status" commands
+    should_use_cache = context.invoked_subcommand not in {'version', 'status'}
+    version_checker.check_and_notify_update(
+        current_version=__version__, use_color=context.color, use_cache=should_use_cache
+    )
