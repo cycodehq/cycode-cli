@@ -100,7 +100,7 @@ class TestVersionChecker:
             version_checker_cached,
             _should_check_update=MagicMock(return_value=True),
             get_latest_version=MagicMock(return_value=latest_version),
-            _update_last_check=MagicMock()
+            _update_last_check=MagicMock(),
         ):
             result = version_checker_cached.check_for_update(current_version)
             assert result == expected_result
