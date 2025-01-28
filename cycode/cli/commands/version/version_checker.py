@@ -151,13 +151,14 @@ class VersionChecker(CycodeClientBase):
         except IOError:
             pass
 
-    def check_for_update(self, current_version: str) -> Optional[str]:
+    def check_for_update(self, current_version: str, use_cache: bool = True) -> Optional[str]:
         """Check if an update is available for the current version.
 
-        Respects the update check frequency (daily/weekly) based on version type
+        Respects the update check frequency (daily/weekly) based on the version type
 
         Args:
             current_version: The current version string of the CLI
+            use_cache: If True, use the cached timestamp to determine if an update check is needed
 
         Returns:
             str | None: The latest version string if an update is recommended,
@@ -166,7 +167,7 @@ class VersionChecker(CycodeClientBase):
         current_parts, current_is_pre = self._parse_version(current_version)
 
         # Check if we should perform the update check based on frequency
-        if not self._should_check_update(current_is_pre):
+        if use_cache and not self._should_check_update(current_is_pre):
             return None
 
         latest_version = self.get_latest_version()
@@ -174,12 +175,12 @@ class VersionChecker(CycodeClientBase):
             return None
 
         # Update the last check timestamp
-        self._update_last_check()
+        use_cache and self._update_last_check()
 
         latest_parts, latest_is_pre = self._parse_version(latest_version)
         return _compare_versions(current_parts, latest_parts, current_is_pre, latest_is_pre, latest_version)
 
-    def check_and_notify_update(self, current_version: str, use_color: bool = True, bypass_cache: bool = False) -> None:
+    def check_and_notify_update(self, current_version: str, use_color: bool = True, use_cache: bool = True) -> None:
         """Check for updates and display a notification if a new version is available.
 
         Performs the version check and displays a formatted message with update instructions
@@ -191,15 +192,10 @@ class VersionChecker(CycodeClientBase):
         Args:
             current_version: Current version of the CLI
             use_color: If True, use colored output in the terminal
-            bypass_cache: If True, ignore the cache and check for updates immediately
+            use_cache: If True, use the cached timestamp to determine if an update check is needed
         """
-        if bypass_cache:
-            latest_version = self.get_latest_version()
-            should_update = latest_version and latest_version != current_version
-        else:
-            latest_version = self.check_for_update(current_version)
-            should_update = bool(latest_version)
-
+        latest_version = self.check_for_update(current_version, use_cache)
+        should_update = bool(latest_version)
         if should_update:
             update_message = (
                 '\nNew version of cycode available! '

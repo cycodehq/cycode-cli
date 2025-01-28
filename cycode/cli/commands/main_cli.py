@@ -111,7 +111,7 @@ def check_latest_version_on_close(context: click.Context) -> None:
         return
 
     # we always want to check the latest version for "version" and "status" commands
-    bypass_version_check_cache = context.invoked_subcommand in {'version', 'status'}
+    should_use_cache = context.invoked_subcommand not in {'version', 'status'}
     version_checker.check_and_notify_update(
-        current_version=__version__, use_color=context.color, bypass_cache=bypass_version_check_cache
+        current_version=__version__, use_color=context.color, use_cache=should_use_cache
     )
