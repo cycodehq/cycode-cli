@@ -87,7 +87,7 @@ class TestVersionChecker:
             # Edge cases
             ('1.0.0dev1', '1.0.0', '1.0.0'),  # Pre-release to same version stable
             ('2.0.0', '2.0.0dev1', None),  # Stable to same version pre-release
-            ('2.2.1.dev4', '2.2.0', None)  # Pre-release to lower stable
+            ('2.2.1.dev4', '2.2.0', None),  # Pre-release to lower stable
         ],
     )
     def test_check_for_update_scenarios(
