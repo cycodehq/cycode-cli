@@ -417,11 +417,11 @@ To limit the results of the `sca` scan to a specific severity threshold, add the
 
 Consider the following example. The following command will scan the repository for SCA policy violations that have a severity of Medium or higher:
 
-`cycode scan -t sca --security-threshold MEDIUM repository ~/home/git/codebase`
+`cycode scan -t sca --severity-threshold MEDIUM repository ~/home/git/codebase`
 
 or:
 
-`cycode scan --scan-type sca --security-threshold MEDIUM repository ~/home/git/codebase`
+`cycode scan --scan-type sca --severity-threshold MEDIUM repository ~/home/git/codebase`
 
 ### Path Scan
 
