@@ -1,14 +1,15 @@
+from cycode.cli import consts
 from cycode.cyclient.scan_config_base import DefaultScanConfig
 
 
 def test_get_service_name() -> None:
     default_scan_config = DefaultScanConfig()
 
-    assert default_scan_config.get_service_name('secret') == 'secret'
-    assert default_scan_config.get_service_name('iac') == 'iac'
-    assert default_scan_config.get_service_name('sca') == 'scans'
-    assert default_scan_config.get_service_name('sast') == 'scans'
-    assert default_scan_config.get_service_name('secret', True) == 'scans'
+    assert default_scan_config.get_service_name(consts.SECRET_SCAN_TYPE) == 'secret'
+    assert default_scan_config.get_service_name(consts.INFRA_CONFIGURATION_SCAN_TYPE) == 'iac'
+    assert default_scan_config.get_service_name(consts.SCA_SCAN_TYPE) == 'scans'
+    assert default_scan_config.get_service_name(consts.SAST_SCAN_TYPE) == 'scans'
+    assert default_scan_config.get_service_name(consts.SECRET_SCAN_TYPE, True) == 'scans'
 
 
 def test_get_detections_prefix() -> None:

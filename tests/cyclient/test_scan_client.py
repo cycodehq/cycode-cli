@@ -8,6 +8,7 @@ import responses
 from requests import Timeout
 from requests.exceptions import ProxyError
 
+from cycode.cli import consts
 from cycode.cli.config import config
 from cycode.cli.exceptions.custom_exceptions import (
     CycodeError,
@@ -49,10 +50,10 @@ def get_test_zip_file(scan_type: str) -> InMemoryZip:
 
 def test_get_service_name(scan_client: ScanClient) -> None:
     # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
-    assert scan_client.get_service_name('secret') == 'secret'
-    assert scan_client.get_service_name('iac') == 'iac'
-    assert scan_client.get_service_name('sca') == 'scans'
-    assert scan_client.get_service_name('sast') == 'scans'
+    assert scan_client.get_service_name(consts.SECRET_SCAN_TYPE) == 'secret'
+    assert scan_client.get_service_name(consts.INFRA_CONFIGURATION_SCAN_TYPE) == 'iac'
+    assert scan_client.get_service_name(consts.SCA_SCAN_TYPE) == 'scans'
+    assert scan_client.get_service_name(consts.SAST_SCAN_TYPE) == 'scans'
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
