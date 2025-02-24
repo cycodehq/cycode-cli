@@ -50,7 +50,11 @@ def run_parallel_batched_scan(
     progress_bar: 'BaseProgressBar',
 ) -> Tuple[Dict[str, 'CliError'], List['LocalScanResult']]:
     max_size = consts.SCAN_BATCH_MAX_SIZE_IN_BYTES.get(scan_type, consts.DEFAULT_SCAN_BATCH_MAX_SIZE_IN_BYTES)
-    batches = split_documents_into_batches(documents, max_size)
+
+    if scan_type == consts.SCA_SCAN_TYPE:
+        batches = [documents]
+    else:
+        batches = split_documents_into_batches(documents, max_size)
 
     progress_bar.set_section_length(ScanProgressBarSection.SCAN, len(batches))  # * 3
     # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:
