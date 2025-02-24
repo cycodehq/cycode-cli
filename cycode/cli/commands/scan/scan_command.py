@@ -13,7 +13,8 @@ from cycode.cli.config import config
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
-    SCA_SKIP_RESTORE_DEPENDENCIES_FLAG, SCA_GRADLE_ALL_SUB_PROJECTS_FLAG,
+    SCA_GRADLE_ALL_SUB_PROJECTS_FLAG,
+    SCA_SKIP_RESTORE_DEPENDENCIES_FLAG,
 )
 from cycode.cli.models import Severity
 from cycode.cli.sentry import add_breadcrumb
@@ -114,7 +115,8 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
     f'--{SCA_GRADLE_ALL_SUB_PROJECTS_FLAG}',
     is_flag=True,
     default=False,
-    help='When specified, Cycode will run gradle restore command for all sub projects. Should run from root project directory ONLY!',
+    help='When specified, Cycode will run gradle restore command for all sub projects. '
+    'Should run from root project directory ONLY!',
     type=bool,
     required=False,
 )
@@ -132,7 +134,7 @@ def scan_command(
     report: bool,
     no_restore: bool,
     sync: bool,
-    gradle_all_sub_projects: bool
+    gradle_all_sub_projects: bool,
 ) -> int:
     """Scans for Secrets, IaC, SCA or SAST violations."""
     add_breadcrumb('scan')
