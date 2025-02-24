@@ -10,12 +10,9 @@ from cycode.cyclient import logger
 
 
 def _validate_zip_file_size(scan_type: str, zip_file_size: int) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE:
-        if zip_file_size > consts.SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES:
-            raise custom_exceptions.ZipTooLargeError(consts.SCA_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
-    else:
-        if zip_file_size > consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES:
-            raise custom_exceptions.ZipTooLargeError(consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+    max_size_limit = consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES.get(scan_type, consts.DEFAULT_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+    if zip_file_size > max_size_limit:
+        raise custom_exceptions.ZipTooLargeError(max_size_limit)
 
 
 def zip_documents(scan_type: str, documents: List[Document], zip_file: Optional[InMemoryZip] = None) -> InMemoryZip:
