@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 import responses
 
+from cycode.cli import consts
 from cycode.cli.commands.scan.code_scanner import (
     _try_get_aggregation_report_url_if_needed,
     _try_get_report_url_if_needed,
@@ -22,13 +23,13 @@ from tests.cyclient.mocked_responses.scan_client import (
 
 def test_is_relevant_file_to_scan_sca() -> None:
     path = os.path.join(TEST_FILES_PATH, 'package.json')
-    assert _is_relevant_file_to_scan('sca', path) is True
+    assert _is_relevant_file_to_scan(consts.SCA_SCAN_TYPE, path) is True
 
 
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 def test_try_get_report_url_if_needed_return_none(scan_type: str, scan_client: ScanClient) -> None:
     scan_id = uuid4().hex
-    result = _try_get_report_url_if_needed(scan_client, False, scan_id, 'secret')
+    result = _try_get_report_url_if_needed(scan_client, False, scan_id, consts.SECRET_SCAN_TYPE)
     assert result is None
 
 

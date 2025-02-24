@@ -301,6 +301,7 @@ def scan_documents(
     if not scan_parameters:
         scan_parameters = get_default_scan_parameters(context)
 
+    scan_type = context.obj['scan_type']
     progress_bar = context.obj['progress_bar']
 
     if not documents_to_scan:
@@ -318,13 +319,13 @@ def scan_documents(
         context, is_git_diff, is_commit_range, scan_parameters
     )
     errors, local_scan_results = run_parallel_batched_scan(
-        scan_batch_thread_func, documents_to_scan, progress_bar=progress_bar
+        scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
     )
 
     if len(local_scan_results) > 1:
         # if we used more than one batch, we need to fetch aggregate report url
         aggregation_report_url = _try_get_aggregation_report_url_if_needed(
-            scan_parameters, context.obj['client'], context.obj['scan_type']
+            scan_parameters, context.obj['client'], scan_type
         )
         set_aggregation_report_url(context, aggregation_report_url)
 

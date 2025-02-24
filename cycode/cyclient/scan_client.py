@@ -328,11 +328,11 @@ class ScanClient:
     @staticmethod
     def get_service_name(scan_type: str) -> Optional[str]:
         # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
-        if scan_type == 'secret':
+        if scan_type == consts.SECRET_SCAN_TYPE:
             return 'secret'
-        if scan_type == 'iac':
+        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
             return 'iac'
-        if scan_type == 'sca' or scan_type == 'sast':
+        if scan_type == consts.SCA_SCAN_TYPE or scan_type == consts.SAST_SCAN_TYPE:
             return 'scans'
 
         return None

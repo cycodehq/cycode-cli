@@ -3,6 +3,7 @@ from typing import List
 
 import click
 
+from cycode.cli import consts
 from cycode.cli.commands.scan.commit_history.commit_history_command import commit_history_command
 from cycode.cli.commands.scan.path.path_command import path_command
 from cycode.cli.commands.scan.pre_commit.pre_commit_command import pre_commit_command
@@ -34,7 +35,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
 @click.option(
     '--scan-type',
     '-t',
-    default='secret',
+    default=consts.SECRET_SCAN_TYPE,
     help='Specify the type of scan you wish to execute (the default is Secrets).',
     type=click.Choice(config['scans']['supported_scans']),
 )

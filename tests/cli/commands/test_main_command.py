@@ -6,6 +6,7 @@ import pytest
 import responses
 from click.testing import CliRunner
 
+from cycode.cli import consts
 from cycode.cli.commands.main_cli import main_cli
 from cycode.cli.utils.git_proxy import git_proxy
 from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH, ZIP_CONTENT_PATH
@@ -29,7 +30,7 @@ def _is_json(plain: str) -> bool:
 @responses.activate
 @pytest.mark.parametrize('output', ['text', 'json'])
 def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token_response: responses.Response) -> None:
-    scan_type = 'secret'
+    scan_type = consts.SECRET_SCAN_TYPE
     scan_id = uuid4()
 
     mock_scan_responses(responses, scan_type, scan_client, scan_id, ZIP_CONTENT_PATH)
@@ -52,8 +53,10 @@ def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token
 
 @responses.activate
 def test_optional_git_with_path_scan(scan_client: 'ScanClient', api_token_response: responses.Response) -> None:
-    mock_scan_responses(responses, 'secret', scan_client, uuid4(), ZIP_CONTENT_PATH)
-    responses.add(get_zipped_file_scan_response(get_zipped_file_scan_url('secret', scan_client), ZIP_CONTENT_PATH))
+    mock_scan_responses(responses, consts.SECRET_SCAN_TYPE, scan_client, uuid4(), ZIP_CONTENT_PATH)
+    responses.add(
+        get_zipped_file_scan_response(get_zipped_file_scan_url(consts.SECRET_SCAN_TYPE, scan_client), ZIP_CONTENT_PATH)
+    )
     responses.add(api_token_response)
 
     # fake env without Git executable

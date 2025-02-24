@@ -2,12 +2,7 @@ import os
 from multiprocessing.pool import ThreadPool
 from typing import TYPE_CHECKING, Callable, Dict, List, Tuple
 
-from cycode.cli.consts import (
-    SCAN_BATCH_MAX_FILES_COUNT,
-    SCAN_BATCH_MAX_PARALLEL_SCANS,
-    SCAN_BATCH_MAX_SIZE_IN_BYTES,
-    SCAN_BATCH_SCANS_PER_CPU,
-)
+from cycode.cli import consts
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 
@@ -18,8 +13,8 @@ if TYPE_CHECKING:
 
 def split_documents_into_batches(
     documents: List[Document],
-    max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
-    max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
+    max_size: int = consts.DEFAULT_SCAN_BATCH_MAX_SIZE_IN_BYTES,
+    max_files_count: int = consts.DEFAULT_SCAN_BATCH_MAX_FILES_COUNT,
 ) -> List[List[Document]]:
     batches = []
 
@@ -28,7 +23,7 @@ def split_documents_into_batches(
     for document in documents:
         document_size = len(document.content.encode('UTF-8'))
 
-        if (current_size + document_size > max_size_mb) or (len(current_batch) >= max_files_count):
+        if (current_size + document_size > max_size) or (len(current_batch) >= max_files_count):
             batches.append(current_batch)
 
             current_batch = [document]
@@ -45,17 +40,18 @@ def split_documents_into_batches(
 
 def _get_threads_count() -> int:
     cpu_count = os.cpu_count() or 1
-    return min(cpu_count * SCAN_BATCH_SCANS_PER_CPU, SCAN_BATCH_MAX_PARALLEL_SCANS)
+    return min(cpu_count * consts.SCAN_BATCH_SCANS_PER_CPU, consts.SCAN_BATCH_MAX_PARALLEL_SCANS)
 
 
 def run_parallel_batched_scan(
     scan_function: Callable[[List[Document]], Tuple[str, 'CliError', 'LocalScanResult']],
+    scan_type: str,
     documents: List[Document],
     progress_bar: 'BaseProgressBar',
-    max_size_mb: int = SCAN_BATCH_MAX_SIZE_IN_BYTES,
-    max_files_count: int = SCAN_BATCH_MAX_FILES_COUNT,
 ) -> Tuple[Dict[str, 'CliError'], List['LocalScanResult']]:
-    batches = split_documents_into_batches(documents, max_size_mb, max_files_count)
+    max_size = consts.SCAN_BATCH_MAX_SIZE_IN_BYTES.get(scan_type, consts.DEFAULT_SCAN_BATCH_MAX_SIZE_IN_BYTES)
+    batches = split_documents_into_batches(documents, max_size)
+
     progress_bar.set_section_length(ScanProgressBarSection.SCAN, len(batches))  # * 3
     # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:
     # 1. scan creation
