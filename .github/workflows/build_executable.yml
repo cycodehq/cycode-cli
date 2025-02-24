@@ -193,7 +193,7 @@ jobs:
         run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli)" >> $GITHUB_ENV
 
       - name: Upload files as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: dist
