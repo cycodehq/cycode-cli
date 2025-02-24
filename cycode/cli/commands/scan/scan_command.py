@@ -13,6 +13,7 @@ from cycode.cli.config import config
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
+    SCA_GRADLE_ALL_SUB_PROJECTS_FLAG,
     SCA_SKIP_RESTORE_DEPENDENCIES_FLAG,
 )
 from cycode.cli.models import Severity
@@ -110,6 +111,15 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
     type=bool,
     required=False,
 )
+@click.option(
+    f'--{SCA_GRADLE_ALL_SUB_PROJECTS_FLAG}',
+    is_flag=True,
+    default=False,
+    help='When specified, Cycode will run gradle restore command for all sub projects. '
+    'Should run from root project directory ONLY!',
+    type=bool,
+    required=False,
+)
 @click.pass_context
 def scan_command(
     context: click.Context,
@@ -124,6 +134,7 @@ def scan_command(
     report: bool,
     no_restore: bool,
     sync: bool,
+    gradle_all_sub_projects: bool,
 ) -> int:
     """Scans for Secrets, IaC, SCA or SAST violations."""
     add_breadcrumb('scan')
@@ -145,6 +156,7 @@ def scan_command(
     context.obj['monitor'] = monitor
     context.obj['report'] = report
     context.obj[SCA_SKIP_RESTORE_DEPENDENCIES_FLAG] = no_restore
+    context.obj[SCA_GRADLE_ALL_SUB_PROJECTS_FLAG] = gradle_all_sub_projects
 
     _sca_scan_to_context(context, sca_scan)
 
