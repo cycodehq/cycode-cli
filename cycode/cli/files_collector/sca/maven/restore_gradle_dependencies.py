@@ -7,6 +7,7 @@ import click
 from cycode.cli.consts import SCA_GRADLE_ALL_SUB_PROJECTS_FLAG
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
+from cycode.cli.utils.path_utils import get_path_from_context
 from cycode.cli.utils.shell_executor import shell
 
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
@@ -41,11 +42,11 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         return os.path.isfile(restore_file_path)
 
     def get_working_directory(self, document: Document) -> Optional[str]:
-        return self.context.params.get('paths')[0] if self.is_gradle_sub_projects() else None
+        return get_path_from_context(self.context) if self.is_gradle_sub_projects() else None
 
     def get_all_projects(self) -> List[str]:
         projects_output = shell(command=BUILD_GRADLE_ALL_PROJECTS_COMMAND, timeout=BUILD_GRADLE_ALL_PROJECTS_TIMEOUT,
-                                working_directory=self.context.params.get('paths')[0])
+                                working_directory=get_path_from_context(self.context))
 
         projects = re.findall(ALL_PROJECTS_REGEX, projects_output)
 
