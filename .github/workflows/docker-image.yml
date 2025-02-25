@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image. On dispatch event build the latest tag and push to Docker Hub
+name: Build Docker Image. On tag creation push to Docker Hub. On dispatch event build the latest tag and push to Docker Hub
 
 on:
   workflow_dispatch:
