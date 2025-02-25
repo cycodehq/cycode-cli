@@ -1,7 +1,8 @@
-name: Build and Publish Docker Image. On dispatch event build the latest tag and push to Docker Hub
+name: Build Docker Image. On tag creation push to Docker Hub. On dispatch event build the latest tag and push to Docker Hub
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     tags: [ 'v*.*.*' ]
 
@@ -11,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -25,6 +26,36 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           git checkout ${{ steps.latest_tag.outputs.LATEST_TAG }}
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Load cached Poetry setup
+        id: cached_poetry
+        uses: actions/cache@v4
+        with:
+          path: ~/.local
+          key: poetry-ubuntu-0  # increment to reset cache
+
+      - name: Setup Poetry
+        if: steps.cached_poetry.outputs.cache-hit != 'true'
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+
+      - name: Add Poetry to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Poetry Plugin
+        run: poetry self add "poetry-dynamic-versioning[plugin]"
+
+      - name: Get CLI Version
+        id: cli_version
+        run: |
+          echo "::debug::Package version: $(poetry version --short)"
+          echo "CLI_VERSION=$(poetry version --short)" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -40,9 +71,20 @@ jobs:
 
       - name: Build and push
         id: docker_build
+        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: cycodehq/cycode_cli:${{ steps.latest_tag.outputs.LATEST_TAG }},cycodehq/cycode_cli:latest
+
+      - name: Verify build
+        id: docker_verify_build
+        if: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: cycodehq/cycode_cli:${{ steps.cli_version.outputs.CLI_VERSION }}
