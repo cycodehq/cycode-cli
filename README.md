@@ -278,7 +278,7 @@ The following are the options and commands available with the Cycode CLI applica
 
 | Command                                   | Description                                                                                                                                  |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| [auth](#using-the-auth-command)           | Authenticates your machine to associate CLI with your Cycode account.                                                                        |
+| [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
 | [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
 | [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit_history/path/repository/etc. |
