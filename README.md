@@ -112,8 +112,8 @@ To install the Cycode CLI application on your local machine, perform the followi
 
    <img alt="authorize CLI" height="450" src="https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/authorize_cli.png"/>
 
-    > [!NOTE]
-    > This will be the default method for authenticating with the Cycode CLI.
+   > [!NOTE]
+   > This will be the default method for authenticating with the Cycode CLI.
 
 5. Click the **Allow** button to authorize the Cycode CLI on the selected business group.
 
@@ -125,7 +125,7 @@ To install the Cycode CLI application on your local machine, perform the followi
 
 7. In the terminal/command line screen, you will see the following when exiting the browser window:
 
-  `Successfully logged into cycode`
+   `Successfully logged into cycode`
 
 ### Using the Configure Command
 
@@ -348,7 +348,8 @@ When using this option, the scan results from this scan will appear in the knowl
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
 
 `cycode scan -t sca --report repository ~/home/git/codebase`
-`cycode scan -t secret --report repository ~/home/git/codebase`
+
+In the same way, you can push scan results of Secrets and SAST scans to Cycode by adding the `--report` option to the scan command.
 
 When using this option, the scan results from this scan will appear in the On-Demand Scans section of Cycode. To get to this page, click the link that appears after the printed results:
 
@@ -385,12 +386,18 @@ Consider the previous example. If you wanted to only scan a branch named `dev`, 
 
 #### Lock Restore Option
 
+> [!NOTE]
+> This option is only available to SCA scans.
+
 We use sbt-dependency-lock plugin to restore the lock file for SBT projects.  
 To disable lock restore in use `--no-restore` option.
 
-Prerequisites
-* sbt-dependency-lock Plugin: Install the plugin by adding the following line to `project/plugins.sbt`:
-  `addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")`
+Prerequisites:
+* `sbt-dependency-lock` plugin: Install the plugin by adding the following line to `project/plugins.sbt`:
+
+  ```text
+  addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")
+  ```
 
 ### Repository Scan
 
@@ -486,7 +493,9 @@ A pre-commit scan automatically identifies any issues before you commit changes 
 
 After installing the pre-commit hook, you may occasionally wish to skip scanning during a specific commit. To do this, add the following to your `git` command to skip scanning for a single commit:
 
-`SKIP=cycode git commit -m <your commit message>`
+```bash
+SKIP=cycode git commit -m <your commit message>`
+```
 
 ## Scan Results
 
@@ -764,6 +773,7 @@ exclusions:
 ```
 
 Possible values of `scanTypeName`: `iac`, `sca`, `sast`, `secret`.
+
 Possible values of `ignoringType`: `paths`, `values`, `rules`, `packages`, `shas`, `cves`.
 
 > [!WARNING]  
