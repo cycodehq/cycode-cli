@@ -1,18 +1,16 @@
 from typing import Optional
 
-import click
+import typer
 
 from cycode.cli.exceptions import custom_exceptions
-from cycode.cli.exceptions.common import handle_errors
 from cycode.cli.exceptions.custom_exceptions import KNOWN_USER_FRIENDLY_REQUEST_ERRORS
+from cycode.cli.exceptions.handle_errors import handle_errors
 from cycode.cli.models import CliError, CliErrors
 from cycode.cli.utils.git_proxy import git_proxy
 
 
-def handle_scan_exception(
-    context: click.Context, err: Exception, *, return_exception: bool = False
-) -> Optional[CliError]:
-    context.obj['did_fail'] = True
+def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exception: bool = False) -> Optional[CliError]:
+    ctx.obj['did_fail'] = True
 
     errors: CliErrors = {
         **KNOWN_USER_FRIENDLY_REQUEST_ERRORS,
@@ -45,4 +43,4 @@ def handle_scan_exception(
         ),
     }
 
-    return handle_errors(context, err, errors, return_exception=return_exception)
+    return handle_errors(ctx, err, errors, return_exception=return_exception)

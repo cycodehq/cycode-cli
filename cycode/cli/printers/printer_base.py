@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
+import typer
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cyclient.headers import get_correlation_id
@@ -16,8 +17,8 @@ class PrinterBase(ABC):
     WHITE_COLOR_NAME = 'white'
     GREEN_COLOR_NAME = 'green'
 
-    def __init__(self, context: click.Context) -> None:
-        self.context = context
+    def __init__(self, ctx: typer.Context) -> None:
+        self.ctx = ctx
 
     @abstractmethod
     def print_scan_results(

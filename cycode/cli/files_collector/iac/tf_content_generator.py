@@ -17,7 +17,7 @@ def generate_tfplan_document_name(path: str) -> str:
 
 
 def is_iac(scan_type: str) -> bool:
-    return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
+    return scan_type == consts.IAC_SCAN_TYPE
 
 
 def is_tfplan_file(file: str, content: str) -> bool:

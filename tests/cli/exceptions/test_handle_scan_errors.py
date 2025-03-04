@@ -2,9 +2,11 @@ from typing import TYPE_CHECKING
 
 import click
 import pytest
+import typer
 from click import ClickException
 from requests import Response
 
+from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.utils.git_proxy import git_proxy
@@ -14,8 +16,8 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture()
-def ctx() -> click.Context:
-    return click.Context(click.Command('path'), obj={'verbose': False, 'output': 'text'})
+def ctx() -> typer.Context:
+    return typer.Context(click.Command('path'), obj={'verbose': False, 'output': OutputTypeOption.TEXT})
 
 
 @pytest.mark.parametrize(
@@ -30,7 +32,7 @@ def ctx() -> click.Context:
     ],
 )
 def test_handle_exception_soft_fail(
-    ctx: click.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool
+    ctx: typer.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool
 ) -> None:
     with ctx:
         handle_scan_exception(ctx, exception)
@@ -39,15 +41,15 @@ def test_handle_exception_soft_fail(
         assert ctx.obj.get('soft_fail') is expected_soft_fail
 
 
-def test_handle_exception_unhandled_error(ctx: click.Context) -> None:
-    with ctx, pytest.raises(SystemExit):
+def test_handle_exception_unhandled_error(ctx: typer.Context) -> None:
+    with ctx, pytest.raises(typer.Exit):
         handle_scan_exception(ctx, ValueError('test'))
 
         assert ctx.obj.get('did_fail') is True
         assert ctx.obj.get('soft_fail') is None
 
 
-def test_handle_exception_click_error(ctx: click.Context) -> None:
+def test_handle_exception_click_error(ctx: typer.Context) -> None:
     with ctx, pytest.raises(ClickException):
         handle_scan_exception(ctx, click.ClickException('test'))
 
@@ -56,7 +58,7 @@ def test_handle_exception_click_error(ctx: click.Context) -> None:
 
 
 def test_handle_exception_verbose(monkeypatch: 'MonkeyPatch') -> None:
-    ctx = click.Context(click.Command('path'), obj={'verbose': True, 'output': 'text'})
+    ctx = typer.Context(click.Command('path'), obj={'verbose': True, 'output': OutputTypeOption.TEXT})
 
     error_text = 'test'
 
@@ -65,5 +67,5 @@ def test_handle_exception_verbose(monkeypatch: 'MonkeyPatch') -> None:
 
     monkeypatch.setattr(click, 'secho', mock_secho)
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(typer.Exit):
         handle_scan_exception(ctx, ValueError(error_text))

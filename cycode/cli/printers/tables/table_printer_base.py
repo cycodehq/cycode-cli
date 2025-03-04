@@ -2,6 +2,7 @@ import abc
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
+import typer
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
@@ -13,16 +14,16 @@ if TYPE_CHECKING:
 
 
 class TablePrinterBase(PrinterBase, abc.ABC):
-    def __init__(self, context: click.Context) -> None:
-        super().__init__(context)
-        self.scan_type: str = context.obj.get('scan_type')
-        self.show_secret: bool = context.obj.get('show_secret', False)
+    def __init__(self, ctx: typer.Context) -> None:
+        super().__init__(ctx)
+        self.scan_type: str = ctx.obj.get('scan_type')
+        self.show_secret: bool = ctx.obj.get('show_secret', False)
 
     def print_result(self, result: CliResult) -> None:
-        TextPrinter(self.context).print_result(result)
+        TextPrinter(self.ctx).print_result(result)
 
     def print_error(self, error: CliError) -> None:
-        TextPrinter(self.context).print_error(error)
+        TextPrinter(self.ctx).print_error(error)
 
     def print_scan_results(
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
@@ -46,7 +47,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
             self.print_error(error)
 
     def _is_git_repository(self) -> bool:
-        return self.context.obj.get('remote_url') is not None
+        return self.ctx.obj.get('remote_url') is not None
 
     @abc.abstractmethod
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:

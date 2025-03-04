@@ -2,7 +2,7 @@ import logging
 import os
 from typing import List, Optional
 
-import click
+import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
@@ -14,8 +14,8 @@ BUILD_GO_LOCK_FILE_NAME = 'go.sum'
 
 
 class RestoreGoDependencies(BaseRestoreDependencies):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout, create_output_file_manually=True)
+    def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
+        super().__init__(ctx, is_git_diff, command_timeout, create_output_file_manually=True)
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_exists = os.path.isfile(self.get_working_directory(document) + os.sep + BUILD_GO_FILE_NAME)

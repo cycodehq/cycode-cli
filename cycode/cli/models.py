@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
 from typing import Dict, List, NamedTuple, Optional, Type
 
 from cycode.cyclient.models import Detection
@@ -31,34 +30,6 @@ class DocumentDetections:
 
     def __repr__(self) -> str:
         return 'document:{0}, detections:{1}'.format(self.document, self.detections)
-
-
-SEVERITY_UNKNOWN_WEIGHT = -2
-
-
-class Severity(Enum):
-    INFO = -1
-    LOW = 0
-    MEDIUM = 1
-    MODERATE = 1  # noqa: PIE796. TODO(MarshalX): rework. should not be Enum
-    HIGH = 2
-    CRITICAL = 3
-
-    @staticmethod
-    def try_get_value(name: str) -> Optional[int]:
-        name = name.upper()
-        if name not in Severity.__members__:
-            return None
-
-        return Severity[name].value
-
-    @staticmethod
-    def get_member_weight(name: str) -> int:
-        weight = Severity.try_get_value(name)
-        if weight is None:  # unknown severity
-            return SEVERITY_UNKNOWN_WEIGHT
-
-        return weight
 
 
 class CliError(NamedTuple):

@@ -5,7 +5,7 @@ import pytest
 import responses
 
 from cycode.cli import consts
-from cycode.cli.commands.scan.code_scanner import (
+from cycode.cli.apps.scan.code_scanner import (
     _try_get_aggregation_report_url_if_needed,
     _try_get_report_url_if_needed,
 )

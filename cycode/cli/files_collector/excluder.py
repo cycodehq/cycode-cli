@@ -149,8 +149,8 @@ def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -
 def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     filename = filename.lower()
 
-    if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        return filename.endswith(consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
+    if scan_type == consts.IAC_SCAN_TYPE:
+        return filename.endswith(consts.IAC_SCAN_SUPPORTED_FILES)
 
     if scan_type == consts.SCA_SCAN_TYPE:
         return filename.endswith(consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)

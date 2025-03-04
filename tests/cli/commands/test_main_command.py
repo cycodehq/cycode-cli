@@ -4,10 +4,11 @@ from uuid import uuid4
 
 import pytest
 import responses
-from click.testing import CliRunner
+from typer.testing import CliRunner
 
 from cycode.cli import consts
-from cycode.cli.commands.main_cli import main_cli
+from cycode.cli.app import app
+from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.utils.git_proxy import git_proxy
 from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH, ZIP_CONTENT_PATH
 from tests.cyclient.mocked_responses.scan_client import mock_scan_responses
@@ -28,7 +29,7 @@ def _is_json(plain: str) -> bool:
 
 
 @responses.activate
-@pytest.mark.parametrize('output', ['text', 'json'])
+@pytest.mark.parametrize('output', [OutputTypeOption.TEXT, OutputTypeOption.JSON])
 def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token_response: responses.Response) -> None:
     scan_type = consts.SECRET_SCAN_TYPE
     scan_id = uuid4()
@@ -38,7 +39,7 @@ def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token
     responses.add(api_token_response)
 
     args = ['--output', output, 'scan', '--soft-fail', 'path', str(_PATH_TO_SCAN)]
-    result = CliRunner().invoke(main_cli, args, env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     except_json = output == 'json'
 
@@ -63,7 +64,7 @@ def test_optional_git_with_path_scan(scan_client: 'ScanClient', api_token_respon
     git_proxy._set_dummy_git_proxy()
 
     args = ['--output', 'json', 'scan', 'path', str(_PATH_TO_SCAN)]
-    result = CliRunner().invoke(main_cli, args, env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     # do NOT expect error about not found Git executable
     assert 'GIT_PYTHON_GIT_EXECUTABLE' not in result.output
@@ -79,8 +80,8 @@ def test_required_git_with_path_repository(scan_client: 'ScanClient', api_token_
     # fake env without Git executable
     git_proxy._set_dummy_git_proxy()
 
-    args = ['--output', 'json', 'scan', 'repository', str(_PATH_TO_SCAN)]
-    result = CliRunner().invoke(main_cli, args, env=CLI_ENV_VARS)
+    args = ['--output', OutputTypeOption.JSON, 'scan', 'repository', str(_PATH_TO_SCAN)]
+    result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     # expect error about not found Git executable
     assert 'GIT_PYTHON_GIT_EXECUTABLE' in result.output

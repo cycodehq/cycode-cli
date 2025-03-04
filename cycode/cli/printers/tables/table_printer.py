@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, List
 
 import click
 
-from cycode.cli.consts import INFRA_CONFIGURATION_SCAN_TYPE, SAST_SCAN_TYPE, SECRET_SCAN_TYPE
+from cycode.cli.consts import IAC_SCAN_TYPE, SAST_SCAN_TYPE, SECRET_SCAN_TYPE
 from cycode.cli.models import Detection, Document
 from cycode.cli.printers.tables.table import Table
 from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidthsConfig
@@ -35,7 +35,7 @@ COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
         VIOLATION_COLUMN: 2,
         SCAN_ID_COLUMN: 2,
     },
-    INFRA_CONFIGURATION_SCAN_TYPE: {
+    IAC_SCAN_TYPE: {
         ISSUE_TYPE_COLUMN: 4,
         RULE_ID_COLUMN: 3,
         FILE_PATH_COLUMN: 3,
@@ -63,7 +63,7 @@ class TablePrinter(TablePrinterBase):
                     self._enrich_table_with_values(table, detection, document_detections.document)
 
         self._print_table(table)
-        self._print_report_urls(local_scan_results, self.context.obj.get('aggregation_report_url'))
+        self._print_report_urls(local_scan_results, self.ctx.obj.get('aggregation_report_url'))
 
     def _get_table(self) -> Table:
         table = Table()

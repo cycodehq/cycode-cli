@@ -1,5 +1,6 @@
 import json
 from typing import TYPE_CHECKING, List, Optional, Set, Union
+from uuid import UUID
 
 from requests import Response
 
@@ -32,7 +33,7 @@ class ScanClient:
         self._hide_response_log = hide_response_log
 
     def get_scan_controller_path(self, scan_type: str, should_use_scan_service: bool = False) -> str:
-        if not should_use_scan_service and scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if not should_use_scan_service and scan_type == consts.IAC_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
             return self._SCAN_SERVICE_CONTROLLER_PATH
         if not should_use_scan_service and scan_type == consts.SECRET_SCAN_TYPE:
@@ -43,7 +44,7 @@ class ScanClient:
         return self._SCAN_SERVICE_CLI_CONTROLLER_PATH
 
     def get_detections_service_controller_path(self, scan_type: str) -> str:
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if scan_type == consts.IAC_SCAN_TYPE:
             # we don't use async flow for IaC scan yet
             return self._DETECTIONS_SERVICE_CONTROLLER_PATH
 
@@ -210,8 +211,8 @@ class ScanClient:
     def get_ai_remediation_path(detection_id: str) -> str:
         return f'scm-remediator/api/v1/ContentRemediation/preview/{detection_id}'
 
-    def get_ai_remediation(self, detection_id: str, *, fix: bool = False) -> str:
-        path = self.get_ai_remediation_path(detection_id)
+    def get_ai_remediation(self, detection_id: UUID, *, fix: bool = False) -> str:
+        path = self.get_ai_remediation_path(detection_id.hex)
 
         data = {
             'resolving_parameters': {
@@ -231,7 +232,7 @@ class ScanClient:
     @staticmethod
     def _get_policy_type_by_scan_type(scan_type: str) -> str:
         scan_type_to_policy_type = {
-            consts.INFRA_CONFIGURATION_SCAN_TYPE: 'IaC',
+            consts.IAC_SCAN_TYPE: 'IaC',
             consts.SCA_SCAN_TYPE: 'SCA',
             consts.SECRET_SCAN_TYPE: 'SecretDetection',
             consts.SAST_SCAN_TYPE: 'SAST',
@@ -261,7 +262,7 @@ class ScanClient:
     @staticmethod
     def get_scan_detections_list_path_suffix(scan_type: str) -> str:
         # we don't use async flow for IaC scan yet
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if scan_type == consts.IAC_SCAN_TYPE:
             return ''
 
         return '/detections'
@@ -330,7 +331,7 @@ class ScanClient:
         # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
         if scan_type == consts.SECRET_SCAN_TYPE:
             return 'secret'
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if scan_type == consts.IAC_SCAN_TYPE:
             return 'iac'
         if scan_type == consts.SCA_SCAN_TYPE or scan_type == consts.SAST_SCAN_TYPE:
             return 'scans'

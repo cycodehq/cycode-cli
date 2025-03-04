@@ -4,8 +4,8 @@ from uuid import uuid4
 
 from cycode import __version__
 from cycode.cli import consts
-from cycode.cli.sentry import add_correlation_id_to_scope
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
+from cycode.cli.utils.sentry import add_correlation_id_to_scope
 from cycode.cyclient import logger
 
 

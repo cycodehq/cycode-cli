@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from cycode.cli.config import CYCODE_CLIENT_ID_ENV_VAR_NAME, CYCODE_CLIENT_SECRET_ENV_VAR_NAME
-from cycode.cli.sentry import setup_scope_from_access_token
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
 from cycode.cli.user_settings.jwt_creator import JwtCreator
+from cycode.cli.utils.sentry import setup_scope_from_access_token
 
 
 class CredentialsManager(BaseFileManager):

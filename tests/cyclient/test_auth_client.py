@@ -3,7 +3,7 @@ import requests
 import responses
 from requests import Timeout
 
-from cycode.cli.commands.auth.auth_manager import AuthManager
+from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.custom_exceptions import CycodeError, RequestTimeout
 from cycode.cyclient.auth_client import AuthClient
 from cycode.cyclient.models import (

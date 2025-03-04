@@ -7,7 +7,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-from cycode.cli.commands.version.version_checker import VersionChecker
+from cycode.cli.utils.version_checker import VersionChecker
 
 
 @pytest.fixture

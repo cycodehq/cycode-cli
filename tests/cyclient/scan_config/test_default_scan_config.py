@@ -6,7 +6,7 @@ def test_get_service_name() -> None:
     default_scan_config = DefaultScanConfig()
 
     assert default_scan_config.get_service_name(consts.SECRET_SCAN_TYPE) == 'secret'
-    assert default_scan_config.get_service_name(consts.INFRA_CONFIGURATION_SCAN_TYPE) == 'iac'
+    assert default_scan_config.get_service_name(consts.IAC_SCAN_TYPE) == 'iac'
     assert default_scan_config.get_service_name(consts.SCA_SCAN_TYPE) == 'scans'
     assert default_scan_config.get_service_name(consts.SAST_SCAN_TYPE) == 'scans'
     assert default_scan_config.get_service_name(consts.SECRET_SCAN_TYPE, True) == 'scans'
