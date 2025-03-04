@@ -11,7 +11,7 @@ class ScanConfigBase(ABC):
     def get_async_scan_type(scan_type: str) -> str:
         if scan_type == consts.SECRET_SCAN_TYPE:
             return 'Secrets'
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if scan_type == consts.IAC_SCAN_TYPE:
             return 'InfraConfiguration'
 
         return scan_type.upper()
@@ -33,7 +33,7 @@ class DevScanConfig(ScanConfigBase):
             return '5004'
         if scan_type == consts.SECRET_SCAN_TYPE:
             return '5025'
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if scan_type == consts.IAC_SCAN_TYPE:
             return '5026'
 
         # sca and sast
@@ -49,7 +49,7 @@ class DefaultScanConfig(ScanConfigBase):
             return 'scans'
         if scan_type == consts.SECRET_SCAN_TYPE:
             return 'secret'
-        if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
+        if scan_type == consts.IAC_SCAN_TYPE:
             return 'iac'
 
         # sca and sast

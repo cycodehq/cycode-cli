@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-import click
+import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
@@ -12,8 +12,8 @@ NPM_MANIFEST_FILE_NAME = 'package.json'
 
 
 class RestoreNpmDependencies(BaseRestoreDependencies):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout)
+    def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
+        super().__init__(ctx, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NPM_PROJECT_FILE_EXTENSIONS)

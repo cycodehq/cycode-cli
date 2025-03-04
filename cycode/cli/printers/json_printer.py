@@ -28,7 +28,7 @@ class JsonPrinter(PrinterBase):
         scan_ids = []
         report_urls = []
         detections = []
-        aggregation_report_url = self.context.obj.get('aggregation_report_url')
+        aggregation_report_url = self.ctx.obj.get('aggregation_report_url')
         if aggregation_report_url:
             report_urls.append(aggregation_report_url)
 

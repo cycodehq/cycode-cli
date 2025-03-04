@@ -1,20 +1,17 @@
 PROGRAM_NAME = 'cycode'
 APP_NAME = 'CycodeCLI'
-CLI_CONTEXT_SETTINGS = {
-    'terminal_width': 10**9,
-    'max_content_width': 10**9,
-}
+CLI_CONTEXT_SETTINGS = {'terminal_width': 10**9, 'max_content_width': 10**9, 'help_option_names': ['-h', '--help']}
 
 PRE_COMMIT_COMMAND_SCAN_TYPE = 'pre_commit'
 PRE_RECEIVE_COMMAND_SCAN_TYPE = 'pre_receive'
 COMMIT_HISTORY_COMMAND_SCAN_TYPE = 'commit_history'
 
 SECRET_SCAN_TYPE = 'secret'  # noqa: S105
-INFRA_CONFIGURATION_SCAN_TYPE = 'iac'
+IAC_SCAN_TYPE = 'iac'
 SCA_SCAN_TYPE = 'sca'
 SAST_SCAN_TYPE = 'sast'
 
-INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = ('.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile')
+IAC_SCAN_SUPPORTED_FILES = ('.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile')
 
 SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
     '.7z',
