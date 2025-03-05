@@ -171,7 +171,7 @@ def _get_scan_documents_thread_func(
         should_use_sync_flow = _should_use_sync_flow(command_scan_type, scan_type, sync_option, scan_parameters)
 
         try:
-            logger.debug('Preparing local files, %s', {'batch_size': len(batch)})
+            logger.debug('Preparing local files, %s', {'batch_files_count': len(batch)})
             zipped_documents = zip_documents(scan_type, batch)
             zip_file_size = zipped_documents.size
             scan_result = perform_scan(
