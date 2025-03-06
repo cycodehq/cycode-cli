@@ -54,7 +54,7 @@ This guide walks you through both installation and usage.
 
 # Prerequisites
 
-- The Cycode CLI application requires Python version 3.8 or later.
+- The Cycode CLI application requires Python version 3.9 or later.
 - Use the [`cycode auth` command](#using-the-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, you can get a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/docs/en/service-accounts) and [Personal Access Token](https://docs.cycode.com/v1/docs/managing-personal-access-tokens) pages, which contain details on getting these values.
 
@@ -208,7 +208,7 @@ Cycode’s pre-commit hook can be set up within your local repository so that th
 
 Perform the following steps to install the pre-commit hook:
 
-1. Install the pre-commit framework (Python 3.8 or higher must be installed):
+1. Install the pre-commit framework (Python 3.9 or higher must be installed):
 
    ```bash
    pip3 install pre-commit
