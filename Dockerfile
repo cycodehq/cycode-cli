@@ -6,7 +6,7 @@ FROM base AS builder
 ENV POETRY_VERSION=1.8.3
 
 # deps are required to build cffi
-RUN apk add --no-cache --virtual .build-deps gcc=14.2.0-r4 libffi-dev=3.4.6-r0 musl-dev=1.2.5-r9 &&  \
+RUN apk add --no-cache --virtual .build-deps gcc=14.2.0-r4 libffi-dev=3.4.7-r0 musl-dev=1.2.5-r9 &&  \
     pip install --no-cache-dir "poetry==$POETRY_VERSION" "poetry-dynamic-versioning[plugin]" &&  \
     apk del .build-deps gcc libffi-dev musl-dev
 
