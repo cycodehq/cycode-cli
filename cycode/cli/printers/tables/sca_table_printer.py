@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING, Dict, List
 
 import click
 
+from cycode.cli.cli_types import SeverityOption
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
-from cycode.cli.models import SEVERITY_UNKNOWN_WEIGHT, Detection, Severity
+from cycode.cli.models import Detection
 from cycode.cli.printers.tables.table import Table
 from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidths
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
@@ -40,7 +41,7 @@ COLUMN_WIDTHS_CONFIG: ColumnWidths = {
 
 class ScaTablePrinter(TablePrinterBase):
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
-        aggregation_report_url = self.context.obj.get('aggregation_report_url')
+        aggregation_report_url = self.ctx.obj.get('aggregation_report_url')
         detections_per_policy_id = self._extract_detections_per_policy_id(local_scan_results)
         for policy_id, detections in detections_per_policy_id.items():
             table = self._get_table(policy_id)
@@ -72,11 +73,8 @@ class ScaTablePrinter(TablePrinterBase):
 
     @staticmethod
     def __severity_sort_key(detection: Detection) -> int:
-        severity = detection.detection_details.get('advisory_severity')
-        if severity:
-            return Severity.get_member_weight(severity)
-
-        return SEVERITY_UNKNOWN_WEIGHT
+        severity = detection.detection_details.get('advisory_severity', 'unknown')
+        return SeverityOption.get_member_weight(severity)
 
     def _sort_detections_by_severity(self, detections: List[Detection]) -> List[Detection]:
         return sorted(detections, key=self.__severity_sort_key, reverse=True)

@@ -15,7 +15,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -24,10 +23,10 @@ classifiers = [
 ]
 
 [tool.poetry.scripts]
-cycode = "cycode.cli.main:main_cli"
+cycode = "cycode.cli.app:app"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.14"
+python = ">=3.9,<3.14"
 click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
@@ -42,6 +41,7 @@ sentry-sdk = ">=2.8.0,<3.0"
 pyjwt = ">=2.8.0,<3.0"
 rich = ">=13.9.4, <14"
 patch-ng = "1.18.1"
+typer = "^0.15.2"
 
 [tool.poetry.group.test.dependencies]
 mock = ">=4.0.3,<4.1.0"

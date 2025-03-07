@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-import click
+import typer
 
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
@@ -43,9 +43,9 @@ def execute_commands(
 
 class BaseRestoreDependencies(ABC):
     def __init__(
-        self, context: click.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
+        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
     ) -> None:
-        self.context = context
+        self.ctx = ctx
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
         self.create_output_file_manually = create_output_file_manually
@@ -55,9 +55,7 @@ class BaseRestoreDependencies(ABC):
 
     def get_manifest_file_path(self, document: Document) -> str:
         return (
-            join_paths(get_path_from_context(self.context), document.path)
-            if self.context.obj.get('monitor')
-            else document.path
+            join_paths(get_path_from_context(self.ctx), document.path) if self.ctx.obj.get('monitor') else document.path
         )
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:

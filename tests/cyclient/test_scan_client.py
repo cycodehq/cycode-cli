@@ -51,7 +51,7 @@ def get_test_zip_file(scan_type: str) -> InMemoryZip:
 def test_get_service_name(scan_client: ScanClient) -> None:
     # TODO(MarshalX): get_service_name should be removed from ScanClient? Because it exists in ScanConfig
     assert scan_client.get_service_name(consts.SECRET_SCAN_TYPE) == 'secret'
-    assert scan_client.get_service_name(consts.INFRA_CONFIGURATION_SCAN_TYPE) == 'iac'
+    assert scan_client.get_service_name(consts.IAC_SCAN_TYPE) == 'iac'
     assert scan_client.get_service_name(consts.SCA_SCAN_TYPE) == 'scans'
     assert scan_client.get_service_name(consts.SAST_SCAN_TYPE) == 'scans'
 

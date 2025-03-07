@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-import click
+import typer
 
 from cycode.cli import consts
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
@@ -89,7 +89,7 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 
 def try_restore_dependencies(
-    context: click.Context,
+    ctx: typer.Context,
     documents_to_add: Dict[str, Document],
     restore_dependencies: 'BaseRestoreDependencies',
     document: Document,
@@ -106,8 +106,8 @@ def try_restore_dependencies(
         logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
         restore_dependencies_document.content = ''
     else:
-        is_monitor_action = context.obj.get('monitor', False)
-        project_path = get_path_from_context(context)
+        is_monitor_action = ctx.obj.get('monitor', False)
+        project_path = get_path_from_context(ctx)
 
         manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
         logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
@@ -119,27 +119,27 @@ def try_restore_dependencies(
 
 
 def add_dependencies_tree_document(
-    context: click.Context, documents_to_scan: List[Document], is_git_diff: bool = False
+    ctx: typer.Context, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
     documents_to_add: Dict[str, Document] = {}
-    restore_dependencies_list = restore_handlers(context, is_git_diff)
+    restore_dependencies_list = restore_handlers(ctx, is_git_diff)
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
-            try_restore_dependencies(context, documents_to_add, restore_dependencies, document)
+            try_restore_dependencies(ctx, documents_to_add, restore_dependencies, document)
 
     documents_to_scan.extend(list(documents_to_add.values()))
 
 
-def restore_handlers(context: click.Context, is_git_diff: bool) -> List[BaseRestoreDependencies]:
+def restore_handlers(ctx: typer.Context, is_git_diff: bool) -> List[BaseRestoreDependencies]:
     return [
-        RestoreGradleDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreMavenDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreSbtDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreGoDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreNugetDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreNpmDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreRubyDependencies(context, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreGradleDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreMavenDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreSbtDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreGoDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreNugetDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreNpmDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreRubyDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
     ]
 
 
@@ -155,8 +155,8 @@ def get_file_content_from_commit(repo: 'Repo', commit: str, file_path: str) -> O
 
 
 def perform_pre_scan_documents_actions(
-    context: click.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
+    ctx: typer.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE and not context.obj.get(consts.SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
+    if scan_type == consts.SCA_SCAN_TYPE and not ctx.obj.get(consts.SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
         logger.debug('Perform pre-scan document add_dependencies_tree_document action')
-        add_dependencies_tree_document(context, documents_to_scan, is_git_diff)
+        add_dependencies_tree_document(ctx, documents_to_scan, is_git_diff)

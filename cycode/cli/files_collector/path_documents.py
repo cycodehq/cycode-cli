@@ -42,7 +42,7 @@ def _get_relevant_files_in_path(path: str) -> List[str]:
 
 
 def _get_relevant_files(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, paths: Tuple[str]
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, paths: Tuple[str, ...]
 ) -> List[str]:
     all_files_to_scan = []
     for path in paths:
@@ -89,7 +89,7 @@ def get_relevant_documents(
     progress_bar: 'BaseProgressBar',
     progress_bar_section: 'ProgressBarSection',
     scan_type: str,
-    paths: Tuple[str],
+    paths: Tuple[str, ...],
     *,
     is_git_diff: bool = False,
 ) -> List[Document]:

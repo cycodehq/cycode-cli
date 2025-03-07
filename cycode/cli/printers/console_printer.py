@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Type
 
-import click
+import typer
 
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.models import CliError, CliResult
@@ -24,11 +24,13 @@ class ConsolePrinter:
         'text_sca': ScaTablePrinter,
     }
 
-    def __init__(self, context: click.Context) -> None:
-        self.context = context
-        self.scan_type = self.context.obj.get('scan_type')
-        self.output_type = self.context.obj.get('output')
-        self.aggregation_report_url = self.context.obj.get('aggregation_report_url')
+    def __init__(self, ctx: typer.Context) -> None:
+        self.ctx = ctx
+
+        self.scan_type = self.ctx.obj.get('scan_type')
+        self.output_type = self.ctx.obj.get('output')
+        self.aggregation_report_url = self.ctx.obj.get('aggregation_report_url')
+
         self._printer_class = self._AVAILABLE_PRINTERS.get(self.output_type)
         if self._printer_class is None:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
@@ -48,18 +50,18 @@ class ConsolePrinter:
         if composite_printer:
             printer_class = composite_printer
 
-        return printer_class(self.context)
+        return printer_class(self.ctx)
 
     def print_result(self, result: CliResult) -> None:
-        self._printer_class(self.context).print_result(result)
+        self._printer_class(self.ctx).print_result(result)
 
     def print_error(self, error: CliError) -> None:
-        self._printer_class(self.context).print_error(error)
+        self._printer_class(self.ctx).print_error(error)
 
     def print_exception(self, e: Optional[BaseException] = None, force_print: bool = False) -> None:
         """Print traceback message in stderr if verbose mode is set."""
-        if force_print or self.context.obj.get('verbose', False):
-            self._printer_class(self.context).print_exception(e)
+        if force_print or self.ctx.obj.get('verbose', False):
+            self._printer_class(self.ctx).print_exception(e)
 
     @property
     def is_json_printer(self) -> bool:

@@ -2,6 +2,7 @@ import math
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
+import typer
 
 from cycode.cli.config import config
 from cycode.cli.consts import COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SECRET_SCAN_TYPE
@@ -14,11 +15,11 @@ if TYPE_CHECKING:
 
 
 class TextPrinter(PrinterBase):
-    def __init__(self, context: click.Context) -> None:
-        super().__init__(context)
-        self.scan_type: str = context.obj.get('scan_type')
-        self.command_scan_type: str = context.info_name
-        self.show_secret: bool = context.obj.get('show_secret', False)
+    def __init__(self, ctx: typer.Context) -> None:
+        super().__init__(ctx)
+        self.scan_type: str = ctx.obj.get('scan_type')
+        self.command_scan_type: str = ctx.info_name
+        self.show_secret: bool = ctx.obj.get('show_secret', False)
 
     def print_result(self, result: CliResult) -> None:
         color = None
@@ -50,7 +51,7 @@ class TextPrinter(PrinterBase):
 
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
 
-        self._print_report_urls(report_urls, self.context.obj.get('aggregation_report_url'))
+        self._print_report_urls(report_urls, self.ctx.obj.get('aggregation_report_url'))
         if not errors:
             return
 

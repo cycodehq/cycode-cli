@@ -1,20 +1,17 @@
 PROGRAM_NAME = 'cycode'
 APP_NAME = 'CycodeCLI'
-CLI_CONTEXT_SETTINGS = {
-    'terminal_width': 10**9,
-    'max_content_width': 10**9,
-}
+CLI_CONTEXT_SETTINGS = {'terminal_width': 10**9, 'max_content_width': 10**9, 'help_option_names': ['-h', '--help']}
 
 PRE_COMMIT_COMMAND_SCAN_TYPE = 'pre_commit'
 PRE_RECEIVE_COMMAND_SCAN_TYPE = 'pre_receive'
 COMMIT_HISTORY_COMMAND_SCAN_TYPE = 'commit_history'
 
 SECRET_SCAN_TYPE = 'secret'  # noqa: S105
-INFRA_CONFIGURATION_SCAN_TYPE = 'iac'
+IAC_SCAN_TYPE = 'iac'
 SCA_SCAN_TYPE = 'sca'
 SAST_SCAN_TYPE = 'sast'
 
-INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES = ('.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile')
+IAC_SCAN_SUPPORTED_FILES = ('.tf', '.tf.json', '.json', '.yaml', '.yml', 'dockerfile')
 
 SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
     '.7z',
@@ -145,7 +142,11 @@ ZIP_MAX_SIZE_LIMIT_IN_BYTES = {
 # scan in batches
 DEFAULT_SCAN_BATCH_MAX_SIZE_IN_BYTES = 9 * 1024 * 1024
 SCAN_BATCH_MAX_SIZE_IN_BYTES = {SAST_SCAN_TYPE: 50 * 1024 * 1024}
+SCAN_BATCH_MAX_SIZE_IN_BYTES_ENV_VAR_NAME = 'SCAN_BATCH_MAX_SIZE_IN_BYTES'
+
 DEFAULT_SCAN_BATCH_MAX_FILES_COUNT = 1000
+SCAN_BATCH_MAX_FILES_COUNT_ENV_VAR_NAME = 'SCAN_BATCH_MAX_FILES_COUNT'
+
 # if we increase this values, the server doesn't allow connecting (ConnectionError)
 SCAN_BATCH_MAX_PARALLEL_SCANS = 5
 SCAN_BATCH_SCANS_PER_CPU = 1
