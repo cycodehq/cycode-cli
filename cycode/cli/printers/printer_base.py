@@ -1,8 +1,7 @@
-import traceback
+import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-import click
 import typer
 
 from cycode.cli.models import CliError, CliResult
@@ -10,6 +9,10 @@ from cycode.cyclient.headers import get_correlation_id
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
+
+
+from rich.console import Console
+from rich.traceback import Traceback
 
 
 class PrinterBase(ABC):
@@ -40,14 +43,9 @@ class PrinterBase(ABC):
         Note:
             Called only when the verbose flag is set.
         """
-        if e is None:
-            # gets the most recent exception caught by an except clause
-            message = f'Error: {traceback.format_exc()}'
-        else:
-            traceback_message = ''.join(traceback.format_exception(None, e, e.__traceback__))
-            message = f'Error: {traceback_message}'
+        console = Console(stderr=True)
 
-        click.secho(message, err=True, fg=self.RED_COLOR_NAME)
+        traceback = Traceback.from_exception(type(e), e, None) if e else Traceback.from_exception(*sys.exc_info())
+        console.print(traceback)
 
-        correlation_message = f'Correlation ID: {get_correlation_id()}'
-        click.secho(correlation_message, err=True, fg=self.RED_COLOR_NAME)
+        console.print(f'Correlation ID: {get_correlation_id()}', style=self.RED_COLOR_NAME)

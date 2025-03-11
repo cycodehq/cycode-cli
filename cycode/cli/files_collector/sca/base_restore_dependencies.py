@@ -3,10 +3,10 @@ from typing import List, Optional
 
 import typer
 
+from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
 from cycode.cli.utils.shell_executor import shell
-from cycode.cyclient import logger
 
 
 def build_dep_tree_path(path: str, generated_file_name: str) -> str:

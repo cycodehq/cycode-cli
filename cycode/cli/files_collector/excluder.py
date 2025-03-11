@@ -5,11 +5,14 @@ from cycode.cli.config import configuration_manager
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils.path_utils import get_file_size, is_binary_file, is_sub_path
 from cycode.cli.utils.string_utils import get_content_size, is_binary_content
-from cycode.cyclient import logger
+from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cli.models import Document
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
+
+
+logger = get_logger('File Excluder')
 
 
 def exclude_irrelevant_files(

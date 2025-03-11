@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import click
 import typer
 
-from cycode.cli.config import config
 from cycode.cli.consts import COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SECRET_SCAN_TYPE
 from cycode.cli.models import CliError, CliResult, Detection, Document, DocumentDetections
 from cycode.cli.printers.printer_base import PrinterBase
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
 class TextPrinter(PrinterBase):
     def __init__(self, ctx: typer.Context) -> None:
         super().__init__(ctx)
-        self.scan_type: str = ctx.obj.get('scan_type')
+        self.scan_type = ctx.obj.get('scan_type')
         self.command_scan_type: str = ctx.info_name
         self.show_secret: bool = ctx.obj.get('show_secret', False)
 
@@ -66,10 +65,9 @@ class TextPrinter(PrinterBase):
 
     def _print_document_detections(self, document_detections: DocumentDetections, scan_id: str) -> None:
         document = document_detections.document
-        lines_to_display = self._get_lines_to_display_count()
         for detection in document_detections.detections:
             self._print_detection_summary(detection, document.path, scan_id)
-            self._print_detection_code_segment(detection, document, lines_to_display)
+            self._print_detection_code_segment(detection, document)
 
     def _print_detection_summary(self, detection: Detection, document_path: str, scan_id: str) -> None:
         detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
@@ -96,12 +94,15 @@ class TextPrinter(PrinterBase):
             f'  ⛔'
         )
 
-    def _print_detection_code_segment(self, detection: Detection, document: Document, code_segment_size: int) -> None:
+    def _print_detection_code_segment(
+        self, detection: Detection, document: Document, lines_to_display: int = 3
+    ) -> None:
         if self._is_git_diff_based_scan():
+            # it will print just one line
             self._print_detection_from_git_diff(detection, document)
             return
 
-        self._print_detection_from_file(detection, document, code_segment_size)
+        self._print_detection_from_file(detection, document, lines_to_display)
 
     @staticmethod
     def _print_report_urls(report_urls: List[str], aggregation_report_url: Optional[str] = None) -> None:
@@ -116,8 +117,8 @@ class TextPrinter(PrinterBase):
             click.echo(f'- {report_url}')
 
     @staticmethod
-    def _get_code_segment_start_line(detection_line: int, code_segment_size: int) -> int:
-        start_line = detection_line - math.ceil(code_segment_size / 2)
+    def _get_code_segment_start_line(detection_line: int, lines_to_display: int) -> int:
+        start_line = detection_line - math.ceil(lines_to_display / 2)
         return 0 if start_line < 0 else start_line
 
     def _print_line_of_code_segment(
@@ -193,17 +194,7 @@ class TextPrinter(PrinterBase):
             f'{click.style("|", fg=self.RED_COLOR_NAME, bold=False)}'
         )
 
-    def _get_lines_to_display_count(self) -> int:
-        result_printer_configuration = config.get('result_printer')
-        lines_to_display_of_scan = (
-            result_printer_configuration.get(self.scan_type, {}).get(self.command_scan_type, {}).get('lines_to_display')
-        )
-        if lines_to_display_of_scan:
-            return lines_to_display_of_scan
-
-        return result_printer_configuration.get('default').get('lines_to_display')
-
-    def _print_detection_from_file(self, detection: Detection, document: Document, code_segment_size: int) -> None:
+    def _print_detection_from_file(self, detection: Detection, document: Document, lines_to_display: int) -> None:
         detection_details = detection.detection_details
         detection_line = (
             detection_details.get('line', -1)
@@ -215,12 +206,12 @@ class TextPrinter(PrinterBase):
 
         file_content = document.content
         file_lines = file_content.splitlines()
-        start_line = self._get_code_segment_start_line(detection_line, code_segment_size)
+        start_line = self._get_code_segment_start_line(detection_line, lines_to_display)
         detection_position_in_line = get_position_in_line(file_content, detection_position)
 
         click.echo()
-        for i in range(code_segment_size):
-            current_line_index = start_line + i
+        for line_index in range(lines_to_display):
+            current_line_index = start_line + line_index
             if current_line_index >= len(file_lines):
                 break
 

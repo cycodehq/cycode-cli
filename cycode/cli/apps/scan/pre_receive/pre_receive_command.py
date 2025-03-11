@@ -18,9 +18,9 @@ from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.repository_documents import (
     calculate_pre_receive_commit_range,
 )
+from cycode.cli.logger import logger
 from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cli.utils.task_timer import TimeoutAfter
-from cycode.cyclient import logger
 
 
 def pre_receive_command(

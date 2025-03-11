@@ -4,7 +4,6 @@ from typing import List, Optional, Set
 
 import typer
 
-from cycode.cli.consts import SCA_GRADLE_ALL_SUB_PROJECTS_FLAG
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_from_context
@@ -28,7 +27,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         self.projects = self.get_all_projects() if self.is_gradle_sub_projects() else projects
 
     def is_gradle_sub_projects(self) -> bool:
-        return self.ctx.obj.get(SCA_GRADLE_ALL_SUB_PROJECTS_FLAG)
+        return self.ctx.params.get('gradle-all-sub-projects', False)
 
     def is_project(self, document: Document) -> bool:
         return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)

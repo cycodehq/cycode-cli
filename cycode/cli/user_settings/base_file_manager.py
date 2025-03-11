@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Hashable
 
-from cycode.cli.utils.yaml_utils import read_file, update_file
+from cycode.cli.utils.yaml_utils import read_yaml_file, update_yaml_file
 
 
 class BaseFileManager(ABC):
@@ -10,9 +10,9 @@ class BaseFileManager(ABC):
     def get_filename(self) -> str: ...
 
     def read_file(self) -> Dict[Hashable, Any]:
-        return read_file(self.get_filename())
+        return read_yaml_file(self.get_filename())
 
     def write_content_to_file(self, content: Dict[Hashable, Any]) -> None:
         filename = self.get_filename()
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        update_file(filename, content)
+        update_yaml_file(filename, content)

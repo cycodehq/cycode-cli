@@ -4,8 +4,8 @@ from typing import Annotated, List
 import typer
 
 from cycode.cli.apps.scan.code_scanner import scan_disk_files
+from cycode.cli.logger import logger
 from cycode.cli.utils.sentry import add_breadcrumb
-from cycode.cyclient import logger
 
 
 def path_command(

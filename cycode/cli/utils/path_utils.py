@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, AnyStr, List, Optional, Union
 import typer
 from binaryornot.helpers import is_binary_string
 
-from cycode.cyclient import logger
+from cycode.cli.logger import logger
 
 if TYPE_CHECKING:
     from os import PathLike

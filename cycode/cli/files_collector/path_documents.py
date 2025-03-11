@@ -9,9 +9,9 @@ from cycode.cli.files_collector.iac.tf_content_generator import (
     is_tfplan_file,
 )
 from cycode.cli.files_collector.walk_ignore import walk_ignore
+from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_absolute_path, get_file_content
-from cycode.cyclient import logger
 
 if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection

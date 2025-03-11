@@ -7,10 +7,10 @@ import typer
 from cycode.cli import consts
 from cycode.cli.cli_types import ScanTypeOption
 from cycode.cli.config import configuration_manager
+from cycode.cli.logger import logger
 from cycode.cli.utils.path_utils import get_absolute_path, is_path_exists
 from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cli.utils.string_utils import hash_string_to_sha256
-from cycode.cyclient import logger
 
 
 def _is_package_pattern_valid(package: str) -> bool:

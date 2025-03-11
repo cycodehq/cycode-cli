@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING, Dict, NamedTuple, Optional
 import click
 
 from cycode.cli.utils.enum_utils import AutoCountEnum
-from cycode.cyclient.config import get_logger
+from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from click._termui_impl import ProgressBar
     from click.termui import V as ProgressBarValue
 
 # use LOGGING_LEVEL=DEBUG env var to see debug logs of this module
-logger = get_logger('progress bar', control_level_in_runtime=False)
+logger = get_logger('Progress Bar', control_level_in_runtime=False)
 
 
 class ProgressBarSection(AutoCountEnum):

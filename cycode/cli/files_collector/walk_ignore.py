@@ -1,8 +1,8 @@
 import os
 from typing import Generator, Iterable, List, Tuple
 
+from cycode.cli.logger import logger
 from cycode.cli.utils.ignore_utils import IgnoreFilterManager
-from cycode.cyclient import logger
 
 _SUPPORTED_IGNORE_PATTERN_FILES = {  # oneday we will bring .cycodeignore or something like that
     '.gitignore',

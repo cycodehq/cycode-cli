@@ -11,11 +11,11 @@ from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
 from cycode.cli.files_collector.repository_documents import get_git_repository_tree_file_entries
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
+from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.sentry import add_breadcrumb
-from cycode.cyclient import logger
 
 
 def repository_command(

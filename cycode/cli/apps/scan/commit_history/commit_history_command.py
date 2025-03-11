@@ -5,8 +5,8 @@ import typer
 
 from cycode.cli.apps.scan.code_scanner import scan_commit_range
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.logger import logger
 from cycode.cli.utils.sentry import add_breadcrumb
-from cycode.cyclient import logger
 
 
 def commit_history_command(

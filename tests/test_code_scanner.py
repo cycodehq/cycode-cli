@@ -9,7 +9,7 @@ from cycode.cli.apps.scan.code_scanner import (
     _try_get_aggregation_report_url_if_needed,
     _try_get_report_url_if_needed,
 )
-from cycode.cli.config import config
+from cycode.cli.cli_types import ScanTypeOption
 from cycode.cli.files_collector.excluder import _is_relevant_file_to_scan
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import TEST_FILES_PATH
@@ -26,17 +26,17 @@ def test_is_relevant_file_to_scan_sca() -> None:
     assert _is_relevant_file_to_scan(consts.SCA_SCAN_TYPE, path) is True
 
 
-@pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
-def test_try_get_report_url_if_needed_return_none(scan_type: str, scan_client: ScanClient) -> None:
+@pytest.mark.parametrize('scan_type', list(ScanTypeOption))
+def test_try_get_report_url_if_needed_return_none(scan_type: ScanTypeOption, scan_client: ScanClient) -> None:
     scan_id = uuid4().hex
     result = _try_get_report_url_if_needed(scan_client, False, scan_id, consts.SECRET_SCAN_TYPE)
     assert result is None
 
 
-@pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
+@pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_try_get_report_url_if_needed_return_result(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     scan_id = uuid4()
     url = get_scan_report_url(scan_id, scan_client, scan_type)
@@ -48,9 +48,9 @@ def test_try_get_report_url_if_needed_return_result(
     assert result == scan_report_url_response.report_url
 
 
-@pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
+@pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 def test_try_get_aggregation_report_url_if_no_report_command_needed_return_none(
-    scan_type: str, scan_client: ScanClient
+    scan_type: ScanTypeOption, scan_client: ScanClient
 ) -> None:
     aggregation_id = uuid4().hex
     scan_parameter = {'aggregation_id': aggregation_id}
@@ -58,19 +58,19 @@ def test_try_get_aggregation_report_url_if_no_report_command_needed_return_none(
     assert result is None
 
 
-@pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
+@pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 def test_try_get_aggregation_report_url_if_no_aggregation_id_needed_return_none(
-    scan_type: str, scan_client: ScanClient
+    scan_type: ScanTypeOption, scan_client: ScanClient
 ) -> None:
     scan_parameter = {'report': True}
     result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result is None
 
 
-@pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
+@pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_try_get_aggregation_report_url_if_needed_return_result(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     aggregation_id = uuid4()
     scan_parameter = {'report': True, 'aggregation_id': aggregation_id}

@@ -7,8 +7,8 @@ from cycode.cli import consts
 from cycode.cli.apps.report.sbom.sbom_report_file import SbomReportFile
 from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions.custom_exceptions import ReportAsyncError
+from cycode.cli.logger import logger
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
-from cycode.cyclient import logger
 from cycode.cyclient.models import ReportExecutionSchema
 
 if TYPE_CHECKING:

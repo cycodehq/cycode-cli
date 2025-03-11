@@ -34,15 +34,17 @@ from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
-from cycode.cyclient import logger
-from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
+from cycode.logger import get_logger, set_logging_level
 
 if TYPE_CHECKING:
     from cycode.cyclient.models import ScanDetailsResponse
     from cycode.cyclient.scan_client import ScanClient
 
 start_scan_time = time.time()
+
+
+logger = get_logger('Code Scanner')
 
 
 def scan_sca_pre_commit(ctx: typer.Context) -> None:

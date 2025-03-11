@@ -1,10 +1,10 @@
-import logging
 import os
 from typing import List, Optional
 
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
+from cycode.cli.logger import logger
 from cycode.cli.models import Document
 
 GO_PROJECT_FILE_EXTENSIONS = ['.mod', '.sum']
@@ -22,7 +22,7 @@ class RestoreGoDependencies(BaseRestoreDependencies):
         lock_exists = os.path.isfile(self.get_working_directory(document) + os.sep + BUILD_GO_LOCK_FILE_NAME)
 
         if not manifest_exists or not lock_exists:
-            logging.info('No manifest go.mod file found' if not manifest_exists else 'No manifest go.sum file found')
+            logger.info('No manifest go.mod file found' if not manifest_exists else 'No manifest go.sum file found')
 
         manifest_files_exists = manifest_exists & lock_exists
 
