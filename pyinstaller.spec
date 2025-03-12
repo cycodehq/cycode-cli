@@ -23,7 +23,6 @@ with open(_INIT_FILE_PATH, 'w', encoding='UTF-8') as file:
 
 a = Analysis(
     scripts=['cycode/cli/main.py'],
-    datas=[('cycode/cli/config.yaml', 'cycode/cli'), ('cycode/cyclient/config.yaml', 'cycode/cyclient')],
     excludes=['tests'],
 )
 

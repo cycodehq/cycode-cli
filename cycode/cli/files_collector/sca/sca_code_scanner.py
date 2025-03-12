@@ -15,12 +15,15 @@ from cycode.cli.files_collector.sca.sbt.restore_sbt_dependencies import RestoreS
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
-from cycode.cyclient import logger
+from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from git import Repo
 
 BUILD_DEP_TREE_TIMEOUT = 180
+
+
+logger = get_logger('SCA Code Scanner')
 
 
 def perform_pre_commit_range_scan_actions(
@@ -157,6 +160,7 @@ def get_file_content_from_commit(repo: 'Repo', commit: str, file_path: str) -> O
 def perform_pre_scan_documents_actions(
     ctx: typer.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
-    if scan_type == consts.SCA_SCAN_TYPE and not ctx.obj.get(consts.SCA_SKIP_RESTORE_DEPENDENCIES_FLAG):
+    no_restore = ctx.params.get('no-restore', False)
+    if scan_type == consts.SCA_SCAN_TYPE and not no_restore:
         logger.debug('Perform pre-scan document add_dependencies_tree_document action')
         add_dependencies_tree_document(ctx, documents_to_scan, is_git_diff)

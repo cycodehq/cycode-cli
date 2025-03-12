@@ -11,9 +11,9 @@ from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
 from cycode.cli.utils.sentry import add_breadcrumb, init_sentry
 from cycode.cli.utils.version_checker import version_checker
-from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
+from cycode.logger import set_logging_level
 
 app = typer.Typer(
     pretty_exceptions_show_locals=False,

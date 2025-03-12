@@ -8,12 +8,15 @@ from cycode.cli.exceptions.custom_exceptions import AuthProcessError
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.utils.string_utils import generate_random_string, hash_string_to_sha256
-from cycode.cyclient import logger
 from cycode.cyclient.auth_client import AuthClient
 from cycode.cyclient.models import ApiTokenGenerationPollingResponse
+from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cyclient.models import ApiToken
+
+
+logger = get_logger('Auth Manager')
 
 
 class AuthManager:

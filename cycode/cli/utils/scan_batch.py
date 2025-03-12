@@ -5,11 +5,14 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Tuple
 from cycode.cli import consts
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
-from cycode.cyclient import logger
+from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cli.models import CliError, LocalScanResult
     from cycode.cli.utils.progress_bar import BaseProgressBar
+
+
+logger = get_logger('Batching')
 
 
 def _get_max_batch_size(scan_type: str) -> int:

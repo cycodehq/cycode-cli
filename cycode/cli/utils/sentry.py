@@ -11,8 +11,8 @@ from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from cycode import __version__
 from cycode.cli import consts
+from cycode.cli.logger import logger
 from cycode.cli.utils.jwt_utils import get_user_and_tenant_ids_from_access_token
-from cycode.cyclient import logger
 from cycode.cyclient.config import on_premise_installation
 
 # when Sentry is blocked on the machine, we want to keep clean output without retries warnings

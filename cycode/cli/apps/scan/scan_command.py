@@ -4,12 +4,9 @@ import click
 import typer
 
 from cycode.cli.cli_types import ScanTypeOption, ScaScanTypeOption, SeverityOption
-from cycode.cli.config import config
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
-    SCA_GRADLE_ALL_SUB_PROJECTS_FLAG,
-    SCA_SKIP_RESTORE_DEPENDENCIES_FLAG,
 )
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
@@ -82,7 +79,7 @@ def scan_command(
     no_restore: Annotated[
         bool,
         typer.Option(
-            f'--{SCA_SKIP_RESTORE_DEPENDENCIES_FLAG}',
+            '--no-restore',
             help='When specified, Cycode will not run restore command. '
             'Will scan direct dependencies [bold]only[/bold]!',
             rich_help_panel='SCA options',
@@ -91,7 +88,7 @@ def scan_command(
     gradle_all_sub_projects: Annotated[
         bool,
         typer.Option(
-            f'--{SCA_GRADLE_ALL_SUB_PROJECTS_FLAG}',
+            '--gradle-all-sub-projects',
             help='When specified, Cycode will run gradle restore command for all sub projects. '
             'Should run from root project directory [bold]only[/bold]!',
             rich_help_panel='SCA options',
@@ -103,24 +100,16 @@ def scan_command(
     [cyan]path[/cyan]/[cyan]repository[/cyan]/[cyan]commit_history[/cyan]."""
     add_breadcrumb('scan')
 
-    if show_secret:
-        ctx.obj['show_secret'] = show_secret
-    else:
-        ctx.obj['show_secret'] = config['result_printer']['default']['show_secret']
-
-    if soft_fail:
-        ctx.obj['soft_fail'] = soft_fail
-    else:
-        ctx.obj['soft_fail'] = config['soft_fail']
-
+    ctx.obj['show_secret'] = show_secret
+    ctx.obj['soft_fail'] = soft_fail
     ctx.obj['client'] = get_scan_cycode_client(client_id, client_secret, not ctx.obj['show_secret'])
     ctx.obj['scan_type'] = scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
     ctx.obj['report'] = report
-    ctx.obj[SCA_SKIP_RESTORE_DEPENDENCIES_FLAG] = no_restore
-    ctx.obj[SCA_GRADLE_ALL_SUB_PROJECTS_FLAG] = gradle_all_sub_projects
+
+    _ = no_restore, gradle_all_sub_projects  # they are actually used; via ctx.params
 
     _sca_scan_to_context(ctx, sca_scan)
 

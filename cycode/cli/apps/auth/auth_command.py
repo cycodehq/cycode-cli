@@ -2,10 +2,10 @@ import typer
 
 from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.handle_auth_errors import handle_auth_exception
+from cycode.cli.logger import logger
 from cycode.cli.models import CliResult
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.utils.sentry import add_breadcrumb
-from cycode.cyclient import logger
 
 
 def auth_command(ctx: typer.Context) -> None:

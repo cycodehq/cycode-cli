@@ -4,9 +4,9 @@ from cycode import __version__
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.status.models import CliStatus, CliSupportedModulesStatus
 from cycode.cli.consts import PROGRAM_NAME
+from cycode.cli.logger import logger
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
-from cycode.cyclient import logger
 
 
 def get_cli_status() -> CliStatus:
