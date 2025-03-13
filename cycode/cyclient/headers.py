@@ -6,7 +6,7 @@ from cycode import __version__
 from cycode.cli import consts
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.sentry import add_correlation_id_to_scope
-from cycode.cyclient import logger
+from cycode.cyclient.logger import logger
 
 
 def get_cli_user_agent() -> str:
