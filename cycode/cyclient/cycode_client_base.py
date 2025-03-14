@@ -15,8 +15,9 @@ from cycode.cli.exceptions.custom_exceptions import (
     RequestSslError,
     RequestTimeout,
 )
-from cycode.cyclient import config, logger
+from cycode.cyclient import config
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
+from cycode.cyclient.logger import logger
 
 
 class SystemStorageSslContext(HTTPAdapter):

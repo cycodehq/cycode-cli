@@ -30,7 +30,7 @@ def _poll_report_execution_until_completed(
         report_execution = client.get_report_execution(report_execution_id)
         report_label = report_execution.error_message or report_execution.status_message
 
-        progress_bar.update_label(report_label)
+        progress_bar.update_right_side_label(report_label)
 
         if report_execution.status == consts.REPORT_STATUS_COMPLETED:
             return report_execution
