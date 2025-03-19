@@ -62,6 +62,6 @@ def shortcut_dependency_paths(dependency_paths_list: str) -> str:
             result += dependency_paths
         else:
             result += f'{dependencies[0]} -> ... -> {dependencies[-1]}'
-        result += '\n\n'
+        result += '\n'
 
     return result.rstrip().rstrip(',')

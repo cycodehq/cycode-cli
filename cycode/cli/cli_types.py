@@ -42,6 +42,10 @@ class SeverityOption(str, Enum):
     def get_member_weight(name: str) -> int:
         return _SEVERITY_WEIGHTS.get(name.lower(), _SEVERITY_DEFAULT_WEIGHT)
 
+    @staticmethod
+    def get_member_color(name: str) -> str:
+        return _SEVERITY_COLORS.get(name.lower(), _SEVERITY_DEFAULT_COLOR)
+
 
 _SEVERITY_DEFAULT_WEIGHT = -1
 _SEVERITY_WEIGHTS = {
@@ -50,4 +54,13 @@ _SEVERITY_WEIGHTS = {
     SeverityOption.MEDIUM.value: 2,
     SeverityOption.HIGH.value: 3,
     SeverityOption.CRITICAL.value: 4,
+}
+
+_SEVERITY_DEFAULT_COLOR = 'white'
+_SEVERITY_COLORS = {
+    SeverityOption.INFO.value: 'deep_sky_blue1',
+    SeverityOption.LOW.value: 'gold1',
+    SeverityOption.MEDIUM.value: 'dark_orange',
+    SeverityOption.HIGH.value: 'red1',
+    SeverityOption.CRITICAL.value: 'red3',
 }
