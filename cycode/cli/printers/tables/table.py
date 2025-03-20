@@ -1,28 +1,39 @@
+import urllib.parse
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from texttable import Texttable
+from rich.markup import escape
+from rich.table import Table as RichTable
 
 if TYPE_CHECKING:
-    from cycode.cli.printers.tables.table_models import ColumnInfo, ColumnWidths
+    from cycode.cli.printers.tables.table_models import ColumnInfo
 
 
 class Table:
     """Helper class to manage columns and their values in the right order and only if the column should be presented."""
 
     def __init__(self, column_infos: Optional[List['ColumnInfo']] = None) -> None:
-        self._column_widths = None
-
         self._columns: Dict['ColumnInfo', List[str]] = {}
         if column_infos:
-            self._columns: Dict['ColumnInfo', List[str]] = {columns: [] for columns in column_infos}
+            self._columns = {columns: [] for columns in column_infos}
 
-    def add(self, column: 'ColumnInfo') -> None:
+    def add_column(self, column: 'ColumnInfo') -> None:
         self._columns[column] = []
 
-    def set(self, column: 'ColumnInfo', value: str) -> None:
+    def _add_cell_no_error(self, column: 'ColumnInfo', value: str) -> None:
         # we push values only for existing columns what were added before
         if column in self._columns:
             self._columns[column].append(value)
+
+    def add_cell(self, column: 'ColumnInfo', value: str, color: Optional[str] = None) -> None:
+        if color:
+            value = f'[{color}]{value}[/{color}]'
+
+        self._add_cell_no_error(column, value)
+
+    def add_file_path_cell(self, column: 'ColumnInfo', path: str) -> None:
+        encoded_path = urllib.parse.quote(path)
+        escaped_path = escape(encoded_path)
+        self._add_cell_no_error(column, f'[link file://{escaped_path}]{path}')
 
     def _get_ordered_columns(self) -> List['ColumnInfo']:
         # we are sorting columns by index to make sure that columns will be printed in the right order
@@ -31,32 +42,18 @@ class Table:
     def get_columns_info(self) -> List['ColumnInfo']:
         return self._get_ordered_columns()
 
-    def get_headers(self) -> List[str]:
-        return [header.name for header in self._get_ordered_columns()]
-
     def get_rows(self) -> List[str]:
         column_values = [self._columns[column_info] for column_info in self._get_ordered_columns()]
         return list(zip(*column_values))
 
-    def set_cols_width(self, column_widths: 'ColumnWidths') -> None:
-        header_width_size = []
-        for header in self.get_columns_info():
-            width_multiplier = 1
-            if header in column_widths:
-                width_multiplier = column_widths[header]
+    def get_table(self) -> 'RichTable':
+        table = RichTable(expand=True, highlight=True)
 
-            header_width_size.append(len(header.name) * width_multiplier)
+        for column in self.get_columns_info():
+            extra_args = column.column_opts if column.column_opts else {}
+            table.add_column(header=column.name, overflow='fold', **extra_args)
 
-        self._column_widths = header_width_size
-
-    def get_table(self, max_width: int = 80) -> Texttable:
-        table = Texttable(max_width)
-        table.header(self.get_headers())
-
-        for row in self.get_rows():
-            table.add_row(row)
-
-        if self._column_widths:
-            table.set_cols_width(self._column_widths)
+        for raw in self.get_rows():
+            table.add_row(*raw)
 
         return table

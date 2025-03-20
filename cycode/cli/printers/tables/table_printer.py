@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, List
+from collections import defaultdict
+from typing import TYPE_CHECKING, List, Tuple
 
-import click
-
-from cycode.cli.consts import IAC_SCAN_TYPE, SAST_SCAN_TYPE, SECRET_SCAN_TYPE
+from cycode.cli.cli_types import SeverityOption
+from cycode.cli.consts import SECRET_SCAN_TYPE
 from cycode.cli.models import Detection, Document
 from cycode.cli.printers.tables.table import Table
-from cycode.cli.printers.tables.table_models import ColumnInfoBuilder, ColumnWidthsConfig
+from cycode.cli.printers.tables.table_models import ColumnInfoBuilder
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
 from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
 
@@ -15,73 +15,89 @@ if TYPE_CHECKING:
 column_builder = ColumnInfoBuilder()
 
 # Building must have strict order. Represents the order of the columns in the table (from left to right)
+SEVERITY_COLUMN = column_builder.build(name='Severity')
 ISSUE_TYPE_COLUMN = column_builder.build(name='Issue Type')
-RULE_ID_COLUMN = column_builder.build(name='Rule ID')
-FILE_PATH_COLUMN = column_builder.build(name='File Path')
+FILE_PATH_COLUMN = column_builder.build(name='File Path', highlight=False)
 SECRET_SHA_COLUMN = column_builder.build(name='Secret SHA')
 COMMIT_SHA_COLUMN = column_builder.build(name='Commit SHA')
 LINE_NUMBER_COLUMN = column_builder.build(name='Line Number')
 COLUMN_NUMBER_COLUMN = column_builder.build(name='Column Number')
 VIOLATION_LENGTH_COLUMN = column_builder.build(name='Violation Length')
-VIOLATION_COLUMN = column_builder.build(name='Violation')
-SCAN_ID_COLUMN = column_builder.build(name='Scan ID')
-
-COLUMN_WIDTHS_CONFIG: ColumnWidthsConfig = {
-    SECRET_SCAN_TYPE: {
-        ISSUE_TYPE_COLUMN: 2,
-        RULE_ID_COLUMN: 2,
-        FILE_PATH_COLUMN: 2,
-        SECRET_SHA_COLUMN: 2,
-        VIOLATION_COLUMN: 2,
-        SCAN_ID_COLUMN: 2,
-    },
-    IAC_SCAN_TYPE: {
-        ISSUE_TYPE_COLUMN: 4,
-        RULE_ID_COLUMN: 3,
-        FILE_PATH_COLUMN: 3,
-        SCAN_ID_COLUMN: 2,
-    },
-    SAST_SCAN_TYPE: {
-        ISSUE_TYPE_COLUMN: 7,
-        RULE_ID_COLUMN: 2,
-        FILE_PATH_COLUMN: 3,
-        SCAN_ID_COLUMN: 2,
-    },
-}
+VIOLATION_COLUMN = column_builder.build(name='Violation', highlight=False)
 
 
 class TablePrinter(TablePrinterBase):
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         table = self._get_table()
-        if self.scan_type in COLUMN_WIDTHS_CONFIG:
-            table.set_cols_width(COLUMN_WIDTHS_CONFIG[self.scan_type])
 
+        detections_with_documents = []
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
-                for detection in document_detections.detections:
-                    table.set(SCAN_ID_COLUMN, local_scan_result.scan_id)
-                    self._enrich_table_with_values(table, detection, document_detections.document)
+                detections_with_documents.extend(
+                    [(detection, document_detections.document) for detection in document_detections.detections]
+                )
+
+        for detection, document in self._sort_and_group_detections(detections_with_documents):
+            self._enrich_table_with_values(table, detection, document)
 
         self._print_table(table)
         self._print_report_urls(local_scan_results, self.ctx.obj.get('aggregation_report_url'))
 
+    @staticmethod
+    def __severity_sort_key(detection_with_document: Tuple[Detection, Document]) -> int:
+        detection, _ = detection_with_document
+        severity = detection.severity if detection.severity else ''
+        return SeverityOption.get_member_weight(severity)
+
+    def _sort_detections_by_severity(
+        self, detections_with_documents: List[Tuple[Detection, Document]]
+    ) -> List[Tuple[Detection, Document]]:
+        return sorted(detections_with_documents, key=self.__severity_sort_key, reverse=True)
+
+    @staticmethod
+    def __file_path_sort_key(detection_with_document: Tuple[Detection, Document]) -> str:
+        _, document = detection_with_document
+        return document.path
+
+    def _sort_detections_by_file_path(
+        self, detections_with_documents: List[Tuple[Detection, Document]]
+    ) -> List[Tuple[Detection, Document]]:
+        return sorted(detections_with_documents, key=self.__file_path_sort_key)
+
+    def _sort_and_group_detections(
+        self, detections_with_documents: List[Tuple[Detection, Document]]
+    ) -> List[Tuple[Detection, Document]]:
+        """Sort detections by severity and group by file name."""
+        result = []
+
+        # we sort detections by file path to make persist output order
+        sorted_detections = self._sort_detections_by_file_path(detections_with_documents)
+
+        grouped_by_file_path = defaultdict(list)
+        for detection, document in sorted_detections:
+            grouped_by_file_path[document.path].append((detection, document))
+
+        for file_path_group in grouped_by_file_path.values():
+            result.extend(self._sort_detections_by_severity(file_path_group))
+
+        return result
+
     def _get_table(self) -> Table:
         table = Table()
 
-        table.add(ISSUE_TYPE_COLUMN)
-        table.add(RULE_ID_COLUMN)
-        table.add(FILE_PATH_COLUMN)
-        table.add(LINE_NUMBER_COLUMN)
-        table.add(COLUMN_NUMBER_COLUMN)
-        table.add(SCAN_ID_COLUMN)
+        table.add_column(SEVERITY_COLUMN)
+        table.add_column(ISSUE_TYPE_COLUMN)
+        table.add_column(FILE_PATH_COLUMN)
+        table.add_column(LINE_NUMBER_COLUMN)
+        table.add_column(COLUMN_NUMBER_COLUMN)
 
         if self._is_git_repository():
-            table.add(COMMIT_SHA_COLUMN)
+            table.add_column(COMMIT_SHA_COLUMN)
 
         if self.scan_type == SECRET_SCAN_TYPE:
-            table.add(SECRET_SHA_COLUMN)
-            table.add(VIOLATION_LENGTH_COLUMN)
-            table.add(VIOLATION_COLUMN)
+            table.add_column(SECRET_SHA_COLUMN)
+            table.add_column(VIOLATION_LENGTH_COLUMN)
+            table.add_column(VIOLATION_COLUMN)
 
         return table
 
@@ -96,11 +112,11 @@ class TablePrinter(TablePrinterBase):
         if self.scan_type == SECRET_SCAN_TYPE:
             issue_type = detection.type
 
-        table.set(ISSUE_TYPE_COLUMN, issue_type)
-        table.set(RULE_ID_COLUMN, detection.detection_rule_id)
-        table.set(FILE_PATH_COLUMN, click.format_filename(document.path))
-        table.set(SECRET_SHA_COLUMN, detection.detection_details.get('sha512', ''))
-        table.set(COMMIT_SHA_COLUMN, detection.detection_details.get('commit_id', ''))
+        table.add_cell(SEVERITY_COLUMN, detection.severity, SeverityOption.get_member_color(detection.severity))
+        table.add_cell(ISSUE_TYPE_COLUMN, issue_type)
+        table.add_file_path_cell(FILE_PATH_COLUMN, document.path)
+        table.add_cell(SECRET_SHA_COLUMN, detection.detection_details.get('sha512', ''))
+        table.add_cell(COMMIT_SHA_COLUMN, detection.detection_details.get('commit_id', ''))
 
     def _enrich_table_with_detection_code_segment_values(
         self, table: Table, detection: Detection, document: Document
@@ -123,7 +139,7 @@ class TablePrinter(TablePrinterBase):
             if not self.show_secret:
                 violation = obfuscate_text(violation)
 
-        table.set(LINE_NUMBER_COLUMN, str(detection_line))
-        table.set(COLUMN_NUMBER_COLUMN, str(detection_column))
-        table.set(VIOLATION_LENGTH_COLUMN, f'{violation_length} chars')
-        table.set(VIOLATION_COLUMN, violation)
+        table.add_cell(LINE_NUMBER_COLUMN, str(detection_line))
+        table.add_cell(COLUMN_NUMBER_COLUMN, str(detection_column))
+        table.add_cell(VIOLATION_LENGTH_COLUMN, f'{violation_length} chars')
+        table.add_cell(VIOLATION_COLUMN, violation)

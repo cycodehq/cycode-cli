@@ -1,8 +1,8 @@
 import abc
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-import click
 import typer
+from rich.console import Console
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
@@ -29,7 +29,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
+            typer.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
             return
 
         self._print_results(local_scan_results)
@@ -37,17 +37,17 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not errors:
             return
 
-        click.secho(
+        typer.secho(
             'Unfortunately, Cycode was unable to complete the full scan. '
             'Please note that not all results may be available:',
             fg='red',
         )
         for scan_id, error in errors.items():
-            click.echo(f'- {scan_id}: ', nl=False)
+            typer.echo(f'- {scan_id}: ', nl=False)
             self.print_error(error)
 
     def _is_git_repository(self) -> bool:
-        return self.ctx.obj.get('remote_url') is not None
+        return self.ctx.info_name in {'commit_history', 'pre_commit', 'pre_receive'} and 'remote_url' in self.ctx.obj
 
     @abc.abstractmethod
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
@@ -56,7 +56,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
     @staticmethod
     def _print_table(table: 'Table') -> None:
         if table.get_rows():
-            click.echo(table.get_table().draw())
+            Console().print(table.get_table())
 
     @staticmethod
     def _print_report_urls(
@@ -67,9 +67,9 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:
-            click.echo(f'Report URL: {aggregation_report_url}')
+            typer.echo(f'Report URL: {aggregation_report_url}')
             return
 
-        click.echo('Report URLs:')
+        typer.echo('Report URLs:')
         for report_url in report_urls:
-            click.echo(f'- {report_url}')
+            typer.echo(f'- {report_url}')
