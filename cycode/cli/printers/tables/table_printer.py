@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, List
+from collections import defaultdict
+from typing import TYPE_CHECKING, List, Tuple
 
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.consts import SECRET_SCAN_TYPE
@@ -22,20 +23,64 @@ COMMIT_SHA_COLUMN = column_builder.build(name='Commit SHA')
 LINE_NUMBER_COLUMN = column_builder.build(name='Line Number')
 COLUMN_NUMBER_COLUMN = column_builder.build(name='Column Number')
 VIOLATION_LENGTH_COLUMN = column_builder.build(name='Violation Length')
-VIOLATION_COLUMN = column_builder.build(name='Violation')
+VIOLATION_COLUMN = column_builder.build(name='Violation', highlight=False)
 
 
 class TablePrinter(TablePrinterBase):
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         table = self._get_table()
 
+        detections_with_documents = []
         for local_scan_result in local_scan_results:
             for document_detections in local_scan_result.document_detections:
-                for detection in document_detections.detections:
-                    self._enrich_table_with_values(table, detection, document_detections.document)
+                detections_with_documents.extend(
+                    [(detection, document_detections.document) for detection in document_detections.detections]
+                )
+
+        for detection, document in self._sort_and_group_detections(detections_with_documents):
+            self._enrich_table_with_values(table, detection, document)
 
         self._print_table(table)
         self._print_report_urls(local_scan_results, self.ctx.obj.get('aggregation_report_url'))
+
+    @staticmethod
+    def __severity_sort_key(detection_with_document: Tuple[Detection, Document]) -> int:
+        detection, _ = detection_with_document
+        severity = detection.severity if detection.severity else ''
+        return SeverityOption.get_member_weight(severity)
+
+    def _sort_detections_by_severity(
+        self, detections_with_documents: List[Tuple[Detection, Document]]
+    ) -> List[Tuple[Detection, Document]]:
+        return sorted(detections_with_documents, key=self.__severity_sort_key, reverse=True)
+
+    @staticmethod
+    def __file_path_sort_key(detection_with_document: Tuple[Detection, Document]) -> str:
+        _, document = detection_with_document
+        return document.path
+
+    def _sort_detections_by_file_path(
+        self, detections_with_documents: List[Tuple[Detection, Document]]
+    ) -> List[Tuple[Detection, Document]]:
+        return sorted(detections_with_documents, key=self.__file_path_sort_key)
+
+    def _sort_and_group_detections(
+        self, detections_with_documents: List[Tuple[Detection, Document]]
+    ) -> List[Tuple[Detection, Document]]:
+        """Sort detections by severity and group by file name."""
+        result = []
+
+        # we sort detections by file path to make persist output order
+        sorted_detections = self._sort_detections_by_file_path(detections_with_documents)
+
+        grouped_by_file_path = defaultdict(list)
+        for detection, document in sorted_detections:
+            grouped_by_file_path[document.path].append((detection, document))
+
+        for file_path_group in grouped_by_file_path.values():
+            result.extend(self._sort_detections_by_severity(file_path_group))
+
+        return result
 
     def _get_table(self) -> Table:
         table = Table()
