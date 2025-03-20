@@ -142,17 +142,19 @@ class ScaTablePrinter(TablePrinterBase):
         table.add_cell(ECOSYSTEM_COLUMN, detection_details.get('ecosystem'))
         table.add_cell(PACKAGE_COLUMN, detection_details.get('package_name'))
 
-        direct_dependency_color = 'green' if detection_details.get('is_direct_dependency') else 'red'
+        dependency_bool_to_color = {
+            True: 'green',
+            False: 'red',
+        }  # by default, not colored (None)
         table.add_cell(
             column=DIRECT_DEPENDENCY_COLUMN,
             value=detection_details.get('is_direct_dependency_str'),
-            color=direct_dependency_color,
+            color=dependency_bool_to_color.get(detection_details.get('is_direct_dependency')),
         )
-        dev_dependency_color = 'green' if detection_details.get('is_dev_dependency') else 'red'
         table.add_cell(
             column=DEVELOPMENT_DEPENDENCY_COLUMN,
             value=detection_details.get('is_dev_dependency_str'),
-            color=dev_dependency_color,
+            color=dependency_bool_to_color.get(detection_details.get('is_dev_dependency')),
         )
 
         dependency_paths = 'N/A'
