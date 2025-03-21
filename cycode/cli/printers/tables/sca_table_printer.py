@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple
 
 import typer
 
@@ -37,8 +37,11 @@ class ScaTablePrinter(TablePrinterBase):
         for policy_id, detections in detections_per_policy_id.items():
             table = self._get_table(policy_id)
 
-            for detection in self._sort_and_group_detections(detections):
+            resulting_detections, group_separator_indexes = self._sort_and_group_detections(detections)
+            for detection in resulting_detections:
                 self._enrich_table_with_values(policy_id, table, detection)
+
+            table.set_group_separator_indexes(group_separator_indexes)
 
             self._print_summary_issues(len(detections), self._get_title(policy_id))
             self._print_table(table)
@@ -76,7 +79,7 @@ class ScaTablePrinter(TablePrinterBase):
     def _sort_detections_by_package(self, detections: List[Detection]) -> List[Detection]:
         return sorted(detections, key=self.__package_sort_key)
 
-    def _sort_and_group_detections(self, detections: List[Detection]) -> List[Detection]:
+    def _sort_and_group_detections(self, detections: List[Detection]) -> Tuple[List[Detection], Set[int]]:
         """Sort detections by severity and group by repository, code project and package name.
 
         Note:
@@ -85,7 +88,8 @@ class ScaTablePrinter(TablePrinterBase):
             Grouping by code projects also groups by ecosystem.
             Because manifest files are unique per ecosystem.
         """
-        result = []
+        resulting_detections = []
+        group_separator_indexes = set()
 
         # we sort detections by package name to make persist output order
         sorted_detections = self._sort_detections_by_package(detections)
@@ -96,9 +100,10 @@ class ScaTablePrinter(TablePrinterBase):
             for code_project_group in grouped_by_code_project.values():
                 grouped_by_package = self.__group_by(code_project_group, 'package_name')
                 for package_group in grouped_by_package.values():
-                    result.extend(self._sort_detections_by_severity(package_group))
+                    group_separator_indexes.add(len(resulting_detections) - 1)  # indexing starts from 0
+                    resulting_detections.extend(self._sort_detections_by_severity(package_group))
 
-        return result
+        return resulting_detections, group_separator_indexes
 
     def _get_table(self, policy_id: str) -> Table:
         table = Table()

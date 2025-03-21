@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Set, Tuple
 
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.consts import SECRET_SCAN_TYPE
@@ -18,12 +18,12 @@ column_builder = ColumnInfoBuilder()
 SEVERITY_COLUMN = column_builder.build(name='Severity')
 ISSUE_TYPE_COLUMN = column_builder.build(name='Issue Type')
 FILE_PATH_COLUMN = column_builder.build(name='File Path', highlight=False)
+LINE_NUMBER_COLUMN = column_builder.build(name='Line')
+COLUMN_NUMBER_COLUMN = column_builder.build(name='Column')
+VIOLATION_COLUMN = column_builder.build(name='Violation', highlight=False)
+VIOLATION_LENGTH_COLUMN = column_builder.build(name='Length')
 SECRET_SHA_COLUMN = column_builder.build(name='Secret SHA')
 COMMIT_SHA_COLUMN = column_builder.build(name='Commit SHA')
-LINE_NUMBER_COLUMN = column_builder.build(name='Line Number')
-COLUMN_NUMBER_COLUMN = column_builder.build(name='Column Number')
-VIOLATION_LENGTH_COLUMN = column_builder.build(name='Violation Length')
-VIOLATION_COLUMN = column_builder.build(name='Violation', highlight=False)
 
 
 class TablePrinter(TablePrinterBase):
@@ -37,8 +37,11 @@ class TablePrinter(TablePrinterBase):
                     [(detection, document_detections.document) for detection in document_detections.detections]
                 )
 
-        for detection, document in self._sort_and_group_detections(detections_with_documents):
+        detections, group_separator_indexes = self._sort_and_group_detections(detections_with_documents)
+        for detection, document in detections:
             self._enrich_table_with_values(table, detection, document)
+
+        table.set_group_separator_indexes(group_separator_indexes)
 
         self._print_table(table)
         self._print_report_urls(local_scan_results, self.ctx.obj.get('aggregation_report_url'))
@@ -66,9 +69,10 @@ class TablePrinter(TablePrinterBase):
 
     def _sort_and_group_detections(
         self, detections_with_documents: List[Tuple[Detection, Document]]
-    ) -> List[Tuple[Detection, Document]]:
+    ) -> Tuple[List[Tuple[Detection, Document]], Set[int]]:
         """Sort detections by severity and group by file name."""
-        result = []
+        detections = []
+        group_separator_indexes = set()
 
         # we sort detections by file path to make persist output order
         sorted_detections = self._sort_detections_by_file_path(detections_with_documents)
@@ -78,9 +82,10 @@ class TablePrinter(TablePrinterBase):
             grouped_by_file_path[document.path].append((detection, document))
 
         for file_path_group in grouped_by_file_path.values():
-            result.extend(self._sort_detections_by_severity(file_path_group))
+            group_separator_indexes.add(len(detections) - 1)  # indexing starts from 0
+            detections.extend(self._sort_detections_by_severity(file_path_group))
 
-        return result
+        return detections, group_separator_indexes
 
     def _get_table(self) -> Table:
         table = Table()

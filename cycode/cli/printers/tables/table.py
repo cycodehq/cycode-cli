@@ -1,5 +1,5 @@
 import urllib.parse
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
 from rich.markup import escape
 from rich.table import Table as RichTable
@@ -12,6 +12,8 @@ class Table:
     """Helper class to manage columns and their values in the right order and only if the column should be presented."""
 
     def __init__(self, column_infos: Optional[List['ColumnInfo']] = None) -> None:
+        self._group_separator_indexes: Set[int] = set()
+
         self._columns: Dict['ColumnInfo', List[str]] = {}
         if column_infos:
             self._columns = {columns: [] for columns in column_infos}
@@ -35,6 +37,9 @@ class Table:
         escaped_path = escape(encoded_path)
         self._add_cell_no_error(column, f'[link file://{escaped_path}]{path}')
 
+    def set_group_separator_indexes(self, group_separator_indexes: Set[int]) -> None:
+        self._group_separator_indexes = group_separator_indexes
+
     def _get_ordered_columns(self) -> List['ColumnInfo']:
         # we are sorting columns by index to make sure that columns will be printed in the right order
         return sorted(self._columns, key=lambda column_info: column_info.index)
@@ -53,7 +58,7 @@ class Table:
             extra_args = column.column_opts if column.column_opts else {}
             table.add_column(header=column.name, overflow='fold', **extra_args)
 
-        for raw in self.get_rows():
-            table.add_row(*raw)
+        for index, raw in enumerate(self.get_rows()):
+            table.add_row(*raw, end_section=index in self._group_separator_indexes)
 
         return table
