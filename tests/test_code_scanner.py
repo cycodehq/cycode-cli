@@ -29,7 +29,7 @@ def test_is_relevant_file_to_scan_sca() -> None:
 @pytest.mark.parametrize('scan_type', config['scans']['supported_scans'])
 def test_try_get_report_url_if_needed_return_none(scan_type: str, scan_client: ScanClient) -> None:
     scan_id = uuid4().hex
-    result = _try_get_report_url_if_needed(scan_client, False, scan_id, consts.SECRET_SCAN_TYPE)
+    result = _try_get_report_url_if_needed(scan_client, scan_id, consts.SECRET_SCAN_TYPE, scan_parameters={})
     assert result is None
 
 
@@ -44,7 +44,7 @@ def test_try_get_report_url_if_needed_return_result(
     responses.add(get_scan_report_url_response(url, scan_id))
 
     scan_report_url_response = scan_client.get_scan_report_url(str(scan_id), scan_type)
-    result = _try_get_report_url_if_needed(scan_client, True, str(scan_id), scan_type)
+    result = _try_get_report_url_if_needed(scan_client, str(scan_id), scan_type, scan_parameters={'report': True})
     assert result == scan_report_url_response.report_url
 
 
