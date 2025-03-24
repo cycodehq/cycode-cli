@@ -4,7 +4,7 @@ from typing import Annotated, List, Optional
 import typer
 
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import scan_documents, scan_sca_pre_commit
+from cycode.cli.apps.scan.code_scanner import get_scan_parameters, scan_documents, scan_sca_pre_commit
 from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
 from cycode.cli.files_collector.repository_documents import (
     get_diff_file_content,
@@ -44,4 +44,4 @@ def pre_commit_command(
         documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
 
     documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
-    scan_documents(ctx, documents_to_scan, is_git_diff=True)
+    scan_documents(ctx, documents_to_scan, get_scan_parameters(context), is_git_diff=True)

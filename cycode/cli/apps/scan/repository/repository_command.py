@@ -63,7 +63,6 @@ def repository_command(
         perform_pre_scan_documents_actions(ctx, scan_type, documents_to_scan)
 
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
-        scan_parameters = get_scan_parameters(ctx, (str(path),))
-        scan_documents(ctx, documents_to_scan, scan_parameters=scan_parameters)
+        scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx, (path,)))
     except Exception as e:
         handle_scan_exception(ctx, e)
