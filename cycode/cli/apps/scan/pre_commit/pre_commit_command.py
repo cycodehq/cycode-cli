@@ -44,4 +44,4 @@ def pre_commit_command(
         documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
 
     documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
-    scan_documents(ctx, documents_to_scan, get_scan_parameters(context), is_git_diff=True)
+    scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx), is_git_diff=True)

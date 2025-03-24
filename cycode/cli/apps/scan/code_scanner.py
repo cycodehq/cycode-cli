@@ -153,7 +153,7 @@ def _enrich_scan_result_with_data_from_detection_rules(
 
 
 def _get_scan_documents_thread_func(
-        ctx: typer.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
+    ctx: typer.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
 ) -> Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]]:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
@@ -288,9 +288,7 @@ def scan_commit_range(
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
     logger.debug('Starting to scan commit range (it may take a few minutes)')
 
-    scan_documents(
-        ctx, documents_to_scan, get_scan_parameters(context, (path,)), is_git_diff=True, is_commit_range=True
-    )
+    scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx, (path,)), is_git_diff=True, is_commit_range=True)
     return None
 
 
@@ -315,15 +313,13 @@ def scan_documents(
         )
         return
 
-    scan_batch_thread_func = _get_scan_documents_thread_func(context, is_git_diff, is_commit_range, scan_parameters)
+    scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
     errors, local_scan_results = run_parallel_batched_scan(
         scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
     )
 
-    aggregation_report_url = _try_get_aggregation_report_url_if_needed(
-        scan_parameters, context.obj['client'], scan_type
-    )
-    _set_aggregation_report_url(context, aggregation_report_url)
+    aggregation_report_url = _try_get_aggregation_report_url_if_needed(scan_parameters, ctx.obj['client'], scan_type)
+    _set_aggregation_report_url(ctx, aggregation_report_url)
 
     progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
     progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
@@ -920,8 +916,8 @@ def _try_get_report_url_if_needed(
         logger.debug('Failed to get report URL', exc_info=e)
 
 
-def _set_aggregation_report_url(context: click.Context, aggregation_report_url: Optional[str] = None) -> None:
-    context.obj['aggregation_report_url'] = aggregation_report_url
+def _set_aggregation_report_url(ctx: click.Context, aggregation_report_url: Optional[str] = None) -> None:
+    ctx.obj['aggregation_report_url'] = aggregation_report_url
 
 
 def _try_get_aggregation_report_url_if_needed(
