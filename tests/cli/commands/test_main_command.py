@@ -49,7 +49,7 @@ def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token
         output = json.loads(result.output)
         assert 'scan_id' in output
     else:
-        assert 'Scan ID' in result.output
+        assert 'issue of type:' in result.output
 
 
 @responses.activate
