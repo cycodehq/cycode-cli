@@ -17,7 +17,6 @@ from rich.traceback import Traceback
 
 class PrinterBase(ABC):
     RED_COLOR_NAME = 'red'
-    WHITE_COLOR_NAME = 'white'
     GREEN_COLOR_NAME = 'green'
 
     def __init__(self, ctx: typer.Context) -> None:
