@@ -145,10 +145,7 @@ class CompositeProgressBar(BaseProgressBar):
         self._current_section: ProgressBarSectionInfo = _get_initial_section(self._progress_bar_sections)
         self._current_right_side_label = ''
 
-        self._progress_bar = Progress(
-            *_PROGRESS_BAR_COLUMNS,
-            transient=True,
-        )
+        self._progress_bar = Progress(*_PROGRESS_BAR_COLUMNS)
         self._progress_bar_task_id = self._progress_bar.add_task(
             description=self._current_section.label,
             total=_PROGRESS_BAR_LENGTH,
@@ -245,7 +242,7 @@ class CompositeProgressBar(BaseProgressBar):
         self._maybe_update_current_section()
 
     def update_right_side_label(self, label: Optional[str] = None) -> None:
-        self._current_right_side_label = f'({label})' or ''
+        self._current_right_side_label = f'({label})' if label else ''
         self._progress_bar_update()
 
 
