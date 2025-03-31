@@ -2,8 +2,6 @@ import time
 import webbrowser
 from typing import TYPE_CHECKING, Tuple
 
-from requests import Request
-
 from cycode.cli.exceptions.custom_exceptions import AuthProcessError
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
@@ -53,7 +51,7 @@ class AuthManager:
         return auth_session.session_id
 
     def redirect_to_login_page(self, code_challenge: str, session_id: str) -> None:
-        login_url = self._build_login_url(code_challenge, session_id)
+        login_url = self.auth_client.build_login_url(code_challenge, session_id)
         webbrowser.open(login_url)
 
     def get_api_token(self, session_id: str, code_verifier: str) -> 'ApiToken':
@@ -75,18 +73,10 @@ class AuthManager:
                 raise AuthProcessError('Error while obtaining API token')
             time.sleep(self.POLLING_WAIT_INTERVAL_IN_SECONDS)
 
-        raise AuthProcessError('session expired')
+        raise AuthProcessError('Timeout while obtaining API token (session expired)')
 
     def save_api_token(self, api_token: 'ApiToken') -> None:
         self.credentials_manager.update_credentials(api_token.client_id, api_token.secret)
-
-    def _build_login_url(self, code_challenge: str, session_id: str) -> str:
-        app_url = self.configuration_manager.get_cycode_app_url()
-        login_url = f'{app_url}/account/sign-in'
-        query_params = {'source': 'cycode_cli', 'code_challenge': code_challenge, 'session_id': session_id}
-        # TODO(MarshalX). Use auth_client instead and don't depend on "requests" lib here
-        request = Request(url=login_url, params=query_params)
-        return request.prepare().url
 
     def _generate_pkce_code_pair(self) -> Tuple[str, str]:
         code_verifier = generate_random_string(self.CODE_VERIFIER_LENGTH)

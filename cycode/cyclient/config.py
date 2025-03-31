@@ -14,6 +14,14 @@ if not is_valid_url(cycode_api_url):
     cycode_api_url = consts.DEFAULT_CYCODE_API_URL
 
 
+cycode_app_url = configuration_manager.get_cycode_app_url()
+if not is_valid_url(cycode_app_url):
+    logger.warning(
+        'Invalid Cycode APP URL: %s, using default value (%s)', cycode_app_url, consts.DEFAULT_CYCODE_APP_URL
+    )
+    cycode_app_url = consts.DEFAULT_CYCODE_APP_URL
+
+
 def _is_on_premise_installation(cycode_domain: str) -> bool:
     return not cycode_api_url.endswith(cycode_domain)
 

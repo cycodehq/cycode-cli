@@ -1,9 +1,9 @@
 from typing import Optional
 
-from requests import Response
+from requests import Request, Response
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, RequestHttpError
-from cycode.cyclient import models
+from cycode.cyclient import config, models
 from cycode.cyclient.cycode_client import CycodeClient
 
 
@@ -12,6 +12,11 @@ class AuthClient:
 
     def __init__(self) -> None:
         self.cycode_client = CycodeClient()
+
+    @staticmethod
+    def build_login_url(code_challenge: str, session_id: str) -> str:
+        query_params = {'source': 'cycode_cli', 'code_challenge': code_challenge, 'session_id': session_id}
+        return Request(url=f'{config.cycode_app_url}/account/sign-in', params=query_params).prepare().url
 
     def start_session(self, code_challenge: str) -> models.AuthenticationSession:
         path = f'{self.AUTH_CONTROLLER_PATH}/start'
