@@ -695,9 +695,7 @@ def exclude_irrelevant_detections(
 def _exclude_detections_by_severity(detections: List[Detection], severity_threshold: str) -> List[Detection]:
     relevant_detections = []
     for detection in detections:
-        severity = detection.detection_details.get('advisory_severity')
-        if not severity:
-            severity = detection.severity
+        severity = detection.severity
 
         if _does_severity_match_severity_threshold(severity, severity_threshold):
             relevant_detections.append(detection)

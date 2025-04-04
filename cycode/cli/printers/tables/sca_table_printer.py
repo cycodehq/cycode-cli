@@ -72,9 +72,8 @@ class ScaTablePrinter(TablePrinterBase):
 
     @staticmethod
     def __severity_sort_key(detection: Detection) -> int:
-        severity = detection.detection_details.get('advisory_severity')
-        if severity:
-            return Severity.get_member_weight(severity)
+        if detection.severity:
+            return Severity.get_member_weight(detection.severity)
 
         return SEVERITY_UNKNOWN_WEIGHT
 
@@ -138,7 +137,7 @@ class ScaTablePrinter(TablePrinterBase):
     def _enrich_table_with_values(table: Table, detection: Detection) -> None:
         detection_details = detection.detection_details
 
-        table.set(SEVERITY_COLUMN, detection_details.get('advisory_severity'))
+        table.set(SEVERITY_COLUMN, detection.severity)
         table.set(REPOSITORY_COLUMN, detection_details.get('repository_name'))
 
         table.set(CODE_PROJECT_COLUMN, detection_details.get('file_name'))
