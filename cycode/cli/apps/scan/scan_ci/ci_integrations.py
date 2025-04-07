@@ -2,6 +2,8 @@ import os
 
 import click
 
+from cycode.cli.console import console
+
 
 def github_action_range() -> str:
     before_sha = os.getenv('BEFORE_SHA')
@@ -11,7 +13,7 @@ def github_action_range() -> str:
     head_sha = os.getenv('GITHUB_SHA')
     ref = os.getenv('GITHUB_REF')
 
-    click.echo(f'{before_sha}, {push_base_sha}, {pr_base_sha}, {default_branch}, {head_sha}, {ref}')
+    console.print(f'{before_sha}, {push_base_sha}, {pr_base_sha}, {default_branch}, {head_sha}, {ref}')
     if before_sha and before_sha != NO_COMMITS:
         return f'{before_sha}...'
 
@@ -26,7 +28,7 @@ def circleci_range() -> str:
     before_sha = os.getenv('BEFORE_SHA')
     current_sha = os.getenv('CURRENT_SHA')
     commit_range = f'{before_sha}...{current_sha}'
-    click.echo(f'commit range: {commit_range}')
+    console.print(f'commit range: {commit_range}')
 
     if not commit_range.startswith('...'):
         return commit_range

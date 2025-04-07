@@ -1,9 +1,8 @@
 from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, List, Set, Tuple
 
-import typer
-
 from cycode.cli.cli_types import SeverityOption
+from cycode.cli.console import console
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
 from cycode.cli.models import Detection
 from cycode.cli.printers.tables.table import Table
@@ -137,10 +136,10 @@ class ScaTablePrinter(TablePrinterBase):
         elif policy_id == LICENSE_COMPLIANCE_POLICY_ID:
             severity = detection.severity
 
-        if not severity:
-            severity = 'N/A'
-
-        table.add_cell(SEVERITY_COLUMN, severity, SeverityOption.get_member_color(severity))
+        if severity:
+            table.add_cell(SEVERITY_COLUMN, SeverityOption(severity))
+        else:
+            table.add_cell(SEVERITY_COLUMN, 'N/A')
 
         table.add_cell(REPOSITORY_COLUMN, detection_details.get('repository_name'))
         table.add_file_path_cell(CODE_PROJECT_COLUMN, detection_details.get('file_name'))
@@ -179,7 +178,7 @@ class ScaTablePrinter(TablePrinterBase):
 
     @staticmethod
     def _print_summary_issues(detections_count: int, title: str) -> None:
-        typer.echo(f'⛔ Found {detections_count} issues of type: {typer.style(title, bold=True)}')
+        console.print(f':no_entry: Found {detections_count} issues of type: [bold]{title}[/bold]')
 
     @staticmethod
     def _extract_detections_per_policy_id(

@@ -12,6 +12,7 @@ import typer
 from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.config import configuration_manager
+from cycode.cli.console import console
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
@@ -83,7 +84,7 @@ def scan_sca_commit_range(ctx: typer.Context, path: str, commit_range: str) -> N
     scan_commit_range_documents(ctx, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters)
 
 
-def scan_disk_files(ctx: click.Context, paths: Tuple[str]) -> None:
+def scan_disk_files(ctx: typer.Context, paths: Tuple[str]) -> None:
     scan_type = ctx.obj['scan_type']
     progress_bar = ctx.obj['progress_bar']
 
@@ -642,7 +643,7 @@ def parse_pre_receive_input() -> str:
     return pre_receive_input.splitlines()[0]
 
 
-def _get_default_scan_parameters(ctx: click.Context) -> dict:
+def _get_default_scan_parameters(ctx: typer.Context) -> dict:
     return {
         'monitor': ctx.obj.get('monitor'),
         'report': ctx.obj.get('report'),
@@ -916,7 +917,7 @@ def _try_get_report_url_if_needed(
         logger.debug('Failed to get report URL', exc_info=e)
 
 
-def _set_aggregation_report_url(ctx: click.Context, aggregation_report_url: Optional[str] = None) -> None:
+def _set_aggregation_report_url(ctx: typer.Context, aggregation_report_url: Optional[str] = None) -> None:
     ctx.obj['aggregation_report_url'] = aggregation_report_url
 
 
@@ -1007,7 +1008,7 @@ def _normalize_file_path(path: str) -> str:
 
 def perform_post_pre_receive_scan_actions(ctx: typer.Context) -> None:
     if scan_utils.is_scan_failed(ctx):
-        click.echo(consts.PRE_RECEIVE_REMEDIATION_MESSAGE)
+        console.print(consts.PRE_RECEIVE_REMEDIATION_MESSAGE)
 
 
 def enable_verbose_mode(ctx: typer.Context) -> None:

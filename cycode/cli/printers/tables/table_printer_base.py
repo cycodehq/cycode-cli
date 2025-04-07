@@ -2,8 +2,8 @@ import abc
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import typer
-from rich.console import Console
 
+from cycode.cli.console import console
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.text_printer import TextPrinter
@@ -29,7 +29,9 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            typer.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
+            console.print(
+                '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/green]'
+            )
             return
 
         self._print_results(local_scan_results)
@@ -37,13 +39,12 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not errors:
             return
 
-        typer.secho(
-            'Unfortunately, Cycode was unable to complete the full scan. '
-            'Please note that not all results may be available:',
-            fg='red',
+        console.print(
+            '[red]Unfortunately, Cycode was unable to complete the full scan. '
+            'Please note that not all results may be available:[/red]',
         )
         for scan_id, error in errors.items():
-            typer.echo(f'- {scan_id}: ', nl=False)
+            console.print(f'- {scan_id}: ', end='')
             self.print_error(error)
 
     def _is_git_repository(self) -> bool:
@@ -56,7 +57,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
     @staticmethod
     def _print_table(table: 'Table') -> None:
         if table.get_rows():
-            Console().print(table.get_table())
+            console.print(table.get_table())
 
     @staticmethod
     def _print_report_urls(
@@ -67,9 +68,9 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:
-            typer.echo(f'Report URL: {aggregation_report_url}')
+            console.print(f'Report URL: {aggregation_report_url}')
             return
 
-        typer.echo('Report URLs:')
+        console.print('Report URLs:')
         for report_url in report_urls:
-            typer.echo(f'- {report_url}')
+            console.print(f'- {report_url}')

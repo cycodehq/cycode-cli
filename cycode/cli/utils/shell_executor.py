@@ -2,6 +2,7 @@ import subprocess
 from typing import List, Optional, Union
 
 import click
+import typer
 
 from cycode.logger import get_logger
 
@@ -29,7 +30,7 @@ def shell(
         logger.debug('Error occurred while running shell command', exc_info=e)
     except subprocess.TimeoutExpired as e:
         logger.debug('Command timed out', exc_info=e)
-        raise click.Abort(f'Command "{command}" timed out') from e
+        raise typer.Abort(f'Command "{command}" timed out') from e
     except Exception as e:
         logger.debug('Unhandled exception occurred while running shell command', exc_info=e)
         raise click.ClickException(f'Unhandled exception: {e}') from e

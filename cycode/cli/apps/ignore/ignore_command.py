@@ -12,45 +12,62 @@ from cycode.cli.utils.path_utils import get_absolute_path, is_path_exists
 from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cli.utils.string_utils import hash_string_to_sha256
 
+_FILTER_BY_RICH_HELP_PANEL = 'Filter options'
+_SECRETS_FILTER_BY_RICH_HELP_PANEL = 'Secrets filter options'
+_SCA_FILTER_BY_RICH_HELP_PANEL = 'SCA filter options'
+
 
 def _is_package_pattern_valid(package: str) -> bool:
     return re.search('^[^@]+@[^@]+$', package) is not None
 
 
 def ignore_command(  # noqa: C901
-    by_value: Annotated[
-        Optional[str], typer.Option(help='Ignore a specific value while scanning for Secrets.', show_default=False)
-    ] = None,
-    by_sha: Annotated[
-        Optional[str],
-        typer.Option(
-            help='Ignore a specific SHA512 representation of a string while scanning for Secrets.', show_default=False
-        ),
-    ] = None,
     by_path: Annotated[
         Optional[str],
-        typer.Option(help='Avoid scanning a specific path. You`ll need to specify the scan type.', show_default=False),
+        typer.Option(
+            help='Ignore a specific file or directory while scanning.',
+            show_default=False,
+            rich_help_panel=_FILTER_BY_RICH_HELP_PANEL,
+        ),
     ] = None,
     by_rule: Annotated[
         Optional[str],
         typer.Option(
-            help='Ignore scanning a specific secret rule ID or IaC rule ID. You`ll to specify the scan type.',
+            help='Ignore scanning a specific Secrets rule ID or IaC rule ID.',
             show_default=False,
+            rich_help_panel=_FILTER_BY_RICH_HELP_PANEL,
+        ),
+    ] = None,
+    by_value: Annotated[
+        Optional[str],
+        typer.Option(
+            help='Ignore a specific value.',
+            show_default=False,
+            rich_help_panel=_SECRETS_FILTER_BY_RICH_HELP_PANEL,
+        ),
+    ] = None,
+    by_sha: Annotated[
+        Optional[str],
+        typer.Option(
+            help='Ignore a specific SHA512 representation of a string.',
+            show_default=False,
+            rich_help_panel=_SECRETS_FILTER_BY_RICH_HELP_PANEL,
         ),
     ] = None,
     by_package: Annotated[
         Optional[str],
         typer.Option(
-            help='Ignore scanning a specific package version while running an SCA scan. '
-            'Expected pattern: name@version.',
+            help='Ignore scanning a specific package version. Expected pattern: [cyan]name@version[/cyan].',
             show_default=False,
+            rich_help_panel=_SCA_FILTER_BY_RICH_HELP_PANEL,
         ),
     ] = None,
     by_cve: Annotated[
         Optional[str],
         typer.Option(
-            help='Ignore scanning a specific CVE while running an SCA scan. Expected pattern: CVE-YYYY-NNN.',
+            help='Ignore scanning a specific CVE. Expected pattern: [cyan]CVE-YYYY-NNN[/cyan].',
             show_default=False,
+            rich_help_panel=_SCA_FILTER_BY_RICH_HELP_PANEL,
         ),
     ] = None,
     scan_type: Annotated[

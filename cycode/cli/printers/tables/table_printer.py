@@ -117,7 +117,7 @@ class TablePrinter(TablePrinterBase):
         if self.scan_type == SECRET_SCAN_TYPE:
             issue_type = detection.type
 
-        table.add_cell(SEVERITY_COLUMN, detection.severity, SeverityOption.get_member_color(detection.severity))
+        table.add_cell(SEVERITY_COLUMN, SeverityOption(detection.severity))
         table.add_cell(ISSUE_TYPE_COLUMN, issue_type)
         table.add_file_path_cell(FILE_PATH_COLUMN, document.path)
         table.add_cell(SECRET_SHA_COLUMN, detection.detection_details.get('sha512', ''))

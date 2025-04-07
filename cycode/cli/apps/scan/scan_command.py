@@ -12,6 +12,9 @@ from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
 
+_AUTH_RICH_HELP_PANEL = 'Authentication options'
+_SCA_RICH_HELP_PANEL = 'SCA options'
+
 
 def scan_command(
     ctx: typer.Context,
@@ -28,14 +31,14 @@ def scan_command(
         Optional[str],
         typer.Option(
             help='Specify a Cycode client secret for this specific scan execution.',
-            rich_help_panel='Authentication options',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
     client_id: Annotated[
         Optional[str],
         typer.Option(
             help='Specify a Cycode client ID for this specific scan execution.',
-            rich_help_panel='Authentication options',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
     show_secret: Annotated[bool, typer.Option('--show-secret', help='Show Secrets in plain text.')] = False,
@@ -65,7 +68,7 @@ def scan_command(
         List[ScaScanTypeOption],
         typer.Option(
             help='Specify the type of SCA scan you wish to execute.',
-            rich_help_panel='SCA options',
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = (ScaScanTypeOption.PACKAGE_VULNERABILITIES, ScaScanTypeOption.LICENSE_COMPLIANCE),
     monitor: Annotated[
@@ -73,7 +76,7 @@ def scan_command(
         typer.Option(
             '--monitor',
             help='When specified, the scan results are recorded in the Discovery module.',
-            rich_help_panel='SCA options',
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
     no_restore: Annotated[
@@ -82,7 +85,7 @@ def scan_command(
             '--no-restore',
             help='When specified, Cycode will not run restore command. '
             'Will scan direct dependencies [bold]only[/bold]!',
-            rich_help_panel='SCA options',
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
     gradle_all_sub_projects: Annotated[
@@ -91,7 +94,7 @@ def scan_command(
             '--gradle-all-sub-projects',
             help='When specified, Cycode will run gradle restore command for all sub projects. '
             'Should run from root project directory [bold]only[/bold]!',
-            rich_help_panel='SCA options',
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
 ) -> None:

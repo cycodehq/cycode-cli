@@ -4,8 +4,7 @@ import time
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import typer
-
+from cycode.cli.console import console
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.path_utils import get_file_content
 from cycode.cyclient.cycode_client_base import CycodeClientBase
@@ -181,7 +180,7 @@ class VersionChecker(CycodeClientBase):
         latest_parts, latest_is_pre = self._parse_version(latest_version)
         return _compare_versions(current_parts, latest_parts, current_is_pre, latest_is_pre, latest_version)
 
-    def check_and_notify_update(self, current_version: str, use_color: bool = True, use_cache: bool = True) -> None:
+    def check_and_notify_update(self, current_version: str, use_cache: bool = True) -> None:
         """Check for updates and display a notification if a new version is available.
 
         Performs the version check and displays a formatted message with update instructions
@@ -192,7 +191,6 @@ class VersionChecker(CycodeClientBase):
 
         Args:
             current_version: Current version of the CLI
-            use_color: If True, use colored output in the terminal
             use_cache: If True, use the cached timestamp to determine if an update check is needed
         """
         latest_version = self.check_for_update(current_version, use_cache)
@@ -200,11 +198,11 @@ class VersionChecker(CycodeClientBase):
         if should_update:
             update_message = (
                 '\nNew version of cycode available! '
-                f"{typer.style(current_version, fg='yellow')} → {typer.style(latest_version, fg='bright_blue')}\n"
-                f"Changelog: {typer.style(f'{self.GIT_CHANGELOG_URL_PREFIX}{latest_version}', fg='bright_blue')}\n"
-                f"Run {typer.style('pip install --upgrade cycode', fg='green')} to update\n"
+                f'[yellow]{current_version}[/yellow] → [bright_blue]{latest_version}[/bright_blue]\n'
+                f'Changelog: [bright_blue]{self.GIT_CHANGELOG_URL_PREFIX}{latest_version}[/bright_blue]\n'
+                f'Run [green]pip install --upgrade cycode[/green] to update\n'
             )
-            typer.echo(update_message, color=use_color)
+            console.print(update_message)
 
 
 version_checker = VersionChecker()
