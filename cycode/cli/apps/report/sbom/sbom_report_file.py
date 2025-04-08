@@ -3,7 +3,9 @@ import pathlib
 import re
 from typing import Optional
 
-import click
+import typer
+
+from cycode.cli.console import console
 
 
 class SbomReportFile:
@@ -21,14 +23,14 @@ class SbomReportFile:
         return self._file_path.exists()
 
     def _prompt_overwrite(self) -> bool:
-        return click.confirm(f'File {self._file_path} already exists. Save with a different filename?', default=True)
+        return typer.confirm(f'File {self._file_path} already exists. Save with a different filename?', default=True)
 
     def _write(self, content: str) -> None:
         with open(self._file_path, 'w', encoding='UTF-8') as f:
             f.write(content)
 
     def _notify_about_saved_file(self) -> None:
-        click.echo(f'Report saved to {self._file_path}')
+        console.print(f'Report saved to {self._file_path}')
 
     def _find_and_set_unique_filename(self) -> None:
         attempt_no = 0

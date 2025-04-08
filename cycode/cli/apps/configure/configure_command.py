@@ -1,7 +1,5 @@
 from typing import Optional
 
-import typer
-
 from cycode.cli.apps.configure.consts import CONFIGURATION_MANAGER, CREDENTIALS_MANAGER
 from cycode.cli.apps.configure.messages import get_credentials_update_result_message, get_urls_update_result_message
 from cycode.cli.apps.configure.prompts import (
@@ -10,6 +8,7 @@ from cycode.cli.apps.configure.prompts import (
     get_client_id_input,
     get_client_secret_input,
 )
+from cycode.cli.console import console
 from cycode.cli.utils.sentry import add_breadcrumb
 
 
@@ -52,6 +51,6 @@ def configure_command() -> None:
         CREDENTIALS_MANAGER.update_credentials(client_id, client_secret)
 
     if config_updated:
-        typer.echo(get_urls_update_result_message())
+        console.print(get_urls_update_result_message())
     if credentials_updated:
-        typer.echo(get_credentials_update_result_message())
+        console.print(get_credentials_update_result_message())

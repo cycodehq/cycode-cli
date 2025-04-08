@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import typer
 
+from cycode.cli.console import console_err
 from cycode.cli.models import CliError, CliResult
 from cycode.cyclient.headers import get_correlation_id
 
@@ -11,13 +12,17 @@ if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
 
 
-from rich.console import Console
-from rich.traceback import Traceback
+from rich.traceback import Traceback as RichTraceback
 
 
 class PrinterBase(ABC):
-    RED_COLOR_NAME = 'red'
-    GREEN_COLOR_NAME = 'green'
+    NO_DETECTIONS_MESSAGE = (
+        '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/green]'
+    )
+    FAILED_SCAN_MESSAGE = (
+        '[red]Unfortunately, Cycode was unable to complete the full scan. '
+        'Please note that not all results may be available:[/red]'
+    )
 
     def __init__(self, ctx: typer.Context) -> None:
         self.ctx = ctx
@@ -36,15 +41,19 @@ class PrinterBase(ABC):
     def print_error(self, error: CliError) -> None:
         pass
 
-    def print_exception(self, e: Optional[BaseException] = None) -> None:
+    @staticmethod
+    def print_exception(e: Optional[BaseException] = None) -> None:
         """We are printing it in stderr so, we don't care about supporting JSON and TABLE outputs.
 
         Note:
             Called only when the verbose flag is set.
         """
-        console = Console(stderr=True)
+        rich_traceback = (
+            RichTraceback.from_exception(type(e), e, e.__traceback__)
+            if e
+            else RichTraceback.from_exception(*sys.exc_info())
+        )
+        rich_traceback.show_locals = False
+        console_err.print(rich_traceback)
 
-        traceback = Traceback.from_exception(type(e), e, None) if e else Traceback.from_exception(*sys.exc_info())
-        console.print(traceback)
-
-        console.print(f'Correlation ID: {get_correlation_id()}', style=self.RED_COLOR_NAME)
+        console_err.print(f'[red]Correlation ID:[/red] {get_correlation_id()}')

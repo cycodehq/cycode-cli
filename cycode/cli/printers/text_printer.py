@@ -3,11 +3,11 @@ import urllib.parse
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import typer
-from rich.console import Console
 from rich.markup import escape
 from rich.syntax import Syntax
 
 from cycode.cli.cli_types import SeverityOption
+from cycode.cli.console import _SYNTAX_HIGHLIGHT_THEME, console
 from cycode.cli.consts import COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES, SECRET_SCAN_TYPE
 from cycode.cli.models import CliError, CliResult, Detection, Document, DocumentDetections
 from cycode.cli.printers.printer_base import PrinterBase
@@ -25,27 +25,27 @@ class TextPrinter(PrinterBase):
         self.show_secret: bool = ctx.obj.get('show_secret', False)
 
     def print_result(self, result: CliResult) -> None:
-        color = None
+        color = 'default'
         if not result.success:
-            color = self.RED_COLOR_NAME
+            color = 'red'
 
-        typer.secho(result.message, fg=color)
+        console.print(result.message, style=color)
 
         if not result.data:
             return
 
-        typer.secho('\nAdditional data:', fg=color)
+        console.print('\nAdditional data:', style=color)
         for name, value in result.data.items():
-            typer.secho(f'- {name}: {value}', fg=color)
+            console.print(f'- {name}: {value}', style=color)
 
     def print_error(self, error: CliError) -> None:
-        typer.secho(error.message, fg=self.RED_COLOR_NAME)
+        console.print(f'[red]Error: {error.message}[/red]')
 
     def print_scan_results(
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            typer.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
+            console.print(self.NO_DETECTIONS_MESSAGE)
             return
 
         for local_scan_result in local_scan_results:
@@ -58,13 +58,9 @@ class TextPrinter(PrinterBase):
         if not errors:
             return
 
-        typer.secho(
-            'Unfortunately, Cycode was unable to complete the full scan. '
-            'Please note that not all results may be available:',
-            fg='red',
-        )
+        console.print(self.FAILED_SCAN_MESSAGE)
         for scan_id, error in errors.items():
-            typer.echo(f'- {scan_id}: ', nl=False)
+            console.print(f'- {scan_id}: ', end='')
             self.print_error(error)
 
     def _print_document_detections(self, document_detections: DocumentDetections) -> None:
@@ -77,14 +73,11 @@ class TextPrinter(PrinterBase):
 
     @staticmethod
     def _print_new_line() -> None:
-        typer.echo()
+        console.print()
 
     def _print_detection_summary(self, detection: Detection, document_path: str) -> None:
-        detection_name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
-
-        detection_severity = detection.severity or 'N/A'
-        detection_severity_color = SeverityOption.get_member_color(detection_severity)
-        detection_severity = f'[{detection_severity_color}]{detection_severity.upper()}[/{detection_severity_color}]'
+        name = detection.type if self.scan_type == SECRET_SCAN_TYPE else detection.message
+        severity = SeverityOption(detection.severity) if detection.severity else 'N/A'
 
         escaped_document_path = escape(urllib.parse.quote(document_path))
         clickable_document_path = f'[link file://{escaped_document_path}]{document_path}'
@@ -95,14 +88,14 @@ class TextPrinter(PrinterBase):
         company_guidelines = detection.detection_details.get('custom_remediation_guidelines')
         company_guidelines_message = f'\nCompany Guideline: {company_guidelines}' if company_guidelines else ''
 
-        Console().print(
-            f':no_entry: '
-            f'Found {detection_severity} issue of type: [bright_red][bold]{detection_name}[/bold][/bright_red] '
+        console.print(
+            ':no_entry: Found',
+            severity,
+            f'issue of type: [bright_red][bold]{name}[/bold][/bright_red] '
             f'in file: {clickable_document_path} '
             f'{detection_commit_id_message}'
             f'{company_guidelines_message}'
             f' :no_entry:',
-            highlight=True,
         )
 
     def _print_detection_code_segment(
@@ -120,12 +113,12 @@ class TextPrinter(PrinterBase):
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:
-            typer.echo(f'Report URL: {aggregation_report_url}')
+            console.print(f'Report URL: {aggregation_report_url}')
             return
 
-        typer.echo('Report URLs:')
+        console.print('Report URLs:')
         for report_url in report_urls:
-            typer.echo(f'- {report_url}')
+            console.print(f'- {report_url}')
 
     @staticmethod
     def _get_code_segment_start_line(detection_line: int, lines_to_display: int) -> int:
@@ -163,8 +156,9 @@ class TextPrinter(PrinterBase):
                 code_lines_to_render.append(line_content)
 
         code_to_render = '\n'.join(code_lines_to_render)
-        Console().print(
+        console.print(
             Syntax(
+                theme=_SYNTAX_HIGHLIGHT_THEME,
                 code=code_to_render,
                 lexer=Syntax.guess_lexer(document.path, code=code_to_render),
                 line_numbers=True,
@@ -189,9 +183,10 @@ class TextPrinter(PrinterBase):
             violation = line_content[detection_position_in_line : detection_position_in_line + violation_length]
             line_content = line_content.replace(violation, obfuscate_text(violation))
 
-        Console().print(
+        console.print(
             Syntax(
-                line_content,
+                theme=_SYNTAX_HIGHLIGHT_THEME,
+                code=line_content,
                 lexer='diff',
                 line_numbers=True,
                 start_line=detection_line,

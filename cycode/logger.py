@@ -4,10 +4,10 @@ from typing import NamedTuple, Optional, Set, Union
 
 import click
 import typer
-from rich.console import Console
 from rich.logging import RichHandler
 
 from cycode.cli import consts
+from cycode.cli.console import console_err
 from cycode.config import get_val_as_string
 
 
@@ -19,8 +19,7 @@ def _set_io_encodings() -> None:
 
 _set_io_encodings()
 
-_ERROR_CONSOLE = Console(stderr=True)
-_RICH_LOGGING_HANDLER = RichHandler(console=_ERROR_CONSOLE, rich_tracebacks=True, tracebacks_suppress=[click, typer])
+_RICH_LOGGING_HANDLER = RichHandler(console=console_err, rich_tracebacks=True, tracebacks_suppress=[click, typer])
 
 logging.basicConfig(
     level=logging.INFO,

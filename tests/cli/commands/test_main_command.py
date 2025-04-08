@@ -47,7 +47,7 @@ def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token
 
     if except_json:
         output = json.loads(result.output)
-        assert 'scan_id' in output
+        assert 'scan_ids' in output
     else:
         assert 'issue of type:' in result.output
 

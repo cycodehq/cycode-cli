@@ -4,6 +4,7 @@ from typing import Dict, NamedTuple, Optional
 
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
+from cycode.cli.console import console
 from cycode.cli.utils.enum_utils import AutoCountEnum
 from cycode.logger import get_logger
 
@@ -135,7 +136,6 @@ class CompositeProgressBar(BaseProgressBar):
     def __init__(self, progress_bar_sections: ProgressBarSections) -> None:
         super().__init__()
 
-        self._run = False
         self._progress_bar_sections = progress_bar_sections
 
         self._section_lengths: Dict[ProgressBarSection, int] = {}
@@ -145,7 +145,7 @@ class CompositeProgressBar(BaseProgressBar):
         self._current_section: ProgressBarSectionInfo = _get_initial_section(self._progress_bar_sections)
         self._current_right_side_label = ''
 
-        self._progress_bar = Progress(*_PROGRESS_BAR_COLUMNS)
+        self._progress_bar = Progress(*_PROGRESS_BAR_COLUMNS, console=console, refresh_per_second=5, transient=True)
         self._progress_bar_task_id = self._progress_bar.add_task(
             description=self._current_section.label,
             total=_PROGRESS_BAR_LENGTH,
@@ -158,15 +158,14 @@ class CompositeProgressBar(BaseProgressBar):
             advance=advance,
             description=self._current_section.label,
             right_side_label=self._current_right_side_label,
+            refresh=True,
         )
 
     def start(self) -> None:
-        if not self._run:
-            self._progress_bar.start()
+        self._progress_bar.start()
 
     def stop(self) -> None:
-        if self._run:
-            self._progress_bar.stop()
+        self._progress_bar.stop()
 
     def set_section_length(self, section: 'ProgressBarSection', length: int = 0) -> None:
         logger.debug('Calling set_section_length, %s', {'section': str(section), 'length': length})

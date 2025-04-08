@@ -38,6 +38,15 @@ class SeverityOption(str, Enum):
     HIGH = 'high'
     CRITICAL = 'critical'
 
+    @classmethod
+    def _missing_(cls, value: str) -> str:
+        value = value.lower()
+        for member in cls:
+            if member.lower() == value:
+                return member
+
+        return cls.INFO  # fallback to INFO if no match is found
+
     @staticmethod
     def get_member_weight(name: str) -> int:
         return _SEVERITY_WEIGHTS.get(name.lower(), _SEVERITY_DEFAULT_WEIGHT)
@@ -45,6 +54,10 @@ class SeverityOption(str, Enum):
     @staticmethod
     def get_member_color(name: str) -> str:
         return _SEVERITY_COLORS.get(name.lower(), _SEVERITY_DEFAULT_COLOR)
+
+    def __rich__(self) -> str:
+        color = self.get_member_color(self.value)
+        return f'[{color}]{self.value.upper()}[/{color}]'
 
 
 _SEVERITY_DEFAULT_WEIGHT = -1

@@ -1,12 +1,13 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 import pytest
 import typer
-from click import ClickException
 from requests import Response
+from rich.traceback import Traceback
 
 from cycode.cli.cli_types import OutputTypeOption
+from cycode.cli.console import console_err
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.utils.git_proxy import git_proxy
@@ -50,7 +51,7 @@ def test_handle_exception_unhandled_error(ctx: typer.Context) -> None:
 
 
 def test_handle_exception_click_error(ctx: typer.Context) -> None:
-    with ctx, pytest.raises(ClickException):
+    with ctx, pytest.raises(click.ClickException):
         handle_scan_exception(ctx, click.ClickException('test'))
 
         assert ctx.obj.get('did_fail') is True
@@ -62,10 +63,14 @@ def test_handle_exception_verbose(monkeypatch: 'MonkeyPatch') -> None:
 
     error_text = 'test'
 
-    def mock_secho(msg: str, *_, **__) -> None:
-        assert error_text in msg or 'Correlation ID:' in msg
+    def mock_console_print(obj: Any, *_, **__) -> None:
+        if isinstance(obj, str):
+            assert 'Correlation ID:' in obj
+        else:
+            assert isinstance(obj, Traceback)
+            assert error_text in str(obj.trace)
 
-    monkeypatch.setattr(click, 'secho', mock_secho)
+    monkeypatch.setattr(console_err, 'print', mock_console_print)
 
     with pytest.raises(typer.Exit):
         handle_scan_exception(ctx, ValueError(error_text))

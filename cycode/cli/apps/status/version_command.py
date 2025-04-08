@@ -1,15 +1,10 @@
 import typer
 
 from cycode.cli.apps.status.status_command import status_command
+from cycode.cli.console import console
 
 
 def version_command(ctx: typer.Context) -> None:
-    typer.echo(
-        typer.style(
-            text='The "version" command is deprecated. Please use the "status" command instead.',
-            fg=typer.colors.YELLOW,
-            bold=True,
-        ),
-        color=ctx.color,
-    )
+    console.print('[yellow][bold]This command is deprecated. Please use the "status" command instead.[/bold][/yellow]')
+    console.print()  # print an empty line
     status_command(ctx)

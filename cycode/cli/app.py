@@ -2,6 +2,7 @@ import logging
 from typing import Annotated, Optional
 
 import typer
+from typer.completion import install_callback, show_callback
 
 from cycode import __version__
 from cycode.cli.apps import ai_remediation, auth, configure, ignore, report, scan, status
@@ -20,6 +21,7 @@ app = typer.Typer(
     pretty_exceptions_short=True,
     context_settings=CLI_CONTEXT_SETTINGS,
     rich_markup_mode='rich',
+    add_completion=False,  # we add it manually to control the rich help panel
 )
 
 app.add_typer(ai_remediation.app)
@@ -39,9 +41,10 @@ def check_latest_version_on_close(ctx: typer.Context) -> None:
 
     # we always want to check the latest version for "version" and "status" commands
     should_use_cache = ctx.invoked_subcommand not in {'version', 'status'}
-    version_checker.check_and_notify_update(
-        current_version=__version__, use_color=ctx.color, use_cache=should_use_cache
-    )
+    version_checker.check_and_notify_update(current_version=__version__, use_cache=should_use_cache)
+
+
+_COMPLETION_RICH_HELP_PANEL = 'Completion options'
 
 
 @app.callback()
@@ -61,6 +64,28 @@ def app_callback(
         Optional[str],
         typer.Option(hidden=True, help='Characteristic JSON object that lets servers identify the application.'),
     ] = None,
+    _: Annotated[
+        Optional[bool],
+        typer.Option(
+            '--install-completion',
+            callback=install_callback,
+            is_eager=True,
+            expose_value=False,
+            help='Install completion for the current shell.',
+            rich_help_panel=_COMPLETION_RICH_HELP_PANEL,
+        ),
+    ] = False,
+    __: Annotated[
+        Optional[bool],
+        typer.Option(
+            '--show-completion',
+            callback=show_callback,
+            is_eager=True,
+            expose_value=False,
+            help='Show completion for the current shell, to copy it or customize the installation.',
+            rich_help_panel=_COMPLETION_RICH_HELP_PANEL,
+        ),
+    ] = False,
 ) -> None:
     init_sentry()
     add_breadcrumb('cycode')
