@@ -29,9 +29,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            console.print(
-                '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/green]'
-            )
+            console.print(self.NO_DETECTIONS_MESSAGE)
             return
 
         self._print_results(local_scan_results)
@@ -39,10 +37,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not errors:
             return
 
-        console.print(
-            '[red]Unfortunately, Cycode was unable to complete the full scan. '
-            'Please note that not all results may be available:[/red]',
-        )
+        console.print(self.FAILED_SCAN_MESSAGE)
         for scan_id, error in errors.items():
             console.print(f'- {scan_id}: ', end='')
             self.print_error(error)

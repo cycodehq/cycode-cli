@@ -16,6 +16,14 @@ from rich.traceback import Traceback as RichTraceback
 
 
 class PrinterBase(ABC):
+    NO_DETECTIONS_MESSAGE = (
+        '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/green]'
+    )
+    FAILED_SCAN_MESSAGE = (
+        '[red]Unfortunately, Cycode was unable to complete the full scan. '
+        'Please note that not all results may be available:[/red]'
+    )
+
     def __init__(self, ctx: typer.Context) -> None:
         self.ctx = ctx
 
