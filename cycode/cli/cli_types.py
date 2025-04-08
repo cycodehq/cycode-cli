@@ -57,7 +57,7 @@ class SeverityOption(str, Enum):
 
     def __rich__(self) -> str:
         color = self.get_member_color(self.value)
-        return f'[{color}]{self.value.upper()}[/{color}]'
+        return f'[{color}]{self.value.upper()}[/]'
 
 
 _SEVERITY_DEFAULT_WEIGHT = -1

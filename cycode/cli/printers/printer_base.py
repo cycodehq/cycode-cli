@@ -17,11 +17,11 @@ from rich.traceback import Traceback as RichTraceback
 
 class PrinterBase(ABC):
     NO_DETECTIONS_MESSAGE = (
-        '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/green]'
+        '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/]'
     )
     FAILED_SCAN_MESSAGE = (
         '[red]Unfortunately, Cycode was unable to complete the full scan. '
-        'Please note that not all results may be available:[/red]'
+        'Please note that not all results may be available:[/]'
     )
 
     def __init__(self, ctx: typer.Context) -> None:
@@ -56,4 +56,4 @@ class PrinterBase(ABC):
         rich_traceback.show_locals = False
         console_err.print(rich_traceback)
 
-        console_err.print(f'[red]Correlation ID:[/red] {get_correlation_id()}')
+        console_err.print(f'[red]Correlation ID:[/] {get_correlation_id()}')

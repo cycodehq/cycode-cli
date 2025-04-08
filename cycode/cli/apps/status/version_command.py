@@ -5,6 +5,6 @@ from cycode.cli.console import console
 
 
 def version_command(ctx: typer.Context) -> None:
-    console.print('[yellow][bold]This command is deprecated. Please use the "status" command instead.[/bold][/yellow]')
+    console.print('[b yellow]This command is deprecated. Please use the "status" command instead.[/]')
     console.print()  # print an empty line
     status_command(ctx)

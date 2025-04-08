@@ -198,9 +198,9 @@ class VersionChecker(CycodeClientBase):
         if should_update:
             update_message = (
                 '\nNew version of cycode available! '
-                f'[yellow]{current_version}[/yellow] → [bright_blue]{latest_version}[/bright_blue]\n'
-                f'Changelog: [bright_blue]{self.GIT_CHANGELOG_URL_PREFIX}{latest_version}[/bright_blue]\n'
-                f'Run [green]pip install --upgrade cycode[/green] to update\n'
+                f'[yellow]{current_version}[/] → [bright_blue]{latest_version}[/]\n'
+                f'Changelog: [bright_blue]{self.GIT_CHANGELOG_URL_PREFIX}{latest_version}[/]\n'
+                f'Run [green]pip install --upgrade cycode[/] to update\n'
             )
             console.print(update_message)
 

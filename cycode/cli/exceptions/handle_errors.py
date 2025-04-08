@@ -14,7 +14,7 @@ def handle_errors(
     ConsolePrinter(ctx).print_exception(err)
 
     if type(err) in cli_errors:
-        error = cli_errors[type(err)]
+        error = cli_errors[type(err)].enrich(additional_message=str(err))
 
         if error.soft_fail is True:
             ctx.obj['soft_fail'] = True

@@ -37,6 +37,10 @@ class CliError(NamedTuple):
     message: str
     soft_fail: bool = False
 
+    def enrich(self, additional_message: str) -> 'CliError':
+        message = f'{self.message} ({additional_message})'
+        return CliError(self.code, message, self.soft_fail)
+
 
 CliErrors = Dict[Type[BaseException], CliError]
 

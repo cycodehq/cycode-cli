@@ -28,7 +28,7 @@ class Table:
 
     def add_cell(self, column: 'ColumnInfo', value: str, color: Optional[str] = None) -> None:
         if color:
-            value = f'[{color}]{value}[/{color}]'
+            value = f'[{color}]{value}[/]'
 
         self._add_cell_no_error(column, value)
 
