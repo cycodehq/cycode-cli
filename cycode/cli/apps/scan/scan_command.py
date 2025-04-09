@@ -83,8 +83,7 @@ def scan_command(
         bool,
         typer.Option(
             '--no-restore',
-            help='When specified, Cycode will not run restore command. '
-            'Will scan direct dependencies [bold]only[/bold]!',
+            help='When specified, Cycode will not run restore command. ' 'Will scan direct dependencies [b]only[/]!',
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
@@ -93,14 +92,14 @@ def scan_command(
         typer.Option(
             '--gradle-all-sub-projects',
             help='When specified, Cycode will run gradle restore command for all sub projects. '
-            'Should run from root project directory [bold]only[/bold]!',
+            'Should run from root project directory [b]only[/]!',
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
 ) -> None:
     """:magnifying_glass_tilted_right: Scan the content for Secrets, IaC, SCA, and SAST violations.
     You'll need to specify which scan type to perform:
-    [cyan]path[/cyan]/[cyan]repository[/cyan]/[cyan]commit_history[/cyan]."""
+    [cyan]path[/]/[cyan]repository[/]/[cyan]commit_history[/]."""
     add_breadcrumb('scan')
 
     ctx.obj['show_secret'] = show_secret

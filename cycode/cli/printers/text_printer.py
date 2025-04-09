@@ -39,7 +39,7 @@ class TextPrinter(PrinterBase):
             console.print(f'- {name}: {value}', style=color)
 
     def print_error(self, error: CliError) -> None:
-        console.print(f'[red]Error: {error.message}[/red]')
+        console.print(f'[red]Error: {error.message}[/]', highlight=False)
 
     def print_scan_results(
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
@@ -91,7 +91,7 @@ class TextPrinter(PrinterBase):
         console.print(
             ':no_entry: Found',
             severity,
-            f'issue of type: [bright_red][bold]{name}[/bold][/bright_red] '
+            f'issue of type: [b bright_red]{name}[/] '
             f'in file: {clickable_document_path} '
             f'{detection_commit_id_message}'
             f'{company_guidelines_message}'

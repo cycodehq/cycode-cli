@@ -178,7 +178,7 @@ class ScaTablePrinter(TablePrinterBase):
 
     @staticmethod
     def _print_summary_issues(detections_count: int, title: str) -> None:
-        console.print(f':no_entry: Found {detections_count} issues of type: [bold]{title}[/bold]')
+        console.print(f':no_entry: Found {detections_count} issues of type: [b]{title}[/]')
 
     @staticmethod
     def _extract_detections_per_policy_id(

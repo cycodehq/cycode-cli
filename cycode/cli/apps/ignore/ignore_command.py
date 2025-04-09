@@ -57,7 +57,7 @@ def ignore_command(  # noqa: C901
     by_package: Annotated[
         Optional[str],
         typer.Option(
-            help='Ignore scanning a specific package version. Expected pattern: [cyan]name@version[/cyan].',
+            help='Ignore scanning a specific package version. Expected pattern: [cyan]name@version[/].',
             show_default=False,
             rich_help_panel=_SCA_FILTER_BY_RICH_HELP_PANEL,
         ),
@@ -65,7 +65,7 @@ def ignore_command(  # noqa: C901
     by_cve: Annotated[
         Optional[str],
         typer.Option(
-            help='Ignore scanning a specific CVE. Expected pattern: [cyan]CVE-YYYY-NNN[/cyan].',
+            help='Ignore scanning a specific CVE. Expected pattern: [cyan]CVE-YYYY-NNN[/].',
             show_default=False,
             rich_help_panel=_SCA_FILTER_BY_RICH_HELP_PANEL,
         ),
