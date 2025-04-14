@@ -59,7 +59,7 @@ def app_callback(
     ] = False,
     output: Annotated[
         OutputTypeOption, typer.Option('--output', '-o', case_sensitive=False, help='Specify the output type.')
-    ] = OutputTypeOption.TEXT,
+    ] = OutputTypeOption.RICH,
     user_agent: Annotated[
         Optional[str],
         typer.Option(hidden=True, help='Characteristic JSON object that lets servers identify the application.'),

@@ -4,6 +4,7 @@ from cycode.cli import consts
 
 
 class OutputTypeOption(str, Enum):
+    RICH = 'rich'
     TEXT = 'text'
     JSON = 'json'
     TABLE = 'table'
@@ -55,6 +56,10 @@ class SeverityOption(str, Enum):
     def get_member_color(name: str) -> str:
         return _SEVERITY_COLORS.get(name.lower(), _SEVERITY_DEFAULT_COLOR)
 
+    @staticmethod
+    def get_member_emoji(name: str) -> str:
+        return _SEVERITY_EMOJIS.get(name.lower(), _SEVERITY_DEFAULT_EMOJI)
+
     def __rich__(self) -> str:
         color = self.get_member_color(self.value)
         return f'[{color}]{self.value.upper()}[/]'
@@ -76,4 +81,13 @@ _SEVERITY_COLORS = {
     SeverityOption.MEDIUM.value: 'dark_orange',
     SeverityOption.HIGH.value: 'red1',
     SeverityOption.CRITICAL.value: 'red3',
+}
+
+_SEVERITY_DEFAULT_EMOJI = ':white_circle:'
+_SEVERITY_EMOJIS = {
+    SeverityOption.INFO.value: ':blue_circle:',
+    SeverityOption.LOW.value: ':yellow_circle:',
+    SeverityOption.MEDIUM.value: ':orange_circle:',
+    SeverityOption.HIGH.value: ':heavy_large_circle:',
+    SeverityOption.CRITICAL.value: ':red_circle:',
 }
