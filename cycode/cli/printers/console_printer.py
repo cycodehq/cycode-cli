@@ -5,6 +5,7 @@ import typer
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.json_printer import JsonPrinter
+from cycode.cli.printers.rich_printer import RichPrinter
 from cycode.cli.printers.tables.sca_table_printer import ScaTablePrinter
 from cycode.cli.printers.tables.table_printer import TablePrinter
 from cycode.cli.printers.text_printer import TextPrinter
@@ -16,12 +17,14 @@ if TYPE_CHECKING:
 
 class ConsolePrinter:
     _AVAILABLE_PRINTERS: ClassVar[Dict[str, Type['PrinterBase']]] = {
+        'rich': RichPrinter,
         'text': TextPrinter,
         'json': JsonPrinter,
         'table': TablePrinter,
         # overrides
         'table_sca': ScaTablePrinter,
         'text_sca': ScaTablePrinter,
+        'rich_sca': ScaTablePrinter,
     }
 
     def __init__(self, ctx: typer.Context) -> None:
@@ -74,3 +77,7 @@ class ConsolePrinter:
     @property
     def is_text_printer(self) -> bool:
         return self._printer_class == TextPrinter
+
+    @property
+    def is_rich_printer(self) -> bool:
+        return self._printer_class == RichPrinter
