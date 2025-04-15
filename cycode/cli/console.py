@@ -1,7 +1,12 @@
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from rich.console import Console
+from rich.console import Console, RenderResult
+from rich.markdown import Heading, Markdown
+from rich.text import Text
+
+if TYPE_CHECKING:
+    from rich.console import ConsoleOptions
 
 console_out = Console()
 console_err = Console(stderr=True)
@@ -45,3 +50,20 @@ _SYNTAX_HIGHLIGHT_LIGHT_THEME = 'default'
 
 # when we could not detect it, use dark theme as most terminals are dark
 _SYNTAX_HIGHLIGHT_THEME = _SYNTAX_HIGHLIGHT_LIGHT_THEME if is_dark_console() is False else _SYNTAX_HIGHLIGHT_DARK_THEME
+
+
+class CycodeHeading(Heading):
+    """Custom Rich Heading for Markdown.
+
+    Changes:
+    - remove justify to 'center'
+    - remove the box for h1
+    """
+
+    def __rich_console__(self, console: 'Console', options: 'ConsoleOptions') -> RenderResult:
+        if self.tag == 'h2':
+            yield Text('')
+        yield self.text
+
+
+Markdown.elements['heading_open'] = CycodeHeading
