@@ -54,7 +54,9 @@ def scan_command(
     ] = SeverityOption.INFO,
     sync: Annotated[
         bool,
-        typer.Option('--sync', help='Run scan synchronously.', show_default='asynchronously'),
+        typer.Option(
+            '--sync', help='Run scan synchronously (INTERNAL FOR IDEs).', show_default='asynchronously', hidden=True
+        ),
     ] = False,
     report: Annotated[
         bool,

@@ -100,24 +100,27 @@ def set_issue_detected_by_scan_results(ctx: typer.Context, scan_results: List[Lo
     set_issue_detected(ctx, any(scan_result.issue_detected for scan_result in scan_results))
 
 
-def _should_use_scan_service(scan_type: str, scan_parameters: dict) -> bool:
-    return scan_type == consts.SECRET_SCAN_TYPE and scan_parameters.get('report') is True
+def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: bool) -> bool:
+    """Decide whether to use sync flow or async flow for the scan.
 
-
-def _should_use_sync_flow(
-    command_scan_type: str, scan_type: str, sync_option: bool, scan_parameters: Optional[dict] = None
-) -> bool:
-    if not sync_option:
+    The logic:
+    - for IAC scan, sync flow is always used
+    - for SAST scan, sync flow is not supported
+    - for SCA and Secrets scan, sync flow is supported only for path/repository scan
+    """
+    if not sync_option and scan_type != consts.IAC_SCAN_TYPE:
         return False
 
     if command_scan_type not in {'path', 'repository'}:
         raise ValueError(f'Sync flow is not available for "{command_scan_type}" command type. Remove --sync option.')
 
-    if scan_type is consts.SAST_SCAN_TYPE:
-        raise ValueError('Sync scan is not available for SAST scan type.')
+    if scan_type == consts.IAC_SCAN_TYPE:
+        # sync in the only available flow for IAC scan; we do not use detector directly anymore
+        return True
 
-    if scan_parameters.get('report') is True:
-        raise ValueError('You can not use sync flow with report option. Either remove "report" or "sync" option.')
+    if scan_type is consts.SAST_SCAN_TYPE:  # noqa: SIM103
+        # SAST does not support sync flow
+        return False
 
     return True
 
@@ -169,8 +172,7 @@ def _get_scan_documents_thread_func(
         scan_id = str(_generate_unique_id())
         scan_completed = False
 
-        should_use_scan_service = _should_use_scan_service(scan_type, scan_parameters)
-        should_use_sync_flow = _should_use_sync_flow(command_scan_type, scan_type, sync_option, scan_parameters)
+        should_use_sync_flow = _should_use_sync_flow(command_scan_type, scan_type, sync_option)
 
         try:
             logger.debug('Preparing local files, %s', {'batch_files_count': len(batch)})
@@ -180,11 +182,9 @@ def _get_scan_documents_thread_func(
                 cycode_client,
                 zipped_documents,
                 scan_type,
-                scan_id,
                 is_git_diff,
                 is_commit_range,
                 scan_parameters,
-                should_use_scan_service,
                 should_use_sync_flow,
             )
 
@@ -224,7 +224,6 @@ def _get_scan_documents_thread_func(
             zip_file_size,
             command_scan_type,
             error_message,
-            should_use_scan_service or should_use_sync_flow,  # sync flow implies scan service
         )
 
         return scan_id, error, local_scan_result
@@ -456,24 +455,16 @@ def perform_scan(
     cycode_client: 'ScanClient',
     zipped_documents: 'InMemoryZip',
     scan_type: str,
-    scan_id: str,
     is_git_diff: bool,
     is_commit_range: bool,
     scan_parameters: dict,
-    should_use_scan_service: bool = False,
     should_use_sync_flow: bool = False,
 ) -> ZippedFileScanResult:
     if should_use_sync_flow:
         # it does not support commit range scans; should_use_sync_flow handles it
         return perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
-    if scan_type in (consts.SCA_SCAN_TYPE, consts.SAST_SCAN_TYPE) or should_use_scan_service:
-        return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
-
-    if is_commit_range:
-        return cycode_client.commit_range_zipped_file_scan(scan_type, zipped_documents, scan_id)
-
-    return cycode_client.zipped_file_scan(scan_type, zipped_documents, scan_id, scan_parameters, is_git_diff)
+    return perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
 
 
 def perform_scan_async(
@@ -823,7 +814,6 @@ def _report_scan_status(
     zip_size: int,
     command_scan_type: str,
     error_message: Optional[str],
-    should_use_scan_service: bool = False,
 ) -> None:
     try:
         end_scan_time = time.time()
@@ -840,12 +830,15 @@ def _report_scan_status(
             'scan_type': scan_type,
         }
 
-        cycode_client.report_scan_status(scan_type, scan_id, scan_status, should_use_scan_service)
+        cycode_client.report_scan_status(scan_type, scan_id, scan_status)
     except Exception as e:
         logger.debug('Failed to report scan status', exc_info=e)
 
 
 def _generate_unique_id() -> UUID:
+    if 'PYTEST_TEST_UNIQUE_ID' in os.environ:
+        return UUID(os.environ['PYTEST_TEST_UNIQUE_ID'])
+
     return uuid4()
 
 
@@ -868,13 +861,13 @@ def _get_scan_result(
     if not scan_details.detections_count:
         return init_default_scan_result(scan_id)
 
-    scan_raw_detections = cycode_client.get_scan_raw_detections(scan_type, scan_id)
+    scan_raw_detections = cycode_client.get_scan_raw_detections(scan_id)
 
     return ZippedFileScanResult(
         did_detect=True,
         detections_per_file=_map_detections_per_file_and_commit_id(scan_type, scan_raw_detections),
         scan_id=scan_id,
-        report_url=_try_get_any_report_url_if_needed(cycode_client, scan_id, scan_type, scan_parameters),
+        report_url=_try_get_aggregation_report_url_if_needed(scan_parameters, cycode_client, scan_type),
     )
 
 
@@ -884,37 +877,6 @@ def init_default_scan_result(scan_id: str) -> ZippedFileScanResult:
         detections_per_file=[],
         scan_id=scan_id,
     )
-
-
-def _try_get_any_report_url_if_needed(
-    cycode_client: 'ScanClient',
-    scan_id: str,
-    scan_type: str,
-    scan_parameters: dict,
-) -> Optional[str]:
-    """Tries to get aggregation report URL if needed, otherwise tries to get report URL."""
-    aggregation_report_url = None
-    if scan_parameters:
-        _try_get_report_url_if_needed(cycode_client, scan_id, scan_type, scan_parameters)
-        aggregation_report_url = _try_get_aggregation_report_url_if_needed(scan_parameters, cycode_client, scan_type)
-
-    if aggregation_report_url:
-        return aggregation_report_url
-
-    return _try_get_report_url_if_needed(cycode_client, scan_id, scan_type, scan_parameters)
-
-
-def _try_get_report_url_if_needed(
-    cycode_client: 'ScanClient', scan_id: str, scan_type: str, scan_parameters: dict
-) -> Optional[str]:
-    if not scan_parameters.get('report', False):
-        return None
-
-    try:
-        report_url_response = cycode_client.get_scan_report_url(scan_id, scan_type)
-        return report_url_response.report_url
-    except Exception as e:
-        logger.debug('Failed to get report URL', exc_info=e)
 
 
 def _set_aggregation_report_url(ctx: typer.Context, aggregation_report_url: Optional[str] = None) -> None:

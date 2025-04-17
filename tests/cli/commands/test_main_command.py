@@ -11,8 +11,7 @@ from cycode.cli.app import app
 from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.utils.git_proxy import git_proxy
 from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH, ZIP_CONTENT_PATH
-from tests.cyclient.mocked_responses.scan_client import mock_scan_responses
-from tests.cyclient.test_scan_client import get_zipped_file_scan_response, get_zipped_file_scan_url
+from tests.cyclient.mocked_responses.scan_client import mock_scan_async_responses
 
 _PATH_TO_SCAN = TEST_FILES_PATH.joinpath('zip_content').absolute()
 
@@ -34,12 +33,12 @@ def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token
     scan_type = consts.SECRET_SCAN_TYPE
     scan_id = uuid4()
 
-    mock_scan_responses(responses, scan_type, scan_client, scan_id, ZIP_CONTENT_PATH)
-    responses.add(get_zipped_file_scan_response(get_zipped_file_scan_url(scan_type, scan_client), ZIP_CONTENT_PATH))
+    mock_scan_async_responses(responses, scan_type, scan_client, scan_id, ZIP_CONTENT_PATH)
     responses.add(api_token_response)
 
     args = ['--output', output, 'scan', '--soft-fail', 'path', str(_PATH_TO_SCAN)]
-    result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
+    env = {'PYTEST_TEST_UNIQUE_ID': str(scan_id), **CLI_ENV_VARS}
+    result = CliRunner().invoke(app, args, env=env)
 
     except_json = output == 'json'
 
@@ -54,10 +53,7 @@ def test_passing_output_option(output: str, scan_client: 'ScanClient', api_token
 
 @responses.activate
 def test_optional_git_with_path_scan(scan_client: 'ScanClient', api_token_response: responses.Response) -> None:
-    mock_scan_responses(responses, consts.SECRET_SCAN_TYPE, scan_client, uuid4(), ZIP_CONTENT_PATH)
-    responses.add(
-        get_zipped_file_scan_response(get_zipped_file_scan_url(consts.SECRET_SCAN_TYPE, scan_client), ZIP_CONTENT_PATH)
-    )
+    mock_scan_async_responses(responses, consts.SECRET_SCAN_TYPE, scan_client, uuid4(), ZIP_CONTENT_PATH)
     responses.add(api_token_response)
 
     # fake env without Git executable
