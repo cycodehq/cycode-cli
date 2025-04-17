@@ -9,9 +9,9 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from cycode.cli.cli_types import ScanTypeOption
 from cycode.cli.exceptions.custom_exceptions import (
+    CycodeError,
     HttpUnauthorizedError,
     RequestConnectionError,
-    RequestHttpError,
     RequestTimeout,
 )
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
@@ -28,14 +28,14 @@ from tests.cyclient.mocked_responses.scan_client import (
 )
 
 
-def zip_scan_resources(scan_type: str, scan_client: ScanClient) -> Tuple[str, InMemoryZip]:
+def zip_scan_resources(scan_type: ScanTypeOption, scan_client: ScanClient) -> Tuple[str, InMemoryZip]:
     url = get_zipped_file_scan_async_url(scan_type, scan_client)
     zip_file = get_test_zip_file(scan_type)
 
     return url, zip_file
 
 
-def get_test_zip_file(scan_type: str) -> InMemoryZip:
+def get_test_zip_file(scan_type: ScanTypeOption) -> InMemoryZip:
     # TODO(MarshalX): refactor scan_disk_files in code_scanner.py to reuse method here instead of this
     test_documents: List[Document] = []
     for root, _, files in os.walk(ZIP_CONTENT_PATH):
@@ -52,7 +52,7 @@ def get_test_zip_file(scan_type: str) -> InMemoryZip:
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_zipped_file_scan_async(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     """Test the zipped_file_scan_async method for the async flow."""
     url, zip_file = zip_scan_resources(scan_type, scan_client)
@@ -61,16 +61,15 @@ def test_zipped_file_scan_async(
     responses.add(api_token_response)  # mock token based client
     responses.add(get_zipped_file_scan_async_response(url, expected_scan_id))
 
-    # Call the method with the correct parameter order
-    scan_initialization_response = scan_client.zipped_file_scan_async(
-        zip_file=zip_file, scan_type=scan_type, scan_parameters={}
-    )
+    scan_initialization_response = scan_client.zipped_file_scan_async(zip_file, scan_type, scan_parameters={})
     assert scan_initialization_response.scan_id == str(expected_scan_id)
 
 
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
-def test_get_scan_report_url(scan_type: str, scan_client: ScanClient, api_token_response: responses.Response) -> None:
+def test_get_scan_report_url(
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
+) -> None:
     """Test getting the scan report URL for the async flow."""
     scan_id = uuid4()
     url = get_scan_aggregation_report_url(scan_id, scan_client, scan_type)
@@ -85,7 +84,7 @@ def test_get_scan_report_url(scan_type: str, scan_client: ScanClient, api_token_
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_zipped_file_scan_async_unauthorized_error(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     """Test handling of unauthorized errors in the async flow."""
     url, zip_file = zip_scan_resources(scan_type, scan_client)
@@ -102,7 +101,7 @@ def test_zipped_file_scan_async_unauthorized_error(
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_zipped_file_scan_async_bad_request_error(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     """Test handling of bad request errors in the async flow."""
     url, zip_file = zip_scan_resources(scan_type, scan_client)
@@ -113,7 +112,7 @@ def test_zipped_file_scan_async_bad_request_error(
     responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=url, status=expected_status_code, body=expected_response_text)
 
-    with pytest.raises(RequestHttpError) as e_info:
+    with pytest.raises(CycodeError) as e_info:
         scan_client.zipped_file_scan_async(zip_file=zip_file, scan_type=scan_type, scan_parameters={})
 
     assert e_info.value.status_code == expected_status_code
@@ -123,12 +122,11 @@ def test_zipped_file_scan_async_bad_request_error(
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_zipped_file_scan_async_timeout_error(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     """Test handling of timeout errors in the async flow."""
     url, zip_file = zip_scan_resources(scan_type, scan_client)
 
-    # Create a timeout response
     timeout_error = requests.exceptions.Timeout('Connection timed out')
 
     responses.add(api_token_response)  # mock token based client
@@ -141,7 +139,7 @@ def test_zipped_file_scan_async_timeout_error(
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
 def test_zipped_file_scan_async_connection_error(
-    scan_type: str, scan_client: ScanClient, api_token_response: responses.Response
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     """Test handling of connection errors in the async flow."""
     url, zip_file = zip_scan_resources(scan_type, scan_client)
@@ -158,7 +156,9 @@ def test_zipped_file_scan_async_connection_error(
 
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
 @responses.activate
-def test_get_scan_details(scan_type: str, scan_client: ScanClient, api_token_response: responses.Response) -> None:
+def test_get_scan_details(
+    scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
+) -> None:
     """Test getting scan details in the async flow."""
     scan_id = uuid4()
     url = get_scan_details_url(scan_type, scan_id, scan_client)
