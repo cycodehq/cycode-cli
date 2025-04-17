@@ -103,6 +103,9 @@ def set_issue_detected_by_scan_results(ctx: typer.Context, scan_results: List[Lo
 def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: bool) -> bool:
     """Decide whether to use sync flow or async flow for the scan.
 
+    Note:
+        Passing `--sync` option does not mean that sync flow will be used in all cases.
+
     The logic:
     - for IAC scan, sync flow is always used
     - for SAST scan, sync flow is not supported
@@ -112,7 +115,7 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
         return False
 
     if command_scan_type not in {'path', 'repository'}:
-        raise ValueError(f'Sync flow is not available for "{command_scan_type}" command type. Remove --sync option.')
+        return False
 
     if scan_type == consts.IAC_SCAN_TYPE:
         # sync in the only available flow for IAC scan; we do not use detector directly anymore
