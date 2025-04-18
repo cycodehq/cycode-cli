@@ -59,19 +59,6 @@ class DetectionsPerFile(Schema):
         self.commit_id = commit_id
 
 
-class DetectionsPerFileSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    file_name = fields.String()
-    detections = fields.List(fields.Nested(DetectionSchema))
-    commit_id = fields.String(allow_none=True)
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'DetectionsPerFile':
-        return DetectionsPerFile(**data)
-
-
 class ZippedFileScanResult(Schema):
     def __init__(
         self,
@@ -87,21 +74,6 @@ class ZippedFileScanResult(Schema):
         self.scan_id = scan_id
         self.report_url = report_url
         self.err = err
-
-
-class ZippedFileScanResultSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    did_detect = fields.Boolean()
-    scan_id = fields.String()
-    report_url = fields.String(allow_none=True)
-    detections_per_file = fields.List(fields.Nested(DetectionsPerFileSchema))
-    err = fields.String()
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ZippedFileScanResult':
-        return ZippedFileScanResult(**data)
 
 
 class ScanResult(Schema):
