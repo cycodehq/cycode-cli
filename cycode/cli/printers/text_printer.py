@@ -5,7 +5,6 @@ import typer
 from rich.markup import escape
 
 from cycode.cli.cli_types import SeverityOption
-from cycode.cli.console import console
 from cycode.cli.models import CliError, CliResult, Document
 from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax
@@ -17,8 +16,8 @@ if TYPE_CHECKING:
 
 
 class TextPrinter(PrinterBase):
-    def __init__(self, ctx: typer.Context) -> None:
-        super().__init__(ctx)
+    def __init__(self, ctx: typer.Context, *args, **kwargs) -> None:
+        super().__init__(ctx, *args, **kwargs)
         self.scan_type = ctx.obj.get('scan_type')
         self.command_scan_type: str = ctx.info_name
         self.show_secret: bool = ctx.obj.get('show_secret', False)
@@ -28,23 +27,23 @@ class TextPrinter(PrinterBase):
         if not result.success:
             color = 'red'
 
-        console.print(result.message, style=color)
+        self.console.print(result.message, style=color)
 
         if not result.data:
             return
 
-        console.print('\nAdditional data:', style=color)
+        self.console.print('\nAdditional data:', style=color)
         for name, value in result.data.items():
-            console.print(f'- {name}: {value}', style=color)
+            self.console.print(f'- {name}: {value}', style=color)
 
     def print_error(self, error: CliError) -> None:
-        console.print(f'[red]Error: {error.message}[/]', highlight=False)
+        self.console.print(f'[red]Error: {error.message}[/]', highlight=False)
 
     def print_scan_results(
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            console.print(self.NO_DETECTIONS_MESSAGE)
+            self.console.print(self.NO_DETECTIONS_MESSAGE)
             return
 
         detections, _ = sort_and_group_detections_from_scan_result(local_scan_results)
@@ -58,9 +57,8 @@ class TextPrinter(PrinterBase):
         self.__print_detection_code_segment(detection, document)
         self._print_new_line()
 
-    @staticmethod
-    def _print_new_line() -> None:
-        console.line()
+    def _print_new_line(self) -> None:
+        self.console.line()
 
     def __print_detection_summary(self, detection: 'Detection', document_path: str) -> None:
         title = get_detection_title(self.scan_type, detection)
@@ -74,14 +72,14 @@ class TextPrinter(PrinterBase):
         detection_commit_id = detection.detection_details.get('commit_id')
         detection_commit_id_message = f'\nCommit SHA: {detection_commit_id}' if detection_commit_id else ''
 
-        console.print(
+        self.console.print(
             f'{severity_icon}',
             severity,
             f'violation: [b bright_red]{title}[/]{detection_commit_id_message}\n{clickable_document_path}:',
         )
 
     def __print_detection_code_segment(self, detection: 'Detection', document: Document) -> None:
-        console.print(
+        self.console.print(
             get_code_snippet_syntax(
                 self.scan_type,
                 self.command_scan_type,
@@ -100,19 +98,18 @@ class TextPrinter(PrinterBase):
         if not errors:
             return
 
-        console.print(self.FAILED_SCAN_MESSAGE)
+        self.console.print(self.FAILED_SCAN_MESSAGE)
         for scan_id, error in errors.items():
-            console.print(f'- {scan_id}: ', end='')
+            self.console.print(f'- {scan_id}: ', end='')
             self.print_error(error)
 
-    @staticmethod
-    def print_report_urls(report_urls: List[str], aggregation_report_url: Optional[str] = None) -> None:
+    def print_report_urls(self, report_urls: List[str], aggregation_report_url: Optional[str] = None) -> None:
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:
-            console.print(f'Report URL: {aggregation_report_url}')
+            self.console.print(f'Report URL: {aggregation_report_url}')
             return
 
-        console.print('Report URLs:')
+        self.console.print('Report URLs:')
         for report_url in report_urls:
-            console.print(f'- {report_url}')
+            self.console.print(f'- {report_url}')

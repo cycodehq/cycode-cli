@@ -4,11 +4,10 @@ import typer
 from patch_ng import fromstring
 
 from cycode.cli.models import CliResult
-from cycode.cli.printers import ConsolePrinter
 
 
 def apply_fix(ctx: typer.Context, diff: str, is_fix_available: bool) -> None:
-    printer = ConsolePrinter(ctx)
+    printer = ctx.obj.get('console_printer')
     if not is_fix_available:
         printer.print_result(CliResult(success=False, message='Fix is not available for this violation'))
         return

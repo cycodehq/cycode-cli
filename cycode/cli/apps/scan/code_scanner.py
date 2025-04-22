@@ -28,7 +28,6 @@ from cycode.cli.files_collector.sca import sca_code_scanner
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, DocumentDetections, LocalScanResult
-from cycode.cli.printers import ConsolePrinter
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_path_by_os
@@ -304,10 +303,11 @@ def scan_documents(
 ) -> None:
     scan_type = ctx.obj['scan_type']
     progress_bar = ctx.obj['progress_bar']
+    printer = ctx.obj.get('console_printer')
 
     if not documents_to_scan:
         progress_bar.stop()
-        ConsolePrinter(ctx).print_error(
+        printer.print_error(
             CliError(
                 code='no_relevant_files',
                 message='Error: The scan could not be completed - relevant files to scan are not found. '
@@ -569,7 +569,7 @@ def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> No
 def print_results(
     ctx: typer.Context, local_scan_results: List[LocalScanResult], errors: Optional[Dict[str, 'CliError']] = None
 ) -> None:
-    printer = ConsolePrinter(ctx)
+    printer = ctx.obj.get('console_printer')
     printer.print_scan_results(local_scan_results, errors)
 
 

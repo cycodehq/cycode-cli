@@ -1,7 +1,12 @@
+import io
 from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Type
 
 import typer
+from rich.console import Console
 
+from cycode.cli import consts
+from cycode.cli.cli_types import ExportTypeOption
+from cycode.cli.console import console, console_err
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.json_printer import JsonPrinter
@@ -27,57 +32,115 @@ class ConsolePrinter:
         'rich_sca': ScaTablePrinter,
     }
 
-    def __init__(self, ctx: typer.Context) -> None:
+    def __init__(
+        self,
+        ctx: typer.Context,
+        console_override: Optional['Console'] = None,
+        console_err_override: Optional['Console'] = None,
+        output_type_override: Optional[str] = None,
+    ) -> None:
         self.ctx = ctx
+        self.console = console_override or console
+        self.console_err = console_err_override or console_err
 
         self.scan_type = self.ctx.obj.get('scan_type')
-        self.output_type = self.ctx.obj.get('output')
+        self.output_type = output_type_override or self.ctx.obj.get('output')
         self.aggregation_report_url = self.ctx.obj.get('aggregation_report_url')
 
-        self._printer_class = self._AVAILABLE_PRINTERS.get(self.output_type)
-        if self._printer_class is None:
+        self.printer = self._get_scan_printer()
+
+        self.console_record = None
+
+        self.export_type = self.ctx.obj.get('export_type')
+        self.export_file = self.ctx.obj.get('export_file')
+        if console_override is None and self.export_type and self.export_file:
+            self.console_record = ConsolePrinter(
+                ctx,
+                console_override=Console(record=True, file=io.StringIO()),
+                console_err_override=Console(stderr=True, record=True, file=io.StringIO()),
+                output_type_override='json' if self.export_type == 'json' else self.output_type,
+            )
+
+    def _get_scan_printer(self) -> 'PrinterBase':
+        printer_class = self._AVAILABLE_PRINTERS.get(self.output_type)
+
+        composite_printer = self._AVAILABLE_PRINTERS.get(f'{self.output_type}_{self.scan_type}')
+        if composite_printer:
+            printer_class = composite_printer
+
+        if not printer_class:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
+
+        return printer_class(self.ctx, self.console, self.console_err)
 
     def print_scan_results(
         self,
         local_scan_results: List['LocalScanResult'],
         errors: Optional[Dict[str, 'CliError']] = None,
     ) -> None:
-        printer = self._get_scan_printer()
-        printer.print_scan_results(local_scan_results, errors)
-
-    def _get_scan_printer(self) -> 'PrinterBase':
-        printer_class = self._printer_class
-
-        composite_printer = self._AVAILABLE_PRINTERS.get(f'{self.output_type}_{self.scan_type}')
-        if composite_printer:
-            printer_class = composite_printer
-
-        return printer_class(self.ctx)
+        if self.console_record:
+            self.console_record.print_scan_results(local_scan_results, errors)
+        self.printer.print_scan_results(local_scan_results, errors)
 
     def print_result(self, result: CliResult) -> None:
-        self._printer_class(self.ctx).print_result(result)
+        if self.console_record:
+            self.console_record.print_result(result)
+        self.printer.print_result(result)
 
     def print_error(self, error: CliError) -> None:
-        self._printer_class(self.ctx).print_error(error)
+        if self.console_record:
+            self.console_record.print_error(error)
+        self.printer.print_error(error)
 
     def print_exception(self, e: Optional[BaseException] = None, force_print: bool = False) -> None:
         """Print traceback message in stderr if verbose mode is set."""
         if force_print or self.ctx.obj.get('verbose', False):
-            self._printer_class(self.ctx).print_exception(e)
+            if self.console_record:
+                self.console_record.print_exception(e)
+            self.printer.print_exception(e)
+
+    def export(self) -> None:
+        if self.console_record is None:
+            raise CycodeError('Console recording was not enabled. Cannot export.')
+
+        if not self.export_file.suffix:
+            # resolve file extension based on the export type if not provided in the file name
+            self.export_file = self.export_file.with_suffix(f'.{self.export_type.lower()}')
+
+        if self.export_type is ExportTypeOption.HTML:
+            self.console_record.console.save_html(self.export_file)
+        elif self.export_type is ExportTypeOption.SVG:
+            self.console_record.console.save_svg(self.export_file, title=consts.APP_NAME)
+        elif self.export_type is ExportTypeOption.JSON:
+            with open(self.export_file, 'w', encoding='UTF-8') as f:
+                self.console_record.console.file.seek(0)
+                f.write(self.console_record.console.file.read())
+        else:
+            raise CycodeError(f'Export type "{self.export_type}" is not supported.')
+
+        export_format_msg = f'{self.export_type.upper()} format'
+        if self.export_type in {ExportTypeOption.HTML, ExportTypeOption.SVG}:
+            export_format_msg += f' with {self.output_type.upper()} output type'
+
+        clickable_path = f'[link=file://{self.export_file}]{self.export_file}[/link]'
+        self.console.print(f'[b green]Cycode CLI output exported to {clickable_path} in {export_format_msg}[/]')
+
+    @property
+    def is_recording(self) -> bool:
+        return self.console_record is not None
 
     @property
     def is_json_printer(self) -> bool:
-        return self._printer_class == JsonPrinter
+        return isinstance(self.printer, JsonPrinter)
 
     @property
     def is_table_printer(self) -> bool:
-        return self._printer_class == TablePrinter
+        return isinstance(self.printer, TablePrinter)
 
     @property
     def is_text_printer(self) -> bool:
-        return self._printer_class == TextPrinter
+        return isinstance(self.printer, TextPrinter)
 
     @property
     def is_rich_printer(self) -> bool:
-        return self._printer_class == RichPrinter
+        return isinstance(self.printer, RichPrinter)
