@@ -10,6 +10,7 @@ from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.console import console_err
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.printers import ConsolePrinter
 from cycode.cli.utils.git_proxy import git_proxy
 
 if TYPE_CHECKING:
@@ -18,7 +19,9 @@ if TYPE_CHECKING:
 
 @pytest.fixture()
 def ctx() -> typer.Context:
-    return typer.Context(click.Command('path'), obj={'verbose': False, 'output': OutputTypeOption.TEXT})
+    ctx = typer.Context(click.Command('path'), obj={'verbose': False, 'output': OutputTypeOption.TEXT})
+    ctx.obj['console_printer'] = ConsolePrinter(ctx)
+    return ctx
 
 
 @pytest.mark.parametrize(
@@ -60,6 +63,7 @@ def test_handle_exception_click_error(ctx: typer.Context) -> None:
 
 def test_handle_exception_verbose(monkeypatch: 'MonkeyPatch') -> None:
     ctx = typer.Context(click.Command('path'), obj={'verbose': True, 'output': OutputTypeOption.TEXT})
+    ctx.obj['console_printer'] = ConsolePrinter(ctx)
 
     error_text = 'test'
 

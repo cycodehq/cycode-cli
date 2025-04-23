@@ -10,6 +10,12 @@ class OutputTypeOption(str, Enum):
     TABLE = 'table'
 
 
+class ExportTypeOption(str, Enum):
+    JSON = 'json'
+    HTML = 'html'
+    SVG = 'svg'
+
+
 class ScanTypeOption(str, Enum):
     SECRET = consts.SECRET_SCAN_TYPE
     SCA = consts.SCA_SCAN_TYPE

@@ -2,7 +2,6 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, List
 
 from cycode.cli.cli_types import SeverityOption
-from cycode.cli.console import console
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
 from cycode.cli.models import Detection
 from cycode.cli.printers.tables.table import Table
@@ -129,9 +128,8 @@ class ScaTablePrinter(TablePrinterBase):
         table.add_cell(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.add_cell(LICENSE_COLUMN, detection_details.get('license'))
 
-    @staticmethod
-    def _print_summary_issues(detections_count: int, title: str) -> None:
-        console.print(f':no_entry: Found {detections_count} issues of type: [b]{title}[/]')
+    def _print_summary_issues(self, detections_count: int, title: str) -> None:
+        self.console.print(f':no_entry: Found {detections_count} issues of type: [b]{title}[/]')
 
     @staticmethod
     def _extract_detections_per_policy_id(

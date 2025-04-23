@@ -4,14 +4,14 @@ import click
 import typer
 
 from cycode.cli.models import CliError, CliErrors
-from cycode.cli.printers import ConsolePrinter
 from cycode.cli.utils.sentry import capture_exception
 
 
 def handle_errors(
     ctx: typer.Context, err: BaseException, cli_errors: CliErrors, *, return_exception: bool = False
 ) -> Optional['CliError']:
-    ConsolePrinter(ctx).print_exception(err)
+    printer = ctx.obj.get('console_printer')
+    printer.print_exception(err)
 
     if type(err) in cli_errors:
         error = cli_errors[type(err)].enrich(additional_message=str(err))
@@ -22,7 +22,7 @@ def handle_errors(
         if return_exception:
             return error
 
-        ConsolePrinter(ctx).print_error(error)
+        printer.print_error(error)
         return None
 
     if isinstance(err, click.ClickException):
@@ -34,5 +34,5 @@ def handle_errors(
     if return_exception:
         return unknown_error
 
-    ConsolePrinter(ctx).print_error(unknown_error)
+    printer.print_error(unknown_error)
     raise typer.Exit(1)

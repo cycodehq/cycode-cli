@@ -1,7 +1,6 @@
 import json
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from cycode.cli.console import console
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cyclient.models import DetectionSchema
@@ -14,12 +13,12 @@ class JsonPrinter(PrinterBase):
     def print_result(self, result: CliResult) -> None:
         result = {'result': result.success, 'message': result.message, 'data': result.data}
 
-        console.print_json(self.get_data_json(result))
+        self.console.print_json(self.get_data_json(result))
 
     def print_error(self, error: CliError) -> None:
         result = {'error': error.code, 'message': error.message}
 
-        console.print_json(self.get_data_json(result))
+        self.console.print_json(self.get_data_json(result))
 
     def print_scan_results(
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
@@ -46,7 +45,7 @@ class JsonPrinter(PrinterBase):
             # FIXME(MarshalX): we don't care about scan IDs in JSON output due to clumsy JSON root structure
             inlined_errors = [err._asdict() for err in errors.values()]
 
-        console.print_json(self._get_json_scan_result(scan_ids, detections_dict, report_urls, inlined_errors))
+        self.console.print_json(self._get_json_scan_result(scan_ids, detections_dict, report_urls, inlined_errors))
 
     def _get_json_scan_result(
         self, scan_ids: List[str], detections: dict, report_urls: List[str], errors: List[dict]

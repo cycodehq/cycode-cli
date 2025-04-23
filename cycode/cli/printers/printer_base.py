@@ -4,11 +4,12 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import typer
 
-from cycode.cli.console import console_err
 from cycode.cli.models import CliError, CliResult
 from cycode.cyclient.headers import get_correlation_id
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from cycode.cli.models import LocalScanResult
 
 
@@ -24,8 +25,15 @@ class PrinterBase(ABC):
         'Please note that not all results may be available:[/]'
     )
 
-    def __init__(self, ctx: typer.Context) -> None:
+    def __init__(
+        self,
+        ctx: typer.Context,
+        console: 'Console',
+        console_err: 'Console',
+    ) -> None:
         self.ctx = ctx
+        self.console = console
+        self.console_err = console_err
 
     @abstractmethod
     def print_scan_results(
@@ -41,8 +49,7 @@ class PrinterBase(ABC):
     def print_error(self, error: CliError) -> None:
         pass
 
-    @staticmethod
-    def print_exception(e: Optional[BaseException] = None) -> None:
+    def print_exception(self, e: Optional[BaseException] = None) -> None:
         """We are printing it in stderr so, we don't care about supporting JSON and TABLE outputs.
 
         Note:
@@ -54,6 +61,6 @@ class PrinterBase(ABC):
             else RichTraceback.from_exception(*sys.exc_info())
         )
         rich_traceback.show_locals = False
-        console_err.print(rich_traceback)
+        self.console_err.print(rich_traceback)
 
-        console_err.print(f'[red]Correlation ID:[/] {get_correlation_id()}')
+        self.console_err.print(f'[red]Correlation ID:[/] {get_correlation_id()}')

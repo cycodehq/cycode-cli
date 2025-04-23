@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import typer
 
-from cycode.cli.console import console
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.text_printer import TextPrinter
@@ -14,8 +13,8 @@ if TYPE_CHECKING:
 
 
 class TablePrinterBase(PrinterBase, abc.ABC):
-    def __init__(self, ctx: typer.Context) -> None:
-        super().__init__(ctx)
+    def __init__(self, ctx: typer.Context, *args, **kwargs) -> None:
+        super().__init__(ctx, *args, **kwargs)
         self.scan_type: str = ctx.obj.get('scan_type')
         self.show_secret: bool = ctx.obj.get('show_secret', False)
 
@@ -29,7 +28,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            console.print(self.NO_DETECTIONS_MESSAGE)
+            self.console.print(self.NO_DETECTIONS_MESSAGE)
             return
 
         self._print_results(local_scan_results)
@@ -37,9 +36,9 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not errors:
             return
 
-        console.print(self.FAILED_SCAN_MESSAGE)
+        self.console.print(self.FAILED_SCAN_MESSAGE)
         for scan_id, error in errors.items():
-            console.print(f'- {scan_id}: ', end='')
+            self.console.print(f'- {scan_id}: ', end='')
             self.print_error(error)
 
     def _is_git_repository(self) -> bool:
@@ -49,13 +48,12 @@ class TablePrinterBase(PrinterBase, abc.ABC):
     def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
         raise NotImplementedError
 
-    @staticmethod
-    def _print_table(table: 'Table') -> None:
+    def _print_table(self, table: 'Table') -> None:
         if table.get_rows():
-            console.print(table.get_table())
+            self.console.print(table.get_table())
 
-    @staticmethod
     def _print_report_urls(
+        self,
         local_scan_results: List['LocalScanResult'],
         aggregation_report_url: Optional[str] = None,
     ) -> None:
@@ -63,9 +61,9 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:
-            console.print(f'Report URL: {aggregation_report_url}')
+            self.console.print(f'Report URL: {aggregation_report_url}')
             return
 
-        console.print('Report URLs:')
+        self.console.print('Report URLs:')
         for report_url in report_urls:
-            console.print(f'- {report_url}')
+            self.console.print(f'- {report_url}')

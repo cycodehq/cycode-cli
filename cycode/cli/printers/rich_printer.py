@@ -8,7 +8,6 @@ from rich.text import Text
 
 from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
-from cycode.cli.console import console
 from cycode.cli.printers.text_printer import TextPrinter
 from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax
 from cycode.cli.printers.utils.detection_data import get_detection_title
@@ -24,7 +23,7 @@ class RichPrinter(TextPrinter):
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            console.print(self.NO_DETECTIONS_MESSAGE)
+            self.console.print(self.NO_DETECTIONS_MESSAGE)
             return
 
         current_file = None
@@ -44,14 +43,13 @@ class RichPrinter(TextPrinter):
 
         self.print_report_urls_and_errors(local_scan_results, errors)
 
-    @staticmethod
-    def _print_file_header(file_path: str) -> None:
+    def _print_file_header(self, file_path: str) -> None:
         clickable_path = f'[link=file://{file_path}]{file_path}[/link]'
         file_header = Panel(
             Text.from_markup(f'[b purple3]:file_folder: File: {clickable_path}[/]', justify='center'),
             border_style='dim',
         )
-        console.print(file_header)
+        self.console.print(file_header)
 
     def _get_details_table(self, detection: 'Detection') -> Table:
         details_table = Table(show_header=False, box=None, padding=(0, 1))
@@ -138,4 +136,4 @@ class RichPrinter(TextPrinter):
             title_align='center',
         )
 
-        console.print(violation_card_panel)
+        self.console.print(violation_card_panel)
