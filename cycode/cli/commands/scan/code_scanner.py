@@ -32,6 +32,7 @@ from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
+from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient import logger
 from cycode.cyclient.config import set_logging_level
 from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
@@ -666,6 +667,9 @@ def get_scan_parameters(context: click.Context, paths: Optional[Tuple[str]] = No
         return scan_parameters
 
     remote_url = try_get_git_remote_url(paths[0])
+    if not remote_url:
+        remote_url = try_to_get_plastic_remote_url(paths[0])
+
     if remote_url:
         # TODO(MarshalX): remove hardcode in context
         context.obj['remote_url'] = remote_url
@@ -682,6 +686,93 @@ def try_get_git_remote_url(path: str) -> Optional[str]:
     except Exception as e:
         logger.debug('Failed to get Git remote URL', exc_info=e)
         return None
+
+
+def _get_plastic_repository_name(path: str) -> Optional[str]:
+    """Gets the name of the Plastic repository from the current working directory.
+
+    The command to execute is:
+        cm status --header --machinereadable --fieldseparator=":::"
+
+    Example of status header in machine-readable format:
+        STATUS:::0:::Project/RepoName:::OrgName@ServerInfo
+    """
+
+    try:
+        command = [
+            'cm',
+            'status',
+            '--header',
+            '--machinereadable',
+            f'--fieldseparator={consts.PLASTIC_VCS_DATA_SEPARATOR}',
+        ]
+
+        status = shell(command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=path)
+        if not status:
+            logger.debug('Failed to get Plastic repository name (command failed)')
+            return None
+
+        status_parts = status.split(consts.PLASTIC_VCS_DATA_SEPARATOR)
+        if len(status_parts) < 2:
+            logger.debug('Failed to parse Plastic repository name (command returned unexpected format)')
+            return None
+
+        return status_parts[2].strip()
+    except Exception as e:
+        logger.debug('Failed to get Plastic repository name', exc_info=e)
+        return None
+
+
+def _get_plastic_repository_list(working_dir: Optional[str] = None) -> Dict[str, str]:
+    """Gets the list of Plastic repositories and their GUIDs.
+
+    The command to execute is:
+        cm repo list --format="{repname}:::{repguid}"
+
+    Example line with data:
+        Project/RepoName:::tapo1zqt-wn99-4752-h61m-7d9k79d40r4v
+
+    Each line represents an individual repository.
+    """
+
+    repo_name_to_guid = {}
+
+    try:
+        command = ['cm', 'repo', 'ls', f'--format={{repname}}{consts.PLASTIC_VCS_DATA_SEPARATOR}{{repguid}}']
+
+        status = shell(command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=working_dir)
+        if not status:
+            logger.debug('Failed to get Plastic repository list (command failed)')
+            return repo_name_to_guid
+
+        status_lines = status.splitlines()
+        for line in status_lines:
+            data_parts = line.split(consts.PLASTIC_VCS_DATA_SEPARATOR)
+            if len(data_parts) < 2:
+                logger.debug('Failed to parse Plastic repository list line (unexpected format), %s', {'line': line})
+                continue
+
+            repo_name, repo_guid = data_parts
+            repo_name_to_guid[repo_name.strip()] = repo_guid.strip()
+
+        return repo_name_to_guid
+    except Exception as e:
+        logger.debug('Failed to get Plastic repository list', exc_info=e)
+        return repo_name_to_guid
+
+
+def try_to_get_plastic_remote_url(path: str) -> Optional[str]:
+    repository_name = _get_plastic_repository_name(path)
+    if not repository_name:
+        return None
+
+    repository_map = _get_plastic_repository_list(path)
+    if repository_name not in repository_map:
+        logger.debug('Failed to get Plastic repository GUID (repository not found in the list)')
+        return None
+
+    repository_guid = repository_map[repository_name]
+    return f'{consts.PLASTIC_VCS_REMOTE_URI_PREFIX}{repository_guid}'
 
 
 def exclude_irrelevant_detections(
