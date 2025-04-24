@@ -37,6 +37,7 @@ class TablePrinter(TablePrinterBase):
         table.set_group_separator_indexes(group_separator_indexes)
 
         self._print_table(table)
+        self.print_scan_results_summary(local_scan_results)
         self._print_report_urls(local_scan_results, self.ctx.obj.get('aggregation_report_url'))
 
     def _get_table(self) -> Table:

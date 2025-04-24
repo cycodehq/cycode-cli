@@ -29,7 +29,6 @@ class ConsolePrinter:
         # overrides
         'table_sca': ScaTablePrinter,
         'text_sca': ScaTablePrinter,
-        'rich_sca': ScaTablePrinter,
     }
 
     def __init__(
@@ -42,12 +41,7 @@ class ConsolePrinter:
         self.ctx = ctx
         self.console = console_override or console
         self.console_err = console_err_override or console_err
-
-        self.scan_type = self.ctx.obj.get('scan_type')
         self.output_type = output_type_override or self.ctx.obj.get('output')
-        self.aggregation_report_url = self.ctx.obj.get('aggregation_report_url')
-
-        self.printer = self._get_scan_printer()
 
         self.console_record = None
 
@@ -61,7 +55,16 @@ class ConsolePrinter:
                 output_type_override='json' if self.export_type == 'json' else self.output_type,
             )
 
-    def _get_scan_printer(self) -> 'PrinterBase':
+    @property
+    def scan_type(self) -> str:
+        return self.ctx.obj.get('scan_type')
+
+    @property
+    def aggregation_report_url(self) -> str:
+        return self.ctx.obj.get('aggregation_report_url')
+
+    @property
+    def printer(self) -> 'PrinterBase':
         printer_class = self._AVAILABLE_PRINTERS.get(self.output_type)
 
         composite_printer = self._AVAILABLE_PRINTERS.get(f'{self.output_type}_{self.scan_type}')

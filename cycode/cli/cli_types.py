@@ -94,6 +94,6 @@ _SEVERITY_EMOJIS = {
     SeverityOption.INFO.value: ':blue_circle:',
     SeverityOption.LOW.value: ':yellow_circle:',
     SeverityOption.MEDIUM.value: ':orange_circle:',
-    SeverityOption.HIGH.value: ':heavy_large_circle:',
-    SeverityOption.CRITICAL.value: ':red_circle:',
+    SeverityOption.HIGH.value: ':red_circle:',
+    SeverityOption.CRITICAL.value: ':exclamation_mark:',  # double_exclamation_mark is not red
 }

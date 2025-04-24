@@ -17,7 +17,7 @@ def _get_code_segment_start_line(detection_line: int, lines_to_display: int) -> 
     return 0 if start_line < 0 else start_line
 
 
-def _get_detection_line(scan_type: str, detection: 'Detection') -> int:
+def get_detection_line(scan_type: str, detection: 'Detection') -> int:
     return (
         detection.detection_details.get('line', -1)
         if scan_type == consts.SECRET_SCAN_TYPE
@@ -29,7 +29,7 @@ def _get_code_snippet_syntax_from_file(
     scan_type: str, detection: 'Detection', document: 'Document', lines_to_display: int, obfuscate: bool
 ) -> Syntax:
     detection_details = detection.detection_details
-    detection_line = _get_detection_line(scan_type, detection)
+    detection_line = get_detection_line(scan_type, detection)
     start_line_index = _get_code_segment_start_line(detection_line, lines_to_display)
     detection_position = get_position_in_line(document.content, detection_details.get('start_position', -1))
     violation_length = detection_details.get('length', -1)
@@ -69,7 +69,7 @@ def _get_code_snippet_syntax_from_git_diff(
     scan_type: str, detection: 'Detection', document: 'Document', obfuscate: bool
 ) -> Syntax:
     detection_details = detection.detection_details
-    detection_line = _get_detection_line(scan_type, detection)
+    detection_line = get_detection_line(scan_type, detection)
     detection_position = detection_details.get('start_position', -1)
     violation_length = detection_details.get('length', -1)
 

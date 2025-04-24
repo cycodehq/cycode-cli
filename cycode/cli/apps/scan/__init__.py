@@ -7,7 +7,7 @@ from cycode.cli.apps.scan.pre_receive.pre_receive_command import pre_receive_com
 from cycode.cli.apps.scan.repository.repository_command import repository_command
 from cycode.cli.apps.scan.scan_command import scan_command, scan_command_result_callback
 
-app = typer.Typer(name='scan')
+app = typer.Typer(name='scan', no_args_is_help=True)
 
 app.callback(
     short_help='Scan the content for Secrets, IaC, SCA, and SAST violations.',
