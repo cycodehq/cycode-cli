@@ -124,14 +124,15 @@ def try_restore_dependencies(
 def add_dependencies_tree_document(
     ctx: typer.Context, documents_to_scan: List[Document], is_git_diff: bool = False
 ) -> None:
-    documents_to_add: Dict[str, Document] = {}
+    documents_to_add: Dict[str, Document] = {document.path: document for document in documents_to_scan}
     restore_dependencies_list = restore_handlers(ctx, is_git_diff)
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
             try_restore_dependencies(ctx, documents_to_add, restore_dependencies, document)
 
-    documents_to_scan.extend(list(documents_to_add.values()))
+    # mutate original list using slice assignment
+    documents_to_scan[:] = list(documents_to_add.values())
 
 
 def restore_handlers(ctx: typer.Context, is_git_diff: bool) -> List[BaseRestoreDependencies]:
