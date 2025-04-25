@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - CM-47699-fix-linux-executable-builds
 
 permissions:
   contents: write
