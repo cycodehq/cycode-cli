@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - CM-47699-fix-linux-executable-builds
 
 permissions:
   contents: write
@@ -15,10 +16,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, macos-13, macos-14, windows-2019 ]
+        os: [ ubuntu-22.04, macos-13, macos-14, windows-2019 ]
         mode: [ 'onefile', 'onedir' ]
         exclude:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             mode: onedir
           - os: windows-2019
             mode: onedir
@@ -31,7 +32,7 @@ jobs:
 
     steps:
       - name: Run Cimon
-        if: matrix.os == 'ubuntu-20.04'
+        if: matrix.os == 'ubuntu-22.04'
         uses: cycodelabs/cimon-action@v0
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
