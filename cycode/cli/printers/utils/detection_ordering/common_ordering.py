@@ -36,7 +36,7 @@ def _sort_detections_by_file_path(
 def sort_and_group_detections(
     detections_with_documents: List[Tuple['Detection', 'Document']],
 ) -> GroupedDetections:
-    """Sort detections by severity. We do not have groping here (don't find the best one yet)."""
+    """Sort detections by severity. We do not have grouping here (don't find the best one yet)."""
     group_separator_indexes = set()
 
     # we sort detections by file path to make persist output order

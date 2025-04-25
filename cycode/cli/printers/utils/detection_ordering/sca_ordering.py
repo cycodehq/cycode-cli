@@ -15,7 +15,7 @@ def __group_by(detections: List['Detection'], details_field_name: str) -> Dict[s
 
 
 def __severity_sort_key(detection: 'Detection') -> int:
-    severity = detection.detection_details.get('advisory_severity', 'unknown')
+    severity = detection.severity if detection.severity else 'unknown'
     return SeverityOption.get_member_weight(severity)
 
 
