@@ -83,14 +83,8 @@ class ScaTablePrinter(TablePrinterBase):
     def _enrich_table_with_values(policy_id: str, table: Table, detection: Detection) -> None:
         detection_details = detection.detection_details
 
-        severity = None
-        if policy_id == PACKAGE_VULNERABILITY_POLICY_ID:
-            severity = detection_details.get('advisory_severity')
-        elif policy_id == LICENSE_COMPLIANCE_POLICY_ID:
-            severity = detection.severity
-
-        if severity:
-            table.add_cell(SEVERITY_COLUMN, SeverityOption(severity))
+        if detection.severity:
+            table.add_cell(SEVERITY_COLUMN, SeverityOption(detection.severity))
         else:
             table.add_cell(SEVERITY_COLUMN, 'N/A')
 
