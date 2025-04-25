@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from typer import rich_utils
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
@@ -18,11 +19,18 @@ from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
 from cycode.logger import set_logging_level
 
+# By default, it uses dim style which is hard to read with the combination of color from RICH_HELP
+rich_utils.STYLE_ERRORS_SUGGESTION = 'bold'
+# By default, it uses blue color which is too dark for some terminals
+rich_utils.RICH_HELP = "Try [cyan]'{command_path} {help_option}'[/] for help."
+
+
 app = typer.Typer(
     pretty_exceptions_show_locals=False,
     pretty_exceptions_short=True,
     context_settings=CLI_CONTEXT_SETTINGS,
     rich_markup_mode='rich',
+    no_args_is_help=True,
     add_completion=False,  # we add it manually to control the rich help panel
 )
 

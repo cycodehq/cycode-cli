@@ -1,8 +1,6 @@
 import abc
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-import typer
-
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.text_printer import TextPrinter
@@ -13,16 +11,11 @@ if TYPE_CHECKING:
 
 
 class TablePrinterBase(PrinterBase, abc.ABC):
-    def __init__(self, ctx: typer.Context, *args, **kwargs) -> None:
-        super().__init__(ctx, *args, **kwargs)
-        self.scan_type: str = ctx.obj.get('scan_type')
-        self.show_secret: bool = ctx.obj.get('show_secret', False)
-
     def print_result(self, result: CliResult) -> None:
-        TextPrinter(self.ctx).print_result(result)
+        TextPrinter(self.ctx, self.console, self.console_err).print_result(result)
 
     def print_error(self, error: CliError) -> None:
-        TextPrinter(self.ctx).print_error(error)
+        TextPrinter(self.ctx, self.console, self.console_err).print_error(error)
 
     def print_scan_results(
         self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None

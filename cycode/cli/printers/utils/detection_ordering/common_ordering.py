@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import TYPE_CHECKING, List, Set, Tuple
 
 from cycode.cli.cli_types import SeverityOption
@@ -37,22 +36,14 @@ def _sort_detections_by_file_path(
 def sort_and_group_detections(
     detections_with_documents: List[Tuple['Detection', 'Document']],
 ) -> GroupedDetections:
-    """Sort detections by severity and group by file name."""
-    detections = []
+    """Sort detections by severity. We do not have groping here (don't find the best one yet)."""
     group_separator_indexes = set()
 
     # we sort detections by file path to make persist output order
-    sorted_detections = _sort_detections_by_file_path(detections_with_documents)
+    sorted_by_path_detections = _sort_detections_by_file_path(detections_with_documents)
+    sorted_by_severity = _sort_detections_by_severity(sorted_by_path_detections)
 
-    grouped_by_file_path = defaultdict(list)
-    for detection, document in sorted_detections:
-        grouped_by_file_path[document.path].append((detection, document))
-
-    for file_path_group in grouped_by_file_path.values():
-        group_separator_indexes.add(len(detections) - 1)  # indexing starts from 0
-        detections.extend(_sort_detections_by_severity(file_path_group))
-
-    return detections, group_separator_indexes
+    return sorted_by_severity, group_separator_indexes
 
 
 def sort_and_group_detections_from_scan_result(local_scan_results: List['LocalScanResult']) -> GroupedDetections:

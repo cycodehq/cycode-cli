@@ -1,13 +1,9 @@
-import urllib.parse
 from typing import TYPE_CHECKING, Dict, List, Optional
-
-import typer
-from rich.markup import escape
 
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.models import CliError, CliResult, Document
 from cycode.cli.printers.printer_base import PrinterBase
-from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax
+from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax, get_detection_line
 from cycode.cli.printers.utils.detection_data import get_detection_title
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
 
@@ -16,12 +12,6 @@ if TYPE_CHECKING:
 
 
 class TextPrinter(PrinterBase):
-    def __init__(self, ctx: typer.Context, *args, **kwargs) -> None:
-        super().__init__(ctx, *args, **kwargs)
-        self.scan_type = ctx.obj.get('scan_type')
-        self.command_scan_type: str = ctx.info_name
-        self.show_secret: bool = ctx.obj.get('show_secret', False)
-
     def print_result(self, result: CliResult) -> None:
         color = 'default'
         if not result.success:
@@ -50,6 +40,7 @@ class TextPrinter(PrinterBase):
         for detection, document in detections:
             self.__print_document_detection(document, detection)
 
+        self.print_scan_results_summary(local_scan_results)
         self.print_report_urls_and_errors(local_scan_results, errors)
 
     def __print_document_detection(self, document: 'Document', detection: 'Detection') -> None:
@@ -66,16 +57,17 @@ class TextPrinter(PrinterBase):
         severity = SeverityOption(detection.severity) if detection.severity else 'N/A'
         severity_icon = SeverityOption.get_member_emoji(detection.severity) if detection.severity else ''
 
-        escaped_document_path = escape(urllib.parse.quote(document_path))
-        clickable_document_path = f'[link file://{escaped_document_path}]{document_path}'
+        line_no = get_detection_line(self.scan_type, detection) + 1
+        clickable_document_path = f'[u]{document_path}:{line_no}[/]'
 
         detection_commit_id = detection.detection_details.get('commit_id')
         detection_commit_id_message = f'\nCommit SHA: {detection_commit_id}' if detection_commit_id else ''
 
         self.console.print(
-            f'{severity_icon}',
+            severity_icon,
             severity,
-            f'violation: [b bright_red]{title}[/]{detection_commit_id_message}\n{clickable_document_path}:',
+            f'violation: [b bright_red]{title}[/]{detection_commit_id_message}\n'
+            f'[dodger_blue1]File: {clickable_document_path}[/]',
         )
 
     def __print_detection_code_segment(self, detection: 'Detection', document: Document) -> None:

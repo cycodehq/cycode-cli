@@ -45,6 +45,7 @@ class ScaTablePrinter(TablePrinterBase):
             self._print_summary_issues(len(detections), self._get_title(policy_id))
             self._print_table(table)
 
+        self.print_scan_results_summary(local_scan_results)
         self._print_report_urls(local_scan_results, aggregation_report_url)
 
     @staticmethod
@@ -129,7 +130,7 @@ class ScaTablePrinter(TablePrinterBase):
         table.add_cell(LICENSE_COLUMN, detection_details.get('license'))
 
     def _print_summary_issues(self, detections_count: int, title: str) -> None:
-        self.console.print(f':no_entry: Found {detections_count} issues of type: [b]{title}[/]')
+        self.console.print(f'[bold]Cycode found {detections_count} violations of type: [cyan]{title}[/]')
 
     @staticmethod
     def _extract_detections_per_policy_id(
