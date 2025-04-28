@@ -17,9 +17,9 @@ def commit_history_command(
     commit_range: Annotated[
         str,
         typer.Option(
-            '--commit_range',
+            '--commit-range',
             '-r',
-            help='Scan a commit range in this git repository (example: HEAD~1)',
+            help='Scan a commit range in this Git repository (example: HEAD~1)',
             show_default='cycode scans all commit history',
         ),
     ] = '--all',
