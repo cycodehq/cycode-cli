@@ -40,7 +40,7 @@ sentry-sdk = ">=2.8.0,<3.0"
 pyjwt = ">=2.8.0,<3.0"
 rich = ">=13.9.4, <14"
 patch-ng = "1.18.1"
-typer = "^0.15.2"
+typer = "^0.15.3"
 tenacity = ">=9.0.0,<9.1.0"
 
 [tool.poetry.group.test.dependencies]

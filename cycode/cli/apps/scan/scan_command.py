@@ -101,7 +101,6 @@ def scan_command(
 ) -> None:
     """:mag: [bold cyan]Scan code for vulnerabilities (Secrets, IaC, SCA, SAST).[/]
 
-
     This command scans your code for various types of security issues, including:
     * [yellow]Secrets:[/] Hardcoded credentials and sensitive information.
     * [dodger_blue1]Infrastructure as Code (IaC):[/] Misconfigurations in Terraform, CloudFormation, etc.
