@@ -1,6 +1,4 @@
-from typing import Optional
-
-import typer
+from typing import TYPE_CHECKING, Optional
 
 from cycode.cli.apps.auth.models import AuthInfo
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, RequestHttpError
@@ -8,8 +6,11 @@ from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.utils.jwt_utils import get_user_and_tenant_ids_from_access_token
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
+if TYPE_CHECKING:
+    from typer import Context
 
-def get_authorization_info(ctx: Optional[typer.Context] = None) -> Optional[AuthInfo]:
+
+def get_authorization_info(ctx: 'Context') -> Optional[AuthInfo]:
     printer = ctx.obj.get('console_printer')
 
     client_id, client_secret = CredentialsManager().get_credentials()

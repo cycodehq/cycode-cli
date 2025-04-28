@@ -1,4 +1,5 @@
 import platform
+from typing import TYPE_CHECKING
 
 from cycode import __version__
 from cycode.cli.apps.auth.auth_common import get_authorization_info
@@ -8,11 +9,14 @@ from cycode.cli.logger import logger
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 
+if TYPE_CHECKING:
+    from typer import Context
 
-def get_cli_status() -> CliStatus:
+
+def get_cli_status(ctx: 'Context') -> CliStatus:
     configuration_manager = ConfigurationManager()
 
-    auth_info = get_authorization_info()
+    auth_info = get_authorization_info(ctx)
     is_authenticated = auth_info is not None
 
     supported_modules_status = CliSupportedModulesStatus()

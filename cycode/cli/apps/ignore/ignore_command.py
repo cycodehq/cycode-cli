@@ -83,7 +83,20 @@ def ignore_command(  # noqa: C901
         bool, typer.Option('--global', '-g', help='Add an ignore rule to the global CLI config.')
     ] = False,
 ) -> None:
-    """Ignores a specific value, path or rule ID."""
+    """:no_entry: [bold cyan]Ignore specific findings or paths in scans.[/]
+
+    This command allows you to exclude specific items from Cycode scans, including:
+    * Paths: Exclude specific files or directories
+    * Rules: Ignore specific security rules
+    * Values: Exclude specific sensitive values
+    * Packages: Ignore specific package versions
+    * CVEs: Exclude specific vulnerabilities
+
+    Example usage:
+    * `cycode ignore --by-path .env`: Ignore the tests directory
+    * `cycode ignore --by-rule GUID`: Ignore rule with the specified GUID
+    * `cycode ignore --by-package lodash@4.17.21`: Ignore lodash version 4.17.21
+    """
     add_breadcrumb('ignore')
 
     all_by_values = [by_value, by_sha, by_path, by_rule, by_package, by_cve]
@@ -145,4 +158,4 @@ def ignore_command(  # noqa: C901
             'exclusion_value': exclusion_value,
         },
     )
-    configuration_manager.add_exclusion(configuration_scope, scan_type, exclusion_type, exclusion_value)
+    configuration_manager.add_exclusion(configuration_scope, str(scan_type), exclusion_type, exclusion_value)

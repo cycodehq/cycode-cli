@@ -38,7 +38,7 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
         git_proxy.get_invalid_git_repository_error(): CliError(
             soft_fail=False,
             code='invalid_git_error',
-            message='The path you supplied does not correlate to a git repository. '
+            message='The path you supplied does not correlate to a Git repository. '
             'If you still wish to scan this path, use: `cycode scan path <path>`',
         ),
     }

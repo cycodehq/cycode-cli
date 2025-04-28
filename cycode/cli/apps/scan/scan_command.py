@@ -99,9 +99,21 @@ def scan_command(
         ),
     ] = False,
 ) -> None:
-    """:magnifying_glass_tilted_right: Scan the content for Secrets, IaC, SCA, and SAST violations.
-    You'll need to specify which scan type to perform:
-    [cyan]path[/]/[cyan]repository[/]/[cyan]commit_history[/]."""
+    """:mag: [bold cyan]Scan code for vulnerabilities (Secrets, IaC, SCA, SAST).[/]
+
+
+    This command scans your code for various types of security issues, including:
+    * [yellow]Secrets:[/] Hardcoded credentials and sensitive information.
+    * [dodger_blue1]Infrastructure as Code (IaC):[/] Misconfigurations in Terraform, CloudFormation, etc.
+    * [green]Software Composition Analysis (SCA):[/] Vulnerabilities and license issues in dependencies.
+    * [magenta]Static Application Security Testing (SAST):[/] Code quality and security flaws.
+
+    Example usage:
+    * `cycode scan path <PATH>`: Scan a specific local directory or file.
+    * `cycode scan repository <PATH>`: Scan Git related files in a local Git repository.
+    * `cycode scan commit-history <PATH>`: Scan the commit history of a local Git repository.
+
+    """
     add_breadcrumb('scan')
 
     ctx.obj['show_secret'] = show_secret

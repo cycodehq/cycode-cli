@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Type
 
 _GIT_ERROR_MESSAGE = """
-Cycode CLI needs the git executable to be installed on the system.
+Cycode CLI needs the Git executable to be installed on the system.
 Git executable must be available in the PATH.
 Git 1.7.x or newer is required.
 You can help Cycode CLI to locate the Git executable

@@ -12,7 +12,7 @@ from cycode.cli.utils.sentry import add_breadcrumb
 def commit_history_command(
     ctx: typer.Context,
     path: Annotated[
-        Path, typer.Argument(exists=True, resolve_path=True, help='Path to git repository to scan', show_default=False)
+        Path, typer.Argument(exists=True, resolve_path=True, help='Path to Git repository to scan', show_default=False)
     ],
     commit_range: Annotated[
         str,

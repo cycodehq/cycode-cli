@@ -23,7 +23,20 @@ def _should_update_value(
 
 
 def configure_command() -> None:
-    """Configure your CLI client authentication manually."""
+    """:gear: [bold cyan]Configure Cycode CLI settings.[/]
+
+    This command allows you to configure various aspects of the Cycode CLI.
+
+    Configuration options:
+    * API URL: The base URL for Cycode's API (for on-premise or EU installations)
+    * APP URL: The base URL for Cycode's web application (for on-premise or EU installations)
+    * Client ID: Your Cycode client ID for authentication
+    * Client Secret: Your Cycode client secret for authentication
+
+    Example usage:
+    * `cycode configure`: Start interactive configuration
+    * `cycode configure --help`: View configuration options
+    """
     add_breadcrumb('configure')
 
     global_config_manager = CONFIGURATION_MANAGER.global_config_file_manager
