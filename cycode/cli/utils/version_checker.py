@@ -2,7 +2,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from cycode.cli.console import console
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
@@ -11,8 +11,8 @@ from cycode.cyclient.cycode_client_base import CycodeClientBase
 
 
 def _compare_versions(
-    current_parts: List[int],
-    latest_parts: List[int],
+    current_parts: list[int],
+    latest_parts: list[int],
     current_is_pre: bool,
     latest_is_pre: bool,
     latest_version: str,
@@ -33,6 +33,7 @@ def _compare_versions(
     Returns:
         str | None: The latest version string if an update is recommended,
                    None if no update is needed
+
     """
     # If current is stable and latest is pre-release, don't suggest update
     if not current_is_pre and latest_is_pre:
@@ -82,6 +83,7 @@ class VersionChecker(CycodeClientBase):
         Returns:
             str | None: The latest version string if successful, None if the request fails
                        or the version information is not available.
+
         """
         try:
             response = self.get(f'{self.PYPI_PACKAGE_NAME}/json', timeout=self.PYPI_REQUEST_TIMEOUT)
@@ -91,7 +93,7 @@ class VersionChecker(CycodeClientBase):
             return None
 
     @staticmethod
-    def _parse_version(version: str) -> Tuple[List[int], bool]:
+    def _parse_version(version: str) -> tuple[list[int], bool]:
         """Parse version string into components and identify if it's a pre-release.
 
         Extracts numeric version components and determines if the version is a pre-release
@@ -104,6 +106,7 @@ class VersionChecker(CycodeClientBase):
             tuple: A tuple containing:
                 - List[int]: List of numeric version components
                 - bool: True if this is a pre-release version, False otherwise
+
         """
         version_parts = [int(x) for x in re.findall(r'\d+', version)]
         is_prerelease = 'dev' in version
@@ -122,6 +125,7 @@ class VersionChecker(CycodeClientBase):
 
         Returns:
             bool: True if an update check should be performed, False otherwise
+
         """
         if not os.path.exists(self.cache_file):
             return True
@@ -148,7 +152,7 @@ class VersionChecker(CycodeClientBase):
             os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
             with open(self.cache_file, 'w', encoding='UTF-8') as f:
                 f.write(str(time.time()))
-        except IOError:
+        except OSError:
             pass
 
     def check_for_update(self, current_version: str, use_cache: bool = True) -> Optional[str]:
@@ -163,6 +167,7 @@ class VersionChecker(CycodeClientBase):
         Returns:
             str | None: The latest version string if an update is recommended,
                        None if no update is needed or if check should be skipped
+
         """
         current_parts, current_is_pre = self._parse_version(current_version)
 
@@ -192,6 +197,7 @@ class VersionChecker(CycodeClientBase):
         Args:
             current_version: Current version of the CLI
             use_cache: If True, use the cached timestamp to determine if an update check is needed
+
         """
         latest_version = self.check_for_update(current_version, use_cache)
         should_update = bool(latest_version)

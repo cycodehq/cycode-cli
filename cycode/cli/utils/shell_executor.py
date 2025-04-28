@@ -1,5 +1,5 @@
 import subprocess
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import click
 import typer
@@ -13,7 +13,7 @@ logger = get_logger('SHELL')
 
 
 def shell(
-    command: Union[str, List[str]],
+    command: Union[str, list[str]],
     timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC,
     working_directory: Optional[str] = None,
 ) -> Optional[str]:

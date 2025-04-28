@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.models import CliError, CliResult, Document
@@ -30,7 +30,7 @@ class TextPrinter(PrinterBase):
         self.console.print(f'[red]Error: {error.message}[/]', highlight=False)
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             self.console.print(self.NO_DETECTIONS_MESSAGE)
@@ -82,7 +82,7 @@ class TextPrinter(PrinterBase):
         )
 
     def print_report_urls_and_errors(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
     ) -> None:
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
 
@@ -95,7 +95,7 @@ class TextPrinter(PrinterBase):
             self.console.print(f'- {scan_id}: ', end='')
             self.print_error(error)
 
-    def print_report_urls(self, report_urls: List[str], aggregation_report_url: Optional[str] = None) -> None:
+    def print_report_urls(self, report_urls: list[str], aggregation_report_url: Optional[str] = None) -> None:
         if not report_urls and not aggregation_report_url:
             return
         if aggregation_report_url:

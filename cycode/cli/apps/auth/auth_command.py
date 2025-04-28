@@ -16,7 +16,6 @@ def auth_command(ctx: typer.Context) -> None:
     * `cycode auth`: Start interactive authentication
     * `cycode auth --help`: View authentication options
     """
-
     add_breadcrumb('auth')
     printer = ctx.obj.get('console_printer')
 

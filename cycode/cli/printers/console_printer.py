@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 import typer
 from rich.console import Console
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class ConsolePrinter:
-    _AVAILABLE_PRINTERS: ClassVar[Dict[str, Type['PrinterBase']]] = {
+    _AVAILABLE_PRINTERS: ClassVar[dict[str, type['PrinterBase']]] = {
         'rich': RichPrinter,
         'text': TextPrinter,
         'json': JsonPrinter,
@@ -78,8 +78,8 @@ class ConsolePrinter:
 
     def print_scan_results(
         self,
-        local_scan_results: List['LocalScanResult'],
-        errors: Optional[Dict[str, 'CliError']] = None,
+        local_scan_results: list['LocalScanResult'],
+        errors: Optional[dict[str, 'CliError']] = None,
     ) -> None:
         if self.console_record:
             self.console_record.print_scan_results(local_scan_results, errors)

@@ -35,6 +35,7 @@ class _CorrelationId:
             Used across all requests to correlate logs and metrics.
             It doesn't depend on client instances.
             Lifetime is the same as the process.
+
         """
         if self._id is None:
             # example: 16fd2706-8baf-433b-82eb-8c7fada847da

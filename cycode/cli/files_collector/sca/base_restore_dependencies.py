@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 import typer
 
@@ -14,7 +14,7 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 
 def execute_commands(
-    commands: List[List[str]],
+    commands: list[list[str]],
     file_name: str,
     command_timeout: int,
     dependencies_file_name: Optional[str] = None,
@@ -91,7 +91,7 @@ class BaseRestoreDependencies(ABC):
         pass
 
     @abstractmethod
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         pass
 
     @abstractmethod

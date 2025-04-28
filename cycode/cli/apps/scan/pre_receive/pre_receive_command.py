@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 import click
 import typer
@@ -25,7 +25,7 @@ from cycode.cli.utils.task_timer import TimeoutAfter
 
 def pre_receive_command(
     ctx: typer.Context,
-    _: Annotated[Optional[List[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
+    _: Annotated[Optional[list[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
 ) -> None:
     try:
         add_breadcrumb('pre_receive')

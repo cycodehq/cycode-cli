@@ -9,7 +9,7 @@ PRE_RECEIVE_COMMAND_SCAN_TYPE_OLD = 'pre_receive'
 COMMIT_HISTORY_COMMAND_SCAN_TYPE = 'commit-history'
 COMMIT_HISTORY_COMMAND_SCAN_TYPE_OLD = 'commit_history'
 
-SECRET_SCAN_TYPE = 'secret'  # noqa: S105
+SECRET_SCAN_TYPE = 'secret'
 IAC_SCAN_TYPE = 'iac'
 SCA_SCAN_TYPE = 'sca'
 SAST_SCAN_TYPE = 'sast'

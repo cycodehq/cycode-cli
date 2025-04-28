@@ -1,7 +1,7 @@
 import os
 import platform
 import ssl
-from typing import TYPE_CHECKING, Callable, ClassVar, Dict, Optional
+from typing import TYPE_CHECKING, Callable, ClassVar, Optional
 
 import requests
 from requests import Response, exceptions
@@ -14,7 +14,7 @@ from cycode.cli.exceptions.custom_exceptions import (
     RequestError,
     RequestHttpError,
     RequestSslError,
-    RequestTimeout,
+    RequestTimeoutError,
 )
 from cycode.cyclient import config
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
@@ -50,7 +50,7 @@ def _get_request_function() -> Callable:
 
 
 _REQUEST_ERRORS_TO_RETRY = (
-    RequestTimeout,
+    RequestTimeoutError,
     RequestConnectionError,
     exceptions.ChunkedEncodingError,
     exceptions.ContentDecodingError,
@@ -91,7 +91,7 @@ def _should_retry_exception(exception: BaseException) -> bool:
 
 
 class CycodeClientBase:
-    MANDATORY_HEADERS: ClassVar[Dict[str, str]] = {
+    MANDATORY_HEADERS: ClassVar[dict[str, str]] = {
         'User-Agent': get_cli_user_agent(),
         'X-Correlation-Id': get_correlation_id(),
     }
@@ -160,7 +160,7 @@ class CycodeClientBase:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> Dict[str, str]:
+    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> dict[str, str]:
         if additional_headers is None:
             return self.MANDATORY_HEADERS.copy()
         return {**self.MANDATORY_HEADERS, **additional_headers}
@@ -170,7 +170,7 @@ class CycodeClientBase:
 
     def _handle_exception(self, e: Exception) -> None:
         if isinstance(e, exceptions.Timeout):
-            raise RequestTimeout from e
+            raise RequestTimeoutError from e
         if isinstance(e, exceptions.HTTPError):
             raise self._get_http_exception(e) from e
         if isinstance(e, exceptions.SSLError):

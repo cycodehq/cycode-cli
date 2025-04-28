@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List, Set, Tuple
+from typing import TYPE_CHECKING
 
 from cycode.cli.cli_types import SeverityOption
 
@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from cycode.cyclient.models import Detection
 
 
-def __group_by(detections: List['Detection'], details_field_name: str) -> Dict[str, List['Detection']]:
+def __group_by(detections: list['Detection'], details_field_name: str) -> dict[str, list['Detection']]:
     grouped = defaultdict(list)
     for detection in detections:
         grouped[detection.detection_details.get(details_field_name)].append(detection)
@@ -19,7 +19,7 @@ def __severity_sort_key(detection: 'Detection') -> int:
     return SeverityOption.get_member_weight(severity)
 
 
-def _sort_detections_by_severity(detections: List['Detection']) -> List['Detection']:
+def _sort_detections_by_severity(detections: list['Detection']) -> list['Detection']:
     return sorted(detections, key=__severity_sort_key, reverse=True)
 
 
@@ -27,11 +27,11 @@ def __package_sort_key(detection: 'Detection') -> int:
     return detection.detection_details.get('package_name')
 
 
-def _sort_detections_by_package(detections: List['Detection']) -> List['Detection']:
+def _sort_detections_by_package(detections: list['Detection']) -> list['Detection']:
     return sorted(detections, key=__package_sort_key)
 
 
-def sort_and_group_detections(detections: List['Detection']) -> Tuple[List['Detection'], Set[int]]:
+def sort_and_group_detections(detections: list['Detection']) -> tuple[list['Detection'], set[int]]:
     """Sort detections by severity and group by repository, code project and package name.
 
     Note:
@@ -39,6 +39,7 @@ def sort_and_group_detections(detections: List['Detection']) -> Tuple[List['Dete
 
         Grouping by code projects also groups by ecosystem.
         Because manifest files are unique per ecosystem.
+
     """
     resulting_detections = []
     group_separator_indexes = set()

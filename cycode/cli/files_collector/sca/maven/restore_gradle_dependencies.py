@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Optional, Set
+from typing import Optional
 
 import typer
 
@@ -19,7 +19,7 @@ ALL_PROJECTS_REGEX = r"[+-]{3} Project '(.*?)'"
 
 class RestoreGradleDependencies(BaseRestoreDependencies):
     def __init__(
-        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, projects: Optional[Set[str]] = None
+        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, projects: Optional[set[str]] = None
     ) -> None:
         super().__init__(ctx, is_git_diff, command_timeout, create_output_file_manually=True)
         if projects is None:
@@ -32,7 +32,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return (
             self.get_commands_for_sub_projects(manifest_file_path)
             if self.is_gradle_sub_projects()
@@ -48,7 +48,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
     def get_working_directory(self, document: Document) -> Optional[str]:
         return get_path_from_context(self.ctx) if self.is_gradle_sub_projects() else None
 
-    def get_all_projects(self) -> Set[str]:
+    def get_all_projects(self) -> set[str]:
         projects_output = shell(
             command=BUILD_GRADLE_ALL_PROJECTS_COMMAND,
             timeout=BUILD_GRADLE_ALL_PROJECTS_TIMEOUT,
@@ -59,7 +59,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
 
         return set(projects)
 
-    def get_commands_for_sub_projects(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands_for_sub_projects(self, manifest_file_path: str) -> list[list[str]]:
         project_name = os.path.basename(os.path.dirname(manifest_file_path))
         project_name = f':{project_name}'
         return (

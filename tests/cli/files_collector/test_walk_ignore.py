@@ -1,6 +1,6 @@
 import os
 from os.path import normpath
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from cycode.cli.files_collector.walk_ignore import (
     _collect_top_level_ignore_files,
@@ -95,7 +95,7 @@ def test_collect_top_level_ignore_files(fs: 'FakeFilesystem') -> None:
     fs.create_file('/home/user/project/.gitignore', contents='*.pyc\n*.log')
 
 
-def _collect_walk_ignore_files(path: str) -> List[str]:
+def _collect_walk_ignore_files(path: str) -> list[str]:
     files = []
     for root, _, filenames in walk_ignore(path):
         for filename in filenames:

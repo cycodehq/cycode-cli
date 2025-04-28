@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
@@ -16,8 +16,8 @@ logger = get_logger('File Excluder')
 
 
 def exclude_irrelevant_files(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, filenames: List[str]
-) -> List[str]:
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, filenames: list[str]
+) -> list[str]:
     relevant_files = []
     for filename in filenames:
         progress_bar.update(progress_bar_section)
@@ -29,7 +29,7 @@ def exclude_irrelevant_files(
     return relevant_files
 
 
-def exclude_irrelevant_documents_to_scan(scan_type: str, documents_to_scan: List['Document']) -> List['Document']:
+def exclude_irrelevant_documents_to_scan(scan_type: str, documents_to_scan: list['Document']) -> list['Document']:
     logger.debug('Excluding irrelevant documents to scan')
 
     relevant_documents = []

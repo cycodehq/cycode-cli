@@ -11,7 +11,7 @@ But it’s fine to use a higher version without using new features from these ve
 The project is under Poetry project management.
 To deal with it, you should install it on your system:
 
-Install Poetry (feel free to use Brew, etc):
+Install Poetry (feel free to use Brew, etc.):
 
 ```shell
 curl -sSL https://install.python-poetry.org | python - -y
@@ -69,6 +69,8 @@ poetry run ruff format .
 ```
 
 Many rules support auto-fixing. You can run it with the `--fix` flag.
+
+Plugin for JB IDEs with auto formatting on save is available [here](https://plugins.jetbrains.com/plugin/20574-ruff).
 
 ### Branching and versioning
 

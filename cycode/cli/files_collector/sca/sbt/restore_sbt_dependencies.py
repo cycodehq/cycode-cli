@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import Optional
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
@@ -12,7 +12,7 @@ class RestoreSbtDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in SBT_PROJECT_FILE_EXTENSIONS)
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [['sbt', 'dependencyLockWrite', '--verbose']]
 
     def get_lock_file_name(self) -> str:

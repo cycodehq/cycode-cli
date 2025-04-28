@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
 
-@pytest.fixture()
+@pytest.fixture
 def ctx() -> typer.Context:
     ctx = typer.Context(click.Command('path'), obj={'verbose': False, 'output': OutputTypeOption.TEXT})
     ctx.obj['console_printer'] = ConsolePrinter(ctx)
@@ -25,7 +25,7 @@ def ctx() -> typer.Context:
 
 
 @pytest.mark.parametrize(
-    'exception, expected_soft_fail',
+    ('exception', 'expected_soft_fail'),
     [
         (custom_exceptions.RequestHttpError(400, 'msg', Response()), True),
         (custom_exceptions.ScanAsyncError('msg'), True),

@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import Optional
 
 import typer
 
@@ -34,7 +34,7 @@ class RestoreGoDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in GO_PROJECT_FILE_EXTENSIONS)
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [
             ['go', 'list', '-m', '-json', 'all'],
             ['echo', '------------------------------------------------------'],

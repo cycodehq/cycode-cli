@@ -1,6 +1,6 @@
 import types
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING, Optional
 
 _GIT_ERROR_MESSAGE = """
 Cycode CLI needs the Git executable to be installed on the system.
@@ -31,10 +31,10 @@ class _AbstractGitProxy(ABC):
     def get_null_tree(self) -> object: ...
 
     @abstractmethod
-    def get_invalid_git_repository_error(self) -> Type[BaseException]: ...
+    def get_invalid_git_repository_error(self) -> type[BaseException]: ...
 
     @abstractmethod
-    def get_git_command_error(self) -> Type[BaseException]: ...
+    def get_git_command_error(self) -> type[BaseException]: ...
 
 
 class _DummyGitProxy(_AbstractGitProxy):
@@ -44,10 +44,10 @@ class _DummyGitProxy(_AbstractGitProxy):
     def get_null_tree(self) -> object:
         raise RuntimeError(_GIT_ERROR_MESSAGE)
 
-    def get_invalid_git_repository_error(self) -> Type[BaseException]:
+    def get_invalid_git_repository_error(self) -> type[BaseException]:
         return GitProxyError
 
-    def get_git_command_error(self) -> Type[BaseException]:
+    def get_git_command_error(self) -> type[BaseException]:
         return GitProxyError
 
 
@@ -58,10 +58,10 @@ class _GitProxy(_AbstractGitProxy):
     def get_null_tree(self) -> object:
         return git.NULL_TREE
 
-    def get_invalid_git_repository_error(self) -> Type[BaseException]:
+    def get_invalid_git_repository_error(self) -> type[BaseException]:
         return git.InvalidGitRepositoryError
 
-    def get_git_command_error(self) -> Type[BaseException]:
+    def get_git_command_error(self) -> type[BaseException]:
         return git.GitCommandError
 
 
@@ -87,10 +87,10 @@ class GitProxyManager(_AbstractGitProxy):
     def get_null_tree(self) -> object:
         return self._git_proxy.get_null_tree()
 
-    def get_invalid_git_repository_error(self) -> Type[BaseException]:
+    def get_invalid_git_repository_error(self) -> type[BaseException]:
         return self._git_proxy.get_invalid_git_repository_error()
 
-    def get_git_command_error(self) -> Type[BaseException]:
+    def get_git_command_error(self) -> type[BaseException]:
         return self._git_proxy.get_git_command_error()
 
 

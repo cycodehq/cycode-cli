@@ -17,8 +17,7 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
         custom_exceptions.ScanAsyncError: CliError(
             soft_fail=True,
             code='scan_error',
-            message='Cycode was unable to complete this scan. '
-            'Please try again by executing the `cycode scan` command',
+            message='Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
         ),
         custom_exceptions.ZipTooLargeError: CliError(
             soft_fail=True,

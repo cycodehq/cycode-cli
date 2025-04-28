@@ -1,6 +1,6 @@
 import os
 from multiprocessing.pool import ThreadPool
-from typing import TYPE_CHECKING, Callable, Dict, List, Tuple
+from typing import TYPE_CHECKING, Callable
 
 from cycode.cli import consts
 from cycode.cli.models import Document
@@ -45,8 +45,8 @@ def _get_max_batch_files_count(_: str) -> int:
 
 def split_documents_into_batches(
     scan_type: str,
-    documents: List[Document],
-) -> List[List[Document]]:
+    documents: list[Document],
+) -> list[list[Document]]:
     max_size = _get_max_batch_size(scan_type)
     max_files_count = _get_max_batch_files_count(scan_type)
 
@@ -107,11 +107,11 @@ def _get_threads_count() -> int:
 
 
 def run_parallel_batched_scan(
-    scan_function: Callable[[List[Document]], Tuple[str, 'CliError', 'LocalScanResult']],
+    scan_function: Callable[[list[Document]], tuple[str, 'CliError', 'LocalScanResult']],
     scan_type: str,
-    documents: List[Document],
+    documents: list[Document],
     progress_bar: 'BaseProgressBar',
-) -> Tuple[Dict[str, 'CliError'], List['LocalScanResult']]:
+) -> tuple[dict[str, 'CliError'], list['LocalScanResult']]:
     # batching is disabled for SCA; requested by Mor
     batches = [documents] if scan_type == consts.SCA_SCAN_TYPE else split_documents_into_batches(scan_type, documents)
 
@@ -124,8 +124,8 @@ def run_parallel_batched_scan(
     # the progress bar could be significant improved (be more dynamic) in the future
 
     threads_count = _get_threads_count()
-    local_scan_results: List['LocalScanResult'] = []
-    cli_errors: Dict[str, 'CliError'] = {}
+    local_scan_results: list[LocalScanResult] = []
+    cli_errors: dict[str, CliError] = {}
 
     logger.debug('Running parallel batched scan, %s', {'threads_count': threads_count, 'batches_count': len(batches)})
 

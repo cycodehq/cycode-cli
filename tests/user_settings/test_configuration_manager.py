@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Optional
-
-from mock import Mock
+from unittest.mock import Mock
 
 from cycode.cli.consts import DEFAULT_CYCODE_API_URL
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager

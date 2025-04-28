@@ -4,7 +4,7 @@ from cycode.cli.models import CliError, CliErrors
 
 
 class CycodeError(Exception):
-    """Base class for all custom exceptions"""
+    """Base class for all custom exceptions."""
 
     def __str__(self) -> str:
         class_name = self.__class__.__name__
@@ -14,7 +14,7 @@ class CycodeError(Exception):
 class RequestError(CycodeError): ...
 
 
-class RequestTimeout(RequestError): ...
+class RequestTimeoutError(RequestError): ...
 
 
 class RequestConnectionError(RequestError): ...
@@ -91,7 +91,7 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
         code='cycode_error',
         message='Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
     ),
-    RequestTimeout: CliError(
+    RequestTimeoutError: CliError(
         soft_fail=True,
         code='timeout_error',
         message='The request timed out. Please try again by executing the `cycode scan` command',

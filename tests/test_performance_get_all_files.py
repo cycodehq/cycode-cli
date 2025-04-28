@@ -3,17 +3,17 @@ import logging
 import os
 import timeit
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Union
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def filter_files(paths: List[Union[Path, str]]) -> List[str]:
+def filter_files(paths: list[Union[Path, str]]) -> list[str]:
     return [str(path) for path in paths if os.path.isfile(path)]
 
 
-def get_all_files_glob(path: Union[Path, str]) -> List[str]:
+def get_all_files_glob(path: Union[Path, str]) -> list[str]:
     # DOESN'T RETURN HIDDEN FILES. CAN'T BE USED
     # and doesn't show the best performance
     if not str(path).endswith(os.sep):
@@ -22,7 +22,7 @@ def get_all_files_glob(path: Union[Path, str]) -> List[str]:
     return filter_files(glob.glob(f'{path}**', recursive=True))
 
 
-def get_all_files_walk(path: str) -> List[str]:
+def get_all_files_walk(path: str) -> list[str]:
     files = []
 
     for root, _, filenames in os.walk(path):
@@ -32,7 +32,7 @@ def get_all_files_walk(path: str) -> List[str]:
     return files
 
 
-def get_all_files_listdir(path: str) -> List[str]:
+def get_all_files_listdir(path: str) -> list[str]:
     files = []
 
     def _(sub_path: str) -> None:
@@ -50,12 +50,12 @@ def get_all_files_listdir(path: str) -> List[str]:
     return files
 
 
-def get_all_files_rglob(path: str) -> List[str]:
+def get_all_files_rglob(path: str) -> list[str]:
     return filter_files(list(Path(path).rglob(r'*')))
 
 
 def test_get_all_files_performance(test_files_path: str) -> None:
-    results: Dict[str, Tuple[int, float]] = {}
+    results: dict[str, tuple[int, float]] = {}
     for func in {
         get_all_files_rglob,
         get_all_files_listdir,

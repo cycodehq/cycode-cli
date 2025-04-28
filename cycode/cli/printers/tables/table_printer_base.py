@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
@@ -18,7 +18,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         TextPrinter(self.ctx, self.console, self.console_err).print_error(error)
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             self.console.print(self.NO_DETECTIONS_MESSAGE)
@@ -38,7 +38,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         return self.ctx.info_name in {'commit_history', 'pre_commit', 'pre_receive'} and 'remote_url' in self.ctx.obj
 
     @abc.abstractmethod
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: list['LocalScanResult']) -> None:
         raise NotImplementedError
 
     def _print_table(self, table: 'Table') -> None:
@@ -47,7 +47,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
 
     def _print_report_urls(
         self,
-        local_scan_results: List['LocalScanResult'],
+        local_scan_results: list['LocalScanResult'],
         aggregation_report_url: Optional[str] = None,
     ) -> None:
         report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]

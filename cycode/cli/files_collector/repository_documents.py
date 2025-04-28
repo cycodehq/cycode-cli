@@ -1,5 +1,6 @@
 import os
-from typing import TYPE_CHECKING, Iterator, List, Optional, Tuple, Union
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Optional, Union
 
 from cycode.cli import consts
 from cycode.cli.files_collector.sca import sca_code_scanner
@@ -25,7 +26,7 @@ def get_git_repository_tree_file_entries(
     return git_proxy.get_repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def parse_commit_range(commit_range: str, path: str) -> Tuple[str, str]:
+def parse_commit_range(commit_range: str, path: str) -> tuple[str, str]:
     from_commit_rev = None
     to_commit_rev = None
 
@@ -47,7 +48,7 @@ def get_diff_file_content(file: 'Diff') -> str:
 
 def get_pre_commit_modified_documents(
     progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection'
-) -> Tuple[List[Document], List[Document]]:
+) -> tuple[list[Document], list[Document]]:
     git_head_documents = []
     pre_committed_documents = []
 
@@ -77,7 +78,7 @@ def get_commit_range_modified_documents(
     path: str,
     from_commit_rev: str,
     to_commit_rev: str,
-) -> Tuple[List[Document], List[Document]]:
+) -> tuple[list[Document], list[Document]]:
     from_commit_documents = []
     to_commit_documents = []
 

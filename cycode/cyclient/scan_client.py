@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from typing import TYPE_CHECKING, List, Set, Union
+from typing import TYPE_CHECKING, Union
 from uuid import UUID
 
 from requests import Response
@@ -135,7 +135,7 @@ class ScanClient:
         return f'{self.get_scan_service_url_path(scan_type)}/{scan_id}'
 
     def get_scan_aggregation_report_url_path(self, aggregation_id: str, scan_type: str) -> str:
-        return f'{self.get_scan_service_url_path(scan_type)}' f'/reportUrlByAggregationId/{aggregation_id}'
+        return f'{self.get_scan_service_url_path(scan_type)}/reportUrlByAggregationId/{aggregation_id}'
 
     def get_scan_details(self, scan_type: str, scan_id: str) -> models.ScanDetailsResponse:
         path = self.get_scan_details_path(scan_type, scan_id)
@@ -190,10 +190,10 @@ class ScanClient:
         return scan_type_to_policy_type[scan_type]
 
     @staticmethod
-    def parse_detection_rules_response(response: Response) -> List[models.DetectionRule]:
+    def parse_detection_rules_response(response: Response) -> list[models.DetectionRule]:
         return models.DetectionRuleSchema().load(response.json(), many=True)
 
-    def get_detection_rules(self, detection_rules_ids: Union[Set[str], List[str]]) -> List[models.DetectionRule]:
+    def get_detection_rules(self, detection_rules_ids: Union[set[str], list[str]]) -> list[models.DetectionRule]:
         response = self.scan_cycode_client.get(
             url_path=self.get_detection_rules_path(),
             params={'ids': detection_rules_ids},
@@ -208,7 +208,7 @@ class ScanClient:
     def get_scan_detections_list_path(self) -> str:
         return f'{self.get_scan_detections_path()}/detections'
 
-    def get_scan_raw_detections(self, scan_id: str) -> List[dict]:
+    def get_scan_raw_detections(self, scan_id: str) -> list[dict]:
         params = {'scan_id': scan_id}
 
         page_size = 200
