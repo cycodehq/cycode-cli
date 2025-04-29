@@ -1,9 +1,10 @@
+from pathlib import Path
 from typing import Annotated, Optional
 
 import click
 import typer
 
-from cycode.cli.cli_types import ScanTypeOption, ScaScanTypeOption, SeverityOption
+from cycode.cli.cli_types import ExportTypeOption, ScanTypeOption, ScaScanTypeOption, SeverityOption
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
@@ -13,6 +14,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
 
 _AUTH_RICH_HELP_PANEL = 'Authentication options'
+_EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
 
 
@@ -66,6 +68,27 @@ def scan_command(
             'A link to the report will be displayed in the console output.',
         ),
     ] = False,
+    export_type: Annotated[
+        ExportTypeOption,
+        typer.Option(
+            '--export-type',
+            case_sensitive=False,
+            help='Specify the export type. '
+            'HTML and SVG will export terminal output and rely on --output option. '
+            'JSON always exports JSON.',
+            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+        ),
+    ] = ExportTypeOption.JSON,
+    export_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--export-file',
+            help='Export file. Path to the file where the export will be saved. ',
+            dir_okay=False,
+            writable=True,
+            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+        ),
+    ] = None,
     sca_scan: Annotated[
         list[ScaScanTypeOption],
         typer.Option(
@@ -123,6 +146,10 @@ def scan_command(
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
     ctx.obj['report'] = report
+
+    if export_file:
+        console_printer = ctx.obj['console_printer']
+        console_printer.enable_recording(export_type, export_file)
 
     _ = no_restore, gradle_all_sub_projects  # they are actually used; via ctx.params
 
