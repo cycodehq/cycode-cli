@@ -3,6 +3,7 @@ from typing import Annotated, Optional
 
 import typer
 from typer import rich_utils
+from typer._completion_classes import completion_init
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
@@ -23,6 +24,7 @@ rich_utils.STYLE_ERRORS_SUGGESTION = 'bold'
 # By default, it uses blue color which is too dark for some terminals
 rich_utils.RICH_HELP = "Try [cyan]'{command_path} {help_option}'[/] for help."
 
+completion_init()  # DO NOT TOUCH; this is required for the completion to work properly
 
 _cycode_cli_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md'
 _cycode_cli_epilog = f'[bold]Documentation:[/] [link={_cycode_cli_docs}]{_cycode_cli_docs}[/link]'
