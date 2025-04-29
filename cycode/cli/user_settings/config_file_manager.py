@@ -1,5 +1,6 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict, Hashable, List, Optional, Union
+from collections.abc import Hashable
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
@@ -37,7 +38,7 @@ class ConfigFileManager(BaseFileManager):
     def get_verbose_flag(self) -> Optional[Any]:
         return self._get_value_from_environment_section(self.VERBOSE_FIELD_NAME)
 
-    def get_exclusions_by_scan_type(self, scan_type: str) -> Dict[Hashable, Any]:
+    def get_exclusions_by_scan_type(self, scan_type: str) -> dict[Hashable, Any]:
         exclusions_section = self._get_section(self.EXCLUSIONS_SECTION_NAME)
         return exclusions_section.get(scan_type, {})
 
@@ -87,7 +88,7 @@ class ConfigFileManager(BaseFileManager):
     def get_config_file_route() -> str:
         return os.path.join(ConfigFileManager.CYCODE_HIDDEN_DIRECTORY, ConfigFileManager.FILE_NAME)
 
-    def _get_exclusions_by_exclusion_type(self, scan_type: str, exclusion_type: str) -> List[Any]:
+    def _get_exclusions_by_exclusion_type(self, scan_type: str, exclusion_type: str) -> list[Any]:
         scan_type_exclusions = self.get_exclusions_by_scan_type(scan_type)
         return scan_type_exclusions.get(exclusion_type, [])
 
@@ -95,7 +96,7 @@ class ConfigFileManager(BaseFileManager):
         environment_section = self._get_section(self.ENVIRONMENT_SECTION_NAME)
         return environment_section.get(field_name)
 
-    def _get_scan_configuration_by_scan_type(self, command_scan_type: str) -> Dict[Hashable, Any]:
+    def _get_scan_configuration_by_scan_type(self, command_scan_type: str) -> dict[Hashable, Any]:
         scan_section = self._get_section(self.SCAN_SECTION_NAME)
         return scan_section.get(command_scan_type, {})
 
@@ -103,6 +104,6 @@ class ConfigFileManager(BaseFileManager):
         command_scan_type_configuration = self._get_scan_configuration_by_scan_type(command_scan_type)
         return command_scan_type_configuration.get(field_name)
 
-    def _get_section(self, section_name: str) -> Dict[Hashable, Any]:
+    def _get_section(self, section_name: str) -> dict[Hashable, Any]:
         file_content = self.read_file()
         return file_content.get(section_name, {})

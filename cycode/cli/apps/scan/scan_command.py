@@ -1,4 +1,4 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 import click
 import typer
@@ -67,7 +67,7 @@ def scan_command(
         ),
     ] = False,
     sca_scan: Annotated[
-        List[ScaScanTypeOption],
+        list[ScaScanTypeOption],
         typer.Option(
             help='Specify the type of SCA scan you wish to execute.',
             rich_help_panel=_SCA_RICH_HELP_PANEL,
@@ -85,7 +85,7 @@ def scan_command(
         bool,
         typer.Option(
             '--no-restore',
-            help='When specified, Cycode will not run restore command. ' 'Will scan direct dependencies [b]only[/]!',
+            help='When specified, Cycode will not run restore command. Will scan direct dependencies [b]only[/]!',
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
@@ -99,9 +99,20 @@ def scan_command(
         ),
     ] = False,
 ) -> None:
-    """:magnifying_glass_tilted_right: Scan the content for Secrets, IaC, SCA, and SAST violations.
-    You'll need to specify which scan type to perform:
-    [cyan]path[/]/[cyan]repository[/]/[cyan]commit_history[/]."""
+    """:mag: [bold cyan]Scan code for vulnerabilities (Secrets, IaC, SCA, SAST).[/]
+
+    This command scans your code for various types of security issues, including:
+    * [yellow]Secrets:[/] Hardcoded credentials and sensitive information.
+    * [dodger_blue1]Infrastructure as Code (IaC):[/] Misconfigurations in Terraform, CloudFormation, etc.
+    * [green]Software Composition Analysis (SCA):[/] Vulnerabilities and license issues in dependencies.
+    * [magenta]Static Application Security Testing (SAST):[/] Code quality and security flaws.
+
+    Example usage:
+    * `cycode scan path <PATH>`: Scan a specific local directory or file.
+    * `cycode scan repository <PATH>`: Scan Git related files in a local Git repository.
+    * `cycode scan commit-history <PATH>`: Scan the commit history of a local Git repository.
+
+    """
     add_breadcrumb('scan')
 
     ctx.obj['show_secret'] = show_secret
@@ -118,7 +129,7 @@ def scan_command(
     _sca_scan_to_context(ctx, sca_scan)
 
 
-def _sca_scan_to_context(ctx: typer.Context, sca_scan_user_selected: List[str]) -> None:
+def _sca_scan_to_context(ctx: typer.Context, sca_scan_user_selected: list[str]) -> None:
     for sca_scan_option_selected in sca_scan_user_selected:
         ctx.obj[sca_scan_option_selected] = True
 

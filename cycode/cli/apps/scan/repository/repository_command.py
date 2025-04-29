@@ -21,7 +21,7 @@ from cycode.cli.utils.sentry import add_breadcrumb
 def repository_command(
     ctx: typer.Context,
     path: Annotated[
-        Path, typer.Argument(exists=True, resolve_path=True, help='Path to git repository to scan.', show_default=False)
+        Path, typer.Argument(exists=True, resolve_path=True, help='Path to Git repository to scan.', show_default=False)
     ],
     branch: Annotated[
         Optional[str], typer.Option('--branch', '-b', help='Branch to scan.', show_default='default branch')

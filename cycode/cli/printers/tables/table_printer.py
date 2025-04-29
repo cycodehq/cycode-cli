@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.consts import SECRET_SCAN_TYPE
@@ -27,7 +27,7 @@ COMMIT_SHA_COLUMN = column_builder.build(name='Commit SHA')
 
 
 class TablePrinter(TablePrinterBase):
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: list['LocalScanResult']) -> None:
         table = self._get_table()
 
         detections, group_separator_indexes = sort_and_group_detections_from_scan_result(local_scan_results)

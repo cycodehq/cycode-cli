@@ -1,12 +1,14 @@
 import typer
 
 from cycode.cli.apps.auth.auth_command import auth_command
-from cycode.cli.apps.auth.check_command import check_command
 
-app = typer.Typer(
-    name='auth',
-    help='Authenticate your machine to associate the CLI with your Cycode account.',
-    no_args_is_help=True,
-)
-app.callback(invoke_without_command=True)(auth_command)
-app.command(name='check')(check_command)
+_auth_command_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md#using-the-auth-command'
+_auth_command_epilog = f"""[bold]Documentation[/]
+
+
+
+For more details and advanced usage, visit: [link={_auth_command_docs}]{_auth_command_docs}[/link]
+"""
+
+app = typer.Typer(no_args_is_help=False)
+app.command(name='auth', epilog=_auth_command_epilog, short_help='Authenticate your machine with Cycode.')(auth_command)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-"""
-Used in the GitHub Actions workflow (build_executable.yml) to process the executable file.
+"""Used in the GitHub Actions workflow (build_executable.yml) to process the executable file.
+
 This script calculates hash and renames executable file depending on the OS, arch, and build mode.
 It also creates a file with the hash of the executable file.
 It uses SHA256 algorithm to calculate the hash.
@@ -15,7 +15,7 @@ import platform
 import shutil
 from pathlib import Path
 from string import Template
-from typing import List, Tuple, Union
+from typing import Union
 
 _ARCHIVE_FORMAT = 'zip'
 _HASH_FILE_EXT = '.sha256'
@@ -27,7 +27,7 @@ _OS_TO_CLI_DIST_TEMPLATE = {
 _WINDOWS = 'windows'
 _WINDOWS_EXECUTABLE_SUFFIX = '.exe'
 
-DirHashes = List[Tuple[str, str]]
+DirHashes = list[tuple[str, str]]
 
 
 def get_hash_of_file(file_path: Union[str, Path]) -> str:
@@ -35,7 +35,7 @@ def get_hash_of_file(file_path: Union[str, Path]) -> str:
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def get_hashes_of_many_files(root: str, file_paths: List[str]) -> DirHashes:
+def get_hashes_of_many_files(root: str, file_paths: list[str]) -> DirHashes:
     hashes = []
 
     for file_path in file_paths:

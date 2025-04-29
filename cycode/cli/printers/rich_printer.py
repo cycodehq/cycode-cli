@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from rich.console import Group
 from rich.panel import Panel
@@ -25,7 +25,7 @@ class RichPrinter(TextPrinter):
     MAX_PATH_LENGTH = 60
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             self.console.print(self.NO_DETECTIONS_MESSAGE)
@@ -57,7 +57,7 @@ class RichPrinter(TextPrinter):
         detection_details = detection.detection_details
 
         path = str(get_detection_file_path(self.scan_type, detection))
-        shorten_path = f'...{path[-self.MAX_PATH_LENGTH:]}' if len(path) > self.MAX_PATH_LENGTH else path
+        shorten_path = f'...{path[-self.MAX_PATH_LENGTH :]}' if len(path) > self.MAX_PATH_LENGTH else path
         details_table.add_row('In file', f'[link=file://{path}]{shorten_path}[/]')
 
         if self.scan_type == consts.SECRET_SCAN_TYPE:

@@ -16,7 +16,14 @@ def ai_remediation_command(
         bool, typer.Option('--fix', help='Apply fixes to resolve violations. Note: fix could be not available.')
     ] = False,
 ) -> None:
-    """Get AI remediation (INTERNAL)."""
+    """:robot: [bold cyan]Get AI-powered remediation for security issues.[/]
+
+    This command provides AI-generated remediation guidance for detected security issues.
+
+    Example usage:
+    * `cycode ai-remediation <detection_id>`: View remediation guidance
+    * `cycode ai-remediation <detection_id> --fix`: Apply suggested fixes
+    """
     client = get_scan_cycode_client()
 
     try:

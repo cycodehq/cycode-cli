@@ -1,6 +1,6 @@
 import dataclasses
 import json
-from typing import List, Optional
+from typing import Optional
 
 from requests import Response
 
@@ -97,5 +97,5 @@ class ReportClient:
         return models.RequestedSbomReportResultSchema().load(response.json())
 
     @staticmethod
-    def parse_execution_status_response(response: Response) -> List[models.ReportExecutionSchema]:
+    def parse_execution_status_response(response: Response) -> list[models.ReportExecutionSchema]:
         return models.ReportExecutionSchema().load(response.json(), many=True)

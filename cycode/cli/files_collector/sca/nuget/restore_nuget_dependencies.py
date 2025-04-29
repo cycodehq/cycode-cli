@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 import typer
 
@@ -17,7 +16,7 @@ class RestoreNugetDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NUGET_PROJECT_FILE_EXTENSIONS)
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [['dotnet', 'restore', manifest_file_path, '--use-lock-file', '--verbosity', 'quiet']]
 
     def get_lock_file_name(self) -> str:

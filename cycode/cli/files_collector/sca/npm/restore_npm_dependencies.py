@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 import typer
 
@@ -18,7 +17,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return any(document.path.endswith(ext) for ext in NPM_PROJECT_FILE_EXTENSIONS)
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [
             [
                 'npm',

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, List
+from typing import Annotated
 
 import typer
 
@@ -11,7 +11,7 @@ from cycode.cli.utils.sentry import add_breadcrumb
 def path_command(
     ctx: typer.Context,
     paths: Annotated[
-        List[Path], typer.Argument(exists=True, resolve_path=True, help='Paths to scan', show_default=False)
+        list[Path], typer.Argument(exists=True, resolve_path=True, help='Paths to scan', show_default=False)
     ],
 ) -> None:
     add_breadcrumb('path')

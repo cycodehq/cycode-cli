@@ -8,13 +8,16 @@ from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def auth_command(ctx: typer.Context) -> None:
-    """Authenticates your machine."""
+    """:key: [bold cyan]Authenticate your machine with Cycode.[/]
+
+    This command handles authentication with Cycode's security platform.
+
+    Example usage:
+    * `cycode auth`: Start interactive authentication
+    * `cycode auth --help`: View authentication options
+    """
     add_breadcrumb('auth')
     printer = ctx.obj.get('console_printer')
-
-    if ctx.invoked_subcommand is not None:
-        # if it is a subcommand, do nothing
-        return
 
     try:
         logger.debug('Starting authentication process')

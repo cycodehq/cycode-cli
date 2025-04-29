@@ -1,10 +1,9 @@
 import json
 from dataclasses import asdict, dataclass
-from typing import Dict
 
 
 class CliStatusBase:
-    def as_dict(self) -> Dict[str, any]:
+    def as_dict(self) -> dict[str, any]:
         return asdict(self)
 
     def _get_text_message_part(self, key: str, value: any, intent: int = 0) -> str:

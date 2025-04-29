@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 import typer
 
@@ -21,7 +21,7 @@ from cycode.cli.utils.sentry import add_breadcrumb
 
 def pre_commit_command(
     ctx: typer.Context,
-    _: Annotated[Optional[List[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
+    _: Annotated[Optional[list[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
 ) -> None:
     add_breadcrumb('pre_commit')
 

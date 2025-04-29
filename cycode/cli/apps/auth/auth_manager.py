@@ -1,6 +1,6 @@
 import time
 import webbrowser
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 from cycode.cli.exceptions.custom_exceptions import AuthProcessError
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
@@ -78,7 +78,7 @@ class AuthManager:
     def save_api_token(self, api_token: 'ApiToken') -> None:
         self.credentials_manager.update_credentials(api_token.client_id, api_token.secret)
 
-    def _generate_pkce_code_pair(self) -> Tuple[str, str]:
+    def _generate_pkce_code_pair(self) -> tuple[str, str]:
         code_verifier = generate_random_string(self.CODE_VERIFIER_LENGTH)
         code_challenge = hash_string_to_sha256(code_verifier)
         return code_challenge, code_verifier

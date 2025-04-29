@@ -281,7 +281,7 @@ The following are the options and commands available with the Cycode CLI applica
 | [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
 | [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
-| [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit_history/path/repository/etc. |
+| [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
 | [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform.                                                                        |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
@@ -294,7 +294,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | Option                                                     | Description                                                                                                                                                                                                                                             |
 |------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                                                                                                                                                            |
-| `--secret TEXT`                                            | Specify a Cycode client secret for this specific scan execution.                                                                                                                                                                                        |
+| `--client-secret TEXT`                                     | Specify a Cycode client secret for this specific scan execution.                                                                                                                                                                                        |
 | `--client-id TEXT`                                         | Specify a Cycode client ID for this specific scan execution.                                                                                                                                                                                            |
 | `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                                                                                                                                        |
 | `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.                                                                                                                                  |
@@ -308,9 +308,9 @@ The Cycode CLI application offers several types of scans so that you can choose 
 
 | Command                                | Description                                                     |
 |----------------------------------------|-----------------------------------------------------------------|
-| [commit_history](#commit-history-scan) | Scan all the commits history in this git repository             |
+| [commit-history](#commit-history-scan) | Scan all the commits history in this git repository             |
 | [path](#path-scan)                     | Scan the files in the path supplied in the command              |
-| [pre_commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet |
+| [pre-commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet |
 | [repository](#repository-scan)         | Scan git repository including its history                       |
 
 ### Options
@@ -466,25 +466,25 @@ A commit history scan is limited to a local repository’s previous commits, foc
 
 To execute a commit history scan, execute the following:
 
-`cycode scan commit_history {{path}}`
+`cycode scan commit-history {{path}}`
 
 For example, consider a scenario in which you want to scan the commit history for a repository stored in `~/home/git/codebase`. You could then execute the following:
 
-`cycode scan commit_history ~/home/git/codebase`
+`cycode scan commit-history ~/home/git/codebase`
 
 The following options are available for use with this command:
 
 | Option                    | Description                                                                                              |
 |---------------------------|----------------------------------------------------------------------------------------------------------|
-| `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
+| `-r, --commit-range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
 
 #### Commit Range Option
 
-The commit history scan, by default, examines the repository’s entire commit history, all the way back to the initial commit. You can instead limit the scan to a specific commit range by adding the argument `--commit_range` (`-r`) followed by the name you specify.
+The commit history scan, by default, examines the repository’s entire commit history, all the way back to the initial commit. You can instead limit the scan to a specific commit range by adding the argument `--commit-range` (`-r`) followed by the name you specify.
 
 Consider the previous example. If you wanted to scan only specific commits in your repository, you could execute the following:
 
-`cycode scan commit_history -r {{from-commit-id}}...{{to-commit-id}} ~/home/git/codebase`
+`cycode scan commit-history -r {{from-commit-id}}...{{to-commit-id}} ~/home/git/codebase`
 
 ### Pre-Commit Scan
 
@@ -823,7 +823,7 @@ The following commands are available for use with this command:
 | Command          | Description                                                     |
 |------------------|-----------------------------------------------------------------|
 | `path`           | Generate SBOM report for provided path in the command           |
-| `repository_url` | Generate SBOM report for provided repository URI in the command |
+| `repository-url` | Generate SBOM report for provided repository URI in the command |
 
 ### Repository
 

@@ -1,5 +1,4 @@
 import os
-from typing import List, Tuple
 from uuid import uuid4
 
 import pytest
@@ -12,7 +11,7 @@ from cycode.cli.exceptions.custom_exceptions import (
     CycodeError,
     HttpUnauthorizedError,
     RequestConnectionError,
-    RequestTimeout,
+    RequestTimeoutError,
 )
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.models import Document
@@ -28,7 +27,7 @@ from tests.cyclient.mocked_responses.scan_client import (
 )
 
 
-def zip_scan_resources(scan_type: ScanTypeOption, scan_client: ScanClient) -> Tuple[str, InMemoryZip]:
+def zip_scan_resources(scan_type: ScanTypeOption, scan_client: ScanClient) -> tuple[str, InMemoryZip]:
     url = get_zipped_file_scan_async_url(scan_type, scan_client)
     zip_file = get_test_zip_file(scan_type)
 
@@ -37,11 +36,11 @@ def zip_scan_resources(scan_type: ScanTypeOption, scan_client: ScanClient) -> Tu
 
 def get_test_zip_file(scan_type: ScanTypeOption) -> InMemoryZip:
     # TODO(MarshalX): refactor scan_disk_files in code_scanner.py to reuse method here instead of this
-    test_documents: List[Document] = []
+    test_documents: list[Document] = []
     for root, _, files in os.walk(ZIP_CONTENT_PATH):
         for name in files:
             path = os.path.join(root, name)
-            with open(path, 'r', encoding='UTF-8') as f:
+            with open(path, encoding='UTF-8') as f:
                 test_documents.append(Document(path, f.read(), is_git_diff_format=False))
 
     from cycode.cli.files_collector.zip_documents import zip_documents
@@ -132,7 +131,7 @@ def test_zipped_file_scan_async_timeout_error(
     responses.add(api_token_response)  # mock token based client
     responses.add(method=responses.POST, url=url, body=timeout_error)
 
-    with pytest.raises(RequestTimeout):
+    with pytest.raises(RequestTimeoutError):
         scan_client.zipped_file_scan_async(zip_file=zip_file, scan_type=scan_type, scan_parameters={})
 
 

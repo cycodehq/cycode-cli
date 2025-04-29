@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import click
 
@@ -35,6 +35,6 @@ def get_report_cycode_client(
     return _get_cycode_client(create_report_client, client_id, client_secret, hide_response_log)
 
 
-def _get_configured_credentials() -> Tuple[str, str]:
+def _get_configured_credentials() -> tuple[str, str]:
     credentials_manager = CredentialsManager()
     return credentials_manager.get_credentials()

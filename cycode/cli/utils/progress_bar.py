@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import auto
-from typing import Dict, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
@@ -38,7 +38,7 @@ _PROGRESS_BAR_COLUMNS = (
     TimeElapsedColumn(),
 )
 
-ProgressBarSections = Dict[ProgressBarSection, ProgressBarSectionInfo]
+ProgressBarSections = dict[ProgressBarSection, ProgressBarSectionInfo]
 
 
 class ScanProgressBarSection(ProgressBarSection):
@@ -138,8 +138,8 @@ class CompositeProgressBar(BaseProgressBar):
 
         self._progress_bar_sections = progress_bar_sections
 
-        self._section_lengths: Dict[ProgressBarSection, int] = {}
-        self._section_values: Dict[ProgressBarSection, int] = {}
+        self._section_lengths: dict[ProgressBarSection, int] = {}
+        self._section_values: dict[ProgressBarSection, int] = {}
 
         self._current_section_value = 0
         self._current_section: ProgressBarSectionInfo = _get_initial_section(self._progress_bar_sections)
@@ -195,7 +195,7 @@ class CompositeProgressBar(BaseProgressBar):
         )
 
     def _rerender_progress_bar(self) -> None:
-        """Used to update label right after changing the progress bar section."""
+        """Use to update label right after changing the progress bar section."""
         self._progress_bar_update()
 
     def _increment_progress(self, section: 'ProgressBarSection') -> None:

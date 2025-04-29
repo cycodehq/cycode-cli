@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import NamedTuple, Optional, Set, Union
+from typing import NamedTuple, Optional, Union
 
 import click
 import typer
@@ -42,7 +42,7 @@ class CreatedLogger(NamedTuple):
     control_level_in_runtime: bool
 
 
-_CREATED_LOGGERS: Set[CreatedLogger] = set()
+_CREATED_LOGGERS: set[CreatedLogger] = set()
 
 
 def get_logger_level() -> Optional[Union[int, str]]:

@@ -25,10 +25,19 @@ rich_utils.STYLE_ERRORS_SUGGESTION = 'bold'
 rich_utils.RICH_HELP = "Try [cyan]'{command_path} {help_option}'[/] for help."
 
 
+_cycode_cli_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md'
+_cycode_cli_epilog = f"""[bold]Documentation[/]
+
+
+
+For more details and advanced usage, visit: [link={_cycode_cli_docs}]{_cycode_cli_docs}[/link]
+"""
+
 app = typer.Typer(
     pretty_exceptions_show_locals=False,
     pretty_exceptions_short=True,
     context_settings=CLI_CONTEXT_SETTINGS,
+    epilog=_cycode_cli_epilog,
     rich_markup_mode='rich',
     no_args_is_help=True,
     add_completion=False,  # we add it manually to control the rich help panel
@@ -125,6 +134,7 @@ def app_callback(
         ),
     ] = False,
 ) -> None:
+    """[bold cyan]Cycode CLI - Command Line Interface for Cycode.[/]"""
     init_sentry()
     add_breadcrumb('cycode')
 

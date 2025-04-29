@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
@@ -30,7 +30,7 @@ DEVELOPMENT_DEPENDENCY_COLUMN = column_builder.build(name='Development Dependenc
 
 
 class ScaTablePrinter(TablePrinterBase):
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: list['LocalScanResult']) -> None:
         aggregation_report_url = self.ctx.obj.get('aggregation_report_url')
         detections_per_policy_id = self._extract_detections_per_policy_id(local_scan_results)
         for policy_id, detections in detections_per_policy_id.items():
@@ -83,14 +83,8 @@ class ScaTablePrinter(TablePrinterBase):
     def _enrich_table_with_values(policy_id: str, table: Table, detection: Detection) -> None:
         detection_details = detection.detection_details
 
-        severity = None
-        if policy_id == PACKAGE_VULNERABILITY_POLICY_ID:
-            severity = detection_details.get('advisory_severity')
-        elif policy_id == LICENSE_COMPLIANCE_POLICY_ID:
-            severity = detection.severity
-
-        if severity:
-            table.add_cell(SEVERITY_COLUMN, SeverityOption(severity))
+        if detection.severity:
+            table.add_cell(SEVERITY_COLUMN, SeverityOption(detection.severity))
         else:
             table.add_cell(SEVERITY_COLUMN, 'N/A')
 
@@ -134,8 +128,8 @@ class ScaTablePrinter(TablePrinterBase):
 
     @staticmethod
     def _extract_detections_per_policy_id(
-        local_scan_results: List['LocalScanResult'],
-    ) -> Dict[str, List[Detection]]:
+        local_scan_results: list['LocalScanResult'],
+    ) -> dict[str, list[Detection]]:
         detections_to_policy_id = defaultdict(list)
 
         for local_scan_result in local_scan_results:

@@ -1,6 +1,6 @@
 import timeit
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from cycode.cli import consts
 from cycode.cli.exceptions import custom_exceptions
@@ -17,7 +17,7 @@ def _validate_zip_file_size(scan_type: str, zip_file_size: int) -> None:
         raise custom_exceptions.ZipTooLargeError(max_size_limit)
 
 
-def zip_documents(scan_type: str, documents: List[Document], zip_file: Optional[InMemoryZip] = None) -> InMemoryZip:
+def zip_documents(scan_type: str, documents: list[Document], zip_file: Optional[InMemoryZip] = None) -> InMemoryZip:
     if zip_file is None:
         zip_file = InMemoryZip()
 

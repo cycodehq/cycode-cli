@@ -71,7 +71,7 @@ class TestVersionChecker:
         assert version_checker_cached._should_check_update(is_prerelease=True) is True
 
     @pytest.mark.parametrize(
-        'current_version, latest_version, expected_result',
+        ('current_version', 'latest_version', 'expected_result'),
         [
             # Stable version comparisons
             ('1.2.3', '1.2.4', '1.2.4'),  # Higher patch version

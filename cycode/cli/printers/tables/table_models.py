@@ -1,4 +1,4 @@
-from typing import Any, Dict, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 
 class ColumnInfoBuilder:
@@ -14,12 +14,12 @@ class ColumnInfoBuilder:
 class ColumnInfo(NamedTuple):
     name: str
     index: int  # Represents the order of the columns, starting from the left
-    column_opts: Optional[Dict] = None
+    column_opts: Optional[dict] = None
 
     def __hash__(self) -> int:
         return hash((self.name, self.index))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ColumnInfo):
             return NotImplemented
         return (self.name, self.index) == (other.name, other.index)

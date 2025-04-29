@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import typer
 
@@ -28,9 +28,9 @@ logger = get_logger('SCA Code Scanner')
 
 def perform_pre_commit_range_scan_actions(
     path: str,
-    from_commit_documents: List[Document],
+    from_commit_documents: list[Document],
     from_commit_rev: str,
-    to_commit_documents: List[Document],
+    to_commit_documents: list[Document],
     to_commit_rev: str,
 ) -> None:
     repo = git_proxy.get_repo(path)
@@ -39,7 +39,7 @@ def perform_pre_commit_range_scan_actions(
 
 
 def perform_pre_hook_range_scan_actions(
-    git_head_documents: List[Document], pre_committed_documents: List[Document]
+    git_head_documents: list[Document], pre_committed_documents: list[Document]
 ) -> None:
     repo = git_proxy.get_repo(os.getcwd())
     add_ecosystem_related_files_if_exists(git_head_documents, repo, consts.GIT_HEAD_COMMIT_REV)
@@ -47,9 +47,9 @@ def perform_pre_hook_range_scan_actions(
 
 
 def add_ecosystem_related_files_if_exists(
-    documents: List[Document], repo: Optional['Repo'] = None, commit_rev: Optional[str] = None
+    documents: list[Document], repo: Optional['Repo'] = None, commit_rev: Optional[str] = None
 ) -> None:
-    documents_to_add: List[Document] = []
+    documents_to_add: list[Document] = []
     for doc in documents:
         ecosystem = get_project_file_ecosystem(doc)
         if ecosystem is None:
@@ -62,9 +62,9 @@ def add_ecosystem_related_files_if_exists(
 
 
 def get_doc_ecosystem_related_project_files(
-    doc: Document, documents: List[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
-) -> List[Document]:
-    documents_to_add: List[Document] = []
+    doc: Document, documents: list[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
+) -> list[Document]:
+    documents_to_add: list[Document] = []
     for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
@@ -79,7 +79,7 @@ def get_doc_ecosystem_related_project_files(
     return documents_to_add
 
 
-def is_project_file_exists_in_documents(documents: List[Document], file: str) -> bool:
+def is_project_file_exists_in_documents(documents: list[Document], file: str) -> bool:
     return any(doc for doc in documents if file == doc.path)
 
 
@@ -93,7 +93,7 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 def try_restore_dependencies(
     ctx: typer.Context,
-    documents_to_add: Dict[str, Document],
+    documents_to_add: dict[str, Document],
     restore_dependencies: 'BaseRestoreDependencies',
     document: Document,
 ) -> None:
@@ -122,9 +122,9 @@ def try_restore_dependencies(
 
 
 def add_dependencies_tree_document(
-    ctx: typer.Context, documents_to_scan: List[Document], is_git_diff: bool = False
+    ctx: typer.Context, documents_to_scan: list[Document], is_git_diff: bool = False
 ) -> None:
-    documents_to_add: Dict[str, Document] = {document.path: document for document in documents_to_scan}
+    documents_to_add: dict[str, Document] = {document.path: document for document in documents_to_scan}
     restore_dependencies_list = restore_handlers(ctx, is_git_diff)
 
     for restore_dependencies in restore_dependencies_list:
@@ -135,7 +135,7 @@ def add_dependencies_tree_document(
     documents_to_scan[:] = list(documents_to_add.values())
 
 
-def restore_handlers(ctx: typer.Context, is_git_diff: bool) -> List[BaseRestoreDependencies]:
+def restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRestoreDependencies]:
     return [
         RestoreGradleDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
         RestoreMavenDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
@@ -159,7 +159,7 @@ def get_file_content_from_commit(repo: 'Repo', commit: str, file_path: str) -> O
 
 
 def perform_pre_scan_documents_actions(
-    ctx: typer.Context, scan_type: str, documents_to_scan: List[Document], is_git_diff: bool = False
+    ctx: typer.Context, scan_type: str, documents_to_scan: list[Document], is_git_diff: bool = False
 ) -> None:
     no_restore = ctx.params.get('no-restore', False)
     if scan_type == consts.SCA_SCAN_TYPE and not no_restore:

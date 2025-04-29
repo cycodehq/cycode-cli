@@ -1,7 +1,7 @@
 import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import typer
 
@@ -51,7 +51,7 @@ class PrinterBase(ABC):
 
     @abstractmethod
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
     ) -> None:
         pass
 
@@ -68,6 +68,7 @@ class PrinterBase(ABC):
 
         Note:
             Called only when the verbose flag is set.
+
         """
         rich_traceback = (
             RichTraceback.from_exception(type(e), e, e.__traceback__)
@@ -79,7 +80,7 @@ class PrinterBase(ABC):
 
         self.console_err.print(f'[red]Correlation ID:[/] {get_correlation_id()}')
 
-    def print_scan_results_summary(self, local_scan_results: List['LocalScanResult']) -> None:
+    def print_scan_results_summary(self, local_scan_results: list['LocalScanResult']) -> None:
         """Print a summary of scan results based on severity levels.
 
         Args:
@@ -87,8 +88,8 @@ class PrinterBase(ABC):
 
         The summary includes the count of detections for each severity level
         and is displayed in the console in a formatted string.
-        """
 
+        """
         detections_count = 0
         severity_counts = defaultdict(int)
         for local_scan_result in local_scan_results:

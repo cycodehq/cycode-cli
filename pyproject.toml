@@ -40,7 +40,7 @@ sentry-sdk = ">=2.8.0,<3.0"
 pyjwt = ">=2.8.0,<3.0"
 rich = ">=13.9.4, <14"
 patch-ng = "1.18.1"
-typer = "^0.15.2"
+typer = "^0.15.3"
 tenacity = ">=9.0.0,<9.1.0"
 
 [tool.poetry.group.test.dependencies]
@@ -56,7 +56,7 @@ pyinstaller = {version=">=5.13.2,<5.14.0", python=">=3.8,<3.13"}
 dunamai = ">=1.18.0,<1.22.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.6.9"
+ruff = "0.11.7"
 
 [tool.pytest.ini_options]
 log_cli = true
@@ -73,7 +73,7 @@ style = "pep440"
 
 [tool.ruff]
 line-length = 120
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 extend-select = [
@@ -81,6 +81,7 @@ extend-select = [
     "W",  # pycodestyle warnings
     "F",  # Pyflakes
     "I",  # isort
+    "N",  # pep8 naming
     "C90",  # flake8-comprehensions
     "B",  # flake8-bugbear
     "Q",  # flake8-quotes
@@ -100,19 +101,26 @@ extend-select = [
     "RSE",
     "RUF",
     "SIM",
+    "T10",
     "T20",
-    "TCH",
     "TID",
     "YTT",
+    "LOG",
     "G",
+    "UP",
+    "DTZ",
+    "PYI",
+    "PT",
+    "SLOT",
+    "TC",
 ]
 ignore = [
     "ANN002", # Missing type annotation for `*args`
     "ANN003", # Missing type annotation for `**kwargs`
-    "ANN101", # Missing type annotation for `self` in method
-    "ANN102", # Missing type annotation for `cls` in classmethod
     "ANN401", # Dynamically typed expressions (typing.Any)
     "ISC001", # Conflicts with ruff format
+    "S105", # False positives
+    "PT012", # `pytest.raises()` block should contain a single simple statement
 ]
 
 [tool.ruff.lint.flake8-quotes]

@@ -3,7 +3,7 @@ import os
 import sys
 import time
 from platform import platform
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Optional
 from uuid import UUID, uuid4
 
 import click
@@ -34,6 +34,7 @@ from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import set_issue_detected
+from cycode.cli.utils.shell_executor import shell
 from cycode.cyclient.models import Detection, DetectionSchema, DetectionsPerFile, ZippedFileScanResult
 from cycode.logger import get_logger, set_logging_level
 
@@ -83,7 +84,7 @@ def scan_sca_commit_range(ctx: typer.Context, path: str, commit_range: str) -> N
     scan_commit_range_documents(ctx, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters)
 
 
-def scan_disk_files(ctx: typer.Context, paths: Tuple[str]) -> None:
+def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
     scan_type = ctx.obj['scan_type']
     progress_bar = ctx.obj['progress_bar']
 
@@ -95,7 +96,7 @@ def scan_disk_files(ctx: typer.Context, paths: Tuple[str]) -> None:
         handle_scan_exception(ctx, e)
 
 
-def set_issue_detected_by_scan_results(ctx: typer.Context, scan_results: List[LocalScanResult]) -> None:
+def set_issue_detected_by_scan_results(ctx: typer.Context, scan_results: list[LocalScanResult]) -> None:
     set_issue_detected(ctx, any(scan_result.issue_detected for scan_result in scan_results))
 
 
@@ -109,6 +110,7 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
     - for IAC scan, sync flow is always used
     - for SAST scan, sync flow is not supported
     - for SCA and Secrets scan, sync flow is supported only for path/repository scan
+
     """
     if not sync_option and scan_type != consts.IAC_SCAN_TYPE:
         return False
@@ -160,14 +162,14 @@ def _enrich_scan_result_with_data_from_detection_rules(
 
 def _get_scan_documents_thread_func(
     ctx: typer.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
-) -> Callable[[List[Document]], Tuple[str, CliError, LocalScanResult]]:
+) -> Callable[[list[Document]], tuple[str, CliError, LocalScanResult]]:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
     severity_threshold = ctx.obj['severity_threshold']
     sync_option = ctx.obj['sync']
     command_scan_type = ctx.info_name
 
-    def _scan_batch_thread_func(batch: List[Document]) -> Tuple[str, CliError, LocalScanResult]:
+    def _scan_batch_thread_func(batch: list[Document]) -> tuple[str, CliError, LocalScanResult]:
         local_scan_result = error = error_message = None
         detections_count = relevant_detections_count = zip_file_size = 0
 
@@ -296,7 +298,7 @@ def scan_commit_range(
 
 def scan_documents(
     ctx: typer.Context,
-    documents_to_scan: List[Document],
+    documents_to_scan: list[Document],
     scan_parameters: dict,
     is_git_diff: bool = False,
     is_commit_range: bool = False,
@@ -334,13 +336,12 @@ def scan_documents(
 
 def scan_commit_range_documents(
     ctx: typer.Context,
-    from_documents_to_scan: List[Document],
-    to_documents_to_scan: List[Document],
+    from_documents_to_scan: list[Document],
+    to_documents_to_scan: list[Document],
     scan_parameters: Optional[dict] = None,
     timeout: Optional[int] = None,
 ) -> None:
-    """Used by SCA only"""
-
+    """In use by SCA only."""
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
     severity_threshold = ctx.obj['severity_threshold']
@@ -423,13 +424,13 @@ def scan_commit_range_documents(
     )
 
 
-def should_scan_documents(from_documents_to_scan: List[Document], to_documents_to_scan: List[Document]) -> bool:
+def should_scan_documents(from_documents_to_scan: list[Document], to_documents_to_scan: list[Document]) -> bool:
     return len(from_documents_to_scan) > 0 or len(to_documents_to_scan) > 0
 
 
 def create_local_scan_result(
     scan_result: ZippedFileScanResult,
-    documents_to_scan: List[Document],
+    documents_to_scan: list[Document],
     command_scan_type: str,
     scan_type: str,
     severity_threshold: str,
@@ -567,15 +568,15 @@ def print_debug_scan_details(scan_details_response: 'ScanDetailsResponse') -> No
 
 
 def print_results(
-    ctx: typer.Context, local_scan_results: List[LocalScanResult], errors: Optional[Dict[str, 'CliError']] = None
+    ctx: typer.Context, local_scan_results: list[LocalScanResult], errors: Optional[dict[str, 'CliError']] = None
 ) -> None:
     printer = ctx.obj.get('console_printer')
     printer.print_scan_results(local_scan_results, errors)
 
 
 def get_document_detections(
-    scan_result: ZippedFileScanResult, documents_to_scan: List[Document]
-) -> List[DocumentDetections]:
+    scan_result: ZippedFileScanResult, documents_to_scan: list[Document]
+) -> list[DocumentDetections]:
     logger.debug('Getting document detections')
 
     document_detections = []
@@ -594,11 +595,11 @@ def get_document_detections(
 
 
 def exclude_irrelevant_document_detections(
-    document_detections_list: List[DocumentDetections],
+    document_detections_list: list[DocumentDetections],
     scan_type: str,
     command_scan_type: str,
     severity_threshold: str,
-) -> List[DocumentDetections]:
+) -> list[DocumentDetections]:
     relevant_document_detections_list = []
     for document_detections in document_detections_list:
         relevant_detections = exclude_irrelevant_detections(
@@ -613,8 +614,7 @@ def exclude_irrelevant_document_detections(
 
 
 def parse_pre_receive_input() -> str:
-    """
-    Parsing input to pushed branch update details
+    """Parse input to pushed branch update details.
 
     Example input:
     old_value new_value refname
@@ -623,7 +623,7 @@ def parse_pre_receive_input() -> str:
     973a96d3e925b65941f7c47fa16129f1577d499f 0000000000000000000000000000000000000000 refs/heads/feature-branch
     59564ef68745bca38c42fc57a7822efd519a6bd9 3378e52dcfa47fb11ce3a4a520bea5f85d5d0bf3 refs/heads/develop
 
-    :return: first branch update details (input's first line)
+    :return: First branch update details (input's first line)
     """
     # FIXME(MarshalX): this blocks main thread forever if called outside of pre-receive hook
     pre_receive_input = sys.stdin.read().strip()
@@ -648,7 +648,7 @@ def _get_default_scan_parameters(ctx: typer.Context) -> dict:
     }
 
 
-def get_scan_parameters(ctx: typer.Context, paths: Optional[Tuple[str]] = None) -> dict:
+def get_scan_parameters(ctx: typer.Context, paths: Optional[tuple[str, ...]] = None) -> dict:
     scan_parameters = _get_default_scan_parameters(ctx)
 
     if not paths:
@@ -661,6 +661,9 @@ def get_scan_parameters(ctx: typer.Context, paths: Optional[Tuple[str]] = None) 
         return scan_parameters
 
     remote_url = try_get_git_remote_url(paths[0])
+    if not remote_url:
+        remote_url = try_to_get_plastic_remote_url(paths[0])
+
     if remote_url:
         # TODO(MarshalX): remove hardcode in context
         ctx.obj['remote_url'] = remote_url
@@ -679,20 +682,103 @@ def try_get_git_remote_url(path: str) -> Optional[str]:
         return None
 
 
+def _get_plastic_repository_name(path: str) -> Optional[str]:
+    """Get the name of the Plastic repository from the current working directory.
+
+    The command to execute is:
+        cm status --header --machinereadable --fieldseparator=":::"
+
+    Example of status header in machine-readable format:
+        STATUS:::0:::Project/RepoName:::OrgName@ServerInfo
+    """
+    try:
+        command = [
+            'cm',
+            'status',
+            '--header',
+            '--machinereadable',
+            f'--fieldseparator={consts.PLASTIC_VCS_DATA_SEPARATOR}',
+        ]
+
+        status = shell(command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=path)
+        if not status:
+            logger.debug('Failed to get Plastic repository name (command failed)')
+            return None
+
+        status_parts = status.split(consts.PLASTIC_VCS_DATA_SEPARATOR)
+        if len(status_parts) < 2:
+            logger.debug('Failed to parse Plastic repository name (command returned unexpected format)')
+            return None
+
+        return status_parts[2].strip()
+    except Exception as e:
+        logger.debug('Failed to get Plastic repository name', exc_info=e)
+        return None
+
+
+def _get_plastic_repository_list(working_dir: Optional[str] = None) -> dict[str, str]:
+    """Get the list of Plastic repositories and their GUIDs.
+
+    The command to execute is:
+        cm repo list --format="{repname}:::{repguid}"
+
+    Example line with data:
+        Project/RepoName:::tapo1zqt-wn99-4752-h61m-7d9k79d40r4v
+
+    Each line represents an individual repository.
+    """
+    repo_name_to_guid = {}
+
+    try:
+        command = ['cm', 'repo', 'ls', f'--format={{repname}}{consts.PLASTIC_VCS_DATA_SEPARATOR}{{repguid}}']
+
+        status = shell(command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=working_dir)
+        if not status:
+            logger.debug('Failed to get Plastic repository list (command failed)')
+            return repo_name_to_guid
+
+        status_lines = status.splitlines()
+        for line in status_lines:
+            data_parts = line.split(consts.PLASTIC_VCS_DATA_SEPARATOR)
+            if len(data_parts) < 2:
+                logger.debug('Failed to parse Plastic repository list line (unexpected format), %s', {'line': line})
+                continue
+
+            repo_name, repo_guid = data_parts
+            repo_name_to_guid[repo_name.strip()] = repo_guid.strip()
+
+        return repo_name_to_guid
+    except Exception as e:
+        logger.debug('Failed to get Plastic repository list', exc_info=e)
+        return repo_name_to_guid
+
+
+def try_to_get_plastic_remote_url(path: str) -> Optional[str]:
+    repository_name = _get_plastic_repository_name(path)
+    if not repository_name:
+        return None
+
+    repository_map = _get_plastic_repository_list(path)
+    if repository_name not in repository_map:
+        logger.debug('Failed to get Plastic repository GUID (repository not found in the list)')
+        return None
+
+    repository_guid = repository_map[repository_name]
+    return f'{consts.PLASTIC_VCS_REMOTE_URI_PREFIX}{repository_guid}'
+
+
 def exclude_irrelevant_detections(
-    detections: List[Detection], scan_type: str, command_scan_type: str, severity_threshold: str
-) -> List[Detection]:
+    detections: list[Detection], scan_type: str, command_scan_type: str, severity_threshold: str
+) -> list[Detection]:
     relevant_detections = _exclude_detections_by_exclusions_configuration(detections, scan_type)
     relevant_detections = _exclude_detections_by_scan_type(relevant_detections, scan_type, command_scan_type)
     return _exclude_detections_by_severity(relevant_detections, severity_threshold)
 
 
-def _exclude_detections_by_severity(detections: List[Detection], severity_threshold: str) -> List[Detection]:
+def _exclude_detections_by_severity(detections: list[Detection], severity_threshold: str) -> list[Detection]:
     relevant_detections = []
     for detection in detections:
-        severity = detection.detection_details.get('advisory_severity')
-        if not severity:
-            severity = detection.severity
+        severity = detection.severity
 
         if _does_severity_match_severity_threshold(severity, severity_threshold):
             relevant_detections.append(detection)
@@ -706,8 +792,8 @@ def _exclude_detections_by_severity(detections: List[Detection], severity_thresh
 
 
 def _exclude_detections_by_scan_type(
-    detections: List[Detection], scan_type: str, command_scan_type: str
-) -> List[Detection]:
+    detections: list[Detection], scan_type: str, command_scan_type: str
+) -> list[Detection]:
     if command_scan_type == consts.PRE_COMMIT_COMMAND_SCAN_TYPE:
         return exclude_detections_in_deleted_lines(detections)
 
@@ -722,16 +808,16 @@ def _exclude_detections_by_scan_type(
     return detections
 
 
-def exclude_detections_in_deleted_lines(detections: List[Detection]) -> List[Detection]:
+def exclude_detections_in_deleted_lines(detections: list[Detection]) -> list[Detection]:
     return [detection for detection in detections if detection.detection_details.get('line_type') != 'Removed']
 
 
-def _exclude_detections_by_exclusions_configuration(detections: List[Detection], scan_type: str) -> List[Detection]:
+def _exclude_detections_by_exclusions_configuration(detections: list[Detection], scan_type: str) -> list[Detection]:
     exclusions = configuration_manager.get_exclusions_by_scan_type(scan_type)
     return [detection for detection in detections if not _should_exclude_detection(detection, exclusions)]
 
 
-def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
+def _should_exclude_detection(detection: Detection, exclusions: dict) -> bool:
     # FIXME(MarshalX): what the difference between by_value and by_sha?
     exclusions_by_value = exclusions.get(consts.EXCLUSIONS_BY_VALUE_SECTION_NAME, [])
     if _is_detection_sha_configured_in_exclusions(detection, exclusions_by_value):
@@ -773,7 +859,7 @@ def _should_exclude_detection(detection: Detection, exclusions: Dict) -> bool:
     return False
 
 
-def _is_detection_sha_configured_in_exclusions(detection: Detection, exclusions: List[str]) -> bool:
+def _is_detection_sha_configured_in_exclusions(detection: Detection, exclusions: list[str]) -> bool:
     detection_sha = detection.detection_details.get('sha512')
     return detection_sha in exclusions
 
@@ -797,7 +883,7 @@ def _get_cve_identifier(detection: Detection) -> Optional[str]:
 
 
 def _get_document_by_file_name(
-    documents: List[Document], file_name: str, unique_id: Optional[str] = None
+    documents: list[Document], file_name: str, unique_id: Optional[str] = None
 ) -> Optional[Document]:
     for document in documents:
         if _normalize_file_path(document.path) == _normalize_file_path(file_name) and document.unique_id == unique_id:
@@ -903,10 +989,11 @@ def _try_get_aggregation_report_url_if_needed(
         logger.debug('Failed to get aggregation report url: %s', str(e))
 
 
-def _map_detections_per_file_and_commit_id(scan_type: str, raw_detections: List[dict]) -> List[DetectionsPerFile]:
-    """Converts list of detections (async flow) to list of DetectionsPerFile objects (sync flow).
+def _map_detections_per_file_and_commit_id(scan_type: str, raw_detections: list[dict]) -> list[DetectionsPerFile]:
+    """Convert a list of detections (async flow) to list of DetectionsPerFile objects (sync flow).
 
     Args:
+        scan_type: Type of the scan.
         raw_detections: List of detections as is returned from the server.
 
     Note:
@@ -915,6 +1002,7 @@ def _map_detections_per_file_and_commit_id(scan_type: str, raw_detections: List[
 
     Note:
         Aggregation is performed by file name and commit ID (if available)
+
     """
     detections_per_files = {}
     for raw_detection in raw_detections:
@@ -956,7 +1044,7 @@ def _get_secret_file_name_from_detection(raw_detection: dict) -> str:
     return os.path.join(file_path, file_name)
 
 
-def _does_reach_to_max_commits_to_scan_limit(commit_ids: List[str], max_commits_count: Optional[int]) -> bool:
+def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: Optional[int]) -> bool:
     if max_commits_count is None:
         return False
 
