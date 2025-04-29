@@ -571,6 +571,7 @@ def print_results(
     ctx: typer.Context, local_scan_results: list[LocalScanResult], errors: Optional[dict[str, 'CliError']] = None
 ) -> None:
     printer = ctx.obj.get('console_printer')
+    printer.update_ctx(ctx)
     printer.print_scan_results(local_scan_results, errors)
 
 

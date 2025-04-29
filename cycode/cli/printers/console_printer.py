@@ -70,6 +70,9 @@ class ConsolePrinter:
 
         return printer_class(self.ctx, self.console, self.console_err)
 
+    def update_ctx(self, ctx: 'typer.Context') -> None:
+        self.ctx = ctx
+
     def enable_recording(self, export_type: str, export_file: 'Path') -> None:
         if self.console_record is None:
             self.export_file = export_file
@@ -117,6 +120,7 @@ class ConsolePrinter:
             # resolve file extension based on the export type if not provided in the file name
             export_file = export_file.with_suffix(f'.{self.export_type.lower()}')
 
+        export_file = str(export_file)
         if self.export_type is ExportTypeOption.HTML:
             self.console_record.console.save_html(export_file)
         elif self.export_type is ExportTypeOption.SVG:

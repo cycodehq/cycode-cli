@@ -5,6 +5,7 @@ from rich.syntax import Syntax
 
 from cycode.cli import consts
 from cycode.cli.console import _SYNTAX_HIGHLIGHT_THEME
+from cycode.cli.printers.utils import is_git_diff_based_scan
 from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
 
 if TYPE_CHECKING:
@@ -91,13 +92,6 @@ def _get_code_snippet_syntax_from_git_diff(
     )
 
 
-def _is_git_diff_based_scan(scan_type: str, command_scan_type: str) -> bool:
-    return (
-        command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
-        and scan_type in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES
-    )
-
-
 def get_code_snippet_syntax(
     scan_type: str,
     command_scan_type: str,
@@ -106,7 +100,7 @@ def get_code_snippet_syntax(
     lines_to_display: int = 3,
     obfuscate: bool = True,
 ) -> Syntax:
-    if _is_git_diff_based_scan(scan_type, command_scan_type):
+    if is_git_diff_based_scan(scan_type, command_scan_type):
         # it will return syntax with just one line
         return _get_code_snippet_syntax_from_git_diff(scan_type, detection, document, obfuscate)
 
