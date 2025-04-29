@@ -111,6 +111,8 @@ class RichPrinter(TextPrinter):
                 detection,
                 document,
                 obfuscate=not self.show_secret,
+                lines_to_display_before=3,
+                lines_to_display_after=3,
             ),
             title=':computer: Code Snippet',
         )
