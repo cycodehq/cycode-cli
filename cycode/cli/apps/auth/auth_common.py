@@ -13,7 +13,10 @@ if TYPE_CHECKING:
 def get_authorization_info(ctx: 'Context') -> Optional[AuthInfo]:
     printer = ctx.obj.get('console_printer')
 
-    client_id, client_secret = CredentialsManager().get_credentials()
+    client_id, client_secret = ctx.obj.get('client_id'), ctx.obj.get('client_secret')
+    if not client_id or not client_secret:
+        client_id, client_secret = CredentialsManager().get_credentials()
+
     if not client_id or not client_secret:
         return None
 

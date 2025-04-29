@@ -10,7 +10,7 @@ from cycode.cli.utils.version_checker import VersionChecker
 from tests.conftest import CLI_ENV_VARS
 
 _NEW_LATEST_VERSION = '999.0.0'  # Simulate a newer version available
-_UPDATE_MESSAGE_PART = 'new version of cycode available'
+_UPDATE_MESSAGE_PART = 'new release of cycode cli is available'
 
 
 @patch.object(VersionChecker, 'check_for_update')

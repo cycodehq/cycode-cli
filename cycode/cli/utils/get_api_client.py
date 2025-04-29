@@ -28,7 +28,7 @@ def _get_cycode_client(
 def get_scan_cycode_client(ctx: 'typer.Context') -> 'ScanClient':
     client_id = ctx.obj.get('client_id')
     client_secret = ctx.obj.get('client_secret')
-    hide_response_log = not ctx.obj['show_secret']
+    hide_response_log = not ctx.obj.get('show_secret', False)
     return _get_cycode_client(create_scan_client, client_id, client_secret, hide_response_log)
 
 
