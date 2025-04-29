@@ -35,9 +35,21 @@ def get_cwe_cve_link(cwe_cve: Optional[str]) -> Optional[str]:
     return None
 
 
+def clear_cwe_name(cwe: str) -> str:
+    """Clear CWE.
+
+    Intput: CWE-532: Insertion of Sensitive Information into Log File
+    Output: CWE-532
+    """
+    if cwe.startswith('CWE'):
+        return cwe.split(':')[0]
+
+    return cwe
+
+
 def get_detection_clickable_cwe_cve(scan_type: str, detection: 'Detection') -> str:
     def link(url: str, name: str) -> str:
-        return f'[link={url}]{name}[/]'
+        return f'[link={url}]{clear_cwe_name(name)}[/]'
 
     if scan_type == consts.SCA_SCAN_TYPE:
         cve = detection.detection_details.get('vulnerability_id')
@@ -84,5 +96,13 @@ def get_detection_file_path(scan_type: str, detection: 'Detection') -> Path:
         folder_path = detection.detection_details.get('file_path', '')
         file_name = detection.detection_details.get('file_name', '')
         return Path.joinpath(Path(folder_path), Path(file_name))
+    if scan_type == consts.SAST_SCAN_TYPE:
+        file_path = detection.detection_details.get('file_path', '')
+
+        # fix the absolute path...BE returns string which does not start with /
+        if not file_path.startswith('/'):
+            file_path = f'/{file_path}'
+
+        return Path(file_path)
 
     return Path(detection.detection_details.get('file_name', ''))
