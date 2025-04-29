@@ -25,12 +25,7 @@ rich_utils.RICH_HELP = "Try [cyan]'{command_path} {help_option}'[/] for help."
 
 
 _cycode_cli_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md'
-_cycode_cli_epilog = f"""[bold]Documentation[/]
-
-
-
-For more details and advanced usage, visit: [link={_cycode_cli_docs}]{_cycode_cli_docs}[/link]
-"""
+_cycode_cli_epilog = f'[bold]Documentation:[/] [link={_cycode_cli_docs}]{_cycode_cli_docs}[/link]'
 
 app = typer.Typer(
     pretty_exceptions_show_locals=False,
