@@ -16,6 +16,7 @@ from cycode.cli.utils.sentry import add_breadcrumb
 _AUTH_RICH_HELP_PANEL = 'Authentication options'
 _EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
+_SECRET_RICH_HELP_PANEL = 'Secret options'
 
 
 def scan_command(
@@ -43,7 +44,9 @@ def scan_command(
             rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
-    show_secret: Annotated[bool, typer.Option('--show-secret', help='Show Secrets in plain text.')] = False,
+    show_secret: Annotated[
+        bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
+    ] = False,
     soft_fail: Annotated[
         bool, typer.Option('--soft-fail', help='Run the scan without failing; always return a non-error status code.')
     ] = False,
