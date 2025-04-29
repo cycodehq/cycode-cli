@@ -20,7 +20,7 @@ def repository_url_command(
     progress_bar.start()
     progress_bar.set_section_length(SbomReportProgressBarSection.PREPARE_LOCAL_FILES)
 
-    client = get_report_cycode_client()
+    client = get_report_cycode_client(ctx)
     report_parameters = ctx.obj['report_parameters']
     output_file = ctx.obj['output_file']
     output_format = report_parameters.output_format

@@ -22,7 +22,7 @@ def get_cli_status(ctx: 'Context') -> CliStatus:
     supported_modules_status = CliSupportedModulesStatus()
     if is_authenticated:
         try:
-            client = get_scan_cycode_client()
+            client = get_scan_cycode_client(ctx)
             supported_modules_preferences = client.get_supported_modules_preferences()
 
             supported_modules_status.secret_scanning = supported_modules_preferences.secret_scanning

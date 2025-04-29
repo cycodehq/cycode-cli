@@ -24,7 +24,7 @@ def ai_remediation_command(
     * `cycode ai-remediation <detection_id>`: View remediation guidance
     * `cycode ai-remediation <detection_id> --fix`: Apply suggested fixes
     """
-    client = get_scan_cycode_client()
+    client = get_scan_cycode_client(ctx)
 
     try:
         remediation_markdown = client.get_ai_remediation(detection_id)

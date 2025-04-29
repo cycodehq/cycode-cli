@@ -63,6 +63,7 @@ def export_if_needed_on_close(ctx: typer.Context) -> None:
         printer.export()
 
 
+_AUTH_RICH_HELP_PANEL = 'Authentication options'
 _COMPLETION_RICH_HELP_PANEL = 'Completion options'
 
 
@@ -82,6 +83,20 @@ def app_callback(
     user_agent: Annotated[
         Optional[str],
         typer.Option(hidden=True, help='Characteristic JSON object that lets servers identify the application.'),
+    ] = None,
+    client_secret: Annotated[
+        Optional[str],
+        typer.Option(
+            help='Specify a Cycode client secret for this specific scan execution.',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
+        ),
+    ] = None,
+    client_id: Annotated[
+        Optional[str],
+        typer.Option(
+            help='Specify a Cycode client ID for this specific scan execution.',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
+        ),
     ] = None,
     _: Annotated[
         Optional[bool],
@@ -121,6 +136,9 @@ def app_callback(
     ctx.obj['output'] = output
     if output == OutputTypeOption.JSON:
         no_progress_meter = True
+
+    ctx.obj['client_id'] = client_id
+    ctx.obj['client_secret'] = client_secret
 
     ctx.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter, sections=SCAN_PROGRESS_BAR_SECTIONS)
 

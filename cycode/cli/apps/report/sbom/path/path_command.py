@@ -24,7 +24,7 @@ def path_command(
 ) -> None:
     add_breadcrumb('path')
 
-    client = get_report_cycode_client()
+    client = get_report_cycode_client(ctx)
     report_parameters = ctx.obj['report_parameters']
     output_format = report_parameters.output_format
     output_file = ctx.obj['output_file']

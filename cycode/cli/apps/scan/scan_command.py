@@ -13,7 +13,6 @@ from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
 
-_AUTH_RICH_HELP_PANEL = 'Authentication options'
 _EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
 _SECRET_RICH_HELP_PANEL = 'Secret options'
@@ -30,20 +29,6 @@ def scan_command(
             case_sensitive=False,
         ),
     ] = ScanTypeOption.SECRET,
-    client_secret: Annotated[
-        Optional[str],
-        typer.Option(
-            help='Specify a Cycode client secret for this specific scan execution.',
-            rich_help_panel=_AUTH_RICH_HELP_PANEL,
-        ),
-    ] = None,
-    client_id: Annotated[
-        Optional[str],
-        typer.Option(
-            help='Specify a Cycode client ID for this specific scan execution.',
-            rich_help_panel=_AUTH_RICH_HELP_PANEL,
-        ),
-    ] = None,
     show_secret: Annotated[
         bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
     ] = False,
@@ -143,7 +128,7 @@ def scan_command(
 
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
-    ctx.obj['client'] = get_scan_cycode_client(client_id, client_secret, not ctx.obj['show_secret'])
+    ctx.obj['client'] = get_scan_cycode_client(ctx)
     ctx.obj['scan_type'] = scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
