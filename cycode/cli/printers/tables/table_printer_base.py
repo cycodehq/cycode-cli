@@ -11,11 +11,15 @@ if TYPE_CHECKING:
 
 
 class TablePrinterBase(PrinterBase, abc.ABC):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.text_printer = TextPrinter(self.ctx, self.console, self.console_err)
+
     def print_result(self, result: CliResult) -> None:
-        TextPrinter(self.ctx, self.console, self.console_err).print_result(result)
+        self.text_printer.print_result(result)
 
     def print_error(self, error: CliError) -> None:
-        TextPrinter(self.ctx, self.console, self.console_err).print_error(error)
+        self.text_printer.print_error(error)
 
     def print_scan_results(
         self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
@@ -26,16 +30,8 @@ class TablePrinterBase(PrinterBase, abc.ABC):
 
         self._print_results(local_scan_results)
 
-        if not errors:
-            return
-
-        self.console.print(self.FAILED_SCAN_MESSAGE)
-        for scan_id, error in errors.items():
-            self.console.print(f'- {scan_id}: ', end='')
-            self.print_error(error)
-
-    def _is_git_repository(self) -> bool:
-        return self.ctx.info_name in {'commit_history', 'pre_commit', 'pre_receive'} and 'remote_url' in self.ctx.obj
+        self.print_scan_results_summary(local_scan_results)
+        self.text_printer.print_report_urls_and_errors(local_scan_results, errors)
 
     @abc.abstractmethod
     def _print_results(self, local_scan_results: list['LocalScanResult']) -> None:
@@ -44,19 +40,3 @@ class TablePrinterBase(PrinterBase, abc.ABC):
     def _print_table(self, table: 'Table') -> None:
         if table.get_rows():
             self.console.print(table.get_table())
-
-    def _print_report_urls(
-        self,
-        local_scan_results: list['LocalScanResult'],
-        aggregation_report_url: Optional[str] = None,
-    ) -> None:
-        report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
-        if not report_urls and not aggregation_report_url:
-            return
-        if aggregation_report_url:
-            self.console.print(f'Report URL: {aggregation_report_url}')
-            return
-
-        self.console.print('Report URLs:')
-        for report_url in report_urls:
-            self.console.print(f'- {report_url}')

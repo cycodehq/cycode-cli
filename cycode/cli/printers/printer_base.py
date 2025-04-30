@@ -20,10 +20,10 @@ from rich.traceback import Traceback as RichTraceback
 
 class PrinterBase(ABC):
     NO_DETECTIONS_MESSAGE = (
-        '[green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/]'
+        '[b green]Good job! No issues were found!!! :clapping_hands::clapping_hands::clapping_hands:[/]'
     )
     FAILED_SCAN_MESSAGE = (
-        '[red]Unfortunately, Cycode was unable to complete the full scan. '
+        '[b red]Unfortunately, Cycode was unable to complete the full scan. '
         'Please note that not all results may be available:[/]'
     )
 
@@ -99,6 +99,7 @@ class PrinterBase(ABC):
                         detections_count += 1
                         severity_counts[SeverityOption(detection.severity)] += 1
 
+        self.console.line()
         self.console.print(f'[bold]Cycode found {detections_count} violations[/]', end=': ')
 
         # Example of string: CRITICAL - 6 | HIGH - 0 | MEDIUM - 14 | LOW - 0 | INFO - 0
@@ -110,3 +111,5 @@ class PrinterBase(ABC):
             self.console.print(
                 SeverityOption.get_member_emoji(severity), severity, '-', severity_counts[severity], end=end
             )
+
+        self.console.line()

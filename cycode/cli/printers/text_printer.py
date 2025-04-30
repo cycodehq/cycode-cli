@@ -98,10 +98,15 @@ class TextPrinter(PrinterBase):
     def print_report_urls(self, report_urls: list[str], aggregation_report_url: Optional[str] = None) -> None:
         if not report_urls and not aggregation_report_url:
             return
-        if aggregation_report_url:
-            self.console.print(f'Report URL: {aggregation_report_url}')
+
+        # Prioritize aggregation report URL; if report urls is only one, use it instead
+        single_url = report_urls[0] if len(report_urls) == 1 else None
+        single_url = aggregation_report_url or single_url
+        if single_url:
+            self.console.print(f'[b]Report URL:[/] {single_url}')
             return
 
-        self.console.print('Report URLs:')
+        # If there are multiple report URLs, print them all
+        self.console.print('[b]Report URLs:[/]')
         for report_url in report_urls:
             self.console.print(f'- {report_url}')

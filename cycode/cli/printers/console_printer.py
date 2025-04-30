@@ -16,6 +16,8 @@ from cycode.cli.printers.tables.table_printer import TablePrinter
 from cycode.cli.printers.text_printer import TextPrinter
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from cycode.cli.models import LocalScanResult
     from cycode.cli.printers.tables.table_printer_base import PrinterBase
 
@@ -43,17 +45,9 @@ class ConsolePrinter:
         self.console_err = console_err_override or console_err
         self.output_type = output_type_override or self.ctx.obj.get('output')
 
-        self.console_record = None
-
-        self.export_type = self.ctx.obj.get('export_type')
-        self.export_file = self.ctx.obj.get('export_file')
-        if console_override is None and self.export_type and self.export_file:
-            self.console_record = ConsolePrinter(
-                ctx,
-                console_override=Console(record=True, file=io.StringIO()),
-                console_err_override=Console(stderr=True, record=True, file=io.StringIO()),
-                output_type_override='json' if self.export_type == 'json' else self.output_type,
-            )
+        self.export_type: Optional[str] = None
+        self.export_file: Optional[Path] = None
+        self.console_record: Optional[ConsolePrinter] = None
 
     @property
     def scan_type(self) -> str:
@@ -75,6 +69,21 @@ class ConsolePrinter:
             raise CycodeError(f'"{self.output_type}" output type is not supported.')
 
         return printer_class(self.ctx, self.console, self.console_err)
+
+    def update_ctx(self, ctx: 'typer.Context') -> None:
+        self.ctx = ctx
+
+    def enable_recording(self, export_type: str, export_file: 'Path') -> None:
+        if self.console_record is None:
+            self.export_file = export_file
+            self.export_type = export_type
+
+            self.console_record = ConsolePrinter(
+                self.ctx,
+                console_override=Console(record=True, file=io.StringIO()),
+                console_err_override=Console(stderr=True, record=True, file=io.StringIO()),
+                output_type_override='json' if self.export_type == 'json' else self.output_type,
+            )
 
     def print_scan_results(
         self,
@@ -106,16 +115,18 @@ class ConsolePrinter:
         if self.console_record is None:
             raise CycodeError('Console recording was not enabled. Cannot export.')
 
-        if not self.export_file.suffix:
+        export_file = self.export_file
+        if not export_file.suffix:
             # resolve file extension based on the export type if not provided in the file name
-            self.export_file = self.export_file.with_suffix(f'.{self.export_type.lower()}')
+            export_file = export_file.with_suffix(f'.{self.export_type.lower()}')
 
+        export_file = str(export_file)
         if self.export_type is ExportTypeOption.HTML:
-            self.console_record.console.save_html(self.export_file)
+            self.console_record.console.save_html(export_file)
         elif self.export_type is ExportTypeOption.SVG:
-            self.console_record.console.save_svg(self.export_file, title=consts.APP_NAME)
+            self.console_record.console.save_svg(export_file, title=consts.APP_NAME)
         elif self.export_type is ExportTypeOption.JSON:
-            with open(self.export_file, 'w', encoding='UTF-8') as f:
+            with open(export_file, 'w', encoding='UTF-8') as f:
                 self.console_record.console.file.seek(0)
                 f.write(self.console_record.console.file.read())
         else:

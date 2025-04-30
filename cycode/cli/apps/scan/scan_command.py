@@ -1,9 +1,10 @@
+from pathlib import Path
 from typing import Annotated, Optional
 
 import click
 import typer
 
-from cycode.cli.cli_types import ScanTypeOption, ScaScanTypeOption, SeverityOption
+from cycode.cli.cli_types import ExportTypeOption, ScanTypeOption, ScaScanTypeOption, SeverityOption
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
@@ -12,8 +13,9 @@ from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
 
-_AUTH_RICH_HELP_PANEL = 'Authentication options'
+_EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
+_SECRET_RICH_HELP_PANEL = 'Secret options'
 
 
 def scan_command(
@@ -27,21 +29,6 @@ def scan_command(
             case_sensitive=False,
         ),
     ] = ScanTypeOption.SECRET,
-    client_secret: Annotated[
-        Optional[str],
-        typer.Option(
-            help='Specify a Cycode client secret for this specific scan execution.',
-            rich_help_panel=_AUTH_RICH_HELP_PANEL,
-        ),
-    ] = None,
-    client_id: Annotated[
-        Optional[str],
-        typer.Option(
-            help='Specify a Cycode client ID for this specific scan execution.',
-            rich_help_panel=_AUTH_RICH_HELP_PANEL,
-        ),
-    ] = None,
-    show_secret: Annotated[bool, typer.Option('--show-secret', help='Show Secrets in plain text.')] = False,
     soft_fail: Annotated[
         bool, typer.Option('--soft-fail', help='Run the scan without failing; always return a non-error status code.')
     ] = False,
@@ -58,13 +45,8 @@ def scan_command(
             '--sync', help='Run scan synchronously (INTERNAL FOR IDEs).', show_default='asynchronously', hidden=True
         ),
     ] = False,
-    report: Annotated[
-        bool,
-        typer.Option(
-            '--report',
-            help='When specified, generates a violations report. '
-            'A link to the report will be displayed in the console output.',
-        ),
+    show_secret: Annotated[
+        bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
     ] = False,
     sca_scan: Annotated[
         list[ScaScanTypeOption],
@@ -98,6 +80,27 @@ def scan_command(
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
+    export_type: Annotated[
+        ExportTypeOption,
+        typer.Option(
+            '--export-type',
+            case_sensitive=False,
+            help='Specify the export type. '
+            'HTML and SVG will export terminal output and rely on --output option. '
+            'JSON always exports JSON.',
+            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+        ),
+    ] = None,
+    export_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--export-file',
+            help='Export file. Path to the file where the export will be saved.',
+            dir_okay=False,
+            writable=True,
+            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+        ),
+    ] = None,
 ) -> None:
     """:mag: [bold cyan]Scan code for vulnerabilities (Secrets, IaC, SCA, SAST).[/]
 
@@ -115,14 +118,28 @@ def scan_command(
     """
     add_breadcrumb('scan')
 
+    if export_file and export_type is None:
+        raise typer.BadParameter(
+            'Export type must be specified when --export-file is provided.',
+            param_hint='--export-type',
+        )
+    if export_type and export_file is None:
+        raise typer.BadParameter(
+            'Export file must be specified when --export-type is provided.',
+            param_hint='--export-file',
+        )
+
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
-    ctx.obj['client'] = get_scan_cycode_client(client_id, client_secret, not ctx.obj['show_secret'])
+    ctx.obj['client'] = get_scan_cycode_client(ctx)
     ctx.obj['scan_type'] = scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
-    ctx.obj['report'] = report
+
+    if export_type and export_file:
+        console_printer = ctx.obj['console_printer']
+        console_printer.enable_recording(export_type, export_file)
 
     _ = no_restore, gradle_all_sub_projects  # they are actually used; via ctx.params
 
@@ -136,7 +153,8 @@ def _sca_scan_to_context(ctx: typer.Context, sca_scan_user_selected: list[str]) 
 
 @click.pass_context
 def scan_command_result_callback(ctx: click.Context, *_, **__) -> None:
-    add_breadcrumb('scan_finalize')
+    add_breadcrumb('scan_finalized')
+    ctx.obj['scan_finalized'] = True
 
     progress_bar = ctx.obj.get('progress_bar')
     if progress_bar:

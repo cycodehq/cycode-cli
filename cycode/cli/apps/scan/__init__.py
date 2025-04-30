@@ -10,12 +10,7 @@ from cycode.cli.apps.scan.scan_command import scan_command, scan_command_result_
 app = typer.Typer(name='scan', no_args_is_help=True)
 
 _scan_command_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md#scan-command'
-_scan_command_epilog = f"""[bold]Documentation[/]
-
-
-
-For more details and advanced usage, visit: [link={_scan_command_docs}]{_scan_command_docs}[/link]
-"""
+_scan_command_epilog = f'[bold]Documentation:[/] [link={_scan_command_docs}]{_scan_command_docs}[/link]'
 
 app.callback(
     short_help='Scan the content for Secrets, IaC, SCA, and SAST violations.',

@@ -323,7 +323,7 @@ def scan_documents(
         scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
     )
 
-    aggregation_report_url = _try_get_aggregation_report_url_if_needed(scan_parameters, ctx.obj['client'], scan_type)
+    aggregation_report_url = _try_get_aggregation_report_url(scan_parameters, ctx.obj['client'], scan_type)
     _set_aggregation_report_url(ctx, aggregation_report_url)
 
     progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
@@ -571,6 +571,7 @@ def print_results(
     ctx: typer.Context, local_scan_results: list[LocalScanResult], errors: Optional[dict[str, 'CliError']] = None
 ) -> None:
     printer = ctx.obj.get('console_printer')
+    printer.update_ctx(ctx)
     printer.print_scan_results(local_scan_results, errors)
 
 
@@ -640,7 +641,6 @@ def parse_pre_receive_input() -> str:
 def _get_default_scan_parameters(ctx: typer.Context) -> dict:
     return {
         'monitor': ctx.obj.get('monitor'),
-        'report': ctx.obj.get('report'),
         'package_vulnerabilities': ctx.obj.get('package-vulnerabilities'),
         'license_compliance': ctx.obj.get('license-compliance'),
         'command_type': ctx.info_name.replace('-', '_'),  # save backward compatibility
@@ -956,7 +956,7 @@ def _get_scan_result(
         did_detect=True,
         detections_per_file=_map_detections_per_file_and_commit_id(scan_type, scan_raw_detections),
         scan_id=scan_id,
-        report_url=_try_get_aggregation_report_url_if_needed(scan_parameters, cycode_client, scan_type),
+        report_url=_try_get_aggregation_report_url(scan_parameters, cycode_client, scan_type),
     )
 
 
@@ -972,12 +972,9 @@ def _set_aggregation_report_url(ctx: typer.Context, aggregation_report_url: Opti
     ctx.obj['aggregation_report_url'] = aggregation_report_url
 
 
-def _try_get_aggregation_report_url_if_needed(
+def _try_get_aggregation_report_url(
     scan_parameters: dict, cycode_client: 'ScanClient', scan_type: str
 ) -> Optional[str]:
-    if not scan_parameters.get('report', False):
-        return None
-
     aggregation_id = scan_parameters.get('aggregation_id')
     if aggregation_id is None:
         return None

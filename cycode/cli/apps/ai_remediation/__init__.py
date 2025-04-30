@@ -4,9 +4,9 @@ from cycode.cli.apps.ai_remediation.ai_remediation_command import ai_remediation
 
 app = typer.Typer()
 
-_ai_remediation_epilog = """
-Note: AI remediation suggestions are generated automatically and should be reviewed before applying.
-"""
+_ai_remediation_epilog = (
+    'Note: AI remediation suggestions are generated automatically and should be reviewed before applying.'
+)
 
 app.command(
     name='ai-remediation',

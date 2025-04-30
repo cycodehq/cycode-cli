@@ -1,14 +1,14 @@
 import logging
-from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
 from typer import rich_utils
+from typer._completion_classes import completion_init
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
 from cycode.cli.apps import ai_remediation, auth, configure, ignore, report, scan, status
-from cycode.cli.cli_types import ExportTypeOption, OutputTypeOption
+from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.consts import CLI_CONTEXT_SETTINGS
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
@@ -24,14 +24,10 @@ rich_utils.STYLE_ERRORS_SUGGESTION = 'bold'
 # By default, it uses blue color which is too dark for some terminals
 rich_utils.RICH_HELP = "Try [cyan]'{command_path} {help_option}'[/] for help."
 
+completion_init()  # DO NOT TOUCH; this is required for the completion to work properly
 
 _cycode_cli_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md'
-_cycode_cli_epilog = f"""[bold]Documentation[/]
-
-
-
-For more details and advanced usage, visit: [link={_cycode_cli_docs}]{_cycode_cli_docs}[/link]
-"""
+_cycode_cli_epilog = f'[bold]Documentation:[/] [link={_cycode_cli_docs}]{_cycode_cli_docs}[/link]'
 
 app = typer.Typer(
     pretty_exceptions_show_locals=False,
@@ -64,13 +60,14 @@ def check_latest_version_on_close(ctx: typer.Context) -> None:
 
 
 def export_if_needed_on_close(ctx: typer.Context) -> None:
+    scan_finalized = ctx.obj.get('scan_finalized')
     printer = ctx.obj.get('console_printer')
-    if printer.is_recording:
+    if scan_finalized and printer.is_recording:
         printer.export()
 
 
+_AUTH_RICH_HELP_PANEL = 'Authentication options'
 _COMPLETION_RICH_HELP_PANEL = 'Completion options'
-_EXPORT_RICH_HELP_PANEL = 'Export options'
 
 
 @app.callback()
@@ -90,25 +87,18 @@ def app_callback(
         Optional[str],
         typer.Option(hidden=True, help='Characteristic JSON object that lets servers identify the application.'),
     ] = None,
-    export_type: Annotated[
-        ExportTypeOption,
+    client_secret: Annotated[
+        Optional[str],
         typer.Option(
-            '--export-type',
-            case_sensitive=False,
-            help='Specify the export type. '
-            'HTML and SVG will export terminal output and rely on --output option. '
-            'JSON always exports JSON.',
-            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+            help='Specify a Cycode client secret for this specific scan execution.',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
-    ] = ExportTypeOption.JSON,
-    export_file: Annotated[
-        Optional[Path],
+    ] = None,
+    client_id: Annotated[
+        Optional[str],
         typer.Option(
-            '--export-file',
-            help='Export file. Path to the file where the export will be saved. ',
-            dir_okay=False,
-            writable=True,
-            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+            help='Specify a Cycode client ID for this specific scan execution.',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
     _: Annotated[
@@ -150,10 +140,11 @@ def app_callback(
     if output == OutputTypeOption.JSON:
         no_progress_meter = True
 
+    ctx.obj['client_id'] = client_id
+    ctx.obj['client_secret'] = client_secret
+
     ctx.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter, sections=SCAN_PROGRESS_BAR_SECTIONS)
 
-    ctx.obj['export_type'] = export_type
-    ctx.obj['export_file'] = export_file
     ctx.obj['console_printer'] = ConsolePrinter(ctx)
     ctx.call_on_close(lambda: export_if_needed_on_close(ctx))
 

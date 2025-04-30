@@ -86,7 +86,9 @@ class VersionChecker(CycodeClientBase):
 
         """
         try:
-            response = self.get(f'{self.PYPI_PACKAGE_NAME}/json', timeout=self.PYPI_REQUEST_TIMEOUT)
+            response = self.get(
+                f'{self.PYPI_PACKAGE_NAME}/json', timeout=self.PYPI_REQUEST_TIMEOUT, hide_response_content_log=True
+            )
             data = response.json()
             return data.get('info', {}).get('version')
         except Exception:
@@ -203,10 +205,10 @@ class VersionChecker(CycodeClientBase):
         should_update = bool(latest_version)
         if should_update:
             update_message = (
-                '\nNew version of cycode available! '
-                f'[yellow]{current_version}[/] → [bright_blue]{latest_version}[/]\n'
+                '\nNew release of Cycode CLI is available: '
+                f'[red]{current_version}[/] -> [green]{latest_version}[/]\n'
                 f'Changelog: [bright_blue]{self.GIT_CHANGELOG_URL_PREFIX}{latest_version}[/]\n'
-                f'Run [green]pip install --upgrade cycode[/] to update\n'
+                f'To update, run: [green]pip install --upgrade cycode[/]\n'
             )
             console.print(update_message)
 

@@ -1,10 +1,10 @@
-import math
 from typing import TYPE_CHECKING
 
 from rich.syntax import Syntax
 
 from cycode.cli import consts
 from cycode.cli.console import _SYNTAX_HIGHLIGHT_THEME
+from cycode.cli.printers.utils import is_git_diff_based_scan
 from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
 
 if TYPE_CHECKING:
@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from cycode.cyclient.models import Detection
 
 
-def _get_code_segment_start_line(detection_line: int, lines_to_display: int) -> int:
-    start_line = detection_line - math.ceil(lines_to_display / 2)
+def _get_code_segment_start_line(detection_line: int, lines_to_display_before: int) -> int:
+    start_line = detection_line - lines_to_display_before
     return 0 if start_line < 0 else start_line
 
 
@@ -26,17 +26,24 @@ def get_detection_line(scan_type: str, detection: 'Detection') -> int:
 
 
 def _get_code_snippet_syntax_from_file(
-    scan_type: str, detection: 'Detection', document: 'Document', lines_to_display: int, obfuscate: bool
+    scan_type: str,
+    detection: 'Detection',
+    document: 'Document',
+    lines_to_display_before: int,
+    lines_to_display_after: int,
+    obfuscate: bool,
 ) -> Syntax:
     detection_details = detection.detection_details
     detection_line = get_detection_line(scan_type, detection)
-    start_line_index = _get_code_segment_start_line(detection_line, lines_to_display)
+    start_line_index = _get_code_segment_start_line(detection_line, lines_to_display_before)
     detection_position = get_position_in_line(document.content, detection_details.get('start_position', -1))
     violation_length = detection_details.get('length', -1)
 
     code_lines_to_render = []
     document_content_lines = document.content.splitlines()
-    for line_index in range(lines_to_display):
+    total_lines_to_display = lines_to_display_before + 1 + lines_to_display_after
+
+    for line_index in range(total_lines_to_display):
         current_line_index = start_line_index + line_index
         if current_line_index >= len(document_content_lines):
             break
@@ -56,6 +63,7 @@ def _get_code_snippet_syntax_from_file(
         code=code_to_render,
         lexer=Syntax.guess_lexer(document.path, code=code_to_render),
         line_numbers=True,
+        word_wrap=True,
         dedent=True,
         tab_size=2,
         start_line=start_line_index + 1,
@@ -91,23 +99,19 @@ def _get_code_snippet_syntax_from_git_diff(
     )
 
 
-def _is_git_diff_based_scan(scan_type: str, command_scan_type: str) -> bool:
-    return (
-        command_scan_type in consts.COMMIT_RANGE_BASED_COMMAND_SCAN_TYPES
-        and scan_type in consts.COMMIT_RANGE_SCAN_SUPPORTED_SCAN_TYPES
-    )
-
-
 def get_code_snippet_syntax(
     scan_type: str,
     command_scan_type: str,
     detection: 'Detection',
     document: 'Document',
-    lines_to_display: int = 3,
+    lines_to_display_before: int = 1,
+    lines_to_display_after: int = 1,
     obfuscate: bool = True,
 ) -> Syntax:
-    if _is_git_diff_based_scan(scan_type, command_scan_type):
+    if is_git_diff_based_scan(scan_type, command_scan_type):
         # it will return syntax with just one line
         return _get_code_snippet_syntax_from_git_diff(scan_type, detection, document, obfuscate)
 
-    return _get_code_snippet_syntax_from_file(scan_type, detection, document, lines_to_display, obfuscate)
+    return _get_code_snippet_syntax_from_file(
+        scan_type, detection, document, lines_to_display_before, lines_to_display_after, obfuscate
+    )
