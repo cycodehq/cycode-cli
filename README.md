@@ -282,7 +282,7 @@ The following are the options and commands available with the Cycode CLI applica
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
 | [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
 | [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
-| [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform.                                                                        |
+| [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform as SBOM.                                                                |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
 # Scan Command

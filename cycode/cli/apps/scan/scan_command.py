@@ -29,9 +29,6 @@ def scan_command(
             case_sensitive=False,
         ),
     ] = ScanTypeOption.SECRET,
-    show_secret: Annotated[
-        bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
-    ] = False,
     soft_fail: Annotated[
         bool, typer.Option('--soft-fail', help='Run the scan without failing; always return a non-error status code.')
     ] = False,
@@ -56,27 +53,9 @@ def scan_command(
             'A link to the report will be displayed in the console output.',
         ),
     ] = False,
-    export_type: Annotated[
-        ExportTypeOption,
-        typer.Option(
-            '--export-type',
-            case_sensitive=False,
-            help='Specify the export type. '
-            'HTML and SVG will export terminal output and rely on --output option. '
-            'JSON always exports JSON.',
-            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
-        ),
-    ] = ExportTypeOption.JSON,
-    export_file: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--export-file',
-            help='Export file. Path to the file where the export will be saved. ',
-            dir_okay=False,
-            writable=True,
-            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
-        ),
-    ] = None,
+    show_secret: Annotated[
+        bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
+    ] = False,
     sca_scan: Annotated[
         list[ScaScanTypeOption],
         typer.Option(
@@ -109,6 +88,27 @@ def scan_command(
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
+    export_type: Annotated[
+        ExportTypeOption,
+        typer.Option(
+            '--export-type',
+            case_sensitive=False,
+            help='Specify the export type. '
+            'HTML and SVG will export terminal output and rely on --output option. '
+            'JSON always exports JSON.',
+            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+        ),
+    ] = ExportTypeOption.JSON,
+    export_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--export-file',
+            help='Export file. Path to the file where the export will be saved. ',
+            dir_okay=False,
+            writable=True,
+            rich_help_panel=_EXPORT_RICH_HELP_PANEL,
+        ),
+    ] = None,
 ) -> None:
     """:mag: [bold cyan]Scan code for vulnerabilities (Secrets, IaC, SCA, SAST).[/]
 
