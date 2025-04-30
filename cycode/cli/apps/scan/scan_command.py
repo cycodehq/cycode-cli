@@ -90,12 +90,12 @@ def scan_command(
             'JSON always exports JSON.',
             rich_help_panel=_EXPORT_RICH_HELP_PANEL,
         ),
-    ] = ExportTypeOption.JSON,
+    ] = None,
     export_file: Annotated[
         Optional[Path],
         typer.Option(
             '--export-file',
-            help='Export file. Path to the file where the export will be saved. ',
+            help='Export file. Path to the file where the export will be saved.',
             dir_okay=False,
             writable=True,
             rich_help_panel=_EXPORT_RICH_HELP_PANEL,
@@ -118,6 +118,17 @@ def scan_command(
     """
     add_breadcrumb('scan')
 
+    if export_file and export_type is None:
+        raise typer.BadParameter(
+            'Export type must be specified when --export-file is provided.',
+            param_hint='--export-type',
+        )
+    if export_type and export_file is None:
+        raise typer.BadParameter(
+            'Export file must be specified when --export-type is provided.',
+            param_hint='--export-file',
+        )
+
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
     ctx.obj['client'] = get_scan_cycode_client(ctx)
@@ -126,7 +137,7 @@ def scan_command(
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
 
-    if export_file:
+    if export_type and export_file:
         console_printer = ctx.obj['console_printer']
         console_printer.enable_recording(export_type, export_file)
 
@@ -142,7 +153,8 @@ def _sca_scan_to_context(ctx: typer.Context, sca_scan_user_selected: list[str]) 
 
 @click.pass_context
 def scan_command_result_callback(ctx: click.Context, *_, **__) -> None:
-    add_breadcrumb('scan_finalize')
+    add_breadcrumb('scan_finalized')
+    ctx.obj['scan_finalized'] = True
 
     progress_bar = ctx.obj.get('progress_bar')
     if progress_bar:

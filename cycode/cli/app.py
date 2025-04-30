@@ -60,8 +60,9 @@ def check_latest_version_on_close(ctx: typer.Context) -> None:
 
 
 def export_if_needed_on_close(ctx: typer.Context) -> None:
+    scan_finalized = ctx.obj.get('scan_finalized')
     printer = ctx.obj.get('console_printer')
-    if printer.is_recording:
+    if scan_finalized and printer.is_recording:
         printer.export()
 
 
