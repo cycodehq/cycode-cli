@@ -1,5 +1,4 @@
 import json
-from copy import deepcopy
 from typing import TYPE_CHECKING, Union
 from uuid import UUID
 
@@ -74,11 +73,6 @@ class ScanClient:
         is_git_diff: bool = False,
     ) -> models.ScanResultsSyncFlow:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
-
-        scan_parameters = deepcopy(scan_parameters)  # avoid mutating the original dict
-        if 'report' in scan_parameters:
-            del scan_parameters['report']  # BE raises validation error instead of ignoring it
-
         response = self.scan_cycode_client.post(
             url_path=self.get_zipped_file_scan_sync_url_path(scan_type),
             data={

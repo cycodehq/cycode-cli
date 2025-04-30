@@ -21,10 +21,9 @@ This guide walks you through both installation and usage.
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
            2. [Monitor](#monitor-option)
-           3. [Report](#report-option)
-           4. [Package Vulnerabilities](#package-vulnerabilities-option)
-           5. [License Compliance](#license-compliance-option)
-           6. [Lock Restore](#lock-restore-option)
+           3. [Package Vulnerabilities](#package-vulnerabilities-option)
+           4. [License Compliance](#license-compliance-option)
+           5. [Lock Restore](#lock-restore-option)
         2. [Repository Scan](#repository-scan)
             1. [Branch Option](#branch-option)
         3. [Path Scan](#path-scan)
@@ -301,7 +300,6 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                                                                                                                                                  |
 | `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                                                                                                                                         |
 | `--monitor`                                                | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
-| `--report`                                                 | When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution.                                                                                                                  |
 | `--no-restore`                                             | When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!                                                                                                                                                                |
 | `--gradle-all-sub-projects`                                | When specified, Cycode will run gradle restore command for all sub projects. Should run from root project directory ONLY!                                                                                                                               |
 | `--help`                                                   | Show options for given command.                                                                                                                                                                                                                         |
@@ -338,28 +336,6 @@ When using this option, the scan results from this scan will appear in the knowl
 
 > [!WARNING]
 > You must be an `owner` or an `admin` in Cycode to view the knowledge graph page.
-
-#### Report Option
-
-> [!NOTE]
-> This option is not available to IaC scans.
-
-To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
-
-`cycode scan -t sca --report repository ~/home/git/codebase`
-
-In the same way, you can push scan results of Secrets and SAST scans to Cycode by adding the `--report` option to the scan command.
-
-When using this option, the scan results from this scan will appear in the On-Demand Scans section of Cycode. To get to this page, click the link that appears after the printed results:
-
-> [!WARNING]
-> You must be an `owner` or an `admin` in Cycode to view this page.
-
-![cli-report](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/sca_report_url.png)
-
-The report page will look something like below:
-
-![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/scan_details.png)
 
 #### Package Vulnerabilities Option
 

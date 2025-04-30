@@ -45,14 +45,6 @@ def scan_command(
             '--sync', help='Run scan synchronously (INTERNAL FOR IDEs).', show_default='asynchronously', hidden=True
         ),
     ] = False,
-    report: Annotated[
-        bool,
-        typer.Option(
-            '--report',
-            help='When specified, generates a violations report. '
-            'A link to the report will be displayed in the console output.',
-        ),
-    ] = False,
     show_secret: Annotated[
         bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
     ] = False,
@@ -133,7 +125,6 @@ def scan_command(
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
-    ctx.obj['report'] = report
 
     if export_file:
         console_printer = ctx.obj['console_printer']
