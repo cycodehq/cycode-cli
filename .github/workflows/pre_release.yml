@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - renovation
 
 jobs:
   pre_release:
