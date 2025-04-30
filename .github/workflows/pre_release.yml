@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - renovation
+      - CM-47990-release-candidate-of-v3
 
 jobs:
   pre_release:
