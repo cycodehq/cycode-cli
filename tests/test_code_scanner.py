@@ -6,7 +6,7 @@ import responses
 
 from cycode.cli import consts
 from cycode.cli.apps.scan.code_scanner import (
-    _try_get_aggregation_report_url,
+    _try_get_aggregation_report_url_if_needed,
 )
 from cycode.cli.cli_types import ScanTypeOption
 from cycode.cli.files_collector.excluder import _is_relevant_file_to_scan
@@ -29,7 +29,7 @@ def test_try_get_aggregation_report_url_if_no_report_command_needed_return_none(
 ) -> None:
     aggregation_id = uuid4().hex
     scan_parameter = {'aggregation_id': aggregation_id}
-    result = _try_get_aggregation_report_url(scan_parameter, scan_client, scan_type)
+    result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result is None
 
 
@@ -37,7 +37,8 @@ def test_try_get_aggregation_report_url_if_no_report_command_needed_return_none(
 def test_try_get_aggregation_report_url_if_no_aggregation_id_needed_return_none(
     scan_type: ScanTypeOption, scan_client: ScanClient
 ) -> None:
-    result = _try_get_aggregation_report_url({}, scan_client, scan_type)
+    scan_parameter = {'report': True}
+    result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result is None
 
 
@@ -47,12 +48,12 @@ def test_try_get_aggregation_report_url_if_needed_return_result(
     scan_type: ScanTypeOption, scan_client: ScanClient, api_token_response: responses.Response
 ) -> None:
     aggregation_id = uuid4()
-    scan_parameter = {'aggregation_id': aggregation_id}
+    scan_parameter = {'report': True, 'aggregation_id': aggregation_id}
     url = get_scan_aggregation_report_url(aggregation_id, scan_client, scan_type)
     responses.add(api_token_response)  # mock token based client
     responses.add(get_scan_aggregation_report_url_response(url, aggregation_id))
 
     scan_aggregation_report_url_response = scan_client.get_scan_aggregation_report_url(str(aggregation_id), scan_type)
 
-    result = _try_get_aggregation_report_url(scan_parameter, scan_client, scan_type)
+    result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result == scan_aggregation_report_url_response.report_url
