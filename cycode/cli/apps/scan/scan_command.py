@@ -45,6 +45,13 @@ def scan_command(
             '--sync', help='Run scan synchronously (INTERNAL FOR IDEs).', show_default='asynchronously', hidden=True
         ),
     ] = False,
+    report: Annotated[
+        bool,
+        typer.Option(
+            '--cycode-report',
+            help='When specified, displays a link to the scan report in the Cycode platform in the console output.',
+        ),
+    ] = False,
     show_secret: Annotated[
         bool, typer.Option('--show-secret', help='Show Secrets in plain text.', rich_help_panel=_SECRET_RICH_HELP_PANEL)
     ] = False,
@@ -136,6 +143,7 @@ def scan_command(
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
+    ctx.obj['report'] = report
 
     if export_type and export_file:
         console_printer = ctx.obj['console_printer']

@@ -21,9 +21,10 @@ This guide walks you through both installation and usage.
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
            2. [Monitor](#monitor-option)
-           3. [Package Vulnerabilities](#package-vulnerabilities-option)
-           4. [License Compliance](#license-compliance-option)
-           5. [Lock Restore](#lock-restore-option)
+           3. [Cycode Report](#cycode-report-option)
+           4. [Package Vulnerabilities](#package-vulnerabilities-option)
+           5. [License Compliance](#license-compliance-option)
+           6. [Lock Restore](#lock-restore-option)
         2. [Repository Scan](#repository-scan)
             1. [Branch Option](#branch-option)
         3. [Path Scan](#path-scan)
@@ -300,6 +301,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                                                                                                                                                  |
 | `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                                                                                                                                         |
 | `--monitor`                                                | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
+| `--cycode-report`                                          | When specified, displays a link to the scan report in the Cycode platform in the console output.                                                                                                                                                        |
 | `--no-restore`                                             | When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!                                                                                                                                                                |
 | `--gradle-all-sub-projects`                                | When specified, Cycode will run gradle restore command for all sub projects. Should run from root project directory ONLY!                                                                                                                               |
 | `--help`                                                   | Show options for given command.                                                                                                                                                                                                                         |
@@ -336,6 +338,25 @@ When using this option, the scan results from this scan will appear in the knowl
 
 > [!WARNING]
 > You must be an `owner` or an `admin` in Cycode to view the knowledge graph page.
+
+#### Cycode Report Option
+
+For every scan performed using the Cycode CLI, a report is automatically generated and its results are sent to Cycode. These results are tied to the relevant policies (e.g., [SCA policies](https://docs.cycode.com/docs/sca-policies) for Repository scans) within the Cycode platform.
+
+To have the direct URL to this Cycode report printed in your CLI output after the scan completes, add the argument `--cycode-report` to your scan command.
+
+`cycode scan --cycode-report repository ~/home/git/codebase`
+
+All scan results from the CLI will appear in the CLI Logs section of Cycode. If you included the `--cycode-report` flag in your command, a direct link to the specific report will be displayed in your terminal following the scan results.
+
+> [!WARNING]
+> You must be an `owner` or an `admin` in Cycode to view this page.
+
+![cli-report](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/sca_report_url.png)
+
+The report page will look something like below:
+
+![](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/scan_details.png)
 
 #### Package Vulnerabilities Option
 
