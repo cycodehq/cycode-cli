@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -44,16 +43,16 @@ def repository_command(
         progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(file_entries))
 
         documents_to_scan = []
-        for file in file_entries:
+        for blob in file_entries:
             # FIXME(MarshalX): probably file could be tree or submodule too. we expect blob only
             progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
 
-            absolute_path = get_path_by_os(os.path.join(path, file.path))
-            file_path = file.path if monitor else absolute_path
+            absolute_path = get_path_by_os(blob.abspath)
+            file_path = get_path_by_os(blob.path) if monitor else absolute_path
             documents_to_scan.append(
                 Document(
                     file_path,
-                    file.data_stream.read().decode('UTF-8', errors='replace'),
+                    blob.data_stream.read().decode('UTF-8', errors='replace'),
                     absolute_path=absolute_path,
                 )
             )

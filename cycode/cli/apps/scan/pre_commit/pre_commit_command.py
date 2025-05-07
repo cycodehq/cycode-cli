@@ -27,14 +27,16 @@ def pre_commit_command(
 
     scan_type = ctx.obj['scan_type']
 
+    repo_path = os.getcwd()  # change locally for easy testing
+
     progress_bar = ctx.obj['progress_bar']
     progress_bar.start()
 
     if scan_type == consts.SCA_SCAN_TYPE:
-        scan_sca_pre_commit(ctx)
+        scan_sca_pre_commit(ctx, repo_path)
         return
 
-    diff_files = git_proxy.get_repo(os.getcwd()).index.diff('HEAD', create_patch=True, R=True)
+    diff_files = git_proxy.get_repo(repo_path).index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
 

@@ -3,42 +3,50 @@ from enum import Enum
 from cycode.cli import consts
 
 
-class OutputTypeOption(str, Enum):
+class StrEnum(str, Enum):
+    def __str__(self) -> str:
+        return self.value
+
+
+class OutputTypeOption(StrEnum):
     RICH = 'rich'
     TEXT = 'text'
     JSON = 'json'
     TABLE = 'table'
 
 
-class ExportTypeOption(str, Enum):
+class ExportTypeOption(StrEnum):
     JSON = 'json'
     HTML = 'html'
     SVG = 'svg'
 
 
-class ScanTypeOption(str, Enum):
+class ScanTypeOption(StrEnum):
     SECRET = consts.SECRET_SCAN_TYPE
     SCA = consts.SCA_SCAN_TYPE
     IAC = consts.IAC_SCAN_TYPE
     SAST = consts.SAST_SCAN_TYPE
 
+    def __str__(self) -> str:
+        return self.value
 
-class ScaScanTypeOption(str, Enum):
+
+class ScaScanTypeOption(StrEnum):
     PACKAGE_VULNERABILITIES = 'package-vulnerabilities'
     LICENSE_COMPLIANCE = 'license-compliance'
 
 
-class SbomFormatOption(str, Enum):
+class SbomFormatOption(StrEnum):
     SPDX_2_2 = 'spdx-2.2'
     SPDX_2_3 = 'spdx-2.3'
     CYCLONEDX_1_4 = 'cyclonedx-1.4'
 
 
-class SbomOutputFormatOption(str, Enum):
+class SbomOutputFormatOption(StrEnum):
     JSON = 'json'
 
 
-class SeverityOption(str, Enum):
+class SeverityOption(StrEnum):
     INFO = 'info'
     LOW = 'low'
     MEDIUM = 'medium'

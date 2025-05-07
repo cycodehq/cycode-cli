@@ -48,15 +48,17 @@ start_scan_time = time.time()
 logger = get_logger('Code Scanner')
 
 
-def scan_sca_pre_commit(ctx: typer.Context) -> None:
+def scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     scan_type = ctx.obj['scan_type']
     scan_parameters = get_scan_parameters(ctx)
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(
-        ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES
+        progress_bar=ctx.obj['progress_bar'],
+        progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path=repo_path,
     )
     git_head_documents = exclude_irrelevant_documents_to_scan(scan_type, git_head_documents)
     pre_committed_documents = exclude_irrelevant_documents_to_scan(scan_type, pre_committed_documents)
-    sca_code_scanner.perform_pre_hook_range_scan_actions(git_head_documents, pre_committed_documents)
+    sca_code_scanner.perform_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
     scan_commit_range_documents(
         ctx,
         git_head_documents,
@@ -269,14 +271,13 @@ def scan_commit_range(
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
         parent = commit.parents[0] if commit.parents else git_proxy.get_null_tree()
-        diff = commit.diff(parent, create_patch=True, R=True)
+        diff_index = commit.diff(parent, create_patch=True, R=True)
         commit_documents_to_scan = []
-        for blob in diff:
-            blob_path = get_path_by_os(os.path.join(path, get_diff_file_path(blob)))
+        for diff in diff_index:
             commit_documents_to_scan.append(
                 Document(
-                    path=blob_path,
-                    content=blob.diff.decode('UTF-8', errors='replace'),
+                    path=get_path_by_os(get_diff_file_path(diff)),
+                    content=diff.diff.decode('UTF-8', errors='replace'),
                     is_git_diff_format=True,
                     unique_id=commit_id,
                 )
@@ -413,10 +414,10 @@ def scan_commit_range_documents(
     _report_scan_status(
         cycode_client,
         scan_type,
-        local_scan_result.scan_id,
+        scan_id,
         scan_completed,
-        local_scan_result.relevant_detections_count,
-        local_scan_result.detections_count,
+        relevant_detections_count,
+        detections_count,
         len(to_documents_to_scan),
         zip_file_size,
         scan_command_type,
@@ -658,7 +659,11 @@ def get_scan_parameters(ctx: typer.Context, paths: Optional[tuple[str, ...]] = N
     scan_parameters['paths'] = paths
 
     if len(paths) != 1:
-        # ignore remote url if multiple paths are provided
+        logger.debug('Multiple paths provided, going to ignore remote url')
+        return scan_parameters
+
+    if not os.path.isdir(paths[0]):
+        logger.debug('Path is not a directory, going to ignore remote url')
         return scan_parameters
 
     remote_url = try_get_git_remote_url(paths[0])
