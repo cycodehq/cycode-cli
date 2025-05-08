@@ -28,9 +28,8 @@ class ConsolePrinter:
         'text': TextPrinter,
         'json': JsonPrinter,
         'table': TablePrinter,
-        # overrides
+        # overrides:
         'table_sca': ScaTablePrinter,
-        'text_sca': ScaTablePrinter,
     }
 
     def __init__(

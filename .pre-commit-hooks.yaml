@@ -9,4 +9,4 @@
   language: python
   language_version: python3
   entry: cycode
-  args: [ '--no-progress-meter', 'scan', '-t', 'sca', 'pre-commit' ]
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sca', 'pre-commit' ]

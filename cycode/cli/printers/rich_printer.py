@@ -54,46 +54,68 @@ class RichPrinter(TextPrinter):
         severity_icon = SeverityOption.get_member_emoji(severity.lower())
         details_table.add_row('Severity', f'{severity_icon} {SeverityOption(severity).__rich__()}')
 
-        detection_details = detection.detection_details
-
         path = str(get_detection_file_path(self.scan_type, detection))
         shorten_path = f'...{path[-self.MAX_PATH_LENGTH :]}' if len(path) > self.MAX_PATH_LENGTH else path
         details_table.add_row('In file', f'[link=file://{path}]{shorten_path}[/]')
 
-        if self.scan_type == consts.SECRET_SCAN_TYPE:
-            details_table.add_row('Secret SHA', detection_details.get('sha512'))
-        elif self.scan_type == consts.SCA_SCAN_TYPE:
-            details_table.add_row('CVEs', get_detection_clickable_cwe_cve(self.scan_type, detection))
-            details_table.add_row('Package', detection_details.get('package_name'))
-            details_table.add_row('Version', detection_details.get('package_version'))
-
-            is_package_vulnerability = 'alert' in detection_details
-            if is_package_vulnerability:
-                details_table.add_row(
-                    'First patched version', detection_details['alert'].get('first_patched_version', 'Not fixed')
-                )
-
-            details_table.add_row('Dependency path', detection_details.get('dependency_paths', 'N/A'))
-
-            if not is_package_vulnerability:
-                details_table.add_row('License', detection_details.get('license'))
-        elif self.scan_type == consts.IAC_SCAN_TYPE:
-            details_table.add_row('IaC Provider', detection_details.get('infra_provider'))
-        elif self.scan_type == consts.SAST_SCAN_TYPE:
-            details_table.add_row('CWE', get_detection_clickable_cwe_cve(self.scan_type, detection))
-            details_table.add_row('Subcategory', detection_details.get('category'))
-            details_table.add_row('Language', ', '.join(detection_details.get('languages', [])))
-
-            engine_id_to_display_name = {
-                '5db84696-88dc-11ec-a8a3-0242ac120002': 'Semgrep OSS (Orchestrated by Cycode)',
-                '560a0abd-d7da-4e6d-a3f1-0ed74895295c': 'Bearer (Powered by Cycode)',
-            }
-            engine_id = detection.detection_details.get('external_scanner_id')
-            details_table.add_row('Security Tool', engine_id_to_display_name.get(engine_id, 'N/A'))
+        self._add_scan_related_rows(details_table, detection)
 
         details_table.add_row('Rule ID', detection.detection_rule_id)
 
         return details_table
+
+    def _add_scan_related_rows(self, details_table: Table, detection: 'Detection') -> None:
+        scan_type_details_handlers = {
+            consts.SECRET_SCAN_TYPE: self.__add_secret_scan_related_rows,
+            consts.SCA_SCAN_TYPE: self.__add_sca_scan_related_rows,
+            consts.IAC_SCAN_TYPE: self.__add_iac_scan_related_rows,
+            consts.SAST_SCAN_TYPE: self.__add_sast_scan_related_rows,
+        }
+
+        if self.scan_type not in scan_type_details_handlers:
+            raise ValueError(f'Unknown scan type: {self.scan_type}')
+
+        scan_enricher_function = scan_type_details_handlers[self.scan_type]
+        scan_enricher_function(details_table, detection)
+
+    @staticmethod
+    def __add_secret_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
+        details_table.add_row('Secret SHA', detection.detection_details.get('sha512'))
+
+    @staticmethod
+    def __add_sca_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
+        detection_details = detection.detection_details
+
+        details_table.add_row('CVEs', get_detection_clickable_cwe_cve(consts.SCA_SCAN_TYPE, detection))
+        details_table.add_row('Package', detection_details.get('package_name'))
+        details_table.add_row('Version', detection_details.get('package_version'))
+
+        if detection.has_alert:
+            patched_version = detection_details['alert'].get('patched_version')
+            details_table.add_row('First patched version', patched_version or 'Not fixed')
+
+        dependency_path = detection_details.get('dependency_paths')
+        details_table.add_row('Dependency path', dependency_path or 'N/A')
+
+        if not detection.has_alert:
+            details_table.add_row('License', detection_details.get('license'))
+
+    @staticmethod
+    def __add_iac_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
+        details_table.add_row('IaC Provider', detection.detection_details.get('infra_provider'))
+
+    @staticmethod
+    def __add_sast_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
+        details_table.add_row('CWE', get_detection_clickable_cwe_cve(consts.SAST_SCAN_TYPE, detection))
+        details_table.add_row('Subcategory', detection.detection_details.get('category'))
+        details_table.add_row('Language', ', '.join(detection.detection_details.get('languages', [])))
+
+        engine_id_to_display_name = {
+            '5db84696-88dc-11ec-a8a3-0242ac120002': 'Semgrep OSS (Orchestrated by Cycode)',
+            '560a0abd-d7da-4e6d-a3f1-0ed74895295c': 'Bearer (Powered by Cycode)',
+        }
+        engine_id = detection.detection_details.get('external_scanner_id')
+        details_table.add_row('Security Tool', engine_id_to_display_name.get(engine_id, 'N/A'))
 
     def _print_violation_card(
         self, document: 'Document', detection: 'Detection', detection_number: int, detections_count: int
@@ -117,8 +139,7 @@ class RichPrinter(TextPrinter):
             title=':computer: Code Snippet',
         )
 
-        is_sca_package_vulnerability = self.scan_type == consts.SCA_SCAN_TYPE and 'alert' in detection.detection_details
-        if is_sca_package_vulnerability:
+        if detection.has_alert:
             summary = detection.detection_details['alert'].get('description')
         else:
             summary = detection.detection_details.get('description') or detection.message
