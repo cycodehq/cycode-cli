@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
+from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.models import CliError, CliResult, Document
 from cycode.cli.printers.printer_base import PrinterBase
@@ -66,9 +67,33 @@ class TextPrinter(PrinterBase):
         self.console.print(
             severity_icon,
             severity,
-            f'violation: [b bright_red]{title}[/]{detection_commit_id_message}\n'
+            f'violation: [b bright_red]{title}[/]{detection_commit_id_message}\n',
+            *self.__get_intermediate_summary_lines(detection),
             f'[dodger_blue1]File: {clickable_document_path}[/]',
         )
+
+    def __get_intermediate_summary_lines(self, detection: 'Detection') -> list[str]:
+        intermediate_summary_lines = []
+
+        if self.scan_type == consts.SCA_SCAN_TYPE:
+            intermediate_summary_lines.extend(self.__get_sca_related_summary_lines(detection))
+
+        return intermediate_summary_lines
+
+    @staticmethod
+    def __get_sca_related_summary_lines(detection: 'Detection') -> list[str]:
+        summary_lines = []
+
+        if detection.has_alert:
+            patched_version = detection.detection_details['alert'].get('first_patched_version')
+            patched_version = patched_version or 'Not fixed'
+
+            summary_lines.append(f'First patched version: [cyan]{patched_version}[/]\n')
+        else:
+            package_license = detection.detection_details.get('license', 'N/A')
+            summary_lines.append(f'License: [cyan]{package_license}[/]\n')
+
+        return summary_lines
 
     def __print_detection_code_segment(self, detection: 'Detection', document: Document) -> None:
         self.console.print(

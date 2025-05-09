@@ -1,4 +1,3 @@
-import os
 from typing import TYPE_CHECKING, Optional
 
 import typer
@@ -18,7 +17,7 @@ from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
-    from git import Repo
+    from git import Diff, Repo
 
 BUILD_DEP_TREE_TIMEOUT = 180
 
@@ -39,9 +38,9 @@ def perform_pre_commit_range_scan_actions(
 
 
 def perform_pre_hook_range_scan_actions(
-    git_head_documents: list[Document], pre_committed_documents: list[Document]
+    repo_path: str, git_head_documents: list[Document], pre_committed_documents: list[Document]
 ) -> None:
-    repo = git_proxy.get_repo(os.getcwd())
+    repo = git_proxy.get_repo(repo_path)
     add_ecosystem_related_files_if_exists(git_head_documents, repo, consts.GIT_HEAD_COMMIT_REV)
     add_ecosystem_related_files_if_exists(pre_committed_documents)
 
@@ -69,7 +68,7 @@ def get_doc_ecosystem_related_project_files(
         file_to_search = join_paths(get_file_dir(doc.path), ecosystem_project_file)
         if not is_project_file_exists_in_documents(documents, file_to_search):
             if repo:
-                file_content = get_file_content_from_commit(repo, commit_rev, file_to_search)
+                file_content = get_file_content_from_commit_path(repo, commit_rev, file_to_search)
             else:
                 file_content = get_file_content(file_to_search)
 
@@ -151,11 +150,18 @@ def get_manifest_file_path(document: Document, is_monitor_action: bool, project_
     return join_paths(project_path, document.path) if is_monitor_action else document.path
 
 
-def get_file_content_from_commit(repo: 'Repo', commit: str, file_path: str) -> Optional[str]:
+def get_file_content_from_commit_path(repo: 'Repo', commit: str, file_path: str) -> Optional[str]:
     try:
         return repo.git.show(f'{commit}:{file_path}')
     except git_proxy.get_git_command_error():
         return None
+
+
+def get_file_content_from_commit_diff(repo: 'Repo', commit: str, diff: 'Diff') -> Optional[str]:
+    from cycode.cli.files_collector.repository_documents import get_diff_file_path
+
+    file_path = get_diff_file_path(diff, relative=True)
+    return get_file_content_from_commit_path(repo, commit, file_path)
 
 
 def perform_pre_scan_documents_actions(

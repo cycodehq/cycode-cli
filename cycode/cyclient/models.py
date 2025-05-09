@@ -33,6 +33,15 @@ class Detection(Schema):
             f'detection_rule_id:{self.detection_rule_id}'
         )
 
+    @property
+    def has_alert(self) -> bool:
+        """Check if the detection has an alert.
+
+        For example, for SCA, it means that the detection is a package vulnerability.
+        Otherwise, it is a license.
+        """
+        return 'alert' in self.detection_details
+
 
 class DetectionSchema(Schema):
     class Meta:

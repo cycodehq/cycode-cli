@@ -221,11 +221,11 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v2.3.0
+        rev: v3.0.0
         hooks:
           - id: cycode
             stages:
-              - commit
+              - pre-commit
     ```
 
 4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. If you want to enable both, use this configuration:
@@ -233,14 +233,14 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v2.3.0
+        rev: v3.0.0
         hooks:
           - id: cycode
             stages:
-              - commit
+              - pre-commit
           - id: cycode-sca
             stages:
-              - commit
+              - pre-commit
     ```
 
 5. Install Cycode’s hook:

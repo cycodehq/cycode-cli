@@ -83,7 +83,7 @@ def get_detection_title(scan_type: str, detection: 'Detection') -> str:
     elif scan_type == consts.SECRET_SCAN_TYPE:
         title = f'Hardcoded {detection.type} is used'
 
-    is_sca_package_vulnerability = scan_type == consts.SCA_SCAN_TYPE and 'alert' in detection.detection_details
+    is_sca_package_vulnerability = scan_type == consts.SCA_SCAN_TYPE and detection.has_alert
     if is_sca_package_vulnerability:
         title = detection.detection_details['alert'].get('summary', 'N/A')
 
