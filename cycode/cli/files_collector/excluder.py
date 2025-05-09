@@ -1,20 +1,23 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 from cycode.cli.utils.path_utils import get_file_size, is_binary_file, is_sub_path
 from cycode.cli.utils.string_utils import get_content_size, is_binary_content
-from cycode.cyclient import logger
+from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cli.models import Document
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 
+logger = get_logger('File Excluder')
+
+
 def exclude_irrelevant_files(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, filenames: List[str]
-) -> List[str]:
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, filenames: list[str]
+) -> list[str]:
     relevant_files = []
     for filename in filenames:
         progress_bar.update(progress_bar_section)
@@ -26,7 +29,7 @@ def exclude_irrelevant_files(
     return relevant_files
 
 
-def exclude_irrelevant_documents_to_scan(scan_type: str, documents_to_scan: List['Document']) -> List['Document']:
+def exclude_irrelevant_documents_to_scan(scan_type: str, documents_to_scan: list['Document']) -> list['Document']:
     logger.debug('Excluding irrelevant documents to scan')
 
     relevant_documents = []
@@ -149,8 +152,8 @@ def _is_relevant_document_to_scan(scan_type: str, filename: str, content: str) -
 def _is_file_extension_supported(scan_type: str, filename: str) -> bool:
     filename = filename.lower()
 
-    if scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE:
-        return filename.endswith(consts.INFRA_CONFIGURATION_SCAN_SUPPORTED_FILES)
+    if scan_type == consts.IAC_SCAN_TYPE:
+        return filename.endswith(consts.IAC_SCAN_SUPPORTED_FILES)
 
     if scan_type == consts.SCA_SCAN_TYPE:
         return filename.endswith(consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES)

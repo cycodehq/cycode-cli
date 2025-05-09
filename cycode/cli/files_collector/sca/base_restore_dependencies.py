@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 
-import click
+import typer
 
+from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
 from cycode.cli.utils.shell_executor import shell
-from cycode.cyclient import logger
 
 
 def build_dep_tree_path(path: str, generated_file_name: str) -> str:
@@ -14,7 +14,7 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 
 def execute_commands(
-    commands: List[List[str]],
+    commands: list[list[str]],
     file_name: str,
     command_timeout: int,
     dependencies_file_name: Optional[str] = None,
@@ -43,9 +43,9 @@ def execute_commands(
 
 class BaseRestoreDependencies(ABC):
     def __init__(
-        self, context: click.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
+        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
     ) -> None:
-        self.context = context
+        self.ctx = ctx
         self.is_git_diff = is_git_diff
         self.command_timeout = command_timeout
         self.create_output_file_manually = create_output_file_manually
@@ -55,9 +55,7 @@ class BaseRestoreDependencies(ABC):
 
     def get_manifest_file_path(self, document: Document) -> str:
         return (
-            join_paths(get_path_from_context(self.context), document.path)
-            if self.context.obj.get('monitor')
-            else document.path
+            join_paths(get_path_from_context(self.ctx), document.path) if self.ctx.obj.get('monitor') else document.path
         )
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
@@ -93,7 +91,7 @@ class BaseRestoreDependencies(ABC):
         pass
 
     @abstractmethod
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         pass
 
     @abstractmethod

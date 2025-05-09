@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-class InMemoryZip(object):
+class InMemoryZip:
     def __init__(self) -> None:
         self.configuration_manager = ConfigurationManager()
 

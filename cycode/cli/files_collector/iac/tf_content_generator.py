@@ -1,6 +1,5 @@
 import json
 import time
-from typing import List
 
 from cycode.cli import consts
 from cycode.cli.exceptions.custom_exceptions import TfplanKeyError
@@ -17,7 +16,7 @@ def generate_tfplan_document_name(path: str) -> str:
 
 
 def is_iac(scan_type: str) -> bool:
-    return scan_type == consts.INFRA_CONFIGURATION_SCAN_TYPE
+    return scan_type == consts.IAC_SCAN_TYPE
 
 
 def is_tfplan_file(file: str, content: str) -> bool:
@@ -34,7 +33,7 @@ def generate_tf_content_from_tfplan(filename: str, tfplan: str) -> str:
     return _generate_tf_content(planned_resources)
 
 
-def _generate_tf_content(resource_changes: List[ResourceChange]) -> str:
+def _generate_tf_content(resource_changes: list[ResourceChange]) -> str:
     tf_content = ''
     for resource_change in resource_changes:
         if not any(item in resource_change.actions for item in ACTIONS_TO_OMIT_RESOURCE):
@@ -62,9 +61,9 @@ def _get_resource_name(resource_change: ResourceChange) -> str:
     return '.'.join(valid_parts)
 
 
-def _extract_resources(tfplan: str, filename: str) -> List[ResourceChange]:
+def _extract_resources(tfplan: str, filename: str) -> list[ResourceChange]:
     tfplan_json = load_json(tfplan)
-    resources: List[ResourceChange] = []
+    resources: list[ResourceChange] = []
     try:
         resource_changes = tfplan_json['resource_changes']
         for resource_change in resource_changes:

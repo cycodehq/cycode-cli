@@ -21,7 +21,7 @@ This guide walks you through both installation and usage.
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
            2. [Monitor](#monitor-option)
-           3. [Report](#report-option)
+           3. [Cycode Report](#cycode-report-option)
            4. [Package Vulnerabilities](#package-vulnerabilities-option)
            5. [License Compliance](#license-compliance-option)
            6. [Lock Restore](#lock-restore-option)
@@ -54,7 +54,7 @@ This guide walks you through both installation and usage.
 
 # Prerequisites
 
-- The Cycode CLI application requires Python version 3.8 or later.
+- The Cycode CLI application requires Python version 3.9 or later.
 - Use the [`cycode auth` command](#using-the-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, you can get a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/docs/en/service-accounts) and [Personal Access Token](https://docs.cycode.com/v1/docs/managing-personal-access-tokens) pages, which contain details on getting these values.
 
@@ -208,7 +208,7 @@ Cycode’s pre-commit hook can be set up within your local repository so that th
 
 Perform the following steps to install the pre-commit hook:
 
-1. Install the pre-commit framework (Python 3.8 or higher must be installed):
+1. Install the pre-commit framework (Python 3.9 or higher must be installed):
 
    ```bash
    pip3 install pre-commit
@@ -221,11 +221,11 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v2.3.0
+        rev: v3.0.0
         hooks:
           - id: cycode
             stages:
-              - commit
+              - pre-commit
     ```
 
 4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. If you want to enable both, use this configuration:
@@ -233,14 +233,14 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v2.3.0
+        rev: v3.0.0
         hooks:
           - id: cycode
             stages:
-              - commit
+              - pre-commit
           - id: cycode-sca
             stages:
-              - commit
+              - pre-commit
     ```
 
 5. Install Cycode’s hook:
@@ -281,8 +281,8 @@ The following are the options and commands available with the Cycode CLI applica
 | [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
 | [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
-| [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit_history/path/repository/etc. |
-| [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform.                                                                        |
+| [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
+| [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform as SBOM.                                                                |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
 # Scan Command
@@ -294,24 +294,23 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | Option                                                     | Description                                                                                                                                                                                                                                             |
 |------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                                                                                                                                                            |
-| `--secret TEXT`                                            | Specify a Cycode client secret for this specific scan execution.                                                                                                                                                                                        |
+| `--client-secret TEXT`                                     | Specify a Cycode client secret for this specific scan execution.                                                                                                                                                                                        |
 | `--client-id TEXT`                                         | Specify a Cycode client ID for this specific scan execution.                                                                                                                                                                                            |
 | `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                                                                                                                                        |
 | `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.                                                                                                                                  |
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                                                                                                                                                  |
 | `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                                                                                                                                         |
 | `--monitor`                                                | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
-| `--report`                                                 | When specified, a violations report will be generated. A URL link to the report will be printed as an output to the command execution.                                                                                                                  |
+| `--cycode-report`                                          | When specified, displays a link to the scan report in the Cycode platform in the console output.                                                                                                                                                        |
 | `--no-restore`                                             | When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!                                                                                                                                                                |
-| `--sync`                                                   | Run scan synchronously (the default is asynchronous).                                                                                                                                                                                                   |
 | `--gradle-all-sub-projects`                                | When specified, Cycode will run gradle restore command for all sub projects. Should run from root project directory ONLY!                                                                                                                               |
 | `--help`                                                   | Show options for given command.                                                                                                                                                                                                                         |
 
 | Command                                | Description                                                     |
 |----------------------------------------|-----------------------------------------------------------------|
-| [commit_history](#commit-history-scan) | Scan all the commits history in this git repository             |
+| [commit-history](#commit-history-scan) | Scan all the commits history in this git repository             |
 | [path](#path-scan)                     | Scan the files in the path supplied in the command              |
-| [pre_commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet |
+| [pre-commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet |
 | [repository](#repository-scan)         | Scan git repository including its history                       |
 
 ### Options
@@ -340,18 +339,15 @@ When using this option, the scan results from this scan will appear in the knowl
 > [!WARNING]
 > You must be an `owner` or an `admin` in Cycode to view the knowledge graph page.
 
-#### Report Option
+#### Cycode Report Option
 
-> [!NOTE]
-> This option is not available to IaC scans.
+For every scan performed using the Cycode CLI, a report is automatically generated and its results are sent to Cycode. These results are tied to the relevant policies (e.g., [SCA policies](https://docs.cycode.com/docs/sca-policies) for Repository scans) within the Cycode platform.
 
-To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in the Repository scan to Cycode, add the argument `--report` to the scan command.
+To have the direct URL to this Cycode report printed in your CLI output after the scan completes, add the argument `--cycode-report` to your scan command.
 
-`cycode scan -t sca --report repository ~/home/git/codebase`
+`cycode scan --cycode-report repository ~/home/git/codebase`
 
-In the same way, you can push scan results of Secrets and SAST scans to Cycode by adding the `--report` option to the scan command.
-
-When using this option, the scan results from this scan will appear in the On-Demand Scans section of Cycode. To get to this page, click the link that appears after the printed results:
+All scan results from the CLI will appear in the CLI Logs section of Cycode. If you included the `--cycode-report` flag in your command, a direct link to the specific report will be displayed in your terminal following the scan results.
 
 > [!WARNING]
 > You must be an `owner` or an `admin` in Cycode to view this page.
@@ -467,25 +463,25 @@ A commit history scan is limited to a local repository’s previous commits, foc
 
 To execute a commit history scan, execute the following:
 
-`cycode scan commit_history {{path}}`
+`cycode scan commit-history {{path}}`
 
 For example, consider a scenario in which you want to scan the commit history for a repository stored in `~/home/git/codebase`. You could then execute the following:
 
-`cycode scan commit_history ~/home/git/codebase`
+`cycode scan commit-history ~/home/git/codebase`
 
 The following options are available for use with this command:
 
 | Option                    | Description                                                                                              |
 |---------------------------|----------------------------------------------------------------------------------------------------------|
-| `-r, --commit_range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
+| `-r, --commit-range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
 
 #### Commit Range Option
 
-The commit history scan, by default, examines the repository’s entire commit history, all the way back to the initial commit. You can instead limit the scan to a specific commit range by adding the argument `--commit_range` (`-r`) followed by the name you specify.
+The commit history scan, by default, examines the repository’s entire commit history, all the way back to the initial commit. You can instead limit the scan to a specific commit range by adding the argument `--commit-range` (`-r`) followed by the name you specify.
 
 Consider the previous example. If you wanted to scan only specific commits in your repository, you could execute the following:
 
-`cycode scan commit_history -r {{from-commit-id}}...{{to-commit-id}} ~/home/git/codebase`
+`cycode scan commit-history -r {{from-commit-id}}...{{to-commit-id}} ~/home/git/codebase`
 
 ### Pre-Commit Scan
 
@@ -824,7 +820,7 @@ The following commands are available for use with this command:
 | Command          | Description                                                     |
 |------------------|-----------------------------------------------------------------|
 | `path`           | Generate SBOM report for provided path in the command           |
-| `repository_url` | Generate SBOM report for provided repository URI in the command |
+| `repository-url` | Generate SBOM report for provided repository URI in the command |
 
 ### Repository
 

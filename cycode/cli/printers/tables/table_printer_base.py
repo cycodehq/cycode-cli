@@ -1,7 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, Dict, List, Optional
-
-import click
+from typing import TYPE_CHECKING, Optional
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
@@ -13,62 +11,32 @@ if TYPE_CHECKING:
 
 
 class TablePrinterBase(PrinterBase, abc.ABC):
-    def __init__(self, context: click.Context) -> None:
-        super().__init__(context)
-        self.scan_type: str = context.obj.get('scan_type')
-        self.show_secret: bool = context.obj.get('show_secret', False)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.text_printer = TextPrinter(self.ctx, self.console, self.console_err)
 
     def print_result(self, result: CliResult) -> None:
-        TextPrinter(self.context).print_result(result)
+        self.text_printer.print_result(result)
 
     def print_error(self, error: CliError) -> None:
-        TextPrinter(self.context).print_error(error)
+        self.text_printer.print_error(error)
 
     def print_scan_results(
-        self, local_scan_results: List['LocalScanResult'], errors: Optional[Dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
-            click.secho('Good job! No issues were found!!! 👏👏👏', fg=self.GREEN_COLOR_NAME)
+            self.console.print(self.NO_DETECTIONS_MESSAGE)
             return
 
         self._print_results(local_scan_results)
 
-        if not errors:
-            return
-
-        click.secho(
-            'Unfortunately, Cycode was unable to complete the full scan. '
-            'Please note that not all results may be available:',
-            fg='red',
-        )
-        for scan_id, error in errors.items():
-            click.echo(f'- {scan_id}: ', nl=False)
-            self.print_error(error)
-
-    def _is_git_repository(self) -> bool:
-        return self.context.obj.get('remote_url') is not None
+        self.print_scan_results_summary(local_scan_results)
+        self.text_printer.print_report_urls_and_errors(local_scan_results, errors)
 
     @abc.abstractmethod
-    def _print_results(self, local_scan_results: List['LocalScanResult']) -> None:
+    def _print_results(self, local_scan_results: list['LocalScanResult']) -> None:
         raise NotImplementedError
 
-    @staticmethod
-    def _print_table(table: 'Table') -> None:
+    def _print_table(self, table: 'Table') -> None:
         if table.get_rows():
-            click.echo(table.get_table().draw())
-
-    @staticmethod
-    def _print_report_urls(
-        local_scan_results: List['LocalScanResult'],
-        aggregation_report_url: Optional[str] = None,
-    ) -> None:
-        report_urls = [scan_result.report_url for scan_result in local_scan_results if scan_result.report_url]
-        if not report_urls and not aggregation_report_url:
-            return
-        if aggregation_report_url:
-            click.echo(f'Report URL: {aggregation_report_url}')
-            return
-
-        click.echo('Report URLs:')
-        for report_url in report_urls:
-            click.echo(f'- {report_url}')
+            self.console.print(table.get_table())

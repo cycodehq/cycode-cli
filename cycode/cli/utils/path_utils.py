@@ -1,18 +1,18 @@
 import json
 import os
-from functools import lru_cache
-from typing import TYPE_CHECKING, AnyStr, List, Optional, Union
+from functools import cache
+from typing import TYPE_CHECKING, AnyStr, Optional, Union
 
-import click
+import typer
 from binaryornot.helpers import is_binary_string
 
-from cycode.cyclient import logger
+from cycode.cli.logger import logger
 
 if TYPE_CHECKING:
     from os import PathLike
 
 
-@lru_cache(maxsize=None)
+@cache
 def is_sub_path(path: str, sub_path: str) -> bool:
     try:
         common_path = os.path.commonpath([get_absolute_path(path), get_absolute_path(sub_path)])
@@ -35,7 +35,7 @@ def _get_starting_chunk(filename: str, length: int = 1024) -> Optional[bytes]:
     try:
         with open(filename, 'rb') as f:
             return f.read(length)
-    except IOError as e:
+    except OSError as e:
         logger.debug('Failed to read the starting chunk from file: %s', filename, exc_info=e)
 
     return None
@@ -68,7 +68,7 @@ def get_file_dir(path: str) -> str:
     return os.path.dirname(path)
 
 
-def get_immediate_subdirectories(path: str) -> List[str]:
+def get_immediate_subdirectories(path: str) -> list[str]:
     return [f.name for f in os.scandir(path) if f.is_dir()]
 
 
@@ -78,7 +78,7 @@ def join_paths(path: str, filename: str) -> str:
 
 def get_file_content(file_path: Union[str, 'PathLike']) -> Optional[AnyStr]:
     try:
-        with open(file_path, 'r', encoding='UTF-8') as f:
+        with open(file_path, encoding='UTF-8') as f:
             return f.read()
     except (FileNotFoundError, UnicodeDecodeError):
         return None
@@ -106,8 +106,8 @@ def concat_unique_id(filename: str, unique_id: str) -> str:
     return os.path.join(unique_id, filename)
 
 
-def get_path_from_context(context: click.Context) -> Optional[str]:
-    path = context.params.get('path')
-    if path is None and 'paths' in context.params:
-        path = context.params['paths'][0]
+def get_path_from_context(ctx: typer.Context) -> Optional[str]:
+    path = ctx.params.get('path')
+    if path is None and 'paths' in ctx.params:
+        path = ctx.params['paths'][0]
     return path

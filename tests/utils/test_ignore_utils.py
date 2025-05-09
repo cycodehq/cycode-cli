@@ -87,9 +87,9 @@ class TestIgnoreFiles:
         for pattern, regex in TRANSLATE_TESTS:
             if re.escape(b'/') == b'/':
                 regex = regex.replace(b'\\/', b'/')
-            assert (
-                translate(pattern) == regex
-            ), f'orig pattern: {pattern!r}, regex: {translate(pattern)!r}, expected: {regex!r}'
+            assert translate(pattern) == regex, (
+                f'orig pattern: {pattern!r}, regex: {translate(pattern)!r}, expected: {regex!r}'
+            )
 
     def test_read_file(self) -> None:
         f = BytesIO(

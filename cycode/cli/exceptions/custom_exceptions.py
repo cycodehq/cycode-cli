@@ -4,13 +4,17 @@ from cycode.cli.models import CliError, CliErrors
 
 
 class CycodeError(Exception):
-    """Base class for all custom exceptions"""
+    """Base class for all custom exceptions."""
+
+    def __str__(self) -> str:
+        class_name = self.__class__.__name__
+        return f'{class_name} error occurred.'
 
 
 class RequestError(CycodeError): ...
 
 
-class RequestTimeout(RequestError): ...
+class RequestTimeoutError(RequestError): ...
 
 
 class RequestConnectionError(RequestError): ...
@@ -27,10 +31,7 @@ class RequestHttpError(RequestError):
         super().__init__(self.error_message)
 
     def __str__(self) -> str:
-        return (
-            f'error occurred during the request. status code: {self.status_code}, error message: '
-            f'{self.error_message}'
-        )
+        return f'HTTP error occurred during the request (code {self.status_code}). Message: {self.error_message}'
 
 
 class ScanAsyncError(CycodeError):
@@ -39,7 +40,7 @@ class ScanAsyncError(CycodeError):
         super().__init__(self.error_message)
 
     def __str__(self) -> str:
-        return f'error occurred during the scan. error message: {self.error_message}'
+        return f'Async scan error occurred during the scan. Message: {self.error_message}'
 
 
 class ReportAsyncError(CycodeError):
@@ -54,7 +55,7 @@ class HttpUnauthorizedError(RequestError):
         super().__init__(self.error_message)
 
     def __str__(self) -> str:
-        return 'Http Unauthorized Error'
+        return f'HTTP unauthorized error occurred during the request. Message: {self.error_message}'
 
 
 class ZipTooLargeError(CycodeError):
@@ -72,7 +73,7 @@ class AuthProcessError(CycodeError):
         super().__init__()
 
     def __str__(self) -> str:
-        return f'Something went wrong during the authentication process, error message: {self.error_message}'
+        return f'Something went wrong during the authentication process. Message: {self.error_message}'
 
 
 class TfplanKeyError(CycodeError):
@@ -90,7 +91,7 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
         code='cycode_error',
         message='Cycode was unable to complete this scan. Please try again by executing the `cycode scan` command',
     ),
-    RequestTimeout: CliError(
+    RequestTimeoutError: CliError(
         soft_fail=True,
         code='timeout_error',
         message='The request timed out. Please try again by executing the `cycode scan` command',
@@ -106,6 +107,6 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
         code='ssl_error',
         message='An SSL error occurred when trying to connect to the Cycode API. '
         'If you use an on-premises installation or a proxy that intercepts SSL traffic '
-        'you should use the CURL_CA_BUNDLE environment variable to specify path to a valid .pem or similar.',
+        'you should use the CURL_CA_BUNDLE environment variable to specify path to a valid .pem or similar',
     ),
 }

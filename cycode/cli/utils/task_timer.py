@@ -1,19 +1,18 @@
 from _thread import interrupt_main
 from threading import Event, Thread
 from types import TracebackType
-from typing import Callable, Dict, List, Optional, Type
+from typing import Callable, Optional
 
 
 class FunctionContext:
-    def __init__(self, function: Callable, args: Optional[List] = None, kwargs: Optional[Dict] = None) -> None:
+    def __init__(self, function: Callable, args: Optional[list] = None, kwargs: Optional[dict] = None) -> None:
         self.function = function
         self.args = args or []
         self.kwargs = kwargs or {}
 
 
 class TimerThread(Thread):
-    """
-    Custom thread class for executing timer in the background
+    """Custom thread class for executing timer in the background.
 
     Members:
         timeout - the amount of time to count until timeout in seconds
@@ -43,8 +42,7 @@ class TimerThread(Thread):
 
 
 class TimeoutAfter:
-    """
-    A task wrapper for controlling how much time a task should be run before timing out
+    """A task wrapper for controlling how much time a task should be run before timing out.
 
     Use Example:
         with TimeoutAfter(5, repeat_function=FunctionContext(x), repeat_interval=2):
@@ -66,7 +64,7 @@ class TimeoutAfter:
             self.timer.start()
 
     def __exit__(
-        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
+        self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
     ) -> None:
         if self.timeout:
             self.timer.stop()

@@ -1,7 +1,7 @@
 import os
 
 from cycode.cli import consts
-from cycode.cli.commands.scan.code_scanner import _does_severity_match_severity_threshold
+from cycode.cli.apps.scan.code_scanner import _does_severity_match_severity_threshold
 from cycode.cli.files_collector.excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
@@ -42,7 +42,7 @@ def test_generate_document() -> None:
         }"""
 
     iac_document = Document(path, content, is_git_diff)
-    generated_document = _generate_document(path, consts.INFRA_CONFIGURATION_SCAN_TYPE, content, is_git_diff)
+    generated_document = _generate_document(path, consts.IAC_SCAN_TYPE, content, is_git_diff)
     assert iac_document.path == generated_document.path
     assert iac_document.content == generated_document.content
     assert iac_document.is_git_diff_format == generated_document.is_git_diff_format
@@ -68,7 +68,7 @@ def test_generate_document() -> None:
        }
     """
 
-    generated_tfplan_document = _generate_document(path, consts.INFRA_CONFIGURATION_SCAN_TYPE, content, is_git_diff)
+    generated_tfplan_document = _generate_document(path, consts.IAC_SCAN_TYPE, content, is_git_diff)
 
     assert isinstance(generated_tfplan_document, Document)
     assert generated_tfplan_document.path.endswith('.tf')

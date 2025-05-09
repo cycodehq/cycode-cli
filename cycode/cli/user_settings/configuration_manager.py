@@ -1,7 +1,7 @@
 import os
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from cycode.cli import consts
@@ -69,8 +69,8 @@ class ConfigurationManager:
         value = self._get_value_from_environment_variables(consts.VERBOSE_ENV_VAR_NAME, '')
         return value.lower() in ('true', '1')
 
-    @lru_cache(maxsize=None)  # noqa: B019
-    def get_exclusions_by_scan_type(self, scan_type: str) -> Dict:
+    @cache  # noqa: B019
+    def get_exclusions_by_scan_type(self, scan_type: str) -> dict:
         local_exclusions = self.local_config_file_manager.get_exclusions_by_scan_type(scan_type)
         global_exclusions = self.global_config_file_manager.get_exclusions_by_scan_type(scan_type)
         return self._merge_exclusions(local_exclusions, global_exclusions)
@@ -80,7 +80,7 @@ class ConfigurationManager:
         config_file_manager.add_exclusion(scan_type, exclusion_type, value)
 
     @staticmethod
-    def _merge_exclusions(local_exclusions: Dict, global_exclusions: Dict) -> Dict:
+    def _merge_exclusions(local_exclusions: dict, global_exclusions: dict) -> dict:
         keys = set(list(local_exclusions.keys()) + list(global_exclusions.keys()))
         return {key: local_exclusions.get(key, []) + global_exclusions.get(key, []) for key in keys}
 

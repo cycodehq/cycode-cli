@@ -1,8 +1,8 @@
 import os
 from os import path
-from typing import List, Optional
+from typing import Optional
 
-import click
+import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import (
     BaseRestoreDependencies,
@@ -18,13 +18,13 @@ MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
 
 
 class RestoreMavenDependencies(BaseRestoreDependencies):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout)
+    def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
+        super().__init__(ctx, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]]
 
     def get_lock_file_name(self) -> str:
@@ -64,7 +64,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         return restore_dependencies
 
 
-def create_secondary_restore_command(manifest_file_path: str) -> List[str]:
+def create_secondary_restore_command(manifest_file_path: str) -> list[str]:
     return [
         'mvn',
         'dependency:tree',

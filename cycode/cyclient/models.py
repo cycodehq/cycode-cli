@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
 
@@ -33,6 +33,15 @@ class Detection(Schema):
             f'detection_rule_id:{self.detection_rule_id}'
         )
 
+    @property
+    def has_alert(self) -> bool:
+        """Check if the detection has an alert.
+
+        For example, for SCA, it means that the detection is a package vulnerability.
+        Otherwise, it is a license.
+        """
+        return 'alert' in self.detection_details
+
 
 class DetectionSchema(Schema):
     class Meta:
@@ -47,36 +56,23 @@ class DetectionSchema(Schema):
     detection_rule_id = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> Detection:
+    def build_dto(self, data: dict[str, Any], **_) -> Detection:
         return Detection(**data)
 
 
 class DetectionsPerFile(Schema):
-    def __init__(self, file_name: str, detections: List[Detection], commit_id: Optional[str] = None) -> None:
+    def __init__(self, file_name: str, detections: list[Detection], commit_id: Optional[str] = None) -> None:
         super().__init__()
         self.file_name = file_name
         self.detections = detections
         self.commit_id = commit_id
 
 
-class DetectionsPerFileSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    file_name = fields.String()
-    detections = fields.List(fields.Nested(DetectionSchema))
-    commit_id = fields.String(allow_none=True)
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'DetectionsPerFile':
-        return DetectionsPerFile(**data)
-
-
 class ZippedFileScanResult(Schema):
     def __init__(
         self,
         did_detect: bool,
-        detections_per_file: List[DetectionsPerFile],
+        detections_per_file: list[DetectionsPerFile],
         report_url: Optional[str] = None,
         scan_id: Optional[str] = None,
         err: Optional[str] = None,
@@ -89,27 +85,12 @@ class ZippedFileScanResult(Schema):
         self.err = err
 
 
-class ZippedFileScanResultSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    did_detect = fields.Boolean()
-    scan_id = fields.String()
-    report_url = fields.String(allow_none=True)
-    detections_per_file = fields.List(fields.Nested(DetectionsPerFileSchema))
-    err = fields.String()
-
-    @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ZippedFileScanResult':
-        return ZippedFileScanResult(**data)
-
-
 class ScanResult(Schema):
     def __init__(
         self,
         did_detect: bool,
         scan_id: Optional[str] = None,
-        detections: Optional[List[Detection]] = None,
+        detections: Optional[list[Detection]] = None,
         err: Optional[str] = None,
     ) -> None:
         super().__init__()
@@ -129,7 +110,7 @@ class ScanResultSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanResult':
+    def build_dto(self, data: dict[str, Any], **_) -> 'ScanResult':
         return ScanResult(**data)
 
 
@@ -148,7 +129,7 @@ class ScanInitializationResponseSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanInitializationResponse':
+    def build_dto(self, data: dict[str, Any], **_) -> 'ScanInitializationResponse':
         return ScanInitializationResponse(**data)
 
 
@@ -182,7 +163,7 @@ class ScanReportUrlResponseSchema(Schema):
     report_url = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanReportUrlResponse':
+    def build_dto(self, data: dict[str, Any], **_) -> 'ScanReportUrlResponse':
         return ScanReportUrlResponse(**data)
 
 
@@ -199,12 +180,12 @@ class ScanDetailsResponseSchema(Schema):
     err = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ScanDetailsResponse':
+    def build_dto(self, data: dict[str, Any], **_) -> 'ScanDetailsResponse':
         return ScanDetailsResponse(**data)
 
 
 class K8SResource:
-    def __init__(self, name: str, resource_type: str, namespace: str, content: Dict) -> None:
+    def __init__(self, name: str, resource_type: str, namespace: str, content: dict) -> None:
         super().__init__()
         self.name = name
         self.type = resource_type
@@ -229,7 +210,7 @@ class InternalMetadata:
 
 
 class ResourcesCollection:
-    def __init__(self, resource_type: str, namespace: str, resources: List[K8SResource], total_count: int) -> None:
+    def __init__(self, resource_type: str, namespace: str, resources: list[K8SResource], total_count: int) -> None:
         super().__init__()
         self.type = resource_type
         self.namespace = namespace
@@ -268,7 +249,7 @@ class OwnerReference:
         self.kind = kind
 
     def __str__(self) -> str:
-        return 'Name: {0}, Kind: {1}'.format(self.name, self.kind)
+        return f'Name: {self.name}, Kind: {self.kind}'
 
 
 class AuthenticationSession(Schema):
@@ -284,7 +265,7 @@ class AuthenticationSessionSchema(Schema):
     session_id = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'AuthenticationSession':
+    def build_dto(self, data: dict[str, Any], **_) -> 'AuthenticationSession':
         return AuthenticationSession(**data)
 
 
@@ -305,7 +286,7 @@ class ApiTokenSchema(Schema):
     description = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ApiToken':
+    def build_dto(self, data: dict[str, Any], **_) -> 'ApiToken':
         return ApiToken(**data)
 
 
@@ -324,7 +305,7 @@ class ApiTokenGenerationPollingResponseSchema(Schema):
     api_token = fields.Nested(ApiTokenSchema, allow_none=True)
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'ApiTokenGenerationPollingResponse':
+    def build_dto(self, data: dict[str, Any], **_) -> 'ApiTokenGenerationPollingResponse':
         return ApiTokenGenerationPollingResponse(**data)
 
 
@@ -335,7 +316,7 @@ class UserAgentOptionScheme(Schema):
     env_version = fields.String(required=True)  # ex. 1.78.2
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'UserAgentOption':
+    def build_dto(self, data: dict[str, Any], **_) -> 'UserAgentOption':
         return UserAgentOption(**data)
 
 
@@ -377,7 +358,7 @@ class SbomReportStorageDetailsSchema(Schema):
     size = fields.Integer()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> SbomReportStorageDetails:
+    def build_dto(self, data: dict[str, Any], **_) -> SbomReportStorageDetails:
         return SbomReportStorageDetails(**data)
 
 
@@ -401,13 +382,13 @@ class ReportExecutionSchema(Schema):
     storage_details = fields.Nested(SbomReportStorageDetailsSchema, allow_none=True)
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> ReportExecution:
+    def build_dto(self, data: dict[str, Any], **_) -> ReportExecution:
         return ReportExecution(**data)
 
 
 @dataclass
 class SbomReport:
-    report_executions: List[ReportExecution]
+    report_executions: list[ReportExecution]
 
 
 class RequestedSbomReportResultSchema(Schema):
@@ -417,7 +398,7 @@ class RequestedSbomReportResultSchema(Schema):
     report_executions = fields.List(fields.Nested(ReportExecutionSchema))
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> SbomReport:
+    def build_dto(self, data: dict[str, Any], **_) -> SbomReport:
         return SbomReport(**data)
 
 
@@ -433,13 +414,13 @@ class ClassificationDataSchema(Schema):
     severity = fields.String()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> ClassificationData:
+    def build_dto(self, data: dict[str, Any], **_) -> ClassificationData:
         return ClassificationData(**data)
 
 
 @dataclass
 class DetectionRule:
-    classification_data: List[ClassificationData]
+    classification_data: list[ClassificationData]
     detection_rule_id: str
     custom_remediation_guidelines: Optional[str] = None
     remediation_guidelines: Optional[str] = None
@@ -461,14 +442,14 @@ class DetectionRuleSchema(Schema):
     display_name = fields.String(allow_none=True)
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> DetectionRule:
+    def build_dto(self, data: dict[str, Any], **_) -> DetectionRule:
         return DetectionRule(**data)
 
 
 @dataclass
 class ScanResultsSyncFlow:
     id: str
-    detection_messages: List[Dict]
+    detection_messages: list[dict]
 
 
 class ScanResultsSyncFlowSchema(Schema):
@@ -479,7 +460,7 @@ class ScanResultsSyncFlowSchema(Schema):
     detection_messages = fields.List(fields.Dict())
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> ScanResultsSyncFlow:
+    def build_dto(self, data: dict[str, Any], **_) -> ScanResultsSyncFlow:
         return ScanResultsSyncFlow(**data)
 
 
@@ -517,5 +498,5 @@ class SupportedModulesPreferencesSchema(Schema):
     ai_large_language_model = fields.Boolean()
 
     @post_load
-    def build_dto(self, data: Dict[str, Any], **_) -> 'SupportedModulesPreferences':
+    def build_dto(self, data: dict[str, Any], **_) -> 'SupportedModulesPreferences':
         return SupportedModulesPreferences(**data)
