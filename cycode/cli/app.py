@@ -4,6 +4,7 @@ from typing import Annotated, Optional
 import typer
 from typer import rich_utils
 from typer._completion_classes import completion_init
+from typer._completion_shared import Shells
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
@@ -113,16 +114,17 @@ def app_callback(
         ),
     ] = False,
     __: Annotated[
-        Optional[bool],
+        Shells,  # the choice is required for Homebrew to be able to install the completion
         typer.Option(
             '--show-completion',
             callback=show_callback,
             is_eager=True,
             expose_value=False,
-            help='Show completion for the current shell, to copy it or customize the installation.',
+            show_default=False,
+            help='Show completion for the specified shell, to copy it or customize the installation.',
             rich_help_panel=_COMPLETION_RICH_HELP_PANEL,
         ),
-    ] = False,
+    ] = None,
 ) -> None:
     """[bold cyan]Cycode CLI - Command Line Interface for Cycode.[/]"""
     init_sentry()
