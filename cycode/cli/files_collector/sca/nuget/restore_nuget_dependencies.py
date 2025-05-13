@@ -1,5 +1,3 @@
-import os
-
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
@@ -21,6 +19,3 @@ class RestoreNugetDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return NUGET_LOCK_FILE_NAME
-
-    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)

@@ -42,22 +42,19 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
     def get_lock_file_name(self) -> str:
         return BUILD_GRADLE_DEP_TREE_FILE_NAME
 
-    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)
-
     def get_working_directory(self, document: Document) -> Optional[str]:
         return get_path_from_context(self.ctx) if self.is_gradle_sub_projects() else None
 
     def get_all_projects(self) -> set[str]:
-        projects_output = shell(
+        output = shell(
             command=BUILD_GRADLE_ALL_PROJECTS_COMMAND,
             timeout=BUILD_GRADLE_ALL_PROJECTS_TIMEOUT,
             working_directory=get_path_from_context(self.ctx),
         )
+        if not output:
+            return set()
 
-        projects = re.findall(ALL_PROJECTS_REGEX, projects_output)
-
-        return set(projects)
+        return set(re.findall(ALL_PROJECTS_REGEX, output))
 
     def get_commands_for_sub_projects(self, manifest_file_path: str) -> list[list[str]]:
         project_name = os.path.basename(os.path.dirname(manifest_file_path))

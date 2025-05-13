@@ -18,8 +18,5 @@ class RestoreSbtDependencies(BaseRestoreDependencies):
     def get_lock_file_name(self) -> str:
         return SBT_LOCK_FILE_NAME
 
-    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)
-
     def get_working_directory(self, document: Document) -> Optional[str]:
         return os.path.dirname(document.absolute_path)
