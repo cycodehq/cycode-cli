@@ -1,9 +1,9 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Optional
 
 import typer
 
-from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
 from cycode.cli.utils.shell_executor import shell
@@ -15,30 +15,27 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 def execute_commands(
     commands: list[list[str]],
-    file_name: str,
-    command_timeout: int,
-    dependencies_file_name: Optional[str] = None,
+    timeout: int,
+    output_file_path: Optional[str] = None,
     working_directory: Optional[str] = None,
 ) -> Optional[str]:
     try:
-        all_dependencies = []
+        outputs = []
 
-        # Run all commands and collect outputs
         for command in commands:
-            dependencies = shell(command=command, timeout=command_timeout, working_directory=working_directory)
-            all_dependencies.append(dependencies)  # Collect each command's output
+            command_output = shell(command=command, timeout=timeout, working_directory=working_directory)
+            if command_output:
+                outputs.append(command_output)
 
-        dependencies = '\n'.join(all_dependencies)
+        joined_output = '\n'.join(outputs)
 
-        # Write all collected outputs to the file if dependencies_file_name is provided
-        if dependencies_file_name:
-            with open(dependencies_file_name, 'w') as output_file:  # Open once in 'w' mode to start fresh
-                output_file.writelines(dependencies)
-    except Exception as e:
-        logger.debug('Failed to restore dependencies via shell command, %s', {'filename': file_name}, exc_info=e)
+        if output_file_path:
+            with open(output_file_path, 'w', encoding='UTF-8') as output_file:
+                output_file.writelines(joined_output)
+    except Exception:
         return None
 
-    return dependencies
+    return joined_output
 
 
 class BaseRestoreDependencies(ABC):
@@ -64,27 +61,25 @@ class BaseRestoreDependencies(ABC):
         relative_restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
         working_directory_path = self.get_working_directory(document)
 
-        if self.verify_restore_file_already_exist(restore_file_path):
-            restore_file_content = get_file_content(restore_file_path)
-        else:
-            output_file_path = restore_file_path if self.create_output_file_manually else None
-            execute_commands(
+        if not self.verify_restore_file_already_exist(restore_file_path):
+            output = execute_commands(
                 self.get_commands(manifest_file_path),
-                manifest_file_path,
                 self.command_timeout,
-                output_file_path,
-                working_directory_path,
+                output_file_path=restore_file_path if self.create_output_file_manually else None,
+                working_directory=working_directory_path,
             )
-            restore_file_content = get_file_content(restore_file_path)
+            if output is None:  # one of the commands failed
+                return None
 
+        restore_file_content = get_file_content(restore_file_path)
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
     def get_working_directory(self, document: Document) -> Optional[str]:
         return None
 
-    @abstractmethod
-    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        pass
+    @staticmethod
+    def verify_restore_file_already_exist(restore_file_path: str) -> bool:
+        return os.path.isfile(restore_file_path)
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:

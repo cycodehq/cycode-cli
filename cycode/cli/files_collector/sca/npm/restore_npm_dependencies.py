@@ -33,9 +33,6 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
     def get_lock_file_name(self) -> str:
         return NPM_LOCK_FILE_NAME
 
-    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)
-
     @staticmethod
     def prepare_manifest_file_path_for_command(manifest_file_path: str) -> str:
         return manifest_file_path.replace(os.sep + NPM_MANIFEST_FILE_NAME, '')

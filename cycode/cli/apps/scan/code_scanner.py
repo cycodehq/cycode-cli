@@ -683,8 +683,8 @@ def try_get_git_remote_url(path: str) -> Optional[str]:
         remote_url = git_proxy.get_repo(path).remotes[0].config_reader.get('url')
         logger.debug('Found Git remote URL, %s', {'remote_url': remote_url, 'path': path})
         return remote_url
-    except Exception as e:
-        logger.debug('Failed to get Git remote URL', exc_info=e)
+    except Exception:
+        logger.debug('Failed to get Git remote URL. Probably not a Git repository')
         return None
 
 
@@ -706,7 +706,9 @@ def _get_plastic_repository_name(path: str) -> Optional[str]:
             f'--fieldseparator={consts.PLASTIC_VCS_DATA_SEPARATOR}',
         ]
 
-        status = shell(command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=path)
+        status = shell(
+            command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=path, silent_exc_info=True
+        )
         if not status:
             logger.debug('Failed to get Plastic repository name (command failed)')
             return None
@@ -717,8 +719,8 @@ def _get_plastic_repository_name(path: str) -> Optional[str]:
             return None
 
         return status_parts[2].strip()
-    except Exception as e:
-        logger.debug('Failed to get Plastic repository name', exc_info=e)
+    except Exception:
+        logger.debug('Failed to get Plastic repository name. Probably not a Plastic repository')
         return None
 
 
@@ -738,7 +740,9 @@ def _get_plastic_repository_list(working_dir: Optional[str] = None) -> dict[str,
     try:
         command = ['cm', 'repo', 'ls', f'--format={{repname}}{consts.PLASTIC_VCS_DATA_SEPARATOR}{{repguid}}']
 
-        status = shell(command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=working_dir)
+        status = shell(
+            command=command, timeout=consts.PLASTIC_VSC_CLI_TIMEOUT, working_directory=working_dir, silent_exc_info=True
+        )
         if not status:
             logger.debug('Failed to get Plastic repository list (command failed)')
             return repo_name_to_guid
