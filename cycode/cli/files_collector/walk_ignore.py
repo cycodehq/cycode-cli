@@ -1,8 +1,8 @@
 import os
-from typing import Generator, Iterable, List, Tuple
+from collections.abc import Generator, Iterable
 
+from cycode.cli.logger import logger
 from cycode.cli.utils.ignore_utils import IgnoreFilterManager
-from cycode.cyclient import logger
 
 _SUPPORTED_IGNORE_PATTERN_FILES = {  # oneday we will bring .cycodeignore or something like that
     '.gitignore',
@@ -22,7 +22,7 @@ def _walk_to_top(path: str) -> Iterable[str]:
         yield path  # Include the top-level directory
 
 
-def _collect_top_level_ignore_files(path: str) -> List[str]:
+def _collect_top_level_ignore_files(path: str) -> list[str]:
     ignore_files = []
     top_paths = reversed(list(_walk_to_top(path)))  # we must reverse it to make top levels more prioritized
     for dir_path in top_paths:
@@ -34,7 +34,7 @@ def _collect_top_level_ignore_files(path: str) -> List[str]:
     return ignore_files
 
 
-def walk_ignore(path: str) -> Generator[Tuple[str, List[str], List[str]], None, None]:
+def walk_ignore(path: str) -> Generator[tuple[str, list[str], list[str]], None, None]:
     ignore_filter_manager = IgnoreFilterManager.build(
         path=path,
         global_ignore_file_paths=_collect_top_level_ignore_files(path),

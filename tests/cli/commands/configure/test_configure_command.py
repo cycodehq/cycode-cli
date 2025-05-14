@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
-from click.testing import CliRunner
+from typer.testing import CliRunner
 
-from cycode.cli.commands.configure.configure_command import configure_command
+from cycode.cli.app import app
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -30,7 +30,7 @@ def test_configure_command_no_exist_values_in_file(mocker: 'MockerFixture') -> N
 
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch(
-        'click.prompt',
+        'typer.prompt',
         side_effect=[api_url_user_input, app_url_user_input, client_id_user_input, client_secret_user_input],
     )
 
@@ -45,7 +45,7 @@ def test_configure_command_no_exist_values_in_file(mocker: 'MockerFixture') -> N
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     mocked_update_credentials.assert_called_once_with(client_id_user_input, client_secret_user_input)
@@ -75,7 +75,7 @@ def test_configure_command_update_current_configs_in_files(mocker: 'MockerFixtur
 
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch(
-        'click.prompt',
+        'typer.prompt',
         side_effect=[api_url_user_input, app_url_user_input, client_id_user_input, client_secret_user_input],
     )
 
@@ -90,7 +90,7 @@ def test_configure_command_update_current_configs_in_files(mocker: 'MockerFixtur
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     mocked_update_credentials.assert_called_once_with(client_id_user_input, client_secret_user_input)
@@ -108,13 +108,13 @@ def test_set_credentials_update_only_client_id(mocker: 'MockerFixture') -> None:
     )
 
     # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('click.prompt', side_effect=['', '', client_id_user_input, ''])
+    mocker.patch('typer.prompt', side_effect=['', '', client_id_user_input, ''])
     mocked_update_credentials = mocker.patch(
         'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     mocked_update_credentials.assert_called_once_with(client_id_user_input, current_client_id)
@@ -131,13 +131,13 @@ def test_configure_command_update_only_client_secret(mocker: 'MockerFixture') ->
     )
 
     # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('click.prompt', side_effect=['', '', '', client_secret_user_input])
+    mocker.patch('typer.prompt', side_effect=['', '', '', client_secret_user_input])
     mocked_update_credentials = mocker.patch(
         'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     mocked_update_credentials.assert_called_once_with(current_client_id, client_secret_user_input)
@@ -154,13 +154,13 @@ def test_configure_command_update_only_api_url(mocker: 'MockerFixture') -> None:
     )
 
     # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('click.prompt', side_effect=[api_url_user_input, '', '', ''])
+    mocker.patch('typer.prompt', side_effect=[api_url_user_input, '', '', ''])
     mocked_update_api_base_url = mocker.patch(
         'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     mocked_update_api_base_url.assert_called_once_with(api_url_user_input)
@@ -177,13 +177,13 @@ def test_configure_command_should_not_update_credentials(mocker: 'MockerFixture'
     )
 
     # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('click.prompt', side_effect=['', '', client_id_user_input, client_secret_user_input])
+    mocker.patch('typer.prompt', side_effect=['', '', client_id_user_input, client_secret_user_input])
     mocked_update_credentials = mocker.patch(
         'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     assert not mocked_update_credentials.called
@@ -204,7 +204,7 @@ def test_configure_command_should_not_update_config_file(mocker: 'MockerFixture'
     )
 
     # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('click.prompt', side_effect=[api_url_user_input, app_url_user_input, '', ''])
+    mocker.patch('typer.prompt', side_effect=[api_url_user_input, app_url_user_input, '', ''])
     mocked_update_api_base_url = mocker.patch(
         'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
     )
@@ -213,7 +213,7 @@ def test_configure_command_should_not_update_config_file(mocker: 'MockerFixture'
     )
 
     # Act
-    CliRunner().invoke(configure_command)
+    CliRunner().invoke(app, ['configure'])
 
     # Assert
     assert not mocked_update_api_base_url.called

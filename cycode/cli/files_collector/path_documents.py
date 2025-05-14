@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 
 from cycode.cli.files_collector.excluder import exclude_irrelevant_files
 from cycode.cli.files_collector.iac.tf_content_generator import (
@@ -9,16 +9,16 @@ from cycode.cli.files_collector.iac.tf_content_generator import (
     is_tfplan_file,
 )
 from cycode.cli.files_collector.walk_ignore import walk_ignore
+from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_absolute_path, get_file_content
-from cycode.cyclient import logger
 
 if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 
-def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns: bool = True) -> List[str]:
-    files: List[str] = []
+def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns: bool = True) -> list[str]:
+    files: list[str] = []
 
     walk_func = walk_ignore if walk_with_ignore_patterns else os.walk
     for root, _, filenames in walk_func(path):
@@ -28,7 +28,7 @@ def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns
     return files
 
 
-def _get_relevant_files_in_path(path: str) -> List[str]:
+def _get_relevant_files_in_path(path: str) -> list[str]:
     absolute_path = get_absolute_path(path)
 
     if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
@@ -42,8 +42,8 @@ def _get_relevant_files_in_path(path: str) -> List[str]:
 
 
 def _get_relevant_files(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, paths: Tuple[str]
-) -> List[str]:
+    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, paths: tuple[str, ...]
+) -> list[str]:
     all_files_to_scan = []
     for path in paths:
         all_files_to_scan.extend(_get_relevant_files_in_path(path))
@@ -89,13 +89,13 @@ def get_relevant_documents(
     progress_bar: 'BaseProgressBar',
     progress_bar_section: 'ProgressBarSection',
     scan_type: str,
-    paths: Tuple[str],
+    paths: tuple[str, ...],
     *,
     is_git_diff: bool = False,
-) -> List[Document]:
+) -> list[Document]:
     relevant_files = _get_relevant_files(progress_bar, progress_bar_section, scan_type, paths)
 
-    documents: List[Document] = []
+    documents: list[Document] = []
     for file in relevant_files:
         progress_bar.update(progress_bar_section)
 

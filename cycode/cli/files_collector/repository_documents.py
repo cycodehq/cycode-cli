@@ -1,8 +1,9 @@
 import os
-from typing import TYPE_CHECKING, Iterator, List, Optional, Tuple, Union
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Optional, Union
 
 from cycode.cli import consts
-from cycode.cli.files_collector.sca import sca_code_scanner
+from cycode.cli.files_collector.sca.sca_code_scanner import get_file_content_from_commit_diff
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_path_by_os
@@ -25,7 +26,7 @@ def get_git_repository_tree_file_entries(
     return git_proxy.get_repo(path).tree(branch).traverse(predicate=should_process_git_object)
 
 
-def parse_commit_range(commit_range: str, path: str) -> Tuple[str, str]:
+def parse_commit_range(commit_range: str, path: str) -> tuple[str, str]:
     from_commit_rev = None
     to_commit_rev = None
 
@@ -37,8 +38,14 @@ def parse_commit_range(commit_range: str, path: str) -> Tuple[str, str]:
     return from_commit_rev, to_commit_rev
 
 
-def get_diff_file_path(file: 'Diff') -> Optional[str]:
-    return file.b_path if file.b_path else file.a_path
+def get_diff_file_path(file: 'Diff', relative: bool = False) -> Optional[str]:
+    if relative:
+        # relative to the repository root
+        return file.b_path if file.b_path else file.a_path
+
+    if file.b_blob:
+        return file.b_blob.abspath
+    return file.a_blob.abspath
 
 
 def get_diff_file_content(file: 'Diff') -> str:
@@ -46,21 +53,21 @@ def get_diff_file_content(file: 'Diff') -> str:
 
 
 def get_pre_commit_modified_documents(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection'
-) -> Tuple[List[Document], List[Document]]:
+    progress_bar: 'BaseProgressBar',
+    progress_bar_section: 'ProgressBarSection',
+    repo_path: str,
+) -> tuple[list[Document], list[Document]]:
     git_head_documents = []
     pre_committed_documents = []
 
-    repo = git_proxy.get_repo(os.getcwd())
-    diff_files = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
-    progress_bar.set_section_length(progress_bar_section, len(diff_files))
-    for file in diff_files:
+    repo = git_proxy.get_repo(repo_path)
+    diff_index = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    progress_bar.set_section_length(progress_bar_section, len(diff_index))
+    for diff in diff_index:
         progress_bar.update(progress_bar_section)
 
-        diff_file_path = get_diff_file_path(file)
-        file_path = get_path_by_os(diff_file_path)
-
-        file_content = sca_code_scanner.get_file_content_from_commit(repo, consts.GIT_HEAD_COMMIT_REV, diff_file_path)
+        file_path = get_path_by_os(get_diff_file_path(diff))
+        file_content = get_file_content_from_commit_diff(repo, consts.GIT_HEAD_COMMIT_REV, diff)
         if file_content is not None:
             git_head_documents.append(Document(file_path, file_content))
 
@@ -77,7 +84,7 @@ def get_commit_range_modified_documents(
     path: str,
     from_commit_rev: str,
     to_commit_rev: str,
-) -> Tuple[List[Document], List[Document]]:
+) -> tuple[list[Document], list[Document]]:
     from_commit_documents = []
     to_commit_documents = []
 
@@ -91,14 +98,13 @@ def get_commit_range_modified_documents(
     for blob in modified_files_diff:
         progress_bar.update(progress_bar_section)
 
-        diff_file_path = get_diff_file_path(blob)
-        file_path = get_path_by_os(diff_file_path)
+        file_path = get_path_by_os(get_diff_file_path(blob))
 
-        file_content = sca_code_scanner.get_file_content_from_commit(repo, from_commit_rev, diff_file_path)
+        file_content = get_file_content_from_commit_diff(repo, from_commit_rev, blob)
         if file_content is not None:
             from_commit_documents.append(Document(file_path, file_content))
 
-        file_content = sca_code_scanner.get_file_content_from_commit(repo, to_commit_rev, diff_file_path)
+        file_content = get_file_content_from_commit_diff(repo, to_commit_rev, blob)
         if file_content is not None:
             to_commit_documents.append(Document(file_path, file_content))
 

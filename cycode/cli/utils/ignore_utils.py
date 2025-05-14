@@ -38,16 +38,12 @@ For details for the matching rules, see https://git-scm.com/docs/gitignore
 import contextlib
 import os.path
 import re
+from collections.abc import Generator, Iterable
 from os import PathLike
 from typing import (
     Any,
     BinaryIO,
-    Dict,
-    Generator,
-    Iterable,
-    List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -98,7 +94,6 @@ def translate(pat: bytes) -> bytes:
     Originally copied from fnmatch in Python 2.7, but modified for Dulwich
     to cope with features in Git ignore patterns.
     """
-
     res = b'(?ms)'
 
     if b'/' not in pat[:-1]:
@@ -131,6 +126,7 @@ def read_ignore_patterns(f: BinaryIO) -> Iterable[bytes]:
     Args:
       f: File-like object to read from
     Returns: List of patterns
+
     """
     for line in f:
         line = line.rstrip(b'\r\n')
@@ -160,6 +156,7 @@ def match_pattern(path: bytes, pattern: bytes, ignore_case: bool = False) -> boo
       ignore_case: Whether to do case-sensitive matching
     Returns:
       bool indicating whether the pattern matched
+
     """
     return Pattern(pattern, ignore_case).match(path)
 
@@ -200,6 +197,7 @@ class Pattern:
         Args:
           path: Path to match (relative to ignore location)
         Returns: boolean
+
         """
         return bool(self._re.match(path))
 
@@ -219,7 +217,7 @@ class IgnoreFilter:
         for pattern in patterns:
             self.append_pattern(pattern)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = {
             'patterns': [str(p) for p in self._patterns],
             'ignore_case': self._ignore_case,
@@ -242,6 +240,7 @@ class IgnoreFilter:
           path: Path to match
         Returns:
           Iterator over iterators
+
         """
         if not isinstance(path, bytes):
             path = os.fsencode(path)
@@ -284,7 +283,7 @@ class IgnoreFilterManager:
     def __init__(
         self,
         path: str,
-        global_filters: List[IgnoreFilter],
+        global_filters: list[IgnoreFilter],
         ignore_file_name: Optional[str] = None,
         ignore_case: bool = False,
     ) -> None:
@@ -303,7 +302,7 @@ class IgnoreFilterManager:
     def __repr__(self) -> str:
         return f'{type(self).__name__}({self._top_path}, {self._global_filters!r}, {self._ignore_case!r})'
 
-    def to_dict(self, include_path_filters: bool = True) -> Dict[str, Any]:
+    def to_dict(self, include_path_filters: bool = True) -> dict[str, Any]:
         d = {
             'path': self._top_path,
             'global_filters': [f.to_dict() for f in self._global_filters],
@@ -337,7 +336,7 @@ class IgnoreFilterManager:
             p = os.path.join(self._top_path, path, self._ignore_file_name)
             try:
                 self._path_filters[path] = IgnoreFilter.from_path(p, self._ignore_case)
-            except IOError:
+            except OSError:
                 self._path_filters[path] = None
         return self._path_filters[path]
 
@@ -348,6 +347,7 @@ class IgnoreFilterManager:
           path: Path to check
         Returns:
           Iterator over Pattern instances
+
         """
         if os.path.isabs(path):
             raise ValueError(f'{path} is an absolute path')
@@ -379,6 +379,7 @@ class IgnoreFilterManager:
           True if the path matches an ignore pattern,
           False if the path is explicitly not ignored,
           or None if the file does not match any patterns.
+
         """
         if hasattr(path, '__fspath__'):
             path = path.__fspath__()
@@ -387,10 +388,8 @@ class IgnoreFilterManager:
             return matches[-1].is_exclude
         return None
 
-    def walk(self, **kwargs) -> Generator[Tuple[str, List[str], List[str]], None, None]:
-        """A wrapper for os.walk() without ignored files and subdirectories.
-        kwargs are passed to walk()."""
-
+    def walk(self, **kwargs) -> Generator[tuple[str, list[str], list[str]], None, None]:
+        """Wrap os.walk() without ignored files and subdirectories and kwargs are passed to walk."""
         for dirpath, dirnames, filenames in os.walk(self.path, topdown=True, **kwargs):
             rel_dirpath = '' if dirpath == self.path else os.path.relpath(dirpath, self.path)
 
@@ -413,6 +412,7 @@ class IgnoreFilterManager:
         ignore_case: bool = False,
     ) -> 'IgnoreFilterManager':
         """Create a IgnoreFilterManager from patterns and paths.
+
         Args:
           path: The root path for ignore checks.
           global_ignore_file_paths: A list of file paths to load patterns from.
@@ -421,8 +421,10 @@ class IgnoreFilterManager:
           global_patterns: Global patterns to ignore.
           ignore_file_name: The per-directory ignore file name.
           ignore_case: Whether to ignore case in matching.
+
         Returns:
           A `IgnoreFilterManager` object
+
         """
         if not global_ignore_file_paths:
             global_ignore_file_paths = []

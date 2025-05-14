@@ -1,8 +1,7 @@
-import os
 from os import path
-from typing import List, Optional
+from typing import Optional
 
-import click
+import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import (
     BaseRestoreDependencies,
@@ -18,20 +17,17 @@ MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
 
 
 class RestoreMavenDependencies(BaseRestoreDependencies):
-    def __init__(self, context: click.Context, is_git_diff: bool, command_timeout: int) -> None:
-        super().__init__(context, is_git_diff, command_timeout)
+    def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
+        super().__init__(ctx, is_git_diff, command_timeout)
 
     def is_project(self, document: Document) -> bool:
         return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME
 
-    def get_commands(self, manifest_file_path: str) -> List[List[str]]:
+    def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]]
 
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
-
-    def verify_restore_file_already_exist(self, restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         restore_dependencies_document = super().try_restore_dependencies(document)
@@ -51,8 +47,8 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         self, document: Document, manifest_file_path: str, restore_dependencies_document: Optional[Document]
     ) -> Optional[Document]:
         # TODO(MarshalX): does it even work? Ignored restore_dependencies_document arg
-        secondary_restore_command = create_secondary_restore_command(manifest_file_path)
-        backup_restore_content = execute_commands(secondary_restore_command, manifest_file_path, self.command_timeout)
+        secondary_restore_command = create_secondary_restore_commands(manifest_file_path)
+        backup_restore_content = execute_commands(secondary_restore_command, self.command_timeout)
         restore_dependencies_document = Document(
             build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME), backup_restore_content, self.is_git_diff
         )
@@ -64,13 +60,15 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         return restore_dependencies
 
 
-def create_secondary_restore_command(manifest_file_path: str) -> List[str]:
+def create_secondary_restore_commands(manifest_file_path: str) -> list[list[str]]:
     return [
-        'mvn',
-        'dependency:tree',
-        '-B',
-        '-DoutputType=text',
-        '-f',
-        manifest_file_path,
-        f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}',
+        [
+            'mvn',
+            'dependency:tree',
+            '-B',
+            '-DoutputType=text',
+            '-f',
+            manifest_file_path,
+            f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}',
+        ]
     ]

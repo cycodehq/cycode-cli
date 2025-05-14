@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from cycode.cli.config import CYCODE_CLIENT_ID_ENV_VAR_NAME, CYCODE_CLIENT_SECRET_ENV_VAR_NAME
-from cycode.cli.sentry import setup_scope_from_access_token
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
 from cycode.cli.user_settings.jwt_creator import JwtCreator
+from cycode.cli.utils.sentry import setup_scope_from_access_token
 
 
 class CredentialsManager(BaseFileManager):
@@ -19,7 +19,7 @@ class CredentialsManager(BaseFileManager):
     ACCESS_TOKEN_EXPIRES_IN_FIELD_NAME: str = 'cycode_access_token_expires_in'
     ACCESS_TOKEN_CREATOR_FIELD_NAME: str = 'cycode_access_token_creator'
 
-    def get_credentials(self) -> Tuple[str, str]:
+    def get_credentials(self) -> tuple[str, str]:
         client_id, client_secret = self.get_credentials_from_environment_variables()
         if client_id is not None and client_secret is not None:
             return client_id, client_secret
@@ -27,12 +27,12 @@ class CredentialsManager(BaseFileManager):
         return self.get_credentials_from_file()
 
     @staticmethod
-    def get_credentials_from_environment_variables() -> Tuple[str, str]:
+    def get_credentials_from_environment_variables() -> tuple[str, str]:
         client_id = os.getenv(CYCODE_CLIENT_ID_ENV_VAR_NAME)
         client_secret = os.getenv(CYCODE_CLIENT_SECRET_ENV_VAR_NAME)
         return client_id, client_secret
 
-    def get_credentials_from_file(self) -> Tuple[Optional[str], Optional[str]]:
+    def get_credentials_from_file(self) -> tuple[Optional[str], Optional[str]]:
         file_content = self.read_file()
         client_id = file_content.get(self.CLIENT_ID_FIELD_NAME)
         client_secret = file_content.get(self.CLIENT_SECRET_FIELD_NAME)
@@ -42,7 +42,7 @@ class CredentialsManager(BaseFileManager):
         file_content_to_update = {self.CLIENT_ID_FIELD_NAME: client_id, self.CLIENT_SECRET_FIELD_NAME: client_secret}
         self.write_content_to_file(file_content_to_update)
 
-    def get_access_token(self) -> Tuple[Optional[str], Optional[float], Optional[JwtCreator]]:
+    def get_access_token(self) -> tuple[Optional[str], Optional[float], Optional[JwtCreator]]:
         file_content = self.read_file()
 
         access_token = file_content.get(self.ACCESS_TOKEN_FIELD_NAME)

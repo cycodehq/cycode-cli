@@ -1,11 +1,12 @@
 import os
 import platform
 import ssl
-from typing import Callable, ClassVar, Dict, Optional
+from typing import TYPE_CHECKING, Callable, ClassVar, Optional
 
 import requests
 from requests import Response, exceptions
 from requests.adapters import HTTPAdapter
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 
 from cycode.cli.exceptions.custom_exceptions import (
     HttpUnauthorizedError,
@@ -13,10 +14,14 @@ from cycode.cli.exceptions.custom_exceptions import (
     RequestError,
     RequestHttpError,
     RequestSslError,
-    RequestTimeout,
+    RequestTimeoutError,
 )
-from cycode.cyclient import config, logger
+from cycode.cyclient import config
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
+from cycode.cyclient.logger import logger
+
+if TYPE_CHECKING:
+    from tenacity import RetryCallState
 
 
 class SystemStorageSslContext(HTTPAdapter):
@@ -44,8 +49,49 @@ def _get_request_function() -> Callable:
     return session.request
 
 
+_REQUEST_ERRORS_TO_RETRY = (
+    RequestTimeoutError,
+    RequestConnectionError,
+    exceptions.ChunkedEncodingError,
+    exceptions.ContentDecodingError,
+)
+_RETRY_MAX_ATTEMPTS = 3
+_RETRY_STOP_STRATEGY = stop_after_attempt(_RETRY_MAX_ATTEMPTS)
+_RETRY_WAIT_STRATEGY = wait_random_exponential(multiplier=1, min=2, max=10)
+
+
+def _retry_before_sleep(retry_state: 'RetryCallState') -> None:
+    exception_name = 'None'
+    if retry_state.outcome.failed:
+        exception = retry_state.outcome.exception()
+        exception_name = f'{exception.__class__.__name__}'
+
+    logger.debug(
+        'Retrying request after error: %s. Attempt %s of %s. Upcoming sleep: %s',
+        exception_name,
+        retry_state.attempt_number,
+        _RETRY_MAX_ATTEMPTS,
+        retry_state.upcoming_sleep,
+    )
+
+
+def _should_retry_exception(exception: BaseException) -> bool:
+    if 'PYTEST_CURRENT_TEST' in os.environ:
+        # We are running under pytest, don't retry
+        return False
+
+    # Don't retry client errors (400, 401, etc.)
+    if isinstance(exception, RequestHttpError):
+        return not exception.status_code < 500
+
+    is_request_error = isinstance(exception, _REQUEST_ERRORS_TO_RETRY)
+    is_server_error = isinstance(exception, RequestHttpError) and exception.status_code >= 500
+
+    return is_request_error or is_server_error
+
+
 class CycodeClientBase:
-    MANDATORY_HEADERS: ClassVar[Dict[str, str]] = {
+    MANDATORY_HEADERS: ClassVar[dict[str, str]] = {
         'User-Agent': get_cli_user_agent(),
         'X-Correlation-Id': get_correlation_id(),
     }
@@ -71,6 +117,13 @@ class CycodeClientBase:
     def get(self, url_path: str, headers: Optional[dict] = None, **kwargs) -> Response:
         return self._execute(method='get', endpoint=url_path, headers=headers, **kwargs)
 
+    @retry(
+        retry=retry_if_exception(_should_retry_exception),
+        stop=_RETRY_STOP_STRATEGY,
+        wait=_RETRY_WAIT_STRATEGY,
+        reraise=True,
+        before_sleep=_retry_before_sleep,
+    )
     def _execute(
         self,
         method: str,
@@ -107,7 +160,7 @@ class CycodeClientBase:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> Dict[str, str]:
+    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> dict[str, str]:
         if additional_headers is None:
             return self.MANDATORY_HEADERS.copy()
         return {**self.MANDATORY_HEADERS, **additional_headers}
@@ -117,7 +170,7 @@ class CycodeClientBase:
 
     def _handle_exception(self, e: Exception) -> None:
         if isinstance(e, exceptions.Timeout):
-            raise RequestTimeout from e
+            raise RequestTimeoutError from e
         if isinstance(e, exceptions.HTTPError):
             raise self._get_http_exception(e) from e
         if isinstance(e, exceptions.SSLError):

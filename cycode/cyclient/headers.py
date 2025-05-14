@@ -4,9 +4,9 @@ from uuid import uuid4
 
 from cycode import __version__
 from cycode.cli import consts
-from cycode.cli.sentry import add_correlation_id_to_scope
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-from cycode.cyclient import logger
+from cycode.cli.utils.sentry import add_correlation_id_to_scope
+from cycode.cyclient.logger import logger
 
 
 def get_cli_user_agent() -> str:
@@ -35,6 +35,7 @@ class _CorrelationId:
             Used across all requests to correlate logs and metrics.
             It doesn't depend on client instances.
             Lifetime is the same as the process.
+
         """
         if self._id is None:
             # example: 16fd2706-8baf-433b-82eb-8c7fada847da

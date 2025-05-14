@@ -3,10 +3,10 @@
   language: python
   language_version: python3
   entry: cycode
-  args: [ '--no-progress-meter', 'scan', '--scan-type', 'secret', 'pre_commit' ]
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'secret', 'pre-commit' ]
 - id: cycode-sca
   name: Cycode SCA pre-commit defender
   language: python
   language_version: python3
   entry: cycode
-  args: [ '--no-progress-meter', 'scan', '--scan-type', 'sca', 'pre_commit' ]
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sca', 'pre-commit' ]

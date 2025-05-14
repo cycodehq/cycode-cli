@@ -1,18 +1,15 @@
 from abc import ABC, abstractmethod
 from enum import auto
-from typing import TYPE_CHECKING, Dict, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
-import click
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
+from cycode.cli.console import console
 from cycode.cli.utils.enum_utils import AutoCountEnum
-from cycode.cyclient.config import get_logger
-
-if TYPE_CHECKING:
-    from click._termui_impl import ProgressBar
-    from click.termui import V as ProgressBarValue
+from cycode.logger import get_logger
 
 # use LOGGING_LEVEL=DEBUG env var to see debug logs of this module
-logger = get_logger('progress bar', control_level_in_runtime=False)
+logger = get_logger('Progress Bar', control_level_in_runtime=False)
 
 
 class ProgressBarSection(AutoCountEnum):
@@ -32,8 +29,16 @@ class ProgressBarSectionInfo(NamedTuple):
 
 
 _PROGRESS_BAR_LENGTH = 100
+_PROGRESS_BAR_COLUMNS = (
+    SpinnerColumn(),
+    TextColumn('[progress.description]{task.description}'),
+    TextColumn('{task.fields[right_side_label]}'),
+    BarColumn(bar_width=None),
+    TaskProgressColumn(),
+    TimeElapsedColumn(),
+)
 
-ProgressBarSections = Dict[ProgressBarSection, ProgressBarSectionInfo]
+ProgressBarSections = dict[ProgressBarSection, ProgressBarSectionInfo]
 
 
 class ScanProgressBarSection(ProgressBarSection):
@@ -92,12 +97,6 @@ class BaseProgressBar(ABC):
         pass
 
     @abstractmethod
-    def __enter__(self) -> 'BaseProgressBar': ...
-
-    @abstractmethod
-    def __exit__(self, *args, **kwargs) -> None: ...
-
-    @abstractmethod
     def start(self) -> None: ...
 
     @abstractmethod
@@ -110,18 +109,12 @@ class BaseProgressBar(ABC):
     def update(self, section: 'ProgressBarSection') -> None: ...
 
     @abstractmethod
-    def update_label(self, label: Optional[str] = None) -> None: ...
+    def update_right_side_label(self, label: Optional[str] = None) -> None: ...
 
 
 class DummyProgressBar(BaseProgressBar):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-    def __enter__(self) -> 'DummyProgressBar':
-        return self
-
-    def __exit__(self, *args, **kwargs) -> None:
-        pass
 
     def start(self) -> None:
         pass
@@ -135,7 +128,7 @@ class DummyProgressBar(BaseProgressBar):
     def update(self, section: 'ProgressBarSection') -> None:
         pass
 
-    def update_label(self, label: Optional[str] = None) -> None:
+    def update_right_side_label(self, label: Optional[str] = None) -> None:
         pass
 
 
@@ -145,36 +138,34 @@ class CompositeProgressBar(BaseProgressBar):
 
         self._progress_bar_sections = progress_bar_sections
 
-        self._progress_bar_context_manager = click.progressbar(
-            length=_PROGRESS_BAR_LENGTH,
-            item_show_func=self._progress_bar_item_show_func,
-            update_min_steps=0,
-        )
-        self._progress_bar: Optional['ProgressBar'] = None
-        self._run = False
-
-        self._section_lengths: Dict[ProgressBarSection, int] = {}
-        self._section_values: Dict[ProgressBarSection, int] = {}
+        self._section_lengths: dict[ProgressBarSection, int] = {}
+        self._section_values: dict[ProgressBarSection, int] = {}
 
         self._current_section_value = 0
         self._current_section: ProgressBarSectionInfo = _get_initial_section(self._progress_bar_sections)
+        self._current_right_side_label = ''
 
-    def __enter__(self) -> 'CompositeProgressBar':
-        self._progress_bar = self._progress_bar_context_manager.__enter__()
-        self._run = True
-        return self
+        self._progress_bar = Progress(*_PROGRESS_BAR_COLUMNS, console=console, refresh_per_second=5, transient=True)
+        self._progress_bar_task_id = self._progress_bar.add_task(
+            description=self._current_section.label,
+            total=_PROGRESS_BAR_LENGTH,
+            right_side_label=self._current_right_side_label,
+        )
 
-    def __exit__(self, *args, **kwargs) -> None:
-        self._progress_bar_context_manager.__exit__(*args, **kwargs)
-        self._run = False
+    def _progress_bar_update(self, advance: int = 0) -> None:
+        self._progress_bar.update(
+            self._progress_bar_task_id,
+            advance=advance,
+            description=self._current_section.label,
+            right_side_label=self._current_right_side_label,
+            refresh=True,
+        )
 
     def start(self) -> None:
-        if not self._run:
-            self.__enter__()
+        self._progress_bar.start()
 
     def stop(self) -> None:
-        if self._run:
-            self.__exit__(None, None, None)
+        self._progress_bar.stop()
 
     def set_section_length(self, section: 'ProgressBarSection', length: int = 0) -> None:
         logger.debug('Calling set_section_length, %s', {'section': str(section), 'length': length})
@@ -190,7 +181,7 @@ class CompositeProgressBar(BaseProgressBar):
         return section_info.stop_percent - section_info.start_percent
 
     def _skip_section(self, section: 'ProgressBarSection') -> None:
-        self._progress_bar.update(self._get_section_length(section))
+        self._progress_bar_update(self._get_section_length(section))
         self._maybe_update_current_section()
 
     def _increment_section_value(self, section: 'ProgressBarSection', value: int) -> None:
@@ -204,14 +195,14 @@ class CompositeProgressBar(BaseProgressBar):
         )
 
     def _rerender_progress_bar(self) -> None:
-        """Used to update label right after changing the progress bar section."""
-        self._progress_bar.update(0)
+        """Use to update label right after changing the progress bar section."""
+        self._progress_bar_update()
 
     def _increment_progress(self, section: 'ProgressBarSection') -> None:
         increment_value = self._get_increment_progress_value(section)
 
         self._current_section_value += increment_value
-        self._progress_bar.update(increment_value)
+        self._progress_bar_update(increment_value)
 
     def _maybe_update_current_section(self) -> None:
         if not self._current_section.section.has_next():
@@ -237,13 +228,7 @@ class CompositeProgressBar(BaseProgressBar):
 
         return expected_value - self._current_section_value
 
-    def _progress_bar_item_show_func(self, _: Optional['ProgressBarValue'] = None) -> str:
-        return self._current_section.label
-
     def update(self, section: 'ProgressBarSection', value: int = 1) -> None:
-        if not self._progress_bar:
-            raise ValueError('Progress bar is not initialized. Call start() first or use "with" statement.')
-
         if section not in self._section_lengths:
             raise ValueError(f'{section} section is not initialized. Call set_section_length() first.')
         if section is not self._current_section.section:
@@ -255,12 +240,9 @@ class CompositeProgressBar(BaseProgressBar):
         self._increment_progress(section)
         self._maybe_update_current_section()
 
-    def update_label(self, label: Optional[str] = None) -> None:
-        if not self._progress_bar:
-            raise ValueError('Progress bar is not initialized. Call start() first or use "with" statement.')
-
-        self._progress_bar.label = label or ''
-        self._progress_bar.render_progress()
+    def update_right_side_label(self, label: Optional[str] = None) -> None:
+        self._current_right_side_label = f'({label})' if label else ''
+        self._progress_bar_update()
 
 
 def get_progress_bar(*, hidden: bool, sections: ProgressBarSections) -> BaseProgressBar:
@@ -284,9 +266,9 @@ if __name__ == '__main__':
 
         for _i in range(section_capacity):
             time.sleep(0.01)
-            bar.update_label(f'{bar_section} {_i}/{section_capacity}')
+            bar.update_right_side_label(f'{bar_section} {_i}/{section_capacity}')
             bar.update(bar_section)
 
-        bar.update_label()
+        bar.update_right_side_label()
 
     bar.stop()

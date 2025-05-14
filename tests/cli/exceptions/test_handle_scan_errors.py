@@ -1,25 +1,31 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 import pytest
-from click import ClickException
+import typer
 from requests import Response
+from rich.traceback import Traceback
 
+from cycode.cli.cli_types import OutputTypeOption
+from cycode.cli.console import console_err
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.printers import ConsolePrinter
 from cycode.cli.utils.git_proxy import git_proxy
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
 
-@pytest.fixture()
-def ctx() -> click.Context:
-    return click.Context(click.Command('path'), obj={'verbose': False, 'output': 'text'})
+@pytest.fixture
+def ctx() -> typer.Context:
+    ctx = typer.Context(click.Command('path'), obj={'verbose': False, 'output': OutputTypeOption.TEXT})
+    ctx.obj['console_printer'] = ConsolePrinter(ctx)
+    return ctx
 
 
 @pytest.mark.parametrize(
-    'exception, expected_soft_fail',
+    ('exception', 'expected_soft_fail'),
     [
         (custom_exceptions.RequestHttpError(400, 'msg', Response()), True),
         (custom_exceptions.ScanAsyncError('msg'), True),
@@ -30,7 +36,7 @@ def ctx() -> click.Context:
     ],
 )
 def test_handle_exception_soft_fail(
-    ctx: click.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool
+    ctx: typer.Context, exception: custom_exceptions.CycodeError, expected_soft_fail: bool
 ) -> None:
     with ctx:
         handle_scan_exception(ctx, exception)
@@ -39,16 +45,16 @@ def test_handle_exception_soft_fail(
         assert ctx.obj.get('soft_fail') is expected_soft_fail
 
 
-def test_handle_exception_unhandled_error(ctx: click.Context) -> None:
-    with ctx, pytest.raises(SystemExit):
+def test_handle_exception_unhandled_error(ctx: typer.Context) -> None:
+    with ctx, pytest.raises(typer.Exit):
         handle_scan_exception(ctx, ValueError('test'))
 
         assert ctx.obj.get('did_fail') is True
         assert ctx.obj.get('soft_fail') is None
 
 
-def test_handle_exception_click_error(ctx: click.Context) -> None:
-    with ctx, pytest.raises(ClickException):
+def test_handle_exception_click_error(ctx: typer.Context) -> None:
+    with ctx, pytest.raises(click.ClickException):
         handle_scan_exception(ctx, click.ClickException('test'))
 
         assert ctx.obj.get('did_fail') is True
@@ -56,14 +62,19 @@ def test_handle_exception_click_error(ctx: click.Context) -> None:
 
 
 def test_handle_exception_verbose(monkeypatch: 'MonkeyPatch') -> None:
-    ctx = click.Context(click.Command('path'), obj={'verbose': True, 'output': 'text'})
+    ctx = typer.Context(click.Command('path'), obj={'verbose': True, 'output': OutputTypeOption.TEXT})
+    ctx.obj['console_printer'] = ConsolePrinter(ctx)
 
     error_text = 'test'
 
-    def mock_secho(msg: str, *_, **__) -> None:
-        assert error_text in msg or 'Correlation ID:' in msg
+    def mock_console_print(obj: Any, *_, **__) -> None:
+        if isinstance(obj, str):
+            assert 'Correlation ID:' in obj
+        else:
+            assert isinstance(obj, Traceback)
+            assert error_text in str(obj.trace)
 
-    monkeypatch.setattr(click, 'secho', mock_secho)
+    monkeypatch.setattr(console_err, 'print', mock_console_print)
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(typer.Exit):
         handle_scan_exception(ctx, ValueError(error_text))

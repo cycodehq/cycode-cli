@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import Dict, List, NamedTuple, Optional, Type
+from typing import NamedTuple, Optional
 
 from cycode.cyclient.models import Detection
 
@@ -21,44 +20,16 @@ class Document:
         self.absolute_path = absolute_path
 
     def __repr__(self) -> str:
-        return 'path:{0}, content:{1}'.format(self.path, self.content)
+        return f'path:{self.path}, content:{self.content}'
 
 
 class DocumentDetections:
-    def __init__(self, document: Document, detections: List[Detection]) -> None:
+    def __init__(self, document: Document, detections: list[Detection]) -> None:
         self.document = document
         self.detections = detections
 
     def __repr__(self) -> str:
-        return 'document:{0}, detections:{1}'.format(self.document, self.detections)
-
-
-SEVERITY_UNKNOWN_WEIGHT = -2
-
-
-class Severity(Enum):
-    INFO = -1
-    LOW = 0
-    MEDIUM = 1
-    MODERATE = 1  # noqa: PIE796. TODO(MarshalX): rework. should not be Enum
-    HIGH = 2
-    CRITICAL = 3
-
-    @staticmethod
-    def try_get_value(name: str) -> Optional[int]:
-        name = name.upper()
-        if name not in Severity.__members__:
-            return None
-
-        return Severity[name].value
-
-    @staticmethod
-    def get_member_weight(name: str) -> int:
-        weight = Severity.try_get_value(name)
-        if weight is None:  # unknown severity
-            return SEVERITY_UNKNOWN_WEIGHT
-
-        return weight
+        return f'document:{self.document}, detections:{self.detections}'
 
 
 class CliError(NamedTuple):
@@ -66,20 +37,24 @@ class CliError(NamedTuple):
     message: str
     soft_fail: bool = False
 
+    def enrich(self, additional_message: str) -> 'CliError':
+        message = f'{self.message} ({additional_message})'
+        return CliError(self.code, message, self.soft_fail)
 
-CliErrors = Dict[Type[BaseException], CliError]
+
+CliErrors = dict[type[BaseException], CliError]
 
 
 class CliResult(NamedTuple):
     success: bool
     message: str
-    data: Optional[Dict[str, any]] = None
+    data: Optional[dict[str, any]] = None
 
 
 class LocalScanResult(NamedTuple):
     scan_id: str
     report_url: Optional[str]
-    document_detections: List[DocumentDetections]
+    document_detections: list[DocumentDetections]
     issue_detected: bool
     detections_count: int
     relevant_detections_count: int
@@ -91,8 +66,8 @@ class ResourceChange:
     resource_type: str
     name: str
     index: Optional[int]
-    actions: List[str]
-    values: Dict[str, str]
+    actions: list[str]
+    values: dict[str, str]
 
     def __repr__(self) -> str:
         return f'resource_type: {self.resource_type}, name: {self.name}'
