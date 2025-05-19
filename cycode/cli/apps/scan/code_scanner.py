@@ -15,7 +15,7 @@ from cycode.cli.config import configuration_manager
 from cycode.cli.console import console
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
-from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
+from cycode.cli.files_collector.excluder import excluder
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.repository_documents import (
@@ -56,8 +56,8 @@ def scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
         progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
         repo_path=repo_path,
     )
-    git_head_documents = exclude_irrelevant_documents_to_scan(scan_type, git_head_documents)
-    pre_committed_documents = exclude_irrelevant_documents_to_scan(scan_type, pre_committed_documents)
+    git_head_documents = excluder.exclude_irrelevant_documents_to_scan(scan_type, git_head_documents)
+    pre_committed_documents = excluder.exclude_irrelevant_documents_to_scan(scan_type, pre_committed_documents)
     sca_code_scanner.perform_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
     scan_commit_range_documents(
         ctx,
@@ -77,8 +77,8 @@ def scan_sca_commit_range(ctx: typer.Context, path: str, commit_range: str) -> N
     from_commit_documents, to_commit_documents = get_commit_range_modified_documents(
         progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
     )
-    from_commit_documents = exclude_irrelevant_documents_to_scan(scan_type, from_commit_documents)
-    to_commit_documents = exclude_irrelevant_documents_to_scan(scan_type, to_commit_documents)
+    from_commit_documents = excluder.exclude_irrelevant_documents_to_scan(scan_type, from_commit_documents)
+    to_commit_documents = excluder.exclude_irrelevant_documents_to_scan(scan_type, to_commit_documents)
     sca_code_scanner.perform_pre_commit_range_scan_actions(
         path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
     )
@@ -288,7 +288,7 @@ def scan_commit_range(
             {'path': path, 'commit_range': commit_range, 'commit_id': commit_id},
         )
 
-        documents_to_scan.extend(exclude_irrelevant_documents_to_scan(scan_type, commit_documents_to_scan))
+        documents_to_scan.extend(excluder.exclude_irrelevant_documents_to_scan(scan_type, commit_documents_to_scan))
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
     logger.debug('Starting to scan commit range (it may take a few minutes)')

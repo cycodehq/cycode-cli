@@ -500,3 +500,19 @@ class SupportedModulesPreferencesSchema(Schema):
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> 'SupportedModulesPreferences':
         return SupportedModulesPreferences(**data)
+
+
+@dataclass
+class ScanConfiguration:
+    scannable_extensions: list[str]
+
+
+class ScanConfigurationSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    scannable_extensions = fields.List(fields.String(), allow_none=True)
+
+    @post_load
+    def build_dto(self, data: dict[str, Any], **_) -> 'ScanConfiguration':
+        return ScanConfiguration(**data)

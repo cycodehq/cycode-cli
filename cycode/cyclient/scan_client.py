@@ -1,16 +1,17 @@
 import json
 from copy import deepcopy
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from requests import Response
 
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
-from cycode.cli.exceptions.custom_exceptions import CycodeError
+from cycode.cli.exceptions.custom_exceptions import CycodeError, RequestHttpError
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cyclient import models
 from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.cyclient.logger import logger
 
 if TYPE_CHECKING:
     from cycode.cyclient.scan_config_base import ScanConfigBase
@@ -100,12 +101,19 @@ class ScanClient:
         is_commit_range: bool = False,
     ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
+
+        compression_manifest = {
+            'file_count_by_extension': zip_file.extension_statistics,
+            'file_count': zip_file.files_count,
+        }
+
         response = self.scan_cycode_client.post(
             url_path=self.get_zipped_file_scan_async_url_path(scan_type),
             data={
                 'is_git_diff': is_git_diff,
                 'scan_parameters': json.dumps(scan_parameters),
                 'is_commit_range': is_commit_range,
+                'compression_manifest': json.dumps(compression_manifest),
             },
             files=files,
         )
@@ -245,3 +253,25 @@ class ScanClient:
     @staticmethod
     def parse_scan_response(response: Response) -> models.ScanResult:
         return models.ScanResultSchema().load(response.json())
+
+    def get_scan_configuration_path(self, scan_type: str) -> str:
+        correct_scan_type = self.scan_config.get_async_scan_type(scan_type)
+        return f'{self.get_scan_service_url_path(scan_type)}/{correct_scan_type}/configuration'
+
+    def get_scan_configuration(self, scan_type: str) -> models.ScanConfiguration:
+        response = self.scan_cycode_client.get(
+            url_path=self.get_scan_configuration_path(scan_type),
+            hide_response_content_log=self._hide_response_log,
+        )
+        return models.ScanConfigurationSchema().load(response.json())
+
+    def get_scan_configuration_safe(self, scan_type: str) -> Optional['models.ScanConfiguration']:
+        try:
+            return self.get_scan_configuration(scan_type)
+        except RequestHttpError as e:
+            if e.status_code == 404:
+                logger.debug(
+                    'Remote scan configuration is not supported for this scan type: %s', {'scan_type': scan_type}
+                )
+            else:
+                logger.debug('Failed to get remote scan configuration: %s', {'scan_type': scan_type}, exc_info=e)
