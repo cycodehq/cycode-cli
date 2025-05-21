@@ -8,10 +8,10 @@ from typer.testing import CliRunner
 
 from cycode.cli import consts
 from cycode.cli.app import app
-from cycode.cli.cli_types import OutputTypeOption
+from cycode.cli.cli_types import OutputTypeOption, ScanTypeOption
 from cycode.cli.utils.git_proxy import git_proxy
 from tests.conftest import CLI_ENV_VARS, TEST_FILES_PATH, ZIP_CONTENT_PATH
-from tests.cyclient.mocked_responses.scan_client import mock_scan_async_responses
+from tests.cyclient.mocked_responses.scan_client import mock_remote_config_responses, mock_scan_async_responses
 
 _PATH_TO_SCAN = TEST_FILES_PATH.joinpath('zip_content').absolute()
 
@@ -71,6 +71,7 @@ def test_optional_git_with_path_scan(scan_client: 'ScanClient', api_token_respon
 
 @responses.activate
 def test_required_git_with_path_repository(scan_client: 'ScanClient', api_token_response: responses.Response) -> None:
+    mock_remote_config_responses(responses, ScanTypeOption.SECRET, scan_client)
     responses.add(api_token_response)
 
     # fake env without Git executable

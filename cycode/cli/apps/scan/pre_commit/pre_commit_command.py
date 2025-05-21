@@ -5,7 +5,7 @@ import typer
 
 from cycode.cli import consts
 from cycode.cli.apps.scan.code_scanner import get_scan_parameters, scan_documents, scan_sca_pre_commit
-from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
+from cycode.cli.files_collector.excluder import excluder
 from cycode.cli.files_collector.repository_documents import (
     get_diff_file_content,
     get_diff_file_path,
@@ -45,5 +45,5 @@ def pre_commit_command(
         progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
         documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
 
-    documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
+    documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
     scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx), is_git_diff=True)

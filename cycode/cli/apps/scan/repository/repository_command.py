@@ -7,7 +7,7 @@ import typer
 from cycode.cli import consts
 from cycode.cli.apps.scan.code_scanner import get_scan_parameters, scan_documents
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
-from cycode.cli.files_collector.excluder import exclude_irrelevant_documents_to_scan
+from cycode.cli.files_collector.excluder import excluder
 from cycode.cli.files_collector.repository_documents import get_git_repository_tree_file_entries
 from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
 from cycode.cli.logger import logger
@@ -57,7 +57,7 @@ def repository_command(
                 )
             )
 
-        documents_to_scan = exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
+        documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
 
         perform_pre_scan_documents_actions(ctx, scan_type, documents_to_scan)
 

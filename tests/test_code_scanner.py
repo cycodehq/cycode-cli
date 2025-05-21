@@ -9,7 +9,7 @@ from cycode.cli.apps.scan.code_scanner import (
     _try_get_aggregation_report_url_if_needed,
 )
 from cycode.cli.cli_types import ScanTypeOption
-from cycode.cli.files_collector.excluder import _is_relevant_file_to_scan
+from cycode.cli.files_collector.excluder import excluder
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import TEST_FILES_PATH
 from tests.cyclient.mocked_responses.scan_client import (
@@ -20,7 +20,7 @@ from tests.cyclient.mocked_responses.scan_client import (
 
 def test_is_relevant_file_to_scan_sca() -> None:
     path = os.path.join(TEST_FILES_PATH, 'package.json')
-    assert _is_relevant_file_to_scan(consts.SCA_SCAN_TYPE, path) is True
+    assert excluder._is_relevant_file_to_scan(consts.SCA_SCAN_TYPE, path) is True
 
 
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))

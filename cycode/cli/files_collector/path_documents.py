@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from cycode.cli.files_collector.excluder import exclude_irrelevant_files
+from cycode.cli.files_collector.excluder import excluder
 from cycode.cli.files_collector.iac.tf_content_generator import (
     generate_tf_content_from_tfplan,
     generate_tfplan_document_name,
@@ -54,7 +54,9 @@ def _get_relevant_files(
     progress_bar_section_len = len(all_files_to_scan) * 2
     progress_bar.set_section_length(progress_bar_section, progress_bar_section_len)
 
-    relevant_files_to_scan = exclude_irrelevant_files(progress_bar, progress_bar_section, scan_type, all_files_to_scan)
+    relevant_files_to_scan = excluder.exclude_irrelevant_files(
+        progress_bar, progress_bar_section, scan_type, all_files_to_scan
+    )
 
     # after finishing the first processing (excluding),
     # we must update the progress bar stage with respect of excluded files.

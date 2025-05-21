@@ -9,6 +9,7 @@ from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
 )
+from cycode.cli.files_collector.excluder import excluder
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
@@ -138,12 +139,18 @@ def scan_command(
 
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
-    ctx.obj['client'] = get_scan_cycode_client(ctx)
     ctx.obj['scan_type'] = scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
     ctx.obj['report'] = report
+
+    scan_client = get_scan_cycode_client(ctx)
+    ctx.obj['client'] = scan_client
+
+    remote_scan_config = scan_client.get_scan_configuration_safe(scan_type)
+    if remote_scan_config:
+        excluder.apply_scan_config(str(scan_type), remote_scan_config)
 
     if export_type and export_file:
         console_printer = ctx.obj['console_printer']

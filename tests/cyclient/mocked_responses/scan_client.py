@@ -114,9 +114,28 @@ def get_detection_rules_response(url: str) -> responses.Response:
     return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 
 
+def get_scan_configuration_url(scan_type: str, scan_client: ScanClient) -> str:
+    api_url = scan_client.scan_cycode_client.api_url
+    service_url = scan_client.get_scan_configuration_path(scan_type)
+    return f'{api_url}/{service_url}'
+
+
+def get_scan_configuration_response(url: str) -> responses.Response:
+    json_response = {
+        'scannable_extensions': None,
+    }
+
+    return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
+
+
+def mock_remote_config_responses(responses_module: responses, scan_type: str, scan_client: ScanClient) -> None:
+    responses_module.add(get_scan_configuration_response(get_scan_configuration_url(scan_type, scan_client)))
+
+
 def mock_scan_async_responses(
     responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
+    mock_remote_config_responses(responses_module, scan_type, scan_client)
     responses_module.add(
         get_zipped_file_scan_async_response(get_zipped_file_scan_async_url(scan_type, scan_client), scan_id)
     )
