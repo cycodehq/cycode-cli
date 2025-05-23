@@ -1,4 +1,3 @@
-import os
 from os import path
 from typing import Optional
 
@@ -29,9 +28,6 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
-
-    def get_working_directory(self, document: Document) -> Optional[str]:
-        return os.path.dirname(document.absolute_path)
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)

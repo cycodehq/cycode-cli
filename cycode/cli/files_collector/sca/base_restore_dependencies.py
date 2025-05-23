@@ -74,7 +74,7 @@ class BaseRestoreDependencies(ABC):
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
     def get_working_directory(self, document: Document) -> Optional[str]:
-        return None
+        return os.path.dirname(document.absolute_path)
 
     @staticmethod
     def verify_restore_file_already_exist(restore_file_path: str) -> bool:
