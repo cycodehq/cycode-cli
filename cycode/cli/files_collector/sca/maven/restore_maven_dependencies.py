@@ -30,34 +30,36 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
-        restore_dependencies_document = super().try_restore_dependencies(document)
         manifest_file_path = self.get_manifest_file_path(document)
         if document.content is None:
-            restore_dependencies_document = self.restore_from_secondary_command(
-                document, manifest_file_path, restore_dependencies_document
-            )
-        else:
-            restore_dependencies_document.content = get_file_content(
-                join_paths(get_file_dir(manifest_file_path), self.get_lock_file_name())
-            )
+            return self.restore_from_secondary_command(document, manifest_file_path)
+
+        restore_dependencies_document = super().try_restore_dependencies(document)
+        if restore_dependencies_document is None:
+            return None
+
+        restore_dependencies_document.content = get_file_content(
+            join_paths(get_file_dir(manifest_file_path), self.get_lock_file_name())
+        )
 
         return restore_dependencies_document
 
-    def restore_from_secondary_command(
-        self, document: Document, manifest_file_path: str, restore_dependencies_document: Optional[Document]
-    ) -> Optional[Document]:
-        # TODO(MarshalX): does it even work? Ignored restore_dependencies_document arg
-        secondary_restore_command = create_secondary_restore_commands(manifest_file_path)
-        backup_restore_content = execute_commands(secondary_restore_command, self.command_timeout)
-        restore_dependencies_document = Document(
-            build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME), backup_restore_content, self.is_git_diff
+    def restore_from_secondary_command(self, document: Document, manifest_file_path: str) -> Optional[Document]:
+        restore_content = execute_commands(
+            commands=create_secondary_restore_commands(manifest_file_path),
+            timeout=self.command_timeout,
+            working_directory=self.get_working_directory(document),
         )
-        restore_dependencies = None
-        if restore_dependencies_document.content is not None:
-            restore_dependencies = restore_dependencies_document
-            restore_dependencies.content = get_file_content(MAVEN_DEP_TREE_FILE_NAME)
+        if restore_content is None:
+            return None
 
-        return restore_dependencies
+        restore_file_path = build_dep_tree_path(document.absolute_path, MAVEN_DEP_TREE_FILE_NAME)
+        return Document(
+            path=build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
+            content=get_file_content(restore_file_path),
+            is_git_diff_format=self.is_git_diff,
+            absolute_path=restore_file_path,
+        )
 
 
 def create_secondary_restore_commands(manifest_file_path: str) -> list[list[str]]:

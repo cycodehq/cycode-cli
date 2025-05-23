@@ -59,14 +59,13 @@ class BaseRestoreDependencies(ABC):
         manifest_file_path = self.get_manifest_file_path(document)
         restore_file_path = build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
         relative_restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
-        working_directory_path = self.get_working_directory(document)
 
         if not self.verify_restore_file_already_exist(restore_file_path):
             output = execute_commands(
-                self.get_commands(manifest_file_path),
-                self.command_timeout,
+                commands=self.get_commands(manifest_file_path),
+                timeout=self.command_timeout,
                 output_file_path=restore_file_path if self.create_output_file_manually else None,
-                working_directory=working_directory_path,
+                working_directory=self.get_working_directory(document),
             )
             if output is None:  # one of the commands failed
                 return None
@@ -75,7 +74,7 @@ class BaseRestoreDependencies(ABC):
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
     def get_working_directory(self, document: Document) -> Optional[str]:
-        return None
+        return os.path.dirname(document.absolute_path)
 
     @staticmethod
     def verify_restore_file_already_exist(restore_file_path: str) -> bool:

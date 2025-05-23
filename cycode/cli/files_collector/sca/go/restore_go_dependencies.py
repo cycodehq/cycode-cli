@@ -43,6 +43,3 @@ class RestoreGoDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return GO_RESTORE_FILE_NAME
-
-    def get_working_directory(self, document: Document) -> Optional[str]:
-        return os.path.dirname(document.absolute_path)

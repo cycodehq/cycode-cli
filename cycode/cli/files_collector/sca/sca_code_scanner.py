@@ -92,17 +92,16 @@ def get_project_file_ecosystem(document: Document) -> Optional[str]:
 
 def try_restore_dependencies(
     ctx: typer.Context,
-    documents_to_add: dict[str, Document],
     restore_dependencies: 'BaseRestoreDependencies',
     document: Document,
-) -> None:
+) -> Optional[Document]:
     if not restore_dependencies.is_project(document):
-        return
+        return None
 
     restore_dependencies_document = restore_dependencies.restore(document)
     if restore_dependencies_document is None:
         logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
-        return
+        return None
 
     if restore_dependencies_document.content is None:
         logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
@@ -114,10 +113,7 @@ def try_restore_dependencies(
         manifest_file_path = get_manifest_file_path(document, is_monitor_action, project_path)
         logger.debug('Succeeded to generate dependencies tree on path: %s', manifest_file_path)
 
-    if restore_dependencies_document.path in documents_to_add:
-        logger.debug('Duplicate document on restore for path: %s', restore_dependencies_document.path)
-    else:
-        documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
+    return restore_dependencies_document
 
 
 def add_dependencies_tree_document(
@@ -128,7 +124,14 @@ def add_dependencies_tree_document(
 
     for restore_dependencies in restore_dependencies_list:
         for document in documents_to_scan:
-            try_restore_dependencies(ctx, documents_to_add, restore_dependencies, document)
+            restore_dependencies_document = try_restore_dependencies(ctx, restore_dependencies, document)
+            if restore_dependencies_document is None:
+                continue
+
+            if restore_dependencies_document.path in documents_to_add:
+                logger.debug('Duplicate document on restore for path: %s', restore_dependencies_document.path)
+            else:
+                documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
 
     # mutate original list using slice assignment
     documents_to_scan[:] = list(documents_to_add.values())

@@ -1,6 +1,3 @@
-import os
-from typing import Optional
-
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
 
@@ -17,6 +14,3 @@ class RestoreSbtDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return SBT_LOCK_FILE_NAME
-
-    def get_working_directory(self, document: Document) -> Optional[str]:
-        return os.path.dirname(document.absolute_path)
