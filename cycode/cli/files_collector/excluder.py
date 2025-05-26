@@ -51,8 +51,11 @@ def _is_file_relevant_for_sca_scan(filename: str) -> bool:
 
 class Excluder:
     def __init__(self) -> None:
+        self._scannable_prefixes: dict[str, tuple[str, ...]] = {
+            consts.IAC_SCAN_TYPE: consts.IAC_SCAN_SUPPORTED_FILE_PREFIXES,
+        }
         self._scannable_extensions: dict[str, tuple[str, ...]] = {
-            consts.IAC_SCAN_TYPE: consts.IAC_SCAN_SUPPORTED_FILES,
+            consts.IAC_SCAN_TYPE: consts.IAC_SCAN_SUPPORTED_FILE_EXTENSIONS,
             consts.SCA_SCAN_TYPE: consts.SCA_CONFIGURATION_SCAN_SUPPORTED_FILES,
         }
         self._non_scannable_extensions: dict[str, tuple[str, ...]] = {
@@ -73,6 +76,10 @@ class Excluder:
         non_scannable_extensions = self._non_scannable_extensions.get(scan_type)
         if non_scannable_extensions:
             return not filename.endswith(non_scannable_extensions)
+
+        scannable_prefixes = self._scannable_prefixes.get(scan_type)
+        if scannable_prefixes:
+            return filename.startswith(scannable_prefixes)
 
         return True
 
