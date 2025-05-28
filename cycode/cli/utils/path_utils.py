@@ -111,3 +111,11 @@ def get_path_from_context(ctx: typer.Context) -> Optional[str]:
     if path is None and 'paths' in ctx.params:
         path = ctx.params['paths'][0]
     return path
+
+
+def normalize_file_path(path: str) -> str:
+    if path.startswith('/'):
+        return path[1:]
+    if path.startswith('./'):
+        return path[2:]
+    return path

@@ -1,4 +1,5 @@
 import os
+import sys
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -36,6 +37,30 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[str, str]:
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
+
+
+def parse_pre_receive_input() -> str:
+    """Parse input to pushed branch update details.
+
+    Example input:
+    old_value new_value refname
+    -----------------------------------------------
+    0000000000000000000000000000000000000000 9cf90954ef26e7c58284f8ebf7dcd0fcf711152a refs/heads/main
+    973a96d3e925b65941f7c47fa16129f1577d499f 0000000000000000000000000000000000000000 refs/heads/feature-branch
+    59564ef68745bca38c42fc57a7822efd519a6bd9 3378e52dcfa47fb11ce3a4a520bea5f85d5d0bf3 refs/heads/develop
+
+    :return: First branch update details (input's first line)
+    """
+    # FIXME(MarshalX): this blocks main thread forever if called outside of pre-receive hook
+    pre_receive_input = sys.stdin.read().strip()
+    if not pre_receive_input:
+        raise ValueError(
+            'Pre receive input was not found. Make sure that you are using this command only in pre-receive hook'
+        )
+
+    # each line represents a branch update request, handle the first one only
+    # TODO(MichalBor): support case of multiple update branch requests
+    return pre_receive_input.splitlines()[0]
 
 
 def get_diff_file_path(file: 'Diff', relative: bool = False) -> Optional[str]:
@@ -84,31 +109,40 @@ def get_commit_range_modified_documents(
     path: str,
     from_commit_rev: str,
     to_commit_rev: str,
-) -> tuple[list[Document], list[Document]]:
+) -> tuple[list[Document], list[Document], list[Document]]:
     from_commit_documents = []
     to_commit_documents = []
+    diff_documents = []
 
     repo = git_proxy.get_repo(path)
-    diff = repo.commit(from_commit_rev).diff(to_commit_rev)
+    diff_index = repo.commit(from_commit_rev).diff(to_commit_rev, create_patch=True, R=True)
 
     modified_files_diff = [
-        change for change in diff if change.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
+        diff for diff in diff_index if diff.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
     ]
     progress_bar.set_section_length(progress_bar_section, len(modified_files_diff))
-    for blob in modified_files_diff:
+    for diff in modified_files_diff:
         progress_bar.update(progress_bar_section)
 
-        file_path = get_path_by_os(get_diff_file_path(blob))
+        file_path = get_path_by_os(get_diff_file_path(diff))
 
-        file_content = get_file_content_from_commit_diff(repo, from_commit_rev, blob)
+        diff_documents.append(
+            Document(
+                path=file_path,
+                content=get_diff_file_content(diff),
+                is_git_diff_format=True,
+            )
+        )
+
+        file_content = get_file_content_from_commit_diff(repo, from_commit_rev, diff)
         if file_content is not None:
             from_commit_documents.append(Document(file_path, file_content))
 
-        file_content = get_file_content_from_commit_diff(repo, to_commit_rev, blob)
+        file_content = get_file_content_from_commit_diff(repo, to_commit_rev, diff)
         if file_content is not None:
             to_commit_documents.append(Document(file_path, file_content))
 
-    return from_commit_documents, to_commit_documents
+    return from_commit_documents, to_commit_documents, diff_documents
 
 
 def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[str]:

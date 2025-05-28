@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from cycode.cli.files_collector.excluder import excluder
+from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.files_collector.iac.tf_content_generator import (
     generate_tf_content_from_tfplan,
     generate_tfplan_document_name,

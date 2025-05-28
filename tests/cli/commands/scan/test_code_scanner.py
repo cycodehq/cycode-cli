@@ -1,8 +1,7 @@
 import os
 
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import _does_severity_match_severity_threshold
-from cycode.cli.files_collector.excluder import _is_file_relevant_for_sca_scan
+from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
 
@@ -73,24 +72,3 @@ def test_generate_document() -> None:
     assert isinstance(generated_tfplan_document, Document)
     assert generated_tfplan_document.path.endswith('.tf')
     assert generated_tfplan_document.is_git_diff_format == is_git_diff
-
-
-def test_does_severity_match_severity_threshold() -> None:
-    assert _does_severity_match_severity_threshold('INFO', 'LOW') is False
-
-    assert _does_severity_match_severity_threshold('LOW', 'LOW') is True
-    assert _does_severity_match_severity_threshold('LOW', 'MEDIUM') is False
-
-    assert _does_severity_match_severity_threshold('MEDIUM', 'LOW') is True
-    assert _does_severity_match_severity_threshold('MEDIUM', 'MEDIUM') is True
-    assert _does_severity_match_severity_threshold('MEDIUM', 'HIGH') is False
-
-    assert _does_severity_match_severity_threshold('HIGH', 'MEDIUM') is True
-    assert _does_severity_match_severity_threshold('HIGH', 'HIGH') is True
-    assert _does_severity_match_severity_threshold('HIGH', 'CRITICAL') is False
-
-    assert _does_severity_match_severity_threshold('CRITICAL', 'HIGH') is True
-    assert _does_severity_match_severity_threshold('CRITICAL', 'CRITICAL') is True
-
-    assert _does_severity_match_severity_threshold('NON_EXISTENT', 'LOW') is True
-    assert _does_severity_match_severity_threshold('LOW', 'NON_EXISTENT') is True
