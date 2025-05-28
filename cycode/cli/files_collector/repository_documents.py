@@ -4,13 +4,12 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Optional, Union
 
 from cycode.cli import consts
-from cycode.cli.files_collector.sca.sca_code_scanner import get_file_content_from_commit_diff
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.path_utils import get_file_content, get_path_by_os
 
 if TYPE_CHECKING:
-    from git import Blob, Diff
+    from git import Blob, Diff, Repo
     from git.objects.base import IndexObjUnion
     from git.objects.tree import TraversedTreeTup
 
@@ -101,6 +100,18 @@ def get_pre_commit_modified_documents(
             pre_committed_documents.append(Document(file_path, file_content))
 
     return git_head_documents, pre_committed_documents
+
+
+def get_file_content_from_commit_path(repo: 'Repo', commit: str, file_path: str) -> Optional[str]:
+    try:
+        return repo.git.show(f'{commit}:{file_path}')
+    except git_proxy.get_git_command_error():
+        return None
+
+
+def get_file_content_from_commit_diff(repo: 'Repo', commit: str, diff: 'Diff') -> Optional[str]:
+    file_path = get_diff_file_path(diff, relative=True)
+    return get_file_content_from_commit_path(repo, commit, file_path)
 
 
 def get_commit_range_modified_documents(

@@ -17,7 +17,7 @@ from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.path_documents import get_relevant_documents
-from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
+from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, LocalScanResult
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
@@ -42,7 +42,7 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
 
     try:
         documents = get_relevant_documents(progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, scan_type, paths)
-        perform_pre_scan_documents_actions(ctx, scan_type, documents)
+        add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents)
         scan_documents(ctx, documents, get_scan_parameters(ctx, paths))
     except Exception as e:
         handle_scan_exception(ctx, e)

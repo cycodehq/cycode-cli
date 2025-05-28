@@ -28,7 +28,10 @@ from cycode.cli.files_collector.repository_documents import (
     get_pre_commit_modified_documents,
     parse_commit_range,
 )
-from cycode.cli.files_collector.sca import sca_code_scanner
+from cycode.cli.files_collector.sca.sca_file_collector import (
+    perform_pre_commit_range_scan_actions,
+    perform_pre_hook_range_scan_actions,
+)
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import Document
 from cycode.cli.utils.git_proxy import git_proxy
@@ -169,13 +172,15 @@ def _scan_commit_range_documents(
 
 def _scan_sca_commit_range(ctx: typer.Context, path: str, commit_range: str, **_) -> None:
     scan_parameters = get_scan_parameters(ctx, (path,))
+
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     from_commit_documents, to_commit_documents, _ = get_commit_range_modified_documents(
         ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
     )
     from_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, from_commit_documents)
     to_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, to_commit_documents)
-    sca_code_scanner.perform_pre_commit_range_scan_actions(
+
+    perform_pre_commit_range_scan_actions(
         path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
     )
 
@@ -197,6 +202,7 @@ def _scan_secret_commit_range(
 
 def _scan_sast_commit_range(ctx: typer.Context, path: str, commit_range: str, **_) -> None:
     scan_parameters = get_scan_parameters(ctx, (path,))
+
     from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
     _, commit_documents, diff_documents = get_commit_range_modified_documents(
         ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
@@ -226,6 +232,7 @@ def scan_commit_range(ctx: typer.Context, path: str, commit_range: str, **kwargs
 
 def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     scan_parameters = get_scan_parameters(ctx)
+
     git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(
         progress_bar=ctx.obj['progress_bar'],
         progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
@@ -235,7 +242,9 @@ def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     pre_committed_documents = excluder.exclude_irrelevant_documents_to_scan(
         consts.SCA_SCAN_TYPE, pre_committed_documents
     )
-    sca_code_scanner.perform_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
+
+    perform_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
+
     _scan_commit_range_documents(
         ctx,
         git_head_documents,
