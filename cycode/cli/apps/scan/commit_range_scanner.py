@@ -18,19 +18,19 @@ from cycode.cli.apps.scan.scan_result import (
 )
 from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
-from cycode.cli.files_collector.commit_range_documents import collect_commit_range_diff_documents
-from cycode.cli.files_collector.file_excluder import excluder
-from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
-from cycode.cli.files_collector.repository_documents import (
+from cycode.cli.files_collector.commit_range_documents import (
+    collect_commit_range_diff_documents,
     get_commit_range_modified_documents,
     get_diff_file_content,
     get_diff_file_path,
     get_pre_commit_modified_documents,
     parse_commit_range,
 )
+from cycode.cli.files_collector.file_excluder import excluder
+from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.files_collector.sca.sca_file_collector import (
-    perform_pre_commit_range_scan_actions,
-    perform_pre_hook_range_scan_actions,
+    perform_sca_pre_commit_range_scan_actions,
+    perform_sca_pre_hook_range_scan_actions,
 )
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import Document
@@ -180,7 +180,7 @@ def _scan_sca_commit_range(ctx: typer.Context, path: str, commit_range: str, **_
     from_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, from_commit_documents)
     to_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, to_commit_documents)
 
-    perform_pre_commit_range_scan_actions(
+    perform_sca_pre_commit_range_scan_actions(
         path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
     )
 
@@ -207,6 +207,8 @@ def _scan_sast_commit_range(ctx: typer.Context, path: str, commit_range: str, **
     _, commit_documents, diff_documents = get_commit_range_modified_documents(
         ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
     )
+    commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, commit_documents)
+    diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, diff_documents)
 
     _scan_commit_range_documents(ctx, commit_documents, diff_documents, scan_parameters=scan_parameters)
 
@@ -243,7 +245,7 @@ def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
         consts.SCA_SCAN_TYPE, pre_committed_documents
     )
 
-    perform_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
+    perform_sca_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
 
     _scan_commit_range_documents(
         ctx,
@@ -256,16 +258,18 @@ def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
 
 def _scan_secret_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     progress_bar = ctx.obj['progress_bar']
-    diff_files = git_proxy.get_repo(repo_path).index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    diff_index = git_proxy.get_repo(repo_path).index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
 
-    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_files))
+    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_index))
 
     documents_to_scan = []
-    for file in diff_files:
+    for diff in diff_index:
         progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
-        documents_to_scan.append(Document(get_path_by_os(get_diff_file_path(file)), get_diff_file_content(file)))
-
+        documents_to_scan.append(
+            Document(get_path_by_os(get_diff_file_path(diff)), get_diff_file_content(diff), is_git_diff_format=True)
+        )
     documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(consts.SECRET_SCAN_TYPE, documents_to_scan)
+
     scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx), is_git_diff=True)
 
 

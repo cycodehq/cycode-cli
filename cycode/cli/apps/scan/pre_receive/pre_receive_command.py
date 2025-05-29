@@ -2,7 +2,6 @@ import logging
 import os
 from typing import Annotated, Optional
 
-import click
 import typer
 
 from cycode.cli import consts
@@ -14,7 +13,7 @@ from cycode.cli.apps.scan.commit_range_scanner import (
 from cycode.cli.config import configuration_manager
 from cycode.cli.console import console
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
-from cycode.cli.files_collector.repository_documents import (
+from cycode.cli.files_collector.commit_range_documents import (
     calculate_pre_receive_commit_range,
     parse_pre_receive_input,
 )
@@ -31,10 +30,6 @@ def pre_receive_command(
 ) -> None:
     try:
         add_breadcrumb('pre_receive')
-
-        scan_type = ctx.obj['scan_type']
-        if scan_type != consts.SECRET_SCAN_TYPE:
-            raise click.ClickException(f'Commit range scanning for {scan_type.upper()} is not supported')
 
         if should_skip_pre_receive_scan():
             logger.info(

@@ -41,7 +41,7 @@ def _add_ecosystem_related_files_if_exists(
     documents.extend(documents_to_add)
 
 
-def perform_pre_commit_range_scan_actions(
+def perform_sca_pre_commit_range_scan_actions(
     path: str,
     from_commit_documents: list[Document],
     from_commit_rev: str,
@@ -53,7 +53,7 @@ def perform_pre_commit_range_scan_actions(
     _add_ecosystem_related_files_if_exists(to_commit_documents, repo, to_commit_rev)
 
 
-def perform_pre_hook_range_scan_actions(
+def perform_sca_pre_hook_range_scan_actions(
     repo_path: str, git_head_documents: list[Document], pre_committed_documents: list[Document]
 ) -> None:
     repo = git_proxy.get_repo(repo_path)
