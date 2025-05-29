@@ -50,7 +50,8 @@ This guide walks you through both installation and usage.
         6. [Ignoring via a config file](#ignoring-via-a-config-file)
 5. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
-6. [Syntax Help](#syntax-help)
+6. [Scan logs](#scan-logs)
+7. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
@@ -300,7 +301,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.                                                                                                                                  |
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                                                                                                                                                  |
 | `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                                                                                                                                         |
-| `--monitor`                                                | When specified, the scan results will be recorded in the knowledge graph. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
+| `--monitor`                                                | When specified, the scan results will be recorded in Cycode. Please note that when working in `monitor` mode, the knowledge graph will not be updated as a result of SCM events (Push, Repo creation). (Supported for SCA scan type only). |
 | `--cycode-report`                                          | When specified, displays a link to the scan report in the Cycode platform in the console output.                                                                                                                                                        |
 | `--no-restore`                                             | When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!                                                                                                                                                                |
 | `--gradle-all-sub-projects`                                | When specified, Cycode will run gradle restore command for all sub projects. Should run from root project directory ONLY!                                                                                                                               |
@@ -328,16 +329,14 @@ The following command will scan the repository for policy violations that have s
 > [!NOTE]
 > This option is only available to SCA scans.
 
-To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in an SCA type scan to Cycode's knowledge graph, add the argument `--monitor` to the scan command.
+To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in an SCA type scan to Cycode, add the argument `--monitor` to the scan command.
 
 Consider the following example. The following command will scan the repository for SCA policy violations and push them to Cycode:
 
 `cycode scan -t sca --monitor repository ~/home/git/codebase`
 
-When using this option, the scan results from this scan will appear in the knowledge graph, which can be found [here](https://app.cycode.com/query-builder).
+When using this option, the scan results will appear in Cycode.
 
-> [!WARNING]
-> You must be an `owner` or an `admin` in Cycode to view the knowledge graph page.
 
 #### Cycode Report Option
 
@@ -837,6 +836,10 @@ To create an SBOM report for a path:\
 
 For example:\
 `cycode report sbom --format spdx-2.3 --include-vulnerabilities --include-dev-dependencies path /path/to/local/project`
+
+# Scan Logs
+
+All CLI scan are logged in Cycode.  The logs can be found under Settings > CLI Logs.
 
 # Syntax Help
 
