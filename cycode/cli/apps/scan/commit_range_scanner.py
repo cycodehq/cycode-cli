@@ -170,42 +170,42 @@ def _scan_commit_range_documents(
     )
 
 
-def _scan_sca_commit_range(ctx: typer.Context, path: str, commit_range: str, **_) -> None:
-    scan_parameters = get_scan_parameters(ctx, (path,))
+def _scan_sca_commit_range(ctx: typer.Context, repo_path: str, commit_range: str, **_) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
-    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
+    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, repo_path)
     from_commit_documents, to_commit_documents, _ = get_commit_range_modified_documents(
-        ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
+        ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, repo_path, from_commit_rev, to_commit_rev
     )
     from_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, from_commit_documents)
     to_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, to_commit_documents)
 
     perform_sca_pre_commit_range_scan_actions(
-        path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
+        repo_path, from_commit_documents, from_commit_rev, to_commit_documents, to_commit_rev
     )
 
     _scan_commit_range_documents(ctx, from_commit_documents, to_commit_documents, scan_parameters=scan_parameters)
 
 
 def _scan_secret_commit_range(
-    ctx: typer.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None
+    ctx: typer.Context, repo_path: str, commit_range: str, max_commits_count: Optional[int] = None
 ) -> None:
-    commit_diff_documents_to_scan = collect_commit_range_diff_documents(ctx, path, commit_range, max_commits_count)
+    commit_diff_documents_to_scan = collect_commit_range_diff_documents(ctx, repo_path, commit_range, max_commits_count)
     diff_documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(
         consts.SECRET_SCAN_TYPE, commit_diff_documents_to_scan
     )
 
     scan_documents(
-        ctx, diff_documents_to_scan, get_scan_parameters(ctx, (path,)), is_git_diff=True, is_commit_range=True
+        ctx, diff_documents_to_scan, get_scan_parameters(ctx, (repo_path,)), is_git_diff=True, is_commit_range=True
     )
 
 
-def _scan_sast_commit_range(ctx: typer.Context, path: str, commit_range: str, **_) -> None:
-    scan_parameters = get_scan_parameters(ctx, (path,))
+def _scan_sast_commit_range(ctx: typer.Context, repo_path: str, commit_range: str, **_) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
-    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, path)
+    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, repo_path)
     _, commit_documents, diff_documents = get_commit_range_modified_documents(
-        ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, path, from_commit_rev, to_commit_rev
+        ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, repo_path, from_commit_rev, to_commit_rev
     )
     commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, commit_documents)
     diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, diff_documents)
@@ -220,7 +220,7 @@ _SCAN_TYPE_TO_COMMIT_RANGE_HANDLER = {
 }
 
 
-def scan_commit_range(ctx: typer.Context, path: str, commit_range: str, **kwargs) -> None:
+def scan_commit_range(ctx: typer.Context, repo_path: str, commit_range: str, **kwargs) -> None:
     scan_type = ctx.obj['scan_type']
 
     progress_bar = ctx.obj['progress_bar']
@@ -229,13 +229,13 @@ def scan_commit_range(ctx: typer.Context, path: str, commit_range: str, **kwargs
     if scan_type not in _SCAN_TYPE_TO_COMMIT_RANGE_HANDLER:
         raise click.ClickException(f'Commit range scanning for {scan_type.upper()} is not supported')
 
-    _SCAN_TYPE_TO_COMMIT_RANGE_HANDLER[scan_type](ctx, path, commit_range, **kwargs)
+    _SCAN_TYPE_TO_COMMIT_RANGE_HANDLER[scan_type](ctx, repo_path, commit_range, **kwargs)
 
 
 def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     scan_parameters = get_scan_parameters(ctx)
 
-    git_head_documents, pre_committed_documents = get_pre_commit_modified_documents(
+    git_head_documents, pre_committed_documents, _ = get_pre_commit_modified_documents(
         progress_bar=ctx.obj['progress_bar'],
         progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
         repo_path=repo_path,
@@ -273,14 +273,26 @@ def _scan_secret_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx), is_git_diff=True)
 
 
-def _scan_sast_pre_commit(ctx: typer.Context, repo_path: str) -> None:
-    raise NotImplementedError('Pre-commit scanning for SAST is not implemented yet')
+def _scan_sast_pre_commit(ctx: typer.Context, repo_path: str, **_) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
+
+    _, pre_committed_documents, diff_documents = get_pre_commit_modified_documents(
+        progress_bar=ctx.obj['progress_bar'],
+        progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path=repo_path,
+    )
+    pre_committed_documents = excluder.exclude_irrelevant_documents_to_scan(
+        consts.SAST_SCAN_TYPE, pre_committed_documents
+    )
+    diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, diff_documents)
+
+    _scan_commit_range_documents(ctx, pre_committed_documents, diff_documents, scan_parameters=scan_parameters)
 
 
 _SCAN_TYPE_TO_PRE_COMMIT_HANDLER = {
     consts.SCA_SCAN_TYPE: _scan_sca_pre_commit,
     consts.SECRET_SCAN_TYPE: _scan_secret_pre_commit,
-    consts.SAST_SCAN_TYPE: _scan_sast_commit_range,
+    consts.SAST_SCAN_TYPE: _scan_sast_pre_commit,
 }
 
 

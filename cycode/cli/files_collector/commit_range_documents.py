@@ -203,9 +203,10 @@ def get_pre_commit_modified_documents(
     progress_bar: 'BaseProgressBar',
     progress_bar_section: 'ProgressBarSection',
     repo_path: str,
-) -> tuple[list[Document], list[Document]]:
+) -> tuple[list[Document], list[Document], list[Document]]:
     git_head_documents = []
     pre_committed_documents = []
+    diff_documents = []
 
     repo = git_proxy.get_repo(repo_path)
     diff_index = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
@@ -214,15 +215,25 @@ def get_pre_commit_modified_documents(
         progress_bar.update(progress_bar_section)
 
         file_path = get_path_by_os(get_diff_file_path(diff))
+
+        diff_documents.append(
+            Document(
+                path=file_path,
+                content=get_diff_file_content(diff),
+                is_git_diff_format=True,
+            )
+        )
+
         file_content = _get_file_content_from_commit_diff(repo, consts.GIT_HEAD_COMMIT_REV, diff)
-        if file_content is not None:
+        if file_content:
             git_head_documents.append(Document(file_path, file_content))
 
         if os.path.exists(file_path):
             file_content = get_file_content(file_path)
-            pre_committed_documents.append(Document(file_path, file_content))
+            if file_content:
+                pre_committed_documents.append(Document(file_path, file_content))
 
-    return git_head_documents, pre_committed_documents
+    return git_head_documents, pre_committed_documents, diff_documents
 
 
 def parse_commit_range(commit_range: str, path: str) -> tuple[str, str]:
