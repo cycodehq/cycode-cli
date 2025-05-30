@@ -210,7 +210,7 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 Cycode’s pre-commit hook can be set up within your local repository so that the Cycode CLI application will identify any issues with your code automatically before you commit it to your codebase.
 
 > [!NOTE]
-> pre-commit hook is not available to IaC scans.
+> pre-commit hook is not available for IaC scans.
 
 Perform the following steps to install the pre-commit hook:
 
