@@ -3,7 +3,7 @@ import os
 import click
 import typer
 
-from cycode.cli.apps.scan.code_scanner import scan_commit_range
+from cycode.cli.apps.scan.commit_range_scanner import scan_commit_range
 from cycode.cli.apps.scan.scan_ci.ci_integrations import get_commit_range
 from cycode.cli.utils.sentry import add_breadcrumb
 

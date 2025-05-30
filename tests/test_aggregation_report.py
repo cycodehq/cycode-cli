@@ -5,11 +5,9 @@ import pytest
 import responses
 
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import (
-    _try_get_aggregation_report_url_if_needed,
-)
+from cycode.cli.apps.scan.aggregation_report import try_get_aggregation_report_url_if_needed
 from cycode.cli.cli_types import ScanTypeOption
-from cycode.cli.files_collector.excluder import excluder
+from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import TEST_FILES_PATH
 from tests.cyclient.mocked_responses.scan_client import (
@@ -29,7 +27,7 @@ def test_try_get_aggregation_report_url_if_no_report_command_needed_return_none(
 ) -> None:
     aggregation_id = uuid4().hex
     scan_parameter = {'aggregation_id': aggregation_id}
-    result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
+    result = try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result is None
 
 
@@ -38,7 +36,7 @@ def test_try_get_aggregation_report_url_if_no_aggregation_id_needed_return_none(
     scan_type: ScanTypeOption, scan_client: ScanClient
 ) -> None:
     scan_parameter = {'report': True}
-    result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
+    result = try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result is None
 
 
@@ -55,5 +53,5 @@ def test_try_get_aggregation_report_url_if_needed_return_result(
 
     scan_aggregation_report_url_response = scan_client.get_scan_aggregation_report_url(str(aggregation_id), scan_type)
 
-    result = _try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
+    result = try_get_aggregation_report_url_if_needed(scan_parameter, scan_client, scan_type)
     assert result == scan_aggregation_report_url_response.report_url
