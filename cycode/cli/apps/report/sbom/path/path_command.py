@@ -8,7 +8,7 @@ from cycode.cli import consts
 from cycode.cli.apps.report.sbom.common import create_sbom_report, send_report_feedback
 from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.files_collector.path_documents import get_relevant_documents
-from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
+from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
@@ -41,7 +41,7 @@ def path_command(
         )
         # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
         #  unhardcode usage of context in perform_pre_scan_documents_actions
-        perform_pre_scan_documents_actions(ctx, consts.SCA_SCAN_TYPE, documents)
+        add_sca_dependencies_tree_documents_if_needed(ctx, consts.SCA_SCAN_TYPE, documents)
 
         zipped_documents = zip_documents(consts.SCA_SCAN_TYPE, documents)
         report_execution = client.request_sbom_report_execution(report_parameters, zip_file=zipped_documents)

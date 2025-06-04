@@ -27,7 +27,7 @@ def zip_documents(scan_type: str, documents: list[Document], zip_file: Optional[
         _validate_zip_file_size(scan_type, zip_file.size)
 
         logger.debug(
-            'Adding file, %s',
+            'Adding file to ZIP, %s',
             {'index': index, 'filename': document.path, 'unique_id': document.unique_id},
         )
         zip_file.append(document.path, document.unique_id, document.content)
@@ -37,13 +37,13 @@ def zip_documents(scan_type: str, documents: list[Document], zip_file: Optional[
     end_zip_creation_time = timeit.default_timer()
     zip_creation_time = int(end_zip_creation_time - start_zip_creation_time)
     logger.debug(
-        'Finished to create file, %s',
+        'Finished to create ZIP file, %s',
         {'zip_creation_time': zip_creation_time, 'zip_size': zip_file.size, 'documents_count': len(documents)},
     )
 
     if zip_file.configuration_manager.get_debug_flag():
         zip_file_path = Path.joinpath(Path.cwd(), f'{scan_type}_scan_{end_zip_creation_time}.zip')
-        logger.debug('Writing file to disk, %s', {'zip_file_path': zip_file_path})
+        logger.debug('Writing ZIP file to disk, %s', {'zip_file_path': zip_file_path})
         zip_file.write_on_disk(zip_file_path)
 
     return zip_file

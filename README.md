@@ -85,9 +85,15 @@ To install the Cycode CLI application on your local machine, perform the followi
      brew install cycode
      ```
 
-3. Navigate to the top directory of the local repository you wish to scan.
+    - To install from [GitHub Releases](https://github.com/cycodehq/cycode-cli/releases) navigate and download executable for your operating system and architecture, then run the following command:
 
-4. There are three methods to set the Cycode client ID and client secret:
+     ```bash
+     cd /path/to/downloaded/cycode-cli
+     chmod +x cycode
+     ./cycode
+     ```
+
+3. Authenticate CLI. There are three methods to set the Cycode client ID and client secret:
 
    - [cycode auth](#using-the-auth-command) (**Recommended**)
    - [cycode configure](#using-the-configure-command)
@@ -204,7 +210,7 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 Cycode’s pre-commit hook can be set up within your local repository so that the Cycode CLI application will identify any issues with your code automatically before you commit it to your codebase.
 
 > [!NOTE]
-> pre-commit hook is only available to Secrets and SCA scans.
+> pre-commit hook is not available for IaC scans.
 
 Perform the following steps to install the pre-commit hook:
 
@@ -221,24 +227,27 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.0.0
+        rev: v3.2.0
         hooks:
           - id: cycode
             stages:
               - pre-commit
     ```
 
-4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. If you want to enable both, use this configuration:
+4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. Use hook ID `cycode-sast` to enable SAST scan. If you want to enable all scanning types, use this configuration:
 
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.0.0
+        rev: v3.2.0
         hooks:
           - id: cycode
             stages:
               - pre-commit
           - id: cycode-sca
+            stages:
+              - pre-commit
+          - id: cycode-sast
             stages:
               - pre-commit
     ```
@@ -267,14 +276,17 @@ Perform the following steps to install the pre-commit hook:
 
 The following are the options and commands available with the Cycode CLI application:
 
-| Option                               | Description                                                            |
-|--------------------------------------|------------------------------------------------------------------------|
-| `-v`, `--verbose`                    | Show detailed logs.                                                    |
-| `--no-progress-meter`                | Do not show the progress meter.                                        |
-| `--no-update-notifier`               | Do not check CLI for updates.                                          |
-| `-o`, `--output [text\|json\|table]` | Specify the output (`text`/`json`/`table`). The default is `text`.     |       
-| `--user-agent TEXT`                  | Characteristic JSON object that lets servers identify the application. |
-| `--help`                             | Show options for given command.                                        |
+| Option                                                            | Description                                                                        |
+|-------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| `-v`, `--verbose`                                                 | Show detailed logs.                                                                |
+| `--no-progress-meter`                                             | Do not show the progress meter.                                                    |
+| `--no-update-notifier`                                            | Do not check CLI for updates.                                                      |
+| `-o`, `--output [rich\|text\|json\|table]`                        | Specify the output type. The default is `rich`.                                    |
+| `--client-id TEXT`                                                | Specify a Cycode client ID for this specific scan execution.                       |
+| `--client-secret TEXT`                                            | Specify a Cycode client secret for this specific scan execution.                   |
+| `--install-completion`                                            | Install completion for the current shell..                                         |
+| `--show-completion           [bash\|zsh\|fish\|powershell\|pwsh]` | Show completion for the specified shell, to copy it or customize the installation. |
+| `-h`, `--help`                                                    | Show options for given command.                                                    |
 
 | Command                                   | Description                                                                                                                                  |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
@@ -294,8 +306,6 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | Option                                                     | Description                                                                                                                                                                                                                                             |
 |------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                                                                                                                                                            |
-| `--client-secret TEXT`                                     | Specify a Cycode client secret for this specific scan execution.                                                                                                                                                                                        |
-| `--client-id TEXT`                                         | Specify a Cycode client ID for this specific scan execution.                                                                                                                                                                                            |
 | `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                                                                                                                                        |
 | `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.                                                                                                                                  |
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                                                                                                                                                  |
@@ -501,15 +511,7 @@ If no issues are found, the scan ends with the following success message:
 
 `Good job! No issues were found!!! 👏👏👏`
 
-If an issue is found, a `Found issue of type:` message appears upon completion instead:
-
-```bash
-⛔  Found issue of type: generic-password (rule ID: ce3a4de0-9dfc-448b-a004-c538cf8b4710) in file: config/my_config.py
-Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  ⛔
-0 | @@ -0,0 +1 @@
-1 | +my_password = 'h3l***********350'
-2 | \ No newline at end of file
-```
+If an issue is found, a violation card appears upon completion instead.
 
 If an issue is found, review the file in question for the specific line highlighted by the result message. Implement any changes required to resolve the issue, then execute the scan again.
 
@@ -525,15 +527,7 @@ In the following example, a Path Scan is executed against the `cli` subdirectory
 
 `cycode scan --show-secret path ./cli`
 
-The result would then not be obfuscated:
-
-```bash
-⛔  Found issue of type: generic-password (rule ID: ce3a4de0-9dfc-448b-a004-c538cf8b4710) in file: config/my_config.py
-Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  ⛔
-0 | @@ -0,0 +1 @@
-1 | +my_password = 'h3110w0r1d!@#$350'
-2 | \ No newline at end of file
-```
+The result would then not be obfuscated.
 
 ### Soft Fail
 
@@ -549,41 +543,92 @@ Scan results are assigned with a value of exit code `1` when issues are found in
 #### Secrets Result Example
 
 ```bash
-⛔  Found issue of type: generic-password (rule ID: ce3a4de0-9dfc-448b-a004-c538cf8b4710) in file: config/my_config.py
-Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  ⛔
-0 | @@ -0,0 +1 @@
-1 | +my_password = 'h3l***********350'
-2 | \ No newline at end of file
+╭─────────────────────────────────────────────────────────────── Hardcoded generic-password is used ───────────────────────────────────────────────────────────────╮
+│                                                                                                                                               Violation 12 of 12 │
+│ ╭─ 🔍 Details ───────────────────────────────────────╮ ╭─ 💻 Code Snippet ─────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │  Severity    🟠 MEDIUM                             │ │   34 };                                                                                               │ │
+│ │  In file     /Users/cycodemacuser/NodeGoat/test/s  │ │   35                                                                                                  │ │
+│ │              ecurity/profile-test.js               │ │   36 var sutUserName = "user1";                                                                       │ │
+│ │  Secret SHA  b4ea3116d868b7c982ee6812cce61727856b  │ │ ❱ 37 var sutUserPassword = "Us*****23";                                                               │ │
+│ │              802b3063cd5aebe7d796988552e0          │ │   38                                                                                                  │ │
+│ │  Rule ID     68b6a876-4890-4e62-9531-0e687223579f  │ │   39 chrome.setDefaultService(service);                                                               │ │
+│ ╰────────────────────────────────────────────────────╯ │   40                                                                                                  │ │
+│                                                        ╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│ ╭─ 📝 Summary ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ A generic secret or password is an authentication token used to access a computer or application and is assigned to a password variable.                     │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 #### IaC Result Example
 
 ```bash
-⛔  Found issue of type: Resource should use non-default namespace (rule ID: bdaa88e2-5e7c-46ff-ac2a-29721418c59c) in file: ./k8s/k8s.yaml   ⛔
-
-7 |   name: secrets-file
-8 |   namespace: default
-9 |   resourceVersion: "4228"
+╭──────────── Enable Content Encoding through the attribute 'MinimumCompressionSize'. This value should be greater than -1 and smaller than 10485760. ─────────────╮
+│                                                                                                                                              Violation 45 of 110 │
+│ ╭─ 🔍 Details ───────────────────────────────────────╮ ╭─ 💻 Code Snippet ─────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │  Severity      🟠 MEDIUM                           │ │   20 BinaryMediaTypes:                                                                                │ │
+│ │  In file       ...ads-copy/iac/cft/api-gateway/ap  │ │   21   - !Ref binaryMediaType1                                                                        │ │
+│ │                i-gateway-rest-api/deploy.yml       │ │   22   - !Ref binaryMediaType2                                                                        │ │
+│ │  IaC Provider  CloudFormation                      │ │ ❱ 23 MinimumCompressionSize: -1                                                                       │ │
+│ │  Rule ID       33c4b90c-3270-4337-a075-d3109c141b  │ │   24 EndpointConfiguration:                                                                           │ │
+│ │                53                                  │ │   25   Types:                                                                                         │ │
+│ ╰────────────────────────────────────────────────────╯ │   26     - EDGE                                                                                       │ │
+│                                                        ╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│ ╭─ 📝 Summary ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ This policy validates the proper configuration of content encoding in AWS API Gateway. Specifically, the policy checks for the attribute                     │ │
+│ │ 'minimum_compression_size' in API Gateway REST APIs. Correct configuration of this attribute is important for enabling content encoding of API responses for │ │
+│ │ improved API performance and reduced payload sizes.                                                                                                          │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 #### SCA Result Example
 
 ```bash
-⛔  Found issue of type: Security vulnerability in package 'pyyaml' referenced in project 'Users/myuser/my-test-repo': Improper Input Validation in PyYAML (rule ID: d003b23a-a2eb-42f3-83c9-7a84505603e5) in file: Users/myuser/my-test-repo/requirements.txt   ⛔
-
-1 | PyYAML~=5.3.1
-2 | vyper==0.3.1
-3 | cleo==1.0.0a5
+╭─────────────────────────────────────────────────────── [CVE-2019-10795] Prototype Pollution in undefsafe ────────────────────────────────────────────────────────╮
+│                                                                                                                                             Violation 172 of 195 │
+│ ╭─ 🔍 Details ───────────────────────────────────────╮ ╭─ 💻 Code Snippet ─────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │  Severity               🟠 MEDIUM                  │ │   26758   "integrity": "sha1-5z3T17DXxe2G+6xrCufYxqadUPo=",                                           │ │
+│ │  In file                /Users/cycodemacuser/Node  │ │   26759   "dev": true                                                                                 │ │
+│ │                         Goat/package-lock.json     │ │   26760 },                                                                                            │ │
+│ │  CVEs                   CVE-2019-10795             │ │ ❱ 26761 "undefsafe": {                                                                                │ │
+│ │  Package                undefsafe                  │ │   26762   "version": "2.0.2",                                                                         │ │
+│ │  Version                2.0.2                      │ │   26763   "resolved": "https://registry.npmjs.org/undefsafe/-/undefsafe-2.0.2.tgz",                   │ │
+│ │  First patched version  Not fixed                  │ │   26764   "integrity": "sha1-Il9rngM3Zj4Njnz9aG/Cg2zKznY=",                                           │ │
+│ │  Dependency path        nodemon 1.19.1 ->          │ ╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│ │                         undefsafe 2.0.2            │                                                                                                           │
+│ │  Rule ID                9c6a8911-e071-4616-86db-4  │                                                                                                           │
+│ │                         943f2e1df81                │                                                                                                           │
+│ ╰────────────────────────────────────────────────────╯                                                                                                           │
+│ ╭─ 📝 Summary ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ undefsafe before 2.0.3 is vulnerable to Prototype Pollution. The 'a' function could be tricked into adding or modifying properties of Object.prototype using │ │
+│ │ a __proto__ payload.                                                                                                                                         │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 #### SAST Result Example
 
 ```bash
-⛔  Found issue of type: Detected a request using 'http://'. This request will be unencrypted, and attackers could listen into traffic on the network and be able to obtain sensitive information. Use 'https://' instead. (rule ID: 3fbbd34b-b00d-4415-b9d9-f861c076b9f2) in file: ./requests.py   ⛔
-
-2 |
-3 | res = requests.get('http://example.com', timeout=1)
-4 | print(res.content)
+╭───────────────────────────────────────────── [CWE-208: Observable Timing Discrepancy] Observable Timing Discrepancy ─────────────────────────────────────────────╮
+│                                                                                                                                               Violation 24 of 49 │
+│ ╭─ 🔍 Details ───────────────────────────────────────╮ ╭─ 💻 Code Snippet ─────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │  Severity       🟠 MEDIUM                          │ │   173         " including numbers, lowercase and uppercase letters.";                                 │ │
+│ │  In file        /Users/cycodemacuser/NodeGoat/app  │ │   174     return false;                                                                               │ │
+│ │                 /routes/session.js                 │ │   175 }                                                                                               │ │
+│ │  CWE            CWE-208                            │ │ ❱ 176 if (password !== verify) {                                                                      │ │
+│ │  Subcategory    Security                           │ │   177     errors.verifyError = "Password must match";                                                 │ │
+│ │  Language       js                                 │ │   178     return false;                                                                               │ │
+│ │  Security Tool  Bearer (Powered by Cycode)         │ │   179 }                                                                                               │ │
+│ │  Rule ID        19fbca07-a8e7-4fa6-92ac-a36d15509  │ ╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│ │                 fa9                                │                                                                                                           │
+│ ╰────────────────────────────────────────────────────╯                                                                                                           │
+│ ╭─ 📝 Summary ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ Observable Timing Discrepancy occurs when the time it takes for certain operations to complete can be measured and observed by attackers. This vulnerability │ │
+│ │ is particularly concerning when operations involve sensitive information, such as password checks or secret comparisons. If attackers can analyze how long   │ │
+│ │ these operations take, they might be able to deduce confidential details, putting your data at risk.                                                         │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Company’s Custom Remediation Guidelines
@@ -609,18 +654,6 @@ The following are the options available for the `cycode ignore` command:
 | `--by-cve TEXT`                            | Ignore scanning a specific CVE while running an SCA scan. Expected pattern: CVE-YYYY-NNN.                                                                                |
 | `-t, --scan-type [secret\|iac\|sca\|sast]` | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`). The default value is `secret`.                                                                       |
 | `-g, --global`                             | Add an ignore rule and update it in the global `.cycode` config file.                                                                                                    |
-
-In the following example, a pre-commit scan runs and finds the following:
-
-```bash
-⛔  Found issue of type: generic-password (rule ID: ce3a4de0-9dfc-448b-a004-c538cf8b4710) in file: config/my_config.py
-Secret SHA: a44081db3296c84b82d12a35c446a3cba19411dddfa0380134c75f7b3973bff0  ⛔
-0 | @@ -0,0 +1 @@
-1 | +my_password = 'h3l***********350'
-2 | \ No newline at end of file
-```
-
-If this is a value that is not a valid secret, then use the `cycode ignore` command to ignore the secret by its value, SHA value, specific path, or rule ID. If this is an IaC scan, then you can ignore that result by its path or rule ID.
 
 ### Ignoring a Secret Value
 

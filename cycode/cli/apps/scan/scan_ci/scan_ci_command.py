@@ -3,7 +3,7 @@ import os
 import click
 import typer
 
-from cycode.cli.apps.scan.code_scanner import scan_commit_range
+from cycode.cli.apps.scan.commit_range_scanner import scan_commit_range
 from cycode.cli.apps.scan.scan_ci.ci_integrations import get_commit_range
 from cycode.cli.utils.sentry import add_breadcrumb
 
@@ -17,4 +17,4 @@ from cycode.cli.utils.sentry import add_breadcrumb
 @click.pass_context
 def scan_ci_command(ctx: typer.Context) -> None:
     add_breadcrumb('ci')
-    scan_commit_range(ctx, path=os.getcwd(), commit_range=get_commit_range())
+    scan_commit_range(ctx, repo_path=os.getcwd(), commit_range=get_commit_range())
