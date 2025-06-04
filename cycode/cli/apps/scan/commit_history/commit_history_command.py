@@ -28,6 +28,6 @@ def commit_history_command(
         add_breadcrumb('commit_history')
 
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
-        scan_commit_range(ctx, path=str(path), commit_range=commit_range)
+        scan_commit_range(ctx, repo_path=str(path), commit_range=commit_range)
     except Exception as e:
         handle_scan_exception(ctx, e)

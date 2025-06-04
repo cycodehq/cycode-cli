@@ -57,7 +57,7 @@ def pre_receive_command(
 
             scan_commit_range(
                 ctx=ctx,
-                path=os.getcwd(),
+                repo_path=os.getcwd(),
                 commit_range=commit_range,
                 max_commits_count=configuration_manager.get_pre_receive_max_commits_to_scan_count(command_scan_type),
             )
