@@ -16,7 +16,12 @@ This guide walks you through both installation and usage.
             2. [On Windows](#on-windows)
     2. [Install Pre-Commit Hook](#install-pre-commit-hook)
 3. [Cycode CLI Commands](#cycode-cli-commands)
-4. [Scan Command](#scan-command)
+4. [MCP Command](#mcp-command)
+    1. [Starting the MCP Server](#starting-the-mcp-server)
+    2. [Available Options](#available-options)
+    3. [MCP Tools](#mcp-tools)
+    4. [Usage Examples](#usage-examples)
+5. [Scan Command](#scan-command)
     1. [Running a Scan](#running-a-scan)
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
@@ -48,9 +53,9 @@ This guide walks you through both installation and usage.
         4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
         5. [Ignoring a Package](#ignoring-a-package)
         6. [Ignoring via a config file](#ignoring-via-a-config-file)
-5. [Report command](#report-command)
+6. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
-6. [Syntax Help](#syntax-help)
+7. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
@@ -221,7 +226,7 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.0.0
+        rev: v3.1.0
         hooks:
           - id: cycode
             stages:
@@ -233,7 +238,7 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.0.0
+        rev: v3.1.0
         hooks:
           - id: cycode
             stages:
@@ -281,9 +286,203 @@ The following are the options and commands available with the Cycode CLI applica
 | [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
 | [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
+| [mcp](#mcp-command)                       | Start the Model Context Protocol (MCP) server to enable AI integration with Cycode scanning capabilities.                                    |
 | [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
 | [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform as SBOM.                                                                |
 | status                                    | Show the CLI status and exit.                                                                                                                |
+
+# MCP Command
+
+The Model Context Protocol (MCP) command allows you to start an MCP server that exposes Cycode's scanning capabilities to AI systems and applications. This enables AI models to interact with Cycode CLI tools through a standardized protocol.
+
+> [!TIP]
+> For the best experience, install Cycode CLI globally on your system using `pip install cycode` or `brew install cycode`, then authenticate once with `cycode auth`. After global installation and authentication, you won't need to configure `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` environment variables in your MCP configuration files.
+
+## Starting the MCP Server
+
+To start the MCP server, use the following command:
+
+```bash
+cycode mcp
+```
+
+By default, this starts the server using the `stdio` transport, which is suitable for local integrations and AI applications that can spawn subprocess.
+
+### Available Options
+
+| Option            | Description                                                                                |
+|-------------------|--------------------------------------------------------------------------------------------|
+| `-t, --transport` | Transport type for the MCP server: `stdio`, `sse`, or `streamable-http` (default: `stdio`) |
+| `-H, --host`      | Host address to bind the server (used only for non stdio transport) (default: `127.0.0.1`) |
+| `-p, --port`      | Port number to bind the server (used only for non stdio transport) (default: `8000`)       |
+| `--help`          | Show help message and available options                                                    |
+
+### MCP Tools
+
+The MCP server provides the following tools that AI systems can use:
+
+| Tool Name            | Description                                                                                 |
+|----------------------|---------------------------------------------------------------------------------------------|
+| `cycode_secret_scan` | Scan files for hardcoded secrets                                                            |
+| `cycode_sca_scan`    | Scan files for Software Composition Analysis (SCA) - vulnerabilities and license issues     |
+| `cycode_iac_scan`    | Scan files for Infrastructure as Code (IaC) misconfigurations                               |
+| `cycode_sast_scan`   | Scan files for Static Application Security Testing (SAST) - code quality and security flaws |
+| `cycode_status`      | Get Cycode CLI version, authentication status, and configuration information                |
+
+### Usage Examples
+
+#### Basic Command Examples
+
+Start the MCP server with default settings (stdio transport):
+```bash
+cycode mcp
+```
+
+Start the MCP server with explicit stdio transport:
+```bash
+cycode mcp -t stdio
+```
+
+Start the MCP server with Server-Sent Events (SSE) transport:
+```bash
+cycode mcp -t sse -p 8080
+```
+
+Start the MCP server with streamable HTTP transport on custom host and port:
+```bash
+cycode mcp -t streamable-http -H 0.0.0.0 -p 9000
+```
+
+Learn more about MCP Transport types in the [MCP Protocol Specification – Transports](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports).
+
+#### Configuration Examples
+
+##### Using MCP with Cursor/Claude Desktop/etc (mcp.json)
+
+> [!NOTE]
+> For EU Cycode environments, make sure to set the appropriate `CYCODE_API_URL` and `CYCODE_APP_URL` values in the environment variables (e.g., `https://api.eu.cycode.com` and `https://app.eu.cycode.com`).
+
+For **stdio transport** (direct execution):
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "cycode",
+      "args": ["mcp"],
+      "env": {
+        "CYCODE_CLIENT_ID": "your-cycode-id",
+        "CYCODE_CLIENT_SECRET": "your-cycode-secret-key",
+        "CYCODE_API_URL": "https://api.cycode.com",
+        "CYCODE_APP_URL": "https://app.cycode.com"
+      }
+    }
+  }
+}
+```
+
+For **stdio transport** with `pipx` installation:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "pipx",
+      "args": ["run", "cycode", "mcp"],
+      "env": {
+        "CYCODE_CLIENT_ID": "your-cycode-id",
+        "CYCODE_CLIENT_SECRET": "your-cycode-secret-key",
+        "CYCODE_API_URL": "https://api.cycode.com",
+        "CYCODE_APP_URL": "https://app.cycode.com"
+      }
+    }
+  }
+}
+```
+
+For **stdio transport** with `uvx` installation:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "uvx",
+      "args": ["cycode", "mcp"],
+      "env": {
+        "CYCODE_CLIENT_ID": "your-cycode-id",
+        "CYCODE_CLIENT_SECRET": "your-cycode-secret-key",
+        "CYCODE_API_URL": "https://api.cycode.com",
+        "CYCODE_APP_URL": "https://app.cycode.com"
+      }
+    }
+  }
+}
+```
+
+For **SSE transport** (Server-Sent Events):
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8000/sse"
+    }
+  }
+}
+```
+
+For **SSE transport** on custom port:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8080/sse"
+    }
+  }
+}
+```
+
+For **streamable HTTP transport**:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}
+```
+
+##### Running MCP Server in Background
+
+For **SSE transport** (start server first, then configure client):
+```bash
+# Start the MCP server in background
+cycode mcp -t sse -p 8000 &
+
+# Configure in mcp.json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8000/sse"
+    }
+  }
+}
+```
+
+For **streamable HTTP transport**:
+```bash
+# Start the MCP server in background
+cycode mcp -t streamable-http -H 0.0.0.0 -p 9000 &
+
+# Configure in mcp.json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://0.0.0.0:9000/mcp"
+    }
+  }
+}
+```
+
+> [!NOTE]
+> The MCP server requires proper Cycode CLI authentication to function. Make sure you have authenticated using `cycode auth` or configured your credentials before starting the MCP server.
 
 # Scan Command
 
