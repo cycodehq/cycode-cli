@@ -236,9 +236,12 @@ def get_pre_commit_modified_documents(
     return git_head_documents, pre_committed_documents, diff_documents
 
 
-def parse_commit_range(commit_range: str, path: str) -> tuple[str, str]:
-    from_commit_rev = None
-    to_commit_rev = None
+def parse_commit_range_sca(commit_range: str, path: str) -> tuple[Optional[str], Optional[str]]:
+    # FIXME(MarshalX): i truly believe that this function does NOT work as expected
+    #  it does not handle cases like 'A..B' correctly
+    #  i leave it as it for SCA to not break anything
+    #  the more correct approach is implemented for SAST
+    from_commit_rev = to_commit_rev = None
 
     for commit in git_proxy.get_repo(path).iter_commits(rev=commit_range):
         if not to_commit_rev:
@@ -246,3 +249,40 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[str, str]:
         from_commit_rev = commit.hexsha
 
     return from_commit_rev, to_commit_rev
+
+
+def parse_commit_range_sast(commit_range: str, path: str) -> tuple[Optional[str], Optional[str]]:
+    """Parses a git commit range string and returns the full SHAs for the 'from' and 'to' commits.
+
+    Supports:
+    - 'from..to'
+    - 'from...to'
+    - 'commit' (interpreted as 'commit..HEAD')
+    - '..to' (interpreted as 'HEAD..to')
+    - 'from..' (interpreted as 'from..HEAD')
+    """
+    repo = git_proxy.get_repo(path)
+
+    if '...' in commit_range:
+        from_spec, to_spec = commit_range.split('...', 1)
+    elif '..' in commit_range:
+        from_spec, to_spec = commit_range.split('..', 1)
+    else:
+        # Git commands like 'git diff <commit>' compare against HEAD.
+        from_spec = commit_range
+        to_spec = 'HEAD'
+
+    # If a spec is empty (e.g., from '..master'), default it to 'HEAD'
+    if not from_spec:
+        from_spec = 'HEAD'
+    if not to_spec:
+        to_spec = 'HEAD'
+
+    try:
+        # Use rev_parse to resolve each specifier to its full commit SHA
+        from_commit_rev = repo.rev_parse(from_spec).hexsha
+        to_commit_rev = repo.rev_parse(to_spec).hexsha
+        return from_commit_rev, to_commit_rev
+    except git_proxy.get_git_command_error() as e:
+        logger.warning("Failed to parse commit range '%s'", commit_range, exc_info=e)
+        return None, None
