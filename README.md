@@ -16,7 +16,7 @@ This guide walks you through both installation and usage.
             2. [On Windows](#on-windows)
     2. [Install Pre-Commit Hook](#install-pre-commit-hook)
 3. [Cycode CLI Commands](#cycode-cli-commands)
-4. [MCP Command](#mcp-command)
+4. [MCP Command](#mcp-command-experiment)
     1. [Starting the MCP Server](#starting-the-mcp-server)
     2. [Available Options](#available-options)
     3. [MCP Tools](#mcp-tools)
@@ -286,12 +286,12 @@ The following are the options and commands available with the Cycode CLI applica
 | [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
 | [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
-| [mcp](#mcp-command)                       | Start the Model Context Protocol (MCP) server to enable AI integration with Cycode scanning capabilities.                                    |
+| [mcp](#mcp-command-experiment)            | Start the Model Context Protocol (MCP) server to enable AI integration with Cycode scanning capabilities.                                    |
 | [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
 | [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform as SBOM.                                                                |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
-# MCP Command
+# MCP Command \[EXPERIMENT\]
 
 > [!WARNING]
 > The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
