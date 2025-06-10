@@ -205,9 +205,13 @@ def _scan_sast_commit_range(ctx: typer.Context, repo_path: str, commit_range: st
     scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
     from_commit_rev, to_commit_rev = parse_commit_range_sast(commit_range, repo_path)
-    # we are using from_commit_documents here because of flipped mess with R=True, differences in parsing commit ranges
-    commit_documents, _, diff_documents = get_commit_range_modified_documents(
-        ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, repo_path, from_commit_rev, to_commit_rev
+    _, commit_documents, diff_documents = get_commit_range_modified_documents(
+        ctx.obj['progress_bar'],
+        ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path,
+        from_commit_rev,
+        to_commit_rev,
+        reverse_diff=False,
     )
     commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, commit_documents)
     diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, diff_documents)

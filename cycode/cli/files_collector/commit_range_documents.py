@@ -125,13 +125,14 @@ def get_commit_range_modified_documents(
     path: str,
     from_commit_rev: str,
     to_commit_rev: str,
+    reverse_diff: bool = True,
 ) -> tuple[list[Document], list[Document], list[Document]]:
     from_commit_documents = []
     to_commit_documents = []
     diff_documents = []
 
     repo = git_proxy.get_repo(path)
-    diff_index = repo.commit(from_commit_rev).diff(to_commit_rev, create_patch=True, R=True)
+    diff_index = repo.commit(from_commit_rev).diff(to_commit_rev, create_patch=True, R=reverse_diff)
 
     modified_files_diff = [
         diff for diff in diff_index if diff.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
