@@ -63,7 +63,7 @@ class ScaTablePrinter(TablePrinterBase):
         elif policy_id == LICENSE_COMPLIANCE_POLICY_ID:
             table.add_column(LICENSE_COLUMN)
 
-        if is_git_diff_based_scan(self.scan_type, self.command_scan_type):
+        if is_git_diff_based_scan(self.command_scan_type):
             table.add_column(REPOSITORY_COLUMN)
 
         table.add_column(SEVERITY_COLUMN)

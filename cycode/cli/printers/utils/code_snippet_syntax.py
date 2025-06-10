@@ -108,7 +108,7 @@ def get_code_snippet_syntax(
     lines_to_display_after: int = 1,
     obfuscate: bool = True,
 ) -> Syntax:
-    if is_git_diff_based_scan(scan_type, command_scan_type):
+    if is_git_diff_based_scan(command_scan_type):
         # it will return syntax with just one line
         return _get_code_snippet_syntax_from_git_diff(scan_type, detection, document, obfuscate)
 

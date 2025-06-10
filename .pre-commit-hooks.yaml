@@ -10,3 +10,9 @@
   language_version: python3
   entry: cycode
   args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sca', 'pre-commit' ]
+- id: cycode-sast
+  name: Cycode SAST pre-commit defender
+  language: python
+  language_version: python3
+  entry: cycode
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sast', 'pre-commit' ]

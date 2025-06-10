@@ -3,7 +3,7 @@ from typing import Annotated
 
 import typer
 
-from cycode.cli.apps.scan.code_scanner import scan_commit_range
+from cycode.cli.apps.scan.commit_range_scanner import scan_commit_range
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.logger import logger
 from cycode.cli.utils.sentry import add_breadcrumb
@@ -28,6 +28,6 @@ def commit_history_command(
         add_breadcrumb('commit_history')
 
         logger.debug('Starting commit history scan process, %s', {'path': path, 'commit_range': commit_range})
-        scan_commit_range(ctx, path=str(path), commit_range=commit_range)
+        scan_commit_range(ctx, repo_path=str(path), commit_range=commit_range)
     except Exception as e:
         handle_scan_exception(ctx, e)
