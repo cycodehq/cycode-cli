@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import NamedTuple, Optional, Union
+from typing import ClassVar, NamedTuple, Optional, Union
 
 import click
 import typer
@@ -42,10 +42,15 @@ class CreatedLogger(NamedTuple):
     control_level_in_runtime: bool
 
 
-_CREATED_LOGGERS: set[CreatedLogger] = set()
+class LoggersManager:
+    loggers: ClassVar[set[CreatedLogger]] = set()
+    global_logging_level: Optional[int] = None
 
 
 def get_logger_level() -> Optional[Union[int, str]]:
+    if LoggersManager.global_logging_level is not None:
+        return LoggersManager.global_logging_level
+
     config_level = get_val_as_string(consts.LOGGING_LEVEL_ENV_VAR_NAME)
     return logging.getLevelName(config_level)
 
@@ -54,12 +59,14 @@ def get_logger(logger_name: Optional[str] = None, control_level_in_runtime: bool
     new_logger = logging.getLogger(logger_name)
     new_logger.setLevel(get_logger_level())
 
-    _CREATED_LOGGERS.add(CreatedLogger(logger=new_logger, control_level_in_runtime=control_level_in_runtime))
+    LoggersManager.loggers.add(CreatedLogger(logger=new_logger, control_level_in_runtime=control_level_in_runtime))
 
     return new_logger
 
 
 def set_logging_level(level: int) -> None:
-    for created_logger in _CREATED_LOGGERS:
+    LoggersManager.global_logging_level = level
+
+    for created_logger in LoggersManager.loggers:
         if created_logger.control_level_in_runtime:
             created_logger.logger.setLevel(level)

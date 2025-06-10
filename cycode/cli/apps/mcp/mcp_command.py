@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -12,6 +13,7 @@ from pydantic import Field
 
 from cycode.cli.cli_types import McpTransportOption, ScanTypeOption
 from cycode.cli.utils.sentry import add_breadcrumb
+from cycode.logger import LoggersManager, get_logger
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -22,13 +24,19 @@ except ImportError:
     ) from None
 
 
-from cycode.logger import get_logger
-
 _logger = get_logger('Cycode MCP')
 
 _DEFAULT_RUN_COMMAND_TIMEOUT = 5 * 60
 
 _FILES_TOOL_FIELD = Field(description='Files to scan, mapping file paths to their content')
+
+
+def _is_debug_mode() -> bool:
+    return LoggersManager.global_logging_level == logging.DEBUG
+
+
+def _gen_random_id() -> str:
+    return uuid.uuid4().hex
 
 
 def _get_current_executable() -> str:
@@ -49,7 +57,8 @@ async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TI
     Returns:
         Dictionary containing the parsed JSON result or error information
     """
-    cmd_args = [_get_current_executable(), '-o', 'json', *list(args)]
+    verbose = ['-v'] if _is_debug_mode() else []
+    cmd_args = [_get_current_executable(), *verbose, '-o', 'json', *list(args)]
     _logger.debug('Running Cycode CLI command: %s', ' '.join(cmd_args))
 
     try:
@@ -60,6 +69,9 @@ async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TI
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
         stdout_str = stdout.decode('UTF-8', errors='replace') if stdout else ''
         stderr_str = stderr.decode('UTF-8', errors='replace') if stderr else ''
+
+        if _is_debug_mode():  # redirect debug output
+            sys.stderr.write(stderr_str)
 
         if not stdout_str:
             return {'error': 'No output from command', 'stderr': stderr_str, 'returncode': process.returncode}
@@ -87,7 +99,7 @@ def _create_temp_files(files_content: dict[str, str]) -> list[str]:
     _logger.debug('Creating temporary files in directory: %s', temp_dir)
 
     for file_path, content in files_content.items():
-        safe_filename = f'{uuid.uuid4().hex}_{Path(file_path).name}'
+        safe_filename = f'{_gen_random_id()}_{Path(file_path).name}'
         temp_file_path = os.path.join(temp_dir, safe_filename)
 
         os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
@@ -125,13 +137,37 @@ def _cleanup_temp_files(temp_files: list[str]) -> None:
 
 async def _run_cycode_scan(scan_type: ScanTypeOption, temp_files: list[str]) -> dict[str, Any]:
     """Run cycode scan command and return the result."""
-    args = ['scan', '-t', str(scan_type), 'path', *temp_files]
-    return await _run_cycode_command(*args)
+    return await _run_cycode_command(*['scan', '-t', str(scan_type), 'path', *temp_files])
 
 
 async def _run_cycode_status() -> dict[str, Any]:
     """Run cycode status command and return the result."""
     return await _run_cycode_command('status')
+
+
+async def _cycode_scan_tool(scan_type: ScanTypeOption, files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
+    _tool_call_id = _gen_random_id()
+    _logger.info('Scan tool called, %s', {'scan_type': scan_type, 'call_id': _tool_call_id})
+
+    if not files:
+        _logger.error('No files provided for scan')
+        return json.dumps({'error': 'No files provided'})
+
+    temp_files = _create_temp_files(files)
+
+    try:
+        _logger.info(
+            'Running Cycode scan, %s',
+            {'scan_type': scan_type, 'files_count': len(temp_files), 'call_id': _tool_call_id},
+        )
+        result = await _run_cycode_scan(scan_type, temp_files)
+        _logger.info('Scan completed, %s', {'scan_type': scan_type, 'call_id': _tool_call_id})
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        _logger.error('Scan failed, %s', {'scan_type': scan_type, 'call_id': _tool_call_id, 'error': str(e)})
+        return json.dumps({'error': f'Scan failed: {e!s}'}, indent=2)
+    finally:
+        _cleanup_temp_files(temp_files)
 
 
 async def cycode_secret_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
@@ -148,18 +184,7 @@ async def cycode_secret_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
     Returns:
         JSON string containing scan results and any secrets found
     """
-    _logger.info('Secret scan tool called')
-
-    if not files:
-        return json.dumps({'error': 'No files provided'})
-
-    temp_files = _create_temp_files(files)
-
-    try:
-        result = await _run_cycode_scan(ScanTypeOption.SECRET, temp_files)
-        return json.dumps(result, indent=2)
-    finally:
-        _cleanup_temp_files(temp_files)
+    return await _cycode_scan_tool(ScanTypeOption.SECRET, files)
 
 
 async def cycode_sca_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
@@ -178,18 +203,7 @@ async def cycode_sca_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
     Returns:
         JSON string containing scan results, vulnerabilities, and license issues found
     """
-    _logger.info('SCA scan tool called')
-
-    if not files:
-        return json.dumps({'error': 'No files provided'})
-
-    temp_files = _create_temp_files(files)
-
-    try:
-        result = await _run_cycode_scan(ScanTypeOption.SCA, temp_files)
-        return json.dumps(result, indent=2)
-    finally:
-        _cleanup_temp_files(temp_files)
+    return await _cycode_scan_tool(ScanTypeOption.SCA, files)
 
 
 async def cycode_iac_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
@@ -208,18 +222,7 @@ async def cycode_iac_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
     Returns:
         JSON string containing scan results and any misconfigurations found
     """
-    _logger.info('IaC scan tool called')
-
-    if not files:
-        return json.dumps({'error': 'No files provided'})
-
-    temp_files = _create_temp_files(files)
-
-    try:
-        result = await _run_cycode_scan(ScanTypeOption.IAC, temp_files)
-        return json.dumps(result, indent=2)
-    finally:
-        _cleanup_temp_files(temp_files)
+    return await _cycode_scan_tool(ScanTypeOption.IAC, files)
 
 
 async def cycode_sast_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
@@ -238,18 +241,7 @@ async def cycode_sast_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
     Returns:
         JSON string containing scan results and any security flaws found
     """
-    _logger.info('SAST scan tool called')
-
-    if not files:
-        return json.dumps({'error': 'No files provided'})
-
-    temp_files = _create_temp_files(files)
-
-    try:
-        result = await _run_cycode_scan(ScanTypeOption.SAST, temp_files)
-        return json.dumps(result, indent=2)
-    finally:
-        _cleanup_temp_files(temp_files)
+    return await _cycode_scan_tool(ScanTypeOption.SAST, files)
 
 
 async def cycode_status() -> str:
@@ -265,13 +257,21 @@ async def cycode_status() -> str:
     Returns:
         JSON string containing CLI status, version, and configuration details
     """
+    _tool_call_id = _gen_random_id()
     _logger.info('Status tool called')
 
-    result = await _run_cycode_status()
-    return json.dumps(result, indent=2)
+    try:
+        _logger.info('Running Cycode status check, %s', {'call_id': _tool_call_id})
+        result = await _run_cycode_status()
+        _logger.info('Status check completed, %s', {'call_id': _tool_call_id})
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        _logger.error('Status check failed, %s', {'call_id': _tool_call_id, 'error': str(e)})
+        return json.dumps({'error': f'Status check failed: {e!s}'}, indent=2)
 
 
-def _create_mcp_server(host: str = '127.0.0.1', port: int = 8000) -> FastMCP:
+def _create_mcp_server(host: str, port: int) -> FastMCP:
     """Create and configure the MCP server."""
     tools = [
         Tool.from_function(cycode_status),
@@ -281,7 +281,14 @@ def _create_mcp_server(host: str = '127.0.0.1', port: int = 8000) -> FastMCP:
         Tool.from_function(cycode_sast_scan),
     ]
     _logger.info('Creating MCP server with tools: %s', [tool.name for tool in tools])
-    return FastMCP('cycode', tools=tools, host=host, port=port)
+    return FastMCP(
+        'cycode',
+        tools=tools,
+        host=host,
+        port=port,
+        debug=_is_debug_mode(),
+        log_level='DEBUG' if _is_debug_mode() else 'INFO',
+    )
 
 
 def _run_mcp_server(transport: McpTransportOption, host: str, port: int) -> None:

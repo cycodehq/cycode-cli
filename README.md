@@ -357,7 +357,7 @@ Learn more about MCP Transport types in the [MCP Protocol Specification – Tran
 
 #### Configuration Examples
 
-##### Using MCP with Cursor/Claude Desktop/etc (mcp.json)
+##### Using MCP with Cursor/VS Code/Claude Desktop/etc (mcp.json)
 
 > [!NOTE]
 > For EU Cycode environments, make sure to set the appropriate `CYCODE_API_URL` and `CYCODE_APP_URL` values in the environment variables (e.g., `https://api.eu.cycode.com` and `https://app.eu.cycode.com`).
@@ -469,13 +469,13 @@ cycode mcp -t sse -p 8000 &
 For **streamable HTTP transport**:
 ```bash
 # Start the MCP server in background
-cycode mcp -t streamable-http -H 0.0.0.0 -p 9000 &
+cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 
 # Configure in mcp.json
 {
   "mcpServers": {
     "cycode": {
-      "url": "http://0.0.0.0:9000/mcp"
+      "url": "http://127.0.0.2:9000/mcp"
     }
   }
 }
@@ -483,6 +483,33 @@ cycode mcp -t streamable-http -H 0.0.0.0 -p 9000 &
 
 > [!NOTE]
 > The MCP server requires proper Cycode CLI authentication to function. Make sure you have authenticated using `cycode auth` or configured your credentials before starting the MCP server.
+
+### Troubleshooting MCP
+
+If you encounter issues with the MCP server, you can enable debug logging to get more detailed information about what's happening. There are two ways to enable debug logging:
+
+1. Using the `-v` or `--verbose` flag:
+```bash
+cycode -v mcp
+```
+
+2. Using the `CYCODE_CLI_VERBOSE` environment variable:
+```bash
+CYCODE_CLI_VERBOSE=1 cycode mcp
+```
+
+The debug logs will show detailed information about:
+- Server startup and configuration
+- Connection attempts and status
+- Tool execution and results
+- Any errors or warnings that occur
+
+This information can be helpful when:
+- Diagnosing connection issues
+- Understanding why certain tools aren't working
+- Identifying authentication problems
+- Debugging transport-specific issues
+
 
 # Scan Command
 
