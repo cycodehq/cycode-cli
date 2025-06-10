@@ -48,7 +48,7 @@ class TablePrinter(TablePrinterBase):
         table.add_column(LINE_NUMBER_COLUMN)
         table.add_column(COLUMN_NUMBER_COLUMN)
 
-        if is_git_diff_based_scan(self.scan_type, self.command_scan_type):
+        if is_git_diff_based_scan(self.command_scan_type):
             table.add_column(COMMIT_SHA_COLUMN)
 
         if self.scan_type == SECRET_SCAN_TYPE:

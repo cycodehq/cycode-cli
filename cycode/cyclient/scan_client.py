@@ -92,6 +92,15 @@ class ScanClient:
         )
         return models.ScanResultsSyncFlowSchema().load(response.json())
 
+    @staticmethod
+    def _create_compression_manifest_string(zip_file: InMemoryZip) -> str:
+        return json.dumps(
+            {
+                'file_count_by_extension': zip_file.extension_statistics,
+                'file_count': zip_file.files_count,
+            }
+        )
+
     def zipped_file_scan_async(
         self,
         zip_file: InMemoryZip,
@@ -102,24 +111,19 @@ class ScanClient:
     ) -> models.ScanInitializationResponse:
         files = {'file': ('multiple_files_scan.zip', zip_file.read())}
 
-        compression_manifest = {
-            'file_count_by_extension': zip_file.extension_statistics,
-            'file_count': zip_file.files_count,
-        }
-
         response = self.scan_cycode_client.post(
             url_path=self.get_zipped_file_scan_async_url_path(scan_type),
             data={
                 'is_git_diff': is_git_diff,
                 'scan_parameters': json.dumps(scan_parameters),
                 'is_commit_range': is_commit_range,
-                'compression_manifest': json.dumps(compression_manifest),
+                'compression_manifest': self._create_compression_manifest_string(zip_file),
             },
             files=files,
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
-    def multiple_zipped_file_scan_async(
+    def commit_range_scan_async(
         self,
         from_commit_zip_file: InMemoryZip,
         to_commit_zip_file: InMemoryZip,
@@ -127,6 +131,20 @@ class ScanClient:
         scan_parameters: dict,
         is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
+        """Commit range scan.
+        Used by SCA and SAST scans.
+
+        For SCA:
+        - from_commit_zip_file is file content
+        - to_commit_zip_file is file content
+
+        For SAST:
+        - from_commit_zip_file is file content
+        - to_commit_zip_file is diff content
+
+        Note:
+            Compression manifest is supported only for SAST scans.
+        """
         url_path = f'{self.get_scan_service_url_path(scan_type)}/{scan_type}/repository/commit-range'
         files = {
             'file_from_commit': ('multiple_files_scan.zip', from_commit_zip_file.read()),
@@ -134,7 +152,11 @@ class ScanClient:
         }
         response = self.scan_cycode_client.post(
             url_path=url_path,
-            data={'is_git_diff': is_git_diff, 'scan_parameters': json.dumps(scan_parameters)},
+            data={
+                'is_git_diff': is_git_diff,
+                'scan_parameters': json.dumps(scan_parameters),
+                'compression_manifest': self._create_compression_manifest_string(from_commit_zip_file),
+            },
             files=files,
         )
         return models.ScanInitializationResponseSchema().load(response.json())

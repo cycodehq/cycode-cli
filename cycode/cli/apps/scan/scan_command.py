@@ -9,7 +9,7 @@ from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
 )
-from cycode.cli.files_collector.excluder import excluder
+from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb

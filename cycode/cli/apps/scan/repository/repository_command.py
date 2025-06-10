@@ -5,11 +5,12 @@ import click
 import typer
 
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import get_scan_parameters, scan_documents
+from cycode.cli.apps.scan.code_scanner import scan_documents
+from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
-from cycode.cli.files_collector.excluder import excluder
+from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.files_collector.repository_documents import get_git_repository_tree_file_entries
-from cycode.cli.files_collector.sca.sca_code_scanner import perform_pre_scan_documents_actions
+from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_by_os
@@ -59,7 +60,7 @@ def repository_command(
 
         documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
 
-        perform_pre_scan_documents_actions(ctx, scan_type, documents_to_scan)
+        add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents_to_scan)
 
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx, (str(path),)))
