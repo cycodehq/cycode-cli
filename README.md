@@ -293,6 +293,9 @@ The following are the options and commands available with the Cycode CLI applica
 
 # MCP Command
 
+> [!WARNING]
+> The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
+
 The Model Context Protocol (MCP) command allows you to start an MCP server that exposes Cycode's scanning capabilities to AI systems and applications. This enables AI models to interact with Cycode CLI tools through a standardized protocol.
 
 > [!TIP]
@@ -306,7 +309,7 @@ To start the MCP server, use the following command:
 cycode mcp
 ```
 
-By default, this starts the server using the `stdio` transport, which is suitable for local integrations and AI applications that can spawn subprocess.
+By default, this starts the server using the `stdio` transport, which is suitable for local integrations and AI applications that can spawn subprocesses.
 
 ### Available Options
 
