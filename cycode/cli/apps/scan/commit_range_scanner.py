@@ -13,6 +13,7 @@ from cycode.cli.apps.scan.code_scanner import (
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.apps.scan.scan_result import (
     create_local_scan_result,
+    enrich_scan_result_with_data_from_detection_rules,
     init_default_scan_result,
     print_local_scan_results,
 )
@@ -120,6 +121,7 @@ def _scan_commit_range_documents(
                 scan_parameters,
                 timeout,
             )
+            enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
 
         progress_bar.update(ScanProgressBarSection.SCAN)
         progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
