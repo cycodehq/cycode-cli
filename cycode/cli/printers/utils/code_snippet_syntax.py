@@ -25,6 +25,20 @@ def get_detection_line(scan_type: str, detection: 'Detection') -> int:
     )
 
 
+def _get_syntax_highlighted_code(code: str, lexer: str, start_line: int, detection_line: int) -> Syntax:
+    return Syntax(
+        theme=_SYNTAX_HIGHLIGHT_THEME,
+        code=code,
+        lexer=lexer,
+        line_numbers=True,
+        word_wrap=True,
+        dedent=True,
+        tab_size=2,
+        start_line=start_line + 1,
+        highlight_lines={detection_line + 1},
+    )
+
+
 def _get_code_snippet_syntax_from_file(
     scan_type: str,
     detection: 'Detection',
@@ -58,18 +72,11 @@ def _get_code_snippet_syntax_from_file(
             code_lines_to_render.append(line_content)
 
     code_to_render = '\n'.join(code_lines_to_render)
-    return Syntax(
-        theme=_SYNTAX_HIGHLIGHT_THEME,
+    return _get_syntax_highlighted_code(
         code=code_to_render,
         lexer=Syntax.guess_lexer(document.path, code=code_to_render),
-        line_numbers=True,
-        word_wrap=True,
-        dedent=True,
-        tab_size=2,
-        start_line=start_line_index + 1,
-        highlight_lines={
-            detection_line + 1,
-        },
+        start_line=start_line_index,
+        detection_line=detection_line,
     )
 
 
@@ -87,15 +94,11 @@ def _get_code_snippet_syntax_from_git_diff(
         violation = line_content[detection_position_in_line : detection_position_in_line + violation_length]
         line_content = line_content.replace(violation, obfuscate_text(violation))
 
-    return Syntax(
-        theme=_SYNTAX_HIGHLIGHT_THEME,
+    return _get_syntax_highlighted_code(
         code=line_content,
         lexer='diff',
-        line_numbers=True,
         start_line=detection_line,
-        dedent=True,
-        tab_size=2,
-        highlight_lines={detection_line + 1},
+        detection_line=detection_line,
     )
 
 

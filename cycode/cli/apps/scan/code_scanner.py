@@ -9,6 +9,7 @@ from cycode.cli.apps.scan.aggregation_report import try_set_aggregation_report_u
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.apps.scan.scan_result import (
     create_local_scan_result,
+    enrich_scan_result_with_data_from_detection_rules,
     get_scan_result,
     get_sync_scan_result,
     print_local_scan_results,
@@ -77,37 +78,6 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
     return True
 
 
-def _enrich_scan_result_with_data_from_detection_rules(
-    cycode_client: 'ScanClient', scan_result: ZippedFileScanResult
-) -> None:
-    detection_rule_ids = set()
-    for detections_per_file in scan_result.detections_per_file:
-        for detection in detections_per_file.detections:
-            detection_rule_ids.add(detection.detection_rule_id)
-
-    detection_rules = cycode_client.get_detection_rules(detection_rule_ids)
-    detection_rules_by_id = {detection_rule.detection_rule_id: detection_rule for detection_rule in detection_rules}
-
-    for detections_per_file in scan_result.detections_per_file:
-        for detection in detections_per_file.detections:
-            detection_rule = detection_rules_by_id.get(detection.detection_rule_id)
-            if not detection_rule:
-                # we want to make sure that BE returned it. better to not map data instead of failed scan
-                continue
-
-            if not detection.severity and detection_rule.classification_data:
-                # it's fine to take the first one, because:
-                # - for "secrets" and "iac" there is only one classification rule per-detection rule
-                # - for "sca" and "sast" we get severity from detection service
-                detection.severity = detection_rule.classification_data[0].severity
-
-            # detection_details never was typed properly. so not a problem for now
-            detection.detection_details['custom_remediation_guidelines'] = detection_rule.custom_remediation_guidelines
-            detection.detection_details['remediation_guidelines'] = detection_rule.remediation_guidelines
-            detection.detection_details['description'] = detection_rule.description
-            detection.detection_details['policy_display_name'] = detection_rule.display_name
-
-
 def _get_scan_documents_thread_func(
     ctx: typer.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
 ) -> Callable[[list[Document]], tuple[str, CliError, LocalScanResult]]:
@@ -140,7 +110,7 @@ def _get_scan_documents_thread_func(
                 should_use_sync_flow,
             )
 
-            _enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
+            enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
 
             local_scan_result = create_local_scan_result(
                 scan_result, batch, command_scan_type, scan_type, severity_threshold

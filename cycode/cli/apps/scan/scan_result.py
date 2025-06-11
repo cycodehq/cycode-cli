@@ -179,3 +179,34 @@ def print_local_scan_results(
     printer = ctx.obj.get('console_printer')
     printer.update_ctx(ctx)
     printer.print_scan_results(local_scan_results, errors)
+
+
+def enrich_scan_result_with_data_from_detection_rules(
+    cycode_client: 'ScanClient', scan_result: ZippedFileScanResult
+) -> None:
+    detection_rule_ids = set()
+    for detections_per_file in scan_result.detections_per_file:
+        for detection in detections_per_file.detections:
+            detection_rule_ids.add(detection.detection_rule_id)
+
+    detection_rules = cycode_client.get_detection_rules(detection_rule_ids)
+    detection_rules_by_id = {detection_rule.detection_rule_id: detection_rule for detection_rule in detection_rules}
+
+    for detections_per_file in scan_result.detections_per_file:
+        for detection in detections_per_file.detections:
+            detection_rule = detection_rules_by_id.get(detection.detection_rule_id)
+            if not detection_rule:
+                # we want to make sure that BE returned it. better to not map data instead of failed scan
+                continue
+
+            if not detection.severity and detection_rule.classification_data:
+                # it's fine to take the first one, because:
+                # - for "secrets" and "iac" there is only one classification rule per-detection rule
+                # - for "sca" and "sast" we get severity from detection service
+                detection.severity = detection_rule.classification_data[0].severity
+
+            # detection_details never was typed properly. so not a problem for now
+            detection.detection_details['custom_remediation_guidelines'] = detection_rule.custom_remediation_guidelines
+            detection.detection_details['remediation_guidelines'] = detection_rule.remediation_guidelines
+            detection.detection_details['description'] = detection_rule.description
+            detection.detection_details['policy_display_name'] = detection_rule.display_name
