@@ -468,6 +468,9 @@ _How to generate a Terraform plan from Terraform configuration file?_
 
 ### Commit History Scan
 
+> [!NOTE]
+> Secrets scanning analyzes all commits in the repository history because secrets introduced and later removed can still be leaked or exposed. SCA and SAST scanning focus only on the latest code state and the changes between branches or pull requests. Full commit history scanning is not performed for SCA and SAST.
+
 A commit history scan is limited to a local repository’s previous commits, focused on finding any secrets within the commit history, instead of examining the repository’s current state.
 
 To execute a commit history scan, execute the following:
