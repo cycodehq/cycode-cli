@@ -474,7 +474,7 @@ For **streamable HTTP transport**:
 
 For **SSE transport** (start server first, then configure client):
 ```bash
-# Start the MCP server in background
+# Start the MCP server in the background
 cycode mcp -t sse -p 8000 &
 
 # Configure in mcp.json
