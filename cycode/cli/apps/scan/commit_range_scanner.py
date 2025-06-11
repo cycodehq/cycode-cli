@@ -13,6 +13,7 @@ from cycode.cli.apps.scan.code_scanner import (
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.apps.scan.scan_result import (
     create_local_scan_result,
+    enrich_scan_result_with_data_from_detection_rules,
     init_default_scan_result,
     print_local_scan_results,
 )
@@ -120,12 +121,18 @@ def _scan_commit_range_documents(
                 scan_parameters,
                 timeout,
             )
+            enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
 
         progress_bar.update(ScanProgressBarSection.SCAN)
         progress_bar.set_section_length(ScanProgressBarSection.GENERATE_REPORT, 1)
 
+        documents_to_scan = to_documents_to_scan
+        if scan_type == consts.SAST_SCAN_TYPE:
+            # actually for SAST from_documents_to_scan is full files and to_documents_to_scan is diff files
+            documents_to_scan = from_documents_to_scan
+
         local_scan_result = create_local_scan_result(
-            scan_result, to_documents_to_scan, scan_command_type, scan_type, severity_threshold
+            scan_result, documents_to_scan, scan_command_type, scan_type, severity_threshold
         )
         set_issue_detected_by_scan_results(ctx, [local_scan_result])
 
