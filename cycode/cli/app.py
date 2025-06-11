@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import Annotated, Optional
 
 import typer
@@ -9,6 +10,10 @@ from typer.completion import install_callback, show_callback
 
 from cycode import __version__
 from cycode.cli.apps import ai_remediation, auth, configure, ignore, report, scan, status
+
+if sys.version_info >= (3, 10):
+    from cycode.cli.apps import mcp
+
 from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.consts import CLI_CONTEXT_SETTINGS
 from cycode.cli.printers import ConsolePrinter
@@ -47,6 +52,8 @@ app.add_typer(ignore.app)
 app.add_typer(report.app)
 app.add_typer(scan.app)
 app.add_typer(status.app)
+if sys.version_info >= (3, 10):
+    app.add_typer(mcp.app)
 
 
 def check_latest_version_on_close(ctx: typer.Context) -> None:

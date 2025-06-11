@@ -16,7 +16,12 @@ This guide walks you through both installation and usage.
             2. [On Windows](#on-windows)
     2. [Install Pre-Commit Hook](#install-pre-commit-hook)
 3. [Cycode CLI Commands](#cycode-cli-commands)
-4. [Scan Command](#scan-command)
+4. [MCP Command](#mcp-command-experiment)
+    1. [Starting the MCP Server](#starting-the-mcp-server)
+    2. [Available Options](#available-options)
+    3. [MCP Tools](#mcp-tools)
+    4. [Usage Examples](#usage-examples)
+5. [Scan Command](#scan-command)
     1. [Running a Scan](#running-a-scan)
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
@@ -48,10 +53,10 @@ This guide walks you through both installation and usage.
         4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
         5. [Ignoring a Package](#ignoring-a-package)
         6. [Ignoring via a config file](#ignoring-via-a-config-file)
-5. [Report command](#report-command)
+6. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
-6. [Scan logs](#scan-logs)
-7. [Syntax Help](#syntax-help)
+7. [Scan logs](#scan-logs)
+8. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
@@ -293,10 +298,239 @@ The following are the options and commands available with the Cycode CLI applica
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
-| [ignore](#ignoring-scan-results)          | Ignore a specific value, path or rule ID.                                                                                                   |
+| [ignore](#ignoring-scan-results)          | Ignore a specific value, path or rule ID.                                                                                                    |
+| [mcp](#mcp-command-experiment)            | Start the Model Context Protocol (MCP) server to enable AI integration with Cycode scanning capabilities.                                    |
 | [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
-| [report](#report-command)                 | Generate report. You will need to specify which report type to perform as SBOM.                                                                |
+| [report](#report-command)                 | Generate report. You will need to specify which report type to perform as SBOM.                                                              |
 | status                                    | Show the CLI status and exit.                                                                                                                |
+
+# MCP Command \[EXPERIMENT\]
+
+> [!WARNING]
+> The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
+
+The Model Context Protocol (MCP) command allows you to start an MCP server that exposes Cycode's scanning capabilities to AI systems and applications. This enables AI models to interact with Cycode CLI tools via a standardized protocol.
+
+> [!TIP]
+> For the best experience, install Cycode CLI globally on your system using `pip install cycode` or `brew install cycode`, then authenticate once with `cycode auth`. After global installation and authentication, you won't need to configure `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` environment variables in your MCP configuration files.
+
+[![Add MCP Server to Cursor using UV](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=cycode&config=eyJjb21tYW5kIjoidXZ4IGN5Y29kZSBtY3AiLCJlbnYiOnsiQ1lDT0RFX0NMSUVOVF9JRCI6InlvdXItY3ljb2RlLWlkIiwiQ1lDT0RFX0NMSUVOVF9TRUNSRVQiOiJ5b3VyLWN5Y29kZS1zZWNyZXQta2V5IiwiQ1lDT0RFX0FQSV9VUkwiOiJodHRwczovL2FwaS5jeWNvZGUuY29tIiwiQ1lDT0RFX0FQUF9VUkwiOiJodHRwczovL2FwcC5jeWNvZGUuY29tIn19)
+
+
+## Starting the MCP Server
+
+To start the MCP server, use the following command:
+
+```bash
+cycode mcp
+```
+
+By default, this starts the server using the `stdio` transport, which is suitable for local integrations and AI applications that can spawn subprocesses.
+
+### Available Options
+
+| Option            | Description                                                                                |
+|-------------------|--------------------------------------------------------------------------------------------|
+| `-t, --transport` | Transport type for the MCP server: `stdio`, `sse`, or `streamable-http` (default: `stdio`) |
+| `-H, --host`      | Host address to bind the server (used only for non stdio transport) (default: `127.0.0.1`) |
+| `-p, --port`      | Port number to bind the server (used only for non stdio transport) (default: `8000`)       |
+| `--help`          | Show help message and available options                                                    |
+
+### MCP Tools
+
+The MCP server provides the following tools that AI systems can use:
+
+| Tool Name            | Description                                                                                 |
+|----------------------|---------------------------------------------------------------------------------------------|
+| `cycode_secret_scan` | Scan files for hardcoded secrets                                                            |
+| `cycode_sca_scan`    | Scan files for Software Composition Analysis (SCA) - vulnerabilities and license issues     |
+| `cycode_iac_scan`    | Scan files for Infrastructure as Code (IaC) misconfigurations                               |
+| `cycode_sast_scan`   | Scan files for Static Application Security Testing (SAST) - code quality and security flaws |
+| `cycode_status`      | Get Cycode CLI version, authentication status, and configuration information                |
+
+### Usage Examples
+
+#### Basic Command Examples
+
+Start the MCP server with default settings (stdio transport):
+```bash
+cycode mcp
+```
+
+Start the MCP server with explicit stdio transport:
+```bash
+cycode mcp -t stdio
+```
+
+Start the MCP server with Server-Sent Events (SSE) transport:
+```bash
+cycode mcp -t sse -p 8080
+```
+
+Start the MCP server with streamable HTTP transport on custom host and port:
+```bash
+cycode mcp -t streamable-http -H 0.0.0.0 -p 9000
+```
+
+Learn more about MCP Transport types in the [MCP Protocol Specification – Transports](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports).
+
+#### Configuration Examples
+
+##### Using MCP with Cursor/VS Code/Claude Desktop/etc (mcp.json)
+
+> [!NOTE]
+> For EU Cycode environments, make sure to set the appropriate `CYCODE_API_URL` and `CYCODE_APP_URL` values in the environment variables (e.g., `https://api.eu.cycode.com` and `https://app.eu.cycode.com`).
+
+Follow [this guide](https://code.visualstudio.com/docs/copilot/chat/mcp-servers) to configure the MCP server in your **VS Code/GitHub Copilot**. Keep in mind that in `settings.json`, there is an `mcp` object containing a nested `servers` sub-object, rather than a standalone `mcpServers` object.
+
+For **stdio transport** (direct execution):
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "cycode",
+      "args": ["mcp"],
+      "env": {
+        "CYCODE_CLIENT_ID": "your-cycode-id",
+        "CYCODE_CLIENT_SECRET": "your-cycode-secret-key",
+        "CYCODE_API_URL": "https://api.cycode.com",
+        "CYCODE_APP_URL": "https://app.cycode.com"
+      }
+    }
+  }
+}
+```
+
+For **stdio transport** with `pipx` installation:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "pipx",
+      "args": ["run", "cycode", "mcp"],
+      "env": {
+        "CYCODE_CLIENT_ID": "your-cycode-id",
+        "CYCODE_CLIENT_SECRET": "your-cycode-secret-key",
+        "CYCODE_API_URL": "https://api.cycode.com",
+        "CYCODE_APP_URL": "https://app.cycode.com"
+      }
+    }
+  }
+}
+```
+
+For **stdio transport** with `uvx` installation:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "uvx",
+      "args": ["cycode", "mcp"],
+      "env": {
+        "CYCODE_CLIENT_ID": "your-cycode-id",
+        "CYCODE_CLIENT_SECRET": "your-cycode-secret-key",
+        "CYCODE_API_URL": "https://api.cycode.com",
+        "CYCODE_APP_URL": "https://app.cycode.com"
+      }
+    }
+  }
+}
+```
+
+For **SSE transport** (Server-Sent Events):
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8000/sse"
+    }
+  }
+}
+```
+
+For **SSE transport** on custom port:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8080/sse"
+    }
+  }
+}
+```
+
+For **streamable HTTP transport**:
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}
+```
+
+##### Running MCP Server in Background
+
+For **SSE transport** (start server first, then configure client):
+```bash
+# Start the MCP server in the background
+cycode mcp -t sse -p 8000 &
+
+# Configure in mcp.json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.1:8000/sse"
+    }
+  }
+}
+```
+
+For **streamable HTTP transport**:
+```bash
+# Start the MCP server in the background
+cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
+
+# Configure in mcp.json
+{
+  "mcpServers": {
+    "cycode": {
+      "url": "http://127.0.0.2:9000/mcp"
+    }
+  }
+}
+```
+
+> [!NOTE]
+> The MCP server requires proper Cycode CLI authentication to function. Make sure you have authenticated using `cycode auth` or configured your credentials before starting the MCP server.
+
+### Troubleshooting MCP
+
+If you encounter issues with the MCP server, you can enable debug logging to get more detailed information about what's happening. There are two ways to enable debug logging:
+
+1. Using the `-v` or `--verbose` flag:
+```bash
+cycode -v mcp
+```
+
+2. Using the `CYCODE_CLI_VERBOSE` environment variable:
+```bash
+CYCODE_CLI_VERBOSE=1 cycode mcp
+```
+
+The debug logs will show detailed information about:
+- Server startup and configuration
+- Connection attempts and status
+- Tool execution and results
+- Any errors or warnings that occur
+
+This information can be helpful when:
+- Diagnosing connection issues
+- Understanding why certain tools aren't working
+- Identifying authentication problems
+- Debugging transport-specific issues
+
 
 # Scan Command
 
@@ -304,18 +538,18 @@ The following are the options and commands available with the Cycode CLI applica
 
 The Cycode CLI application offers several types of scans so that you can choose the option that best fits your case. The following are the current options and commands available:
 
-| Option                                                     | Description                                                                                                               |
-|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                              |
-| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                          |
-| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.    |
-| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                    |
-| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.           |
-| `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                              |
-| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                          |
-| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                  |
-| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from the project root directory ONLY! |
-| `--help`                                                   | Show options for given command.                                                                                           |
+| Option                                                     | Description                                                                                                            |
+|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                           |
+| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                       |
+| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
+| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                 |
+| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.        |
+| `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                           |
+| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                        |
+| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                      |
+| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from the project root directory ONLY!              |
+| `--help`                                                   | Show options for given command.                                                                                        |
 
 | Command                                | Description                                                     |
 |----------------------------------------|-----------------------------------------------------------------|

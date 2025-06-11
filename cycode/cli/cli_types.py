@@ -8,6 +8,12 @@ class StrEnum(str, Enum):
         return self.value
 
 
+class McpTransportOption(StrEnum):
+    STDIO = 'stdio'
+    SSE = 'sse'
+    STREAMABLE_HTTP = 'streamable-http'
+
+
 class OutputTypeOption(StrEnum):
     RICH = 'rich'
     TEXT = 'text'
