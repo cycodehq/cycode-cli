@@ -489,7 +489,7 @@ cycode mcp -t sse -p 8000 &
 
 For **streamable HTTP transport**:
 ```bash
-# Start the MCP server in background
+# Start the MCP server in the background
 cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 
 # Configure in mcp.json
