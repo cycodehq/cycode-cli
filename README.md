@@ -94,7 +94,7 @@ To install the Cycode CLI application on your local machine, perform the followi
      ./cycode
      ```
 
-3. Finally authenticate the CLI, there are three methods to set the Cycode client ID and client secret:
+3. Finally authenticate the CLI. There are three methods to set the Cycode client ID and client secret:
 
    - [cycode auth](#using-the-auth-command) (**Recommended**)
    - [cycode configure](#using-the-configure-command)
@@ -330,7 +330,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 
 To limit the results of the scan to a specific severity threshold, the argument `--severity-threshold` can be added to the scan command.
 
-For example the following command will scan the repository for policy violations that have severity of Medium or higher:
+For example, the following command will scan the repository for policy violations that have severity of Medium or higher:
 
 `cycode scan --severity-threshold MEDIUM repository ~/home/git/codebase`
 
@@ -341,7 +341,7 @@ For example the following command will scan the repository for policy violations
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in an SCA type scan to Cycode, add the argument `--monitor` to the scan command.
 
-For example the following command will scan the repository for SCA policy violations and push them to Cycode platform:
+For example, the following command will scan the repository for SCA policy violations and push them to Cycode platform:
 
 `cycode scan -t sca --monitor repository ~/home/git/codebase`
 
@@ -409,7 +409,7 @@ To execute a full repository scan, execute the following:
 
 `cycode scan repository {{path}}`
 
-For example, in a scenario in which you want to scan your repository stored in `~/home/git/codebase`. You could then execute the following:
+For example, if you wanted to scan a repository stored in `~/home/git/codebase`, you could execute the following:
 
 `cycode scan repository ~/home/git/codebase`
 
@@ -445,7 +445,7 @@ Cycode CLI supports Terraform plan scanning (supporting Terraform 0.12 and later
 
 Terraform plan file must be in JSON format (having `.json` extension)
 
-If you just have a configuration file you can generate a plan by doing the following:
+If you just have a configuration file, you can generate a plan by doing the following:
 
 1. Initialize a working directory that contains Terraform configuration file:
 
@@ -528,9 +528,9 @@ The result would then not be obfuscated.
 
 ### Soft Fail
 
-In normal operation the CLI will return an exit code of `1` when issues are found in the scan results. Depending on your CI/CD setup this will usually result in an overall failure. However, if you dont want this to happen you can use the soft fail feature.
+In normal operation the CLI will return an exit code of `1` when issues are found in the scan results. Depending on your CI/CD setup this will usually result in an overall failure. If you don't want this to happen, you can use the soft fail feature.
 
-By adding the `--soft-fail` option to any type of scan, the exit code will be forced to `0` regardless of if any results are found or not.
+By adding the `--soft-fail` option to any type of scan, the exit code will be forced to `0` regardless of whether any results are found.
 
 ### Example Scan Results
 
