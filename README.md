@@ -40,7 +40,7 @@ This guide walks you through both installation and usage.
             2. [IaC Result Example](#iac-result-example)
             3. [SCA Result Example](#sca-result-example)
             4. [SAST Result Example](#sast-result-example)
-        4. [Company’s Custom Remediation Guidelines](#companys-custom-remediation-guidelines) 
+        4. [Company Custom Remediation Guidelines](#company-custom-remediation-guidelines)
     3. [Ignoring Scan Results](#ignoring-scan-results)
         1. [Ignoring a Secret Value](#ignoring-a-secret-value)
         2. [Ignoring a Secret SHA Value](#ignoring-a-secret-sha-value)
@@ -94,7 +94,7 @@ To install the Cycode CLI application on your local machine, perform the followi
      ./cycode
      ```
 
-3. Authenticate CLI. There are three methods to set the Cycode client ID and client secret:
+3. Finally authenticate the CLI, there are three methods to set the Cycode client ID and client secret:
 
    - [cycode auth](#using-the-auth-command) (**Recommended**)
    - [cycode configure](#using-the-configure-command)
@@ -169,7 +169,7 @@ To install the Cycode CLI application on your local machine, perform the followi
 
     `Successfully configured Cycode URLs!`
 
-If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder. 
+If you go into the `.cycode` folder under your user folder, you'll find these credentials were created and placed in the `credentials.yaml` file in that folder.
 The URLs were placed in the `config.yaml` file in that folder.
 
 ### Add to Environment Variables
@@ -293,9 +293,9 @@ The following are the options and commands available with the Cycode CLI applica
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | [auth](#using-the-auth-command)           | Authenticate your machine to associate the CLI with your Cycode account.                                                                     |
 | [configure](#using-the-configure-command) | Initial command to configure your CLI client authentication.                                                                                 |
-| [ignore](#ignoring-scan-results)          | Ignores a specific value, path or rule ID.                                                                                                   |
+| [ignore](#ignoring-scan-results)          | Ignore a specific value, path or rule ID.                                                                                                   |
 | [scan](#running-a-scan)                   | Scan the content for Secrets/IaC/SCA/SAST violations. You`ll need to specify which scan type to perform: commit-history/path/repository/etc. |
-| [report](#report-command)                 | Generate report. You`ll need to specify which report type to perform as SBOM.                                                                |
+| [report](#report-command)                 | Generate report. You will need to specify which report type to perform as SBOM.                                                                |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
 # Scan Command
@@ -312,9 +312,9 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                    |
 | `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.           |
 | `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                              |
-| `--cycode-report`                                          | When specified, displays a link to the scan report in the Cycode platform in the console output.                          |
-| `--no-restore`                                             | When specified, Cycode will not run restore command. Will scan direct dependencies ONLY!                                  |
-| `--gradle-all-sub-projects`                                | When specified, Cycode will run gradle restore command for all sub projects. Should run from root project directory ONLY! |
+| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                          |
+| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                  |
+| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from the project root directory ONLY! |
 | `--help`                                                   | Show options for given command.                                                                                           |
 
 | Command                                | Description                                                     |
@@ -328,9 +328,9 @@ The Cycode CLI application offers several types of scans so that you can choose 
 
 #### Severity Option
 
-To limit the results of the scan to a specific severity threshold, add the argument `--severity-threshold` to the scan command.
+To limit the results of the scan to a specific severity threshold, the argument `--severity-threshold` can be added to the scan command.
 
-The following command will scan the repository for policy violations that have severity of Medium or higher:
+For example the following command will scan the repository for policy violations that have severity of Medium or higher:
 
 `cycode scan --severity-threshold MEDIUM repository ~/home/git/codebase`
 
@@ -341,12 +341,9 @@ The following command will scan the repository for policy violations that have s
 
 To push scan results tied to the [SCA policies](https://docs.cycode.com/docs/sca-policies) found in an SCA type scan to Cycode, add the argument `--monitor` to the scan command.
 
-Consider the following example. The following command will scan the repository for SCA policy violations and push them to Cycode:
+For example the following command will scan the repository for SCA policy violations and push them to Cycode platform:
 
 `cycode scan -t sca --monitor repository ~/home/git/codebase`
-
-When using this option, the scan results will appear in Cycode.
-
 
 #### Cycode Report Option
 
@@ -359,7 +356,7 @@ To have the direct URL to this Cycode report printed in your CLI output after th
 All scan results from the CLI will appear in the CLI Logs section of Cycode. If you included the `--cycode-report` flag in your command, a direct link to the specific report will be displayed in your terminal following the scan results.
 
 > [!WARNING]
-> You must be an `owner` or an `admin` in Cycode to view this page.
+> You must have the `owner` or `admin` role in Cycode to view this page.
 
 ![cli-report](https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/sca_report_url.png)
 
@@ -374,7 +371,7 @@ The report page will look something like below:
 
 To scan a specific package vulnerability of your local repository, add the argument `--sca-scan package-vulnerabilities` following the `-t sca` or `--scan-type sca` option.
 
-Consider the previous example. If you wanted to only run an SCA scan on package vulnerabilities, you could execute the following:
+In the previous example, if you wanted to only run an SCA scan on package vulnerabilities, you could execute the following:
 
 `cycode scan -t sca --sca-scan package-vulnerabilities repository ~/home/git/codebase`
 
@@ -385,7 +382,7 @@ Consider the previous example. If you wanted to only run an SCA scan on package 
 
 To scan a specific branch of your local repository, add the argument `--sca-scan license-compliance` followed by the name of the branch you wish to scan.
 
-Consider the previous example. If you wanted to only scan a branch named `dev`, you could execute the following:
+In the previous example, if you wanted to only scan a branch named `dev`, you could execute the following:
 
 `cycode scan -t sca --sca-scan license-compliance repository ~/home/git/codebase -b dev`
 
@@ -394,7 +391,7 @@ Consider the previous example. If you wanted to only scan a branch named `dev`, 
 > [!NOTE]
 > This option is only available to SCA scans.
 
-We use sbt-dependency-lock plugin to restore the lock file for SBT projects.  
+We use the sbt-dependency-lock plugin to restore the lock file for SBT projects.
 To disable lock restore in use `--no-restore` option.
 
 Prerequisites:
@@ -412,7 +409,7 @@ To execute a full repository scan, execute the following:
 
 `cycode scan repository {{path}}`
 
-For example, consider a scenario in which you want to scan your repository stored in `~/home/git/codebase`. You could then execute the following:
+For example, in a scenario in which you want to scan your repository stored in `~/home/git/codebase`. You could then execute the following:
 
 `cycode scan repository ~/home/git/codebase`
 
@@ -426,7 +423,7 @@ The following option is available for use with this command:
 
 To scan a specific branch of your local repository, add the argument `-b` (alternatively, `--branch`) followed by the name of the branch you wish to scan.
 
-Consider the previous example. If you wanted to only scan a branch named `dev`, you could execute the following:
+Given the previous example, if you wanted to only scan a branch named `dev`, you could execute the following:
 
 `cycode scan repository ~/home/git/codebase -b dev`
 
@@ -448,8 +445,8 @@ Cycode CLI supports Terraform plan scanning (supporting Terraform 0.12 and later
 
 Terraform plan file must be in JSON format (having `.json` extension)
 
-_How to generate a Terraform plan from Terraform configuration file?_
-    
+If you just have a configuration file you can generate a plan by doing the following:
+
 1. Initialize a working directory that contains Terraform configuration file:
 
     `terraform init`
@@ -513,15 +510,13 @@ If no issues are found, the scan ends with the following success message:
 
 `Good job! No issues were found!!! 👏👏👏`
 
-If an issue is found, a violation card appears upon completion instead.
-
-If an issue is found, review the file in question for the specific line highlighted by the result message. Implement any changes required to resolve the issue, then execute the scan again.
+If an issue is found, a violation card appears upon completion instead. In this case you should review the file in question for the specific line highlighted by the result message. Implement any changes required to resolve the issue, then execute the scan again.
 
 ### Show/Hide Secrets
 
-In the above example, a secret was found in the file `secret_test`, located in the subfolder `cli`. The second part of the message shows the specific line the secret appears in, which in this case is a value assigned to `googleApiKey`.
+In the [examples below](#secrets-result-example), a secret was found in the file `secret_test`, located in the subfolder `cli`. The second part of the message shows the specific line the secret appears in, which in this case is a value assigned to `googleApiKey`.
 
-Note how the above example obscures the actual secret value, replacing most of the secret with asterisks. Scans obscure secrets by default, but you may optionally disable this feature to view the full secret (assuming the machine you are viewing the scan result on is sufficiently secure from prying eyes).
+Note how the example obscures the actual secret value, replacing most of the secret with asterisks. Scans obscure secrets by default, but you may optionally disable this feature to view the full secret (assuming the machine you are viewing the scan result on is sufficiently secure from prying eyes).
 
 To disable secret obfuscation, add the `--show-secret` argument to any type of scan.
 
@@ -533,12 +528,9 @@ The result would then not be obfuscated.
 
 ### Soft Fail
 
-Using the soft fail feature will not fail the CI/CD step within the pipeline if the Cycode scan detects an issue.
-If an issue occurs during the Cycode scan, using a soft fail feature will automatically execute with success (`0`) to avoid interference.
+In normal operation the CLI will return an exit code of `1` when issues are found in the scan results. Depending on your CI/CD setup this will usually result in an overall failure. However, if you dont want this to happen you can use the soft fail feature.
 
-To configure this feature, add the `--soft-fail` option to any type of scan. This will force the scan results to succeed (exit code `0`).
-
-Scan results are assigned with a value of exit code `1` when issues are found in the scan results; this will result in a failure within the CI/CD tool. Use the option `--soft-fail` to force the results with the exit code `0` to have no impact (i.e., to have a successful result).
+By adding the `--soft-fail` option to any type of scan, the exit code will be forced to `0` regardless of if any results are found or not.
 
 ### Example Scan Results
 
@@ -633,7 +625,7 @@ Scan results are assigned with a value of exit code `1` when issues are found in
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-### Company’s Custom Remediation Guidelines
+### Company Custom Remediation Guidelines
 
 If your company has set custom remediation guidelines in the relevant policy via the Cycode portal, you'll see a field for “Company Guidelines” that contains the remediation guidelines you added. Note that if you haven't added any company guidelines, this field will not appear in the CLI tool.
 
@@ -782,17 +774,14 @@ For example: `cycode ignore -g --by-value test-value`.
 
 #### Proper working directory
 
-This is incredibly important to place the `.cycode` folder and run CLI from the same place.
+It is incredibly important to place the `.cycode` folder and run CLI from the same place.
 You should double-check it when working with different environments like CI/CD (GitHub Actions, Jenkins, etc.).
 
-You could commit the `.cycode` folder to the root of your repository.
-In this scenario, you must run CLI scans from the repository root.
-If it doesn't fit your requirements, you could temporarily copy the `.cycode` folder
-wherever you want and perform a CLI scan from this folder.
+You can commit the `.cycode` folder to the root of your repository. In this scenario, you must run CLI scans from the repository root. If that doesn't fit your requirements, you could temporarily copy the `.cycode` folder to wherever you want and perform a CLI scan from this folder.
 
 #### Structure ignoring rules in the config
 
-It's important to understand how CLI stores ignore rules to be able to read these configuration files or even modify them without CLI.
+It's important to understand how CLI stores ignored rules to be able to read these configuration files or even modify them without CLI.
 
 The abstract YAML structure:
 ```yaml
@@ -807,7 +796,7 @@ Possible values of `scanTypeName`: `iac`, `sca`, `sast`, `secret`.
 
 Possible values of `ignoringType`: `paths`, `values`, `rules`, `packages`, `shas`, `cves`.
 
-> [!WARNING]  
+> [!WARNING]
 > Values for "ignore by value" are not stored as plain text!
 > CLI stores sha256 hashes of the values instead.
 > You should put hashes of the string when modifying the configuration file by hand.
@@ -844,7 +833,7 @@ The following options are available for use with this command:
 
 | Option                                             | Description                    | Required | Default                                               |
 |----------------------------------------------------|--------------------------------|----------|-------------------------------------------------------|
-| `-f, --format [spdx-2.2\|spdx-2.3\|cyclonedx-1.4]` | SBOM format                    | Yes      |                                                       | 
+| `-f, --format [spdx-2.2\|spdx-2.3\|cyclonedx-1.4]` | SBOM format                    | Yes      |                                                       |
 | `-o, --output-format [JSON]`                       | Specify the output file format | No       | json                                                  |
 | `--output-file PATH`                               | Output file                    | No       | autogenerated filename saved to the current directory |
 | `--include-vulnerabilities`                        | Include vulnerabilities        | No       | False                                                 |
@@ -875,7 +864,7 @@ For example:\
 
 # Scan Logs
 
-All CLI scan are logged in Cycode.  The logs can be found under Settings > CLI Logs.
+All CLI scans are logged in Cycode. The logs can be found under Settings > CLI Logs.
 
 # Syntax Help
 
