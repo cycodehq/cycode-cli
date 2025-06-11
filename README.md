@@ -314,6 +314,9 @@ The Model Context Protocol (MCP) command allows you to start an MCP server that 
 > [!TIP]
 > For the best experience, install Cycode CLI globally on your system using `pip install cycode` or `brew install cycode`, then authenticate once with `cycode auth`. After global installation and authentication, you won't need to configure `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` environment variables in your MCP configuration files.
 
+[![Add MCP Server to Cursor using UV](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=cycode&config=eyJjb21tYW5kIjoidXZ4IGN5Y29kZSBtY3AiLCJlbnYiOnsiQ1lDT0RFX0NMSUVOVF9JRCI6InlvdXItY3ljb2RlLWlkIiwiQ1lDT0RFX0NMSUVOVF9TRUNSRVQiOiJ5b3VyLWN5Y29kZS1zZWNyZXQta2V5IiwiQ1lDT0RFX0FQSV9VUkwiOiJodHRwczovL2FwaS5jeWNvZGUuY29tIiwiQ1lDT0RFX0FQUF9VUkwiOiJodHRwczovL2FwcC5jeWNvZGUuY29tIn19)
+
+
 ## Starting the MCP Server
 
 To start the MCP server, use the following command:
@@ -377,6 +380,8 @@ Learn more about MCP Transport types in the [MCP Protocol Specification – Tran
 
 > [!NOTE]
 > For EU Cycode environments, make sure to set the appropriate `CYCODE_API_URL` and `CYCODE_APP_URL` values in the environment variables (e.g., `https://api.eu.cycode.com` and `https://app.eu.cycode.com`).
+
+Follow [this guide](https://code.visualstudio.com/docs/copilot/chat/mcp-servers) to configure the MCP server in your **VS Code/GitHub Copilot**. Keep in mind that in `settings.json`, there is an `mcp` object containing a nested `servers` sub-object, rather than a standalone `mcpServers` object.
 
 For **stdio transport** (direct execution):
 ```json
