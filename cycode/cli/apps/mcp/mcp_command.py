@@ -133,10 +133,10 @@ class _TempFilesManager:
                 sanitized_path = _sanitize_file_path(file_path)
                 temp_file_path = os.path.join(self.temp_base_dir, sanitized_path)
 
-                # Ensure the normilized path is still within our temp directory
-                normilized_temp_path = os.path.normpath(temp_file_path)
-                normilized_base_path = os.path.normpath(self.temp_base_dir)
-                if not normilized_temp_path.startswith(normilized_base_path + os.sep):
+                # Ensure the normalized path is still within our temp directory
+                normalized_temp_path = os.path.normpath(temp_file_path)
+                normalized_base_path = os.path.normpath(self.temp_base_dir)
+                if not normalized_temp_path.startswith(normalized_base_path + os.sep):
                     raise ValueError(f'Path escapes temporary directory: {file_path}')
 
                 os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
