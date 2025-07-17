@@ -66,17 +66,16 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
             absolute_path=restore_file_path,
         )
 
-
-    def create_secondary_restore_commands(self,manifest_file_path: str) -> list[list[str]]:
+    def create_secondary_restore_commands(self, manifest_file_path: str) -> list[list[str]]:
         command = [
-                'mvn',
-                'dependency:tree',
-                '-B',
-                '-DoutputType=text',
-                '-f',
-                manifest_file_path,
-                f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}',
-            ]
+            'mvn',
+            'dependency:tree',
+            '-B',
+            '-DoutputType=text',
+            '-f',
+            manifest_file_path,
+            f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}',
+        ]
 
         maven_settings_file = self.ctx.obj.get('maven_settings_file')
         if maven_settings_file:

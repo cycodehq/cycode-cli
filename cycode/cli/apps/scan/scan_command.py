@@ -93,8 +93,7 @@ def scan_command(
         typer.Option(
             '--maven-settings-file',
             show_default=False,
-            help='When specified, Cycode will use this settings.xml file '
-            'when building the maven dependency tree.',
+            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
             dir_okay=False,
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
