@@ -24,7 +24,12 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME
 
     def get_commands(self, manifest_file_path: str) -> list[list[str]]:
-        return [['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]]
+        command = ['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]
+
+        maven_settings_file = self.ctx.obj.get('maven_settings_file')
+        if maven_settings_file:
+            command += ['-s', str(maven_settings_file)]
+        return [command]
 
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
@@ -46,7 +51,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
 
     def restore_from_secondary_command(self, document: Document, manifest_file_path: str) -> Optional[Document]:
         restore_content = execute_commands(
-            commands=create_secondary_restore_commands(manifest_file_path),
+            commands=self.create_secondary_restore_commands(manifest_file_path),
             timeout=self.command_timeout,
             working_directory=self.get_working_directory(document),
         )
@@ -61,10 +66,8 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
             absolute_path=restore_file_path,
         )
 
-
-def create_secondary_restore_commands(manifest_file_path: str) -> list[list[str]]:
-    return [
-        [
+    def create_secondary_restore_commands(self, manifest_file_path: str) -> list[list[str]]:
+        command = [
             'mvn',
             'dependency:tree',
             '-B',
@@ -73,4 +76,9 @@ def create_secondary_restore_commands(manifest_file_path: str) -> list[list[str]
             manifest_file_path,
             f'-DoutputFile={MAVEN_DEP_TREE_FILE_NAME}',
         ]
-    ]
+
+        maven_settings_file = self.ctx.obj.get('maven_settings_file')
+        if maven_settings_file:
+            command += ['-s', str(maven_settings_file)]
+
+        return [command]

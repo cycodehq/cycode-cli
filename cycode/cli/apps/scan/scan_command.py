@@ -88,6 +88,16 @@ def scan_command(
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
+    maven_settings_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--maven-settings-file',
+            show_default=False,
+            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
+            dir_okay=False,
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
+        ),
+    ] = None,
     export_type: Annotated[
         ExportTypeOption,
         typer.Option(
@@ -143,6 +153,7 @@ def scan_command(
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
+    ctx.obj['maven_settings_file'] = maven_settings_file
     ctx.obj['report'] = report
 
     scan_client = get_scan_cycode_client(ctx)
