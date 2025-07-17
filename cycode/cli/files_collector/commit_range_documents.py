@@ -193,7 +193,10 @@ def get_diff_file_path(diff: 'Diff', relative: bool = False) -> Optional[str]:
 
     if diff.b_blob:
         return diff.b_blob.abspath
-    return diff.a_blob.abspath
+    if diff.a_blob:
+        return diff.a_blob.abspath
+
+    return None
 
 
 def get_diff_file_content(diff: 'Diff') -> str:
