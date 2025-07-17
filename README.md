@@ -538,18 +538,19 @@ This information can be helpful when:
 
 The Cycode CLI application offers several types of scans so that you can choose the option that best fits your case. The following are the current options and commands available:
 
-| Option                                                     | Description                                                                                                            |
-|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                           |
-| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                       |
-| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
-| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                 |
-| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.        |
-| `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                           |
-| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                        |
-| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                      |
-| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from the project root directory ONLY!              |
-| `--help`                                                   | Show options for given command.                                                                                        |
+| Option                                                     | Description                                                                                                                      |
+|------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                                     |
+| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                 |
+| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.           |
+| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                           |
+| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                  |
+| `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                                     |
+| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                                  |
+| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                |
+| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from                                                         |
+| `--maven-settings-file`                                    | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when scanning for dependencies |
+| `--help`                                                   | Show options for given command.                                                                                                  |
 
 | Command                                | Description                                                     |
 |----------------------------------------|-----------------------------------------------------------------|
