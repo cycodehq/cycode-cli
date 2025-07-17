@@ -548,7 +548,8 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                           |
 | `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                        |
 | `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                      |
-| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from the project root directory ONLY!              |
+| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from 
+| `--maven-settings-file`                                | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when scanning for dependencies               |
 | `--help`                                                   | Show options for given command.                                                                                        |
 
 | Command                                | Description                                                     |
