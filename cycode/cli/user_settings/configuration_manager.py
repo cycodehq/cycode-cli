@@ -82,7 +82,7 @@ class ConfigurationManager:
     @staticmethod
     def _merge_exclusions(local_exclusions: dict, global_exclusions: dict) -> dict:
         keys = set(list(local_exclusions.keys()) + list(global_exclusions.keys()))
-        return {key: local_exclusions.get(key, []) + global_exclusions.get(key, []) for key in keys}
+        return {key: (local_exclusions.get(key) or []) + (global_exclusions.get(key) or []) for key in keys}
 
     def get_or_create_installation_id(self) -> str:
         config_file_manager = self.get_config_file_manager()
