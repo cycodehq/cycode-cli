@@ -155,6 +155,8 @@ def scan_command(
     ctx.obj['monitor'] = monitor
     ctx.obj['maven_settings_file'] = maven_settings_file
     ctx.obj['report'] = report
+    ctx.obj['gradle_all_sub_projects'] = gradle_all_sub_projects
+    ctx.obj['no_restore'] = no_restore
 
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
@@ -166,8 +168,6 @@ def scan_command(
     if export_type and export_file:
         console_printer = ctx.obj['console_printer']
         console_printer.enable_recording(export_type, export_file)
-
-    _ = no_restore, gradle_all_sub_projects  # they are actually used; via ctx.params
 
     _sca_scan_to_context(ctx, sca_scan)
 
