@@ -165,6 +165,6 @@ def _add_dependencies_tree_documents(
 def add_sca_dependencies_tree_documents_if_needed(
     ctx: typer.Context, scan_type: str, documents_to_scan: list[Document], is_git_diff: bool = False
 ) -> None:
-    no_restore = ctx.params.get('no-restore', False)
+    no_restore = ctx.params.get('no_restore', False)
     if scan_type == consts.SCA_SCAN_TYPE and not no_restore:
         _add_dependencies_tree_documents(ctx, documents_to_scan, is_git_diff)

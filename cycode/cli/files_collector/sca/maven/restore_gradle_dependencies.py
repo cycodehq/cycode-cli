@@ -27,7 +27,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         self.projects = self.get_all_projects() if self.is_gradle_sub_projects() else projects
 
     def is_gradle_sub_projects(self) -> bool:
-        return self.ctx.params.get('gradle-all-sub-projects', False)
+        return self.ctx.params.get('gradle_all_sub_projects', False)
 
     def is_project(self, document: Document) -> bool:
         return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
