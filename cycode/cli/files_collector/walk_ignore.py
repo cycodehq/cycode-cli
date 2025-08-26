@@ -6,6 +6,7 @@ from cycode.cli.utils.ignore_utils import IgnoreFilterManager
 
 _SUPPORTED_IGNORE_PATTERN_FILES = {  # oneday we will bring .cycodeignore or something like that
     '.gitignore',
+    '.cycodeignore',
 }
 _DEFAULT_GLOBAL_IGNORE_PATTERNS = [
     '.git',
