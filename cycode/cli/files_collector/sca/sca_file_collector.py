@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Optional
 
 import typer
@@ -122,14 +123,15 @@ def _try_restore_dependencies(
 
 
 def _get_restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRestoreDependencies]:
+    build_dep_tree_timeout = int(os.getenv('CYCODE_BUILD_DEP_TREE_TIMEOUT_SECONDS', BUILD_DEP_TREE_TIMEOUT))
     return [
-        RestoreGradleDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreMavenDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreSbtDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreGoDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreNugetDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreNpmDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
-        RestoreRubyDependencies(ctx, is_git_diff, BUILD_DEP_TREE_TIMEOUT),
+        RestoreGradleDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreMavenDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreSbtDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreGoDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreNugetDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreRubyDependencies(ctx, is_git_diff, build_dep_tree_timeout),
     ]
 
 
