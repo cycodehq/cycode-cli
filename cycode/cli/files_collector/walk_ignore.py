@@ -4,8 +4,9 @@ from collections.abc import Generator, Iterable
 from cycode.cli.logger import logger
 from cycode.cli.utils.ignore_utils import IgnoreFilterManager
 
-_SUPPORTED_IGNORE_PATTERN_FILES = {  # oneday we will bring .cycodeignore or something like that
+_SUPPORTED_IGNORE_PATTERN_FILES = {
     '.gitignore',
+    '.cycodeignore',
 }
 _DEFAULT_GLOBAL_IGNORE_PATTERNS = [
     '.git',
