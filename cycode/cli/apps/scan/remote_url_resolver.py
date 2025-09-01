@@ -99,17 +99,46 @@ def _try_to_get_plastic_remote_url(path: str) -> Optional[str]:
 
 def _try_get_git_remote_url(path: str) -> Optional[str]:
     try:
-        remote_url = git_proxy.get_repo(path).remotes[0].config_reader.get('url')
-        logger.debug('Found Git remote URL, %s', {'remote_url': remote_url, 'path': path})
+        repo = git_proxy.get_repo(path, search_parent_directories=True)
+        remote_url = repo.remotes[0].config_reader.get('url')
+        logger.debug('Found Git remote URL, %s', {'remote_url': remote_url, 'repo_path': repo.working_dir})
         return remote_url
-    except Exception:
-        logger.debug('Failed to get Git remote URL. Probably not a Git repository')
+    except Exception as e:
+        logger.debug('Failed to get Git remote URL. Probably not a Git repository', exc_info=e)
         return None
 
 
-def try_get_any_remote_url(path: str) -> Optional[str]:
+def _try_get_any_remote_url(path: str) -> Optional[str]:
     remote_url = _try_get_git_remote_url(path)
     if not remote_url:
         remote_url = _try_to_get_plastic_remote_url(path)
 
     return remote_url
+
+
+def get_remote_url_scan_parameter(paths: tuple[str, ...]) -> Optional[str]:
+    remote_urls = set()
+    for path in paths:
+        # FIXME(MarshalX): perf issue. This looping will produce:
+        #  - len(paths) Git subprocess calls in the worst case
+        #  - len(paths)*2 Plastic SCM subprocess calls
+        remote_url = _try_get_any_remote_url(path)
+        if remote_url:
+            remote_urls.add(remote_url)
+
+    if len(remote_urls) == 1:
+        # we are resolving remote_url only if all paths belong to the same repo (identical remote URLs),
+        # otherwise, the behavior is undefined
+        remote_url = remote_urls.pop()
+
+        logger.debug(
+            'Single remote URL found. Scan will be associated with organization, %s', {'remote_url': remote_url}
+        )
+        return remote_url
+
+    logger.debug(
+        'Multiple different remote URLs found. Scan will not be associated with organization, %s',
+        {'remote_urls': remote_urls},
+    )
+
+    return None
