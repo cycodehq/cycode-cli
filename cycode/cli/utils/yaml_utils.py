@@ -35,7 +35,8 @@ def _yaml_object_safe_load(file: TextIO) -> dict[Hashable, Any]:
 
 
 def read_yaml_file(filename: str) -> dict[Hashable, Any]:
-    if not os.path.exists(filename):
+    if not os.access(filename, os.R_OK) or not os.path.exists(filename):
+        logger.debug('Config file is not accessible or does not exist: %s', {'filename': filename})
         return {}
 
     with open(filename, encoding='UTF-8') as file:
@@ -43,6 +44,10 @@ def read_yaml_file(filename: str) -> dict[Hashable, Any]:
 
 
 def write_yaml_file(filename: str, content: dict[Hashable, Any]) -> None:
+    if not os.access(filename, os.W_OK) and os.path.exists(filename):
+        logger.warning('No write permission for file. Cannot save config, %s', {'filename': filename})
+        return
+
     with open(filename, 'w', encoding='UTF-8') as file:
         yaml.safe_dump(content, file)
 
