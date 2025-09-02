@@ -105,7 +105,7 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (  # keep in lowercase
     'conan.lock',
 )
 
-SCA_EXCLUDED_PATHS = (
+SCA_EXCLUDED_FOLDER_IN_PATH = (
     'node_modules',
     'venv',
     '.venv',
