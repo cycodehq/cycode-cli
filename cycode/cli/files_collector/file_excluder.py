@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from cycode.cli import consts
@@ -40,11 +41,13 @@ def _does_document_exceed_max_size_limit(content: str) -> bool:
 
 
 def _is_file_relevant_for_sca_scan(filename: str) -> bool:
-    if any(sca_excluded_path in filename for sca_excluded_path in consts.SCA_EXCLUDED_PATHS):
-        logger.debug(
-            'The file is irrelevant because it is from the inner path of node_modules, %s', {'filename': filename}
-        )
-        return False
+    for part in Path(filename).parts:
+        if part in consts.SCA_EXCLUDED_FOLDER_IN_PATH:
+            logger.debug(
+                'The file is irrelevant because it is from an excluded directory, %s',
+                {'filename': filename, 'excluded_directory': part},
+            )
+            return False
 
     return True
 
