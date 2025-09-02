@@ -44,7 +44,7 @@ def read_yaml_file(filename: str) -> dict[Hashable, Any]:
 
 
 def write_yaml_file(filename: str, content: dict[Hashable, Any]) -> None:
-    if not os.access(filename, os.W_OK):
+    if not os.access(filename, os.W_OK) and os.path.exists(filename):
         logger.warning('No write permission for file. Cannot save config, %s', {'filename': filename})
         return
 
