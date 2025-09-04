@@ -72,6 +72,9 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (  # keep in lowercase
     'package.json',
     'package-lock.json',
     'yarn.lock',
+    'deno.lock',
+    'deno.json',
+    'pnpm-lock.yaml',
     'npm-shrinkwrap.json',
     'packages.config',
     'project.assets.json',
@@ -102,7 +105,7 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (  # keep in lowercase
     'conan.lock',
 )
 
-SCA_EXCLUDED_PATHS = (
+SCA_EXCLUDED_FOLDER_IN_PATH = (
     'node_modules',
     'venv',
     '.venv',
@@ -126,7 +129,16 @@ PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     'go': ['go.sum', 'go.mod', 'go.mod.graph', 'Gopkg.lock'],
     'maven_pom': ['pom.xml'],
     'maven_gradle': ['build.gradle', 'build.gradle.kts', 'gradle.lockfile'],
-    'npm': ['package.json', 'package-lock.json', 'yarn.lock', 'npm-shrinkwrap.json', '.npmrc'],
+    'npm': [
+        'package.json',
+        'package-lock.json',
+        'yarn.lock',
+        'npm-shrinkwrap.json',
+        '.npmrc',
+        'pnpm-lock.yaml',
+        'deno.lock',
+        'deno.json',
+    ],
     'nuget': ['packages.config', 'project.assets.json', 'packages.lock.json', 'nuget.config'],
     'ruby_gems': ['Gemfile', 'Gemfile.lock'],
     'sbt': ['build.sbt', 'build.scala', 'build.sbt.lock'],
@@ -267,10 +279,6 @@ PACKAGE_VULNERABILITY_POLICY_ID = '9369d10a-9ac0-48d3-9921-5de7fe9a37a7'
 # Example: A -> B -> C
 # Result: A -> ... -> C
 SCA_SHORTCUT_DEPENDENCY_PATHS = 2
-
-SCA_SKIP_RESTORE_DEPENDENCIES_FLAG = 'no-restore'
-
-SCA_GRADLE_ALL_SUB_PROJECTS_FLAG = 'gradle-all-sub-projects'
 
 PLASTIC_VCS_DATA_SEPARATOR = ':::'
 PLASTIC_VSC_CLI_TIMEOUT = 10

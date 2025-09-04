@@ -20,7 +20,7 @@ app.callback(
 
 app.command(name='path', short_help='Scan the files in the paths provided in the command.')(path_command)
 app.command(name='repository', short_help='Scan the Git repository included files.')(repository_command)
-app.command(name='commit-history', short_help='Scan all the commits history in this Git repository.')(
+app.command(name='commit-history', short_help='Scan commit history or perform diff scanning between specific commits.')(
     commit_history_command
 )
 app.command(

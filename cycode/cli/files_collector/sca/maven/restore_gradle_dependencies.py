@@ -12,7 +12,6 @@ from cycode.cli.utils.shell_executor import shell
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
 BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
-BUILD_GRADLE_ALL_PROJECTS_TIMEOUT = 180
 BUILD_GRADLE_ALL_PROJECTS_COMMAND = ['gradle', 'projects']
 ALL_PROJECTS_REGEX = r"[+-]{3} Project '(.*?)'"
 
@@ -27,7 +26,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         self.projects = self.get_all_projects() if self.is_gradle_sub_projects() else projects
 
     def is_gradle_sub_projects(self) -> bool:
-        return self.ctx.params.get('gradle-all-sub-projects', False)
+        return self.ctx.obj.get('gradle_all_sub_projects', False)
 
     def is_project(self, document: Document) -> bool:
         return document.path.endswith(BUILD_GRADLE_FILE_NAME) or document.path.endswith(BUILD_GRADLE_KTS_FILE_NAME)
@@ -48,7 +47,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
     def get_all_projects(self) -> set[str]:
         output = shell(
             command=BUILD_GRADLE_ALL_PROJECTS_COMMAND,
-            timeout=BUILD_GRADLE_ALL_PROJECTS_TIMEOUT,
+            timeout=self.command_timeout,
             working_directory=get_path_from_context(self.ctx),
         )
         if not output:

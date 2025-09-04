@@ -1,6 +1,6 @@
 FROM python:3.12.9-alpine3.21 AS base
 WORKDIR /usr/cycode/app
-RUN apk add git=2.47.2-r0
+RUN apk add git=2.47.3-r0
 
 FROM base AS builder
 ENV POETRY_VERSION=1.8.3

@@ -88,6 +88,16 @@ def scan_command(
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
+    maven_settings_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--maven-settings-file',
+            show_default=False,
+            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
+            dir_okay=False,
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
+        ),
+    ] = None,
     export_type: Annotated[
         ExportTypeOption,
         typer.Option(
@@ -143,7 +153,10 @@ def scan_command(
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
+    ctx.obj['maven_settings_file'] = maven_settings_file
     ctx.obj['report'] = report
+    ctx.obj['gradle_all_sub_projects'] = gradle_all_sub_projects
+    ctx.obj['no_restore'] = no_restore
 
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
@@ -155,8 +168,6 @@ def scan_command(
     if export_type and export_file:
         console_printer = ctx.obj['console_printer']
         console_printer.enable_recording(export_type, export_file)
-
-    _ = no_restore, gradle_all_sub_projects  # they are actually used; via ctx.params
 
     _sca_scan_to_context(ctx, sca_scan)
 

@@ -8,6 +8,9 @@ from cycode.cli.console import console
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.path_utils import get_file_content
 from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.logger import get_logger
+
+logger = get_logger('Version Checker')
 
 
 def _compare_versions(
@@ -154,8 +157,8 @@ class VersionChecker(CycodeClientBase):
             os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
             with open(self.cache_file, 'w', encoding='UTF-8') as f:
                 f.write(str(time.time()))
-        except OSError:
-            pass
+        except Exception as e:
+            logger.debug('Failed to update version check cache file: %s', {'file': self.cache_file}, exc_info=e)
 
     def check_for_update(self, current_version: str, use_cache: bool = True) -> Optional[str]:
         """Check if an update is available for the current version.

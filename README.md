@@ -35,7 +35,7 @@ This guide walks you through both installation and usage.
         3. [Path Scan](#path-scan)
             1. [Terraform Plan Scan](#terraform-plan-scan)
         4. [Commit History Scan](#commit-history-scan)
-            1. [Commit Range Option](#commit-range-option)
+            1. [Commit Range Option (Diff Scanning)](#commit-range-option-diff-scanning)
         5. [Pre-Commit Scan](#pre-commit-scan)
     2. [Scan Results](#scan-results)
         1. [Show/Hide Secrets](#showhide-secrets)
@@ -538,25 +538,26 @@ This information can be helpful when:
 
 The Cycode CLI application offers several types of scans so that you can choose the option that best fits your case. The following are the current options and commands available:
 
-| Option                                                     | Description                                                                                                            |
-|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                           |
-| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                       |
-| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details. |
-| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                 |
-| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.        |
-| `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                           |
-| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                        |
-| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                      |
-| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from the project root directory ONLY!              |
-| `--help`                                                   | Show options for given command.                                                                                        |
+| Option                                                     | Description                                                                                                                      |
+|------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `-t, --scan-type [secret\|iac\|sca\|sast]`                 | Specify the scan you wish to execute (`secret`/`iac`/`sca`/`sast`), the default is `secret`.                                     |
+| `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                 |
+| `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.           |
+| `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                           |
+| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                  |
+| `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                                     |
+| `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                                  |
+| `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                |
+| `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from                                                         |
+| `--maven-settings-file`                                    | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when scanning for dependencies |
+| `--help`                                                   | Show options for given command.                                                                                                  |
 
-| Command                                | Description                                                     |
-|----------------------------------------|-----------------------------------------------------------------|
-| [commit-history](#commit-history-scan) | Scan all the commits history in this git repository             |
-| [path](#path-scan)                     | Scan the files in the path supplied in the command              |
-| [pre-commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet |
-| [repository](#repository-scan)         | Scan git repository including its history                       |
+| Command                                | Description                                                           |
+|----------------------------------------|-----------------------------------------------------------------------|
+| [commit-history](#commit-history-scan) | Scan commit history or perform diff scanning between specific commits |
+| [path](#path-scan)                     | Scan the files in the path supplied in the command                    |
+| [pre-commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet       |
+| [repository](#repository-scan)         | Scan git repository including its history                             |
 
 ### Options
 
@@ -700,9 +701,16 @@ If you just have a configuration file, you can generate a plan by doing the foll
 ### Commit History Scan
 
 > [!NOTE]
-> Secrets scanning analyzes all commits in the repository history because secrets introduced and later removed can still be leaked or exposed. SCA and SAST scanning focus only on the latest code state and the changes between branches or pull requests. Full commit history scanning is not performed for SCA and SAST.
+> Commit History Scan is not available for IaC scans.
 
-A commit history scan is limited to a local repository’s previous commits, focused on finding any secrets within the commit history, instead of examining the repository’s current state.
+The commit history scan command provides two main capabilities:
+
+1. **Full History Scanning**: Analyze all commits in the repository history
+2. **Diff Scanning**: Scan only the changes between specific commits
+
+Secrets scanning can analyze all commits in the repository history because secrets introduced and later removed can still be leaked or exposed. For SCA and SAST scans, the commit history command focuses on scanning the differences/changes between commits, making it perfect for pull request reviews and incremental scanning.
+
+A commit history scan examines your Git repository's commit history and can be used both for comprehensive historical analysis and targeted diff scanning of specific changes.
 
 To execute a commit history scan, execute the following:
 
@@ -718,13 +726,55 @@ The following options are available for use with this command:
 |---------------------------|----------------------------------------------------------------------------------------------------------|
 | `-r, --commit-range TEXT` | Scan a commit range in this git repository, by default cycode scans all commit history (example: HEAD~1) |
 
-#### Commit Range Option
+#### Commit Range Option (Diff Scanning)
 
-The commit history scan, by default, examines the repository’s entire commit history, all the way back to the initial commit. You can instead limit the scan to a specific commit range by adding the argument `--commit-range` (`-r`) followed by the name you specify.
+The commit range option enables **diff scanning** – scanning only the changes between specific commits instead of the entire repository history. 
+This is particularly useful for:
+- **Pull request validation**: Scan only the changes introduced in a PR
+- **Incremental CI/CD scanning**: Focus on recent changes rather than the entire codebase  
+- **Feature branch review**: Compare changes against main/master branch
+- **Performance optimization**: Faster scans by limiting scope to relevant changes
 
-Consider the previous example. If you wanted to scan only specific commits in your repository, you could execute the following:
+#### Commit Range Syntax
 
-`cycode scan commit-history -r {{from-commit-id}}...{{to-commit-id}} ~/home/git/codebase`
+The `--commit-range` (`-r`) option supports standard Git revision syntax:
+
+| Syntax              | Description                       | Example                 |
+|---------------------|-----------------------------------|-------------------------|
+| `commit1..commit2`  | Changes from commit1 to commit2   | `abc123..def456`        |
+| `commit1...commit2` | Changes in commit2 not in commit1 | `main...feature-branch` |
+| `commit`            | Changes from commit to HEAD       | `HEAD~1`                |
+| `branch1..branch2`  | Changes from branch1 to branch2   | `main..feature-branch`  |
+
+#### Diff Scanning Examples
+
+**Scan changes in the last commit:**
+```bash
+cycode scan commit-history -r HEAD~1 ~/home/git/codebase
+```
+
+**Scan changes between two specific commits:**
+```bash
+cycode scan commit-history -r abc123..def456 ~/home/git/codebase
+```
+
+**Scan changes in your feature branch compared to main:**
+```bash
+cycode scan commit-history -r main..HEAD ~/home/git/codebase
+```
+
+**Scan changes between main and a feature branch:**
+```bash
+cycode scan commit-history -r main..feature-branch ~/home/git/codebase
+```
+
+**Scan all changes in the last 3 commits:**
+```bash
+cycode scan commit-history -r HEAD~3..HEAD ~/home/git/codebase
+```
+
+> [!TIP]
+> For CI/CD pipelines, you can use environment variables like `${{ github.event.pull_request.base.sha }}..${{ github.sha }}` (GitHub Actions) or `$CI_MERGE_REQUEST_TARGET_BRANCH_SHA..$CI_COMMIT_SHA` (GitLab CI) to scan only PR/MR changes.
 
 ### Pre-Commit Scan
 

@@ -1,9 +1,8 @@
-import os
 from typing import Optional
 
 import typer
 
-from cycode.cli.apps.scan.remote_url_resolver import try_get_any_remote_url
+from cycode.cli.apps.scan.remote_url_resolver import get_remote_url_scan_parameter
 from cycode.cli.utils.scan_utils import generate_unique_scan_id
 from cycode.logger import get_logger
 
@@ -29,18 +28,9 @@ def get_scan_parameters(ctx: typer.Context, paths: Optional[tuple[str, ...]] = N
 
     scan_parameters['paths'] = paths
 
-    if len(paths) != 1:
-        logger.debug('Multiple paths provided, going to ignore remote url')
-        return scan_parameters
-
-    if not os.path.isdir(paths[0]):
-        logger.debug('Path is not a directory, going to ignore remote url')
-        return scan_parameters
-
-    remote_url = try_get_any_remote_url(paths[0])
-    if remote_url:
-        # TODO(MarshalX): remove hardcode in context
-        ctx.obj['remote_url'] = remote_url
-        scan_parameters['remote_url'] = remote_url
+    remote_url = get_remote_url_scan_parameter(paths)
+    # TODO(MarshalX): remove hardcode in context
+    ctx.obj['remote_url'] = remote_url
+    scan_parameters['remote_url'] = remote_url
 
     return scan_parameters
