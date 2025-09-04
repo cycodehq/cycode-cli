@@ -1,5 +1,7 @@
 import os
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from git import Repo
 
@@ -7,14 +9,30 @@ from cycode.cli import consts
 from cycode.cli.files_collector.commit_range_documents import get_safe_head_reference_for_diff
 
 
+@contextmanager
+def git_repository(path: str) -> Generator[Repo, None, None]:
+    """Context manager for Git repositories that ensures proper cleanup on Windows."""
+    repo = Repo.init(path)
+    try:
+        yield repo
+    finally:
+        # Properly close the repository to release file handles
+        repo.close()
+
+
+@contextmanager
+def temporary_git_repository() -> Generator[tuple[str, Repo], None, None]:
+    """Combined context manager for temporary directory with Git repository."""
+    with tempfile.TemporaryDirectory() as temp_dir, git_repository(temp_dir) as repo:
+        yield temp_dir, repo
+
+
 class TestGetSafeHeadReferenceForDiff:
     """Test the safe HEAD reference functionality for git diff operations."""
 
     def test_returns_head_when_repository_has_commits(self) -> None:
         """Test that HEAD is returned when the repository has existing commits."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.init(temp_dir)
-
+        with temporary_git_repository() as (temp_dir, repo):
             test_file = os.path.join(temp_dir, 'test.py')
             with open(test_file, 'w') as f:
                 f.write("print('test')")
@@ -27,9 +45,7 @@ class TestGetSafeHeadReferenceForDiff:
 
     def test_returns_empty_tree_hash_when_repository_has_no_commits(self) -> None:
         """Test that an empty tree hash is returned when the repository has no commits."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.init(temp_dir)
-
+        with temporary_git_repository() as (temp_dir, repo):
             result = get_safe_head_reference_for_diff(repo)
             expected_empty_tree_hash = consts.GIT_EMPTY_TREE_OBJECT
             assert result == expected_empty_tree_hash
@@ -40,9 +56,7 @@ class TestIndexDiffWithSafeHeadReference:
 
     def test_index_diff_works_on_bare_repository(self) -> None:
         """Test that index.diff works on repositories with no commits."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.init(temp_dir)
-
+        with temporary_git_repository() as (temp_dir, repo):
             test_file = os.path.join(temp_dir, 'staged_file.py')
             with open(test_file, 'w') as f:
                 f.write("print('staged content')")
@@ -58,9 +72,7 @@ class TestIndexDiffWithSafeHeadReference:
 
     def test_index_diff_works_on_repository_with_commits(self) -> None:
         """Test that index.diff continues to work on repositories with existing commits."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.init(temp_dir)
-
+        with temporary_git_repository() as (temp_dir, repo):
             initial_file = os.path.join(temp_dir, 'initial.py')
             with open(initial_file, 'w') as f:
                 f.write("print('initial')")
@@ -88,9 +100,7 @@ class TestIndexDiffWithSafeHeadReference:
 
     def test_sequential_operations_on_same_repository(self) -> None:
         """Test behavior when transitioning from bare to committed repository."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.init(temp_dir)
-
+        with temporary_git_repository() as (temp_dir, repo):
             test_file = os.path.join(temp_dir, 'test.py')
             with open(test_file, 'w') as f:
                 f.write("print('test')")
