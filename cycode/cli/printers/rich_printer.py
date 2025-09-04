@@ -91,7 +91,7 @@ class RichPrinter(TextPrinter):
         details_table.add_row('Version', detection_details.get('package_version'))
 
         if detection.has_alert:
-            patched_version = detection_details['alert'].get('patched_version')
+            patched_version = detection_details['alert'].get('first_patched_version')
             details_table.add_row('First patched version', patched_version or 'Not fixed')
 
         dependency_path = detection_details.get('dependency_paths')
