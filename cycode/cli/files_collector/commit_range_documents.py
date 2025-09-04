@@ -22,6 +22,31 @@ if TYPE_CHECKING:
 logger = get_logger('Commit Range Collector')
 
 
+def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
+    """Get a safe reference to use for diffing against the current HEAD.
+    In repositories with no commits, HEAD doesn't exist, so we return the empty tree hash.
+
+    Args:
+        repo: Git repository object
+
+    Returns:
+        Either "HEAD" string if commits exist, or empty tree hash if no commits exist
+    """
+    try:
+        repo.rev_parse(consts.GIT_HEAD_COMMIT_REV)
+        return consts.GIT_HEAD_COMMIT_REV
+    except Exception as e:  # actually gitdb.exc.BadObject; no import because of lazy loading
+        logger.debug(
+            'Repository has no commits, using empty tree hash for diffs, %s',
+            {'repo_path': repo.working_tree_dir},
+            exc_info=e,
+        )
+
+        # Repository has no commits, use the universal empty tree hash
+        # This is the standard Git approach for initial commits
+        return consts.GIT_EMPTY_TREE_OBJECT
+
+
 def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: Optional[int]) -> bool:
     if max_commits_count is None:
         return False
@@ -213,7 +238,8 @@ def get_pre_commit_modified_documents(
     diff_documents = []
 
     repo = git_proxy.get_repo(repo_path)
-    diff_index = repo.index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    head_reference = get_safe_head_reference_for_diff(repo)
+    diff_index = repo.index.diff(head_reference, create_patch=True, R=True)
     progress_bar.set_section_length(progress_bar_section, len(diff_index))
     for diff in diff_index:
         progress_bar.update(progress_bar_section)
@@ -228,9 +254,11 @@ def get_pre_commit_modified_documents(
             )
         )
 
-        file_content = _get_file_content_from_commit_diff(repo, consts.GIT_HEAD_COMMIT_REV, diff)
-        if file_content:
-            git_head_documents.append(Document(file_path, file_content))
+        # Only get file content from HEAD if HEAD exists (not the empty tree hash)
+        if head_reference == consts.GIT_HEAD_COMMIT_REV:
+            file_content = _get_file_content_from_commit_diff(repo, head_reference, diff)
+            if file_content:
+                git_head_documents.append(Document(file_path, file_content))
 
         if os.path.exists(file_path):
             file_content = get_file_content(file_path)
@@ -274,13 +302,13 @@ def parse_commit_range_sast(commit_range: str, path: str) -> tuple[Optional[str]
     else:
         # Git commands like 'git diff <commit>' compare against HEAD.
         from_spec = commit_range
-        to_spec = 'HEAD'
+        to_spec = consts.GIT_HEAD_COMMIT_REV
 
     # If a spec is empty (e.g., from '..master'), default it to 'HEAD'
     if not from_spec:
-        from_spec = 'HEAD'
+        from_spec = consts.GIT_HEAD_COMMIT_REV
     if not to_spec:
-        to_spec = 'HEAD'
+        to_spec = consts.GIT_HEAD_COMMIT_REV
 
     try:
         # Use rev_parse to resolve each specifier to its full commit SHA
