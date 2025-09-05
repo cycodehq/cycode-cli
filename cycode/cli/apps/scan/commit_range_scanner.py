@@ -25,6 +25,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     get_diff_file_content,
     get_diff_file_path,
     get_pre_commit_modified_documents,
+    get_safe_head_reference_for_diff,
     parse_commit_range_sast,
     parse_commit_range_sca,
 )
@@ -271,7 +272,9 @@ def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
 
 def _scan_secret_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     progress_bar = ctx.obj['progress_bar']
-    diff_index = git_proxy.get_repo(repo_path).index.diff(consts.GIT_HEAD_COMMIT_REV, create_patch=True, R=True)
+    repo = git_proxy.get_repo(repo_path)
+    head_reference = get_safe_head_reference_for_diff(repo)
+    diff_index = repo.index.diff(head_reference, create_patch=True, R=True)
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_index))
 
