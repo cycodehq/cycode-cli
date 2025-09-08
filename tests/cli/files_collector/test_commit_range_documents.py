@@ -1,30 +1,8 @@
 import os
-import tempfile
-from collections.abc import Generator
-from contextlib import contextmanager
-
-from git import Repo
 
 from cycode.cli import consts
 from cycode.cli.files_collector.commit_range_documents import get_safe_head_reference_for_diff
-
-
-@contextmanager
-def git_repository(path: str) -> Generator[Repo, None, None]:
-    """Context manager for Git repositories that ensures proper cleanup on Windows."""
-    repo = Repo.init(path)
-    try:
-        yield repo
-    finally:
-        # Properly close the repository to release file handles
-        repo.close()
-
-
-@contextmanager
-def temporary_git_repository() -> Generator[tuple[str, Repo], None, None]:
-    """Combined context manager for temporary directory with Git repository."""
-    with tempfile.TemporaryDirectory() as temp_dir, git_repository(temp_dir) as repo:
-        yield temp_dir, repo
+from tests.cli.files_collector.common import temporary_git_repository
 
 
 class TestGetSafeHeadReferenceForDiff:

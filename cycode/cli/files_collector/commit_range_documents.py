@@ -107,7 +107,7 @@ def collect_commit_range_diff_documents(
 def calculate_pre_receive_commit_range(branch_update_details: str) -> Optional[str]:
     end_commit = _get_end_commit_from_branch_update_details(branch_update_details)
 
-    # branch is deleted, no need to perform scan
+    # the branch is deleted, no need to perform a scan
     if end_commit == consts.EMPTY_COMMIT_SHA:
         return None
 
@@ -127,10 +127,21 @@ def _get_end_commit_from_branch_update_details(update_details: str) -> str:
 
 
 def _get_oldest_unupdated_commit_for_branch(commit: str) -> Optional[str]:
-    # get a list of commits by chronological order that are not in the remote repository yet
+    # get a list of commits by chronological order that is not in the remote repository yet
     # more info about rev-list command: https://git-scm.com/docs/git-rev-list
     repo = git_proxy.get_repo(os.getcwd())
-    not_updated_commits = repo.git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
+
+    try:
+        not_updated_commits = repo.git.rev_list(commit, '--topo-order', '--reverse', '--not', '--all')
+    except git_proxy.get_git_command_error() as e:
+        # Handle case where the commit doesn't exist in the repository yet (e.g., first push to bare repo)
+        if 'bad object' in str(e) or 'unknown revision' in str(e):
+            logger.debug(
+                'Commit does not exist in repository yet (likely first push), %s', {'commit': commit, 'error': str(e)}
+            )
+            return None
+        # Re-raise other git errors
+        raise
 
     commits = not_updated_commits.splitlines()
     if not commits:
@@ -311,9 +322,25 @@ def parse_commit_range_sast(commit_range: str, path: str) -> tuple[Optional[str]
         to_spec = consts.GIT_HEAD_COMMIT_REV
 
     try:
-        # Use rev_parse to resolve each specifier to its full commit SHA
-        from_commit_rev = repo.rev_parse(from_spec).hexsha
-        to_commit_rev = repo.rev_parse(to_spec).hexsha
+        # Use safe head reference resolution for HEAD references in bare repositories
+        if from_spec == consts.GIT_HEAD_COMMIT_REV:
+            safe_from_spec = get_safe_head_reference_for_diff(repo)
+            if safe_from_spec == consts.GIT_EMPTY_TREE_OBJECT:
+                logger.debug("Cannot resolve HEAD reference in bare repository for commit range '%s'", commit_range)
+                return None, None
+            from_commit_rev = repo.rev_parse(safe_from_spec).hexsha
+        else:
+            from_commit_rev = repo.rev_parse(from_spec).hexsha
+
+        if to_spec == consts.GIT_HEAD_COMMIT_REV:
+            safe_to_spec = get_safe_head_reference_for_diff(repo)
+            if safe_to_spec == consts.GIT_EMPTY_TREE_OBJECT:
+                logger.debug("Cannot resolve HEAD reference in bare repository for commit range '%s'", commit_range)
+                return None, None
+            to_commit_rev = repo.rev_parse(safe_to_spec).hexsha
+        else:
+            to_commit_rev = repo.rev_parse(to_spec).hexsha
+
         return from_commit_rev, to_commit_rev
     except git_proxy.get_git_command_error() as e:
         logger.warning("Failed to parse commit range '%s'", commit_range, exc_info=e)
