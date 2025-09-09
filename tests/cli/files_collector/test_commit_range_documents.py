@@ -6,7 +6,11 @@ from contextlib import contextmanager
 from git import Repo
 
 from cycode.cli import consts
-from cycode.cli.files_collector.commit_range_documents import get_safe_head_reference_for_diff
+from cycode.cli.files_collector.commit_range_documents import (
+    get_diff_file_path,
+    get_safe_head_reference_for_diff,
+)
+from cycode.cli.utils.path_utils import get_path_by_os
 
 
 @contextmanager
@@ -128,3 +132,26 @@ class TestIndexDiffWithSafeHeadReference:
             assert head_ref_after == consts.GIT_HEAD_COMMIT_REV
             assert len(diff_after) == 1
             assert diff_after[0].b_path == 'new.py'
+
+
+def test_git_mv_pre_commit_scan() -> None:
+    with temporary_git_repository() as (temp_dir, repo):
+        newfile_path = os.path.join(temp_dir, 'NEWFILE.txt')
+        with open(newfile_path, 'w') as f:
+            f.write('test content')
+
+        repo.index.add(['NEWFILE.txt'])
+        repo.index.commit('init')
+
+        # Rename file but don't commit (this is the pre-commit scenario)
+        renamed_path = os.path.join(temp_dir, 'RENAMED.txt')
+        os.rename(newfile_path, renamed_path)
+        repo.index.remove(['NEWFILE.txt'])
+        repo.index.add(['RENAMED.txt'])
+
+        head_ref = get_safe_head_reference_for_diff(repo)
+        diff_index = repo.index.diff(head_ref, create_patch=True, R=True)
+
+        for diff in diff_index:
+            file_path = get_path_by_os(get_diff_file_path(diff, repo=repo))
+            assert file_path == renamed_path

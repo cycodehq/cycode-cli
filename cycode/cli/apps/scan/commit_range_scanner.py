@@ -282,7 +282,11 @@ def _scan_secret_pre_commit(ctx: typer.Context, repo_path: str) -> None:
     for diff in diff_index:
         progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
         documents_to_scan.append(
-            Document(get_path_by_os(get_diff_file_path(diff)), get_diff_file_content(diff), is_git_diff_format=True)
+            Document(
+                get_path_by_os(get_diff_file_path(diff, repo=repo)),
+                get_diff_file_content(diff),
+                is_git_diff_format=True,
+            )
         )
     documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(consts.SECRET_SCAN_TYPE, documents_to_scan)
 
