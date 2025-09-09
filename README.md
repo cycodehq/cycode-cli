@@ -233,7 +233,7 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.2.0
+        rev: v3.4.2
         hooks:
           - id: cycode
             stages:
@@ -245,7 +245,7 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.2.0
+        rev: v3.4.2
         hooks:
           - id: cycode
             stages:

@@ -87,7 +87,7 @@ def collect_commit_range_diff_documents(
         for diff in diff_index:
             commit_documents_to_scan.append(
                 Document(
-                    path=get_path_by_os(get_diff_file_path(diff)),
+                    path=get_path_by_os(get_diff_file_path(diff, repo=repo)),
                     content=get_diff_file_content(diff),
                     is_git_diff_format=True,
                     unique_id=commit_id,
@@ -166,7 +166,7 @@ def get_commit_range_modified_documents(
     for diff in modified_files_diff:
         progress_bar.update(progress_bar_section)
 
-        file_path = get_path_by_os(get_diff_file_path(diff))
+        file_path = get_path_by_os(get_diff_file_path(diff, repo=repo))
 
         diff_documents.append(
             Document(
@@ -211,15 +211,23 @@ def parse_pre_receive_input() -> str:
     return pre_receive_input.splitlines()[0]
 
 
-def get_diff_file_path(diff: 'Diff', relative: bool = False) -> Optional[str]:
+def get_diff_file_path(diff: 'Diff', relative: bool = False, repo: Optional['Repo'] = None) -> Optional[str]:
     if relative:
         # relative to the repository root
         return diff.b_path if diff.b_path else diff.a_path
 
+    # Try blob-based paths first (most reliable when available)
     if diff.b_blob:
         return diff.b_blob.abspath
     if diff.a_blob:
         return diff.a_blob.abspath
+
+    # Fallback: construct an absolute path from a relative path
+    # This handles renames and other cases where blobs might be None
+    if repo and repo.working_tree_dir:
+        target_path = diff.b_path if diff.b_path else diff.a_path
+        if target_path:
+            return os.path.abspath(os.path.join(repo.working_tree_dir, target_path))
 
     return None
 
@@ -244,7 +252,7 @@ def get_pre_commit_modified_documents(
     for diff in diff_index:
         progress_bar.update(progress_bar_section)
 
-        file_path = get_path_by_os(get_diff_file_path(diff))
+        file_path = get_path_by_os(get_diff_file_path(diff, repo=repo))
 
         diff_documents.append(
             Document(
