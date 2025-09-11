@@ -223,7 +223,7 @@ def get_diff_file_path(diff: 'Diff', relative: bool = False, repo: Optional['Rep
     Note:
         It tries to get the absolute path, falling back to relative paths. `relative` flag forces relative paths.
 
-        One case of related paths is when the repository is bare and does not have a working tree directory.
+        One case of relative paths is when the repository is bare and does not have a working tree directory.
     """
     # try blob-based paths first (most reliable when available)
     blob = diff.b_blob if diff.b_blob else diff.a_blob
