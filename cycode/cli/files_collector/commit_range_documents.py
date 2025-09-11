@@ -212,24 +212,33 @@ def parse_pre_receive_input() -> str:
 
 
 def get_diff_file_path(diff: 'Diff', relative: bool = False, repo: Optional['Repo'] = None) -> Optional[str]:
-    if relative:
-        # relative to the repository root
-        return diff.b_path if diff.b_path else diff.a_path
+    """Get the file path from a git Diff object.
 
-    # Try blob-based paths first (most reliable when available)
-    if diff.b_blob:
-        return diff.b_blob.abspath
-    if diff.a_blob:
-        return diff.a_blob.abspath
+    Args:
+        diff: Git Diff object representing the file change
+        relative: If True, return the path relative to the repository root;
+            otherwise, return an absolute path IF possible
+        repo: Optional Git Repo object, used to resolve absolute paths
 
-    # Fallback: construct an absolute path from a relative path
-    # This handles renames and other cases where blobs might be None
-    if repo and repo.working_tree_dir:
-        target_path = diff.b_path if diff.b_path else diff.a_path
-        if target_path:
-            return os.path.abspath(os.path.join(repo.working_tree_dir, target_path))
+    Note:
+        It tries to get the absolute path, falling back to relative paths. `relative` flag forces relative paths.
 
-    return None
+        One case of relative paths is when the repository is bare and does not have a working tree directory.
+    """
+    # try blob-based paths first (most reliable when available)
+    blob = diff.b_blob if diff.b_blob else diff.a_blob
+    if blob:
+        if relative:
+            return blob.path
+        if repo and repo.working_tree_dir:
+            return blob.abspath
+
+    path = diff.b_path if diff.b_path else diff.a_path  # relative path within the repo
+    if not relative and path and repo and repo.working_tree_dir:
+        # convert to the absolute path using the repo's working tree directory
+        path = os.path.join(repo.working_tree_dir, path)
+
+    return path
 
 
 def get_diff_file_content(diff: 'Diff') -> str:
