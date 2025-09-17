@@ -211,6 +211,69 @@ def parse_pre_receive_input() -> str:
     return pre_receive_input.splitlines()[0]
 
 
+def parse_pre_push_input() -> str:
+    """Parse input to pre-push hook details.
+
+    Example input:
+    local_ref local_object_name remote_ref remote_object_name
+    ---------------------------------------------------------
+    refs/heads/main 9cf90954ef26e7c58284f8ebf7dcd0fcf711152a refs/heads/main 973a96d3e925b65941f7c47fa16129f1577d499f
+    refs/heads/feature-branch 3378e52dcfa47fb11ce3a4a520bea5f85d5d0bf3 refs/heads/feature-branch 59564ef68745bca38c42fc57a7822efd519a6bd9
+
+    :return: First, push update details (input's first line)
+    """  # noqa: E501
+    pre_push_input = sys.stdin.read().strip()
+    if not pre_push_input:
+        raise ValueError(
+            'Pre push input was not found. Make sure that you are using this command only in pre-push hook'
+        )
+
+    # each line represents a branch push request, handle the first one only
+    return pre_push_input.splitlines()[0]
+
+
+def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
+    """Calculate the commit range for pre-push hook scanning.
+
+    Args:
+        push_update_details: String in format "local_ref local_object_name remote_ref remote_object_name"
+
+    Returns:
+        Commit range string for scanning, or None if no scanning is needed
+    """
+    local_ref, local_object_name, remote_ref, remote_object_name = push_update_details.split()
+
+    if remote_object_name == consts.EMPTY_COMMIT_SHA:
+        try:
+            repo = git_proxy.get_repo(os.getcwd())
+            default_branches = ['origin/main', 'origin/master', 'main', 'master']
+
+            merge_base = None
+            for default_branch in default_branches:
+                try:
+                    merge_base = repo.git.merge_base(local_object_name, default_branch)
+                    break
+                except Exception as e:
+                    logger.debug('Failed to find merge base with %s: %s', default_branch, exc_info=e)
+                    continue
+
+            if merge_base:
+                return f'{merge_base}..{local_object_name}'
+
+            logger.debug('Failed to find merge base with any default branch')
+            return '--all'
+        except Exception as e:
+            logger.debug('Failed to get repo for pre-push commit range calculation: %s', exc_info=e)
+            return '--all'
+
+    # If deleting a branch (local_object_name is all zeros), no need to scan
+    if local_object_name == consts.EMPTY_COMMIT_SHA:
+        return None
+
+    # For updates to existing branches, scan from remote to local
+    return f'{remote_object_name}..{local_object_name}'
+
+
 def get_diff_file_path(diff: 'Diff', relative: bool = False, repo: Optional['Repo'] = None) -> Optional[str]:
     """Get the file path from a git Diff object.
 

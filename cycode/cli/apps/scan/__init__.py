@@ -3,11 +3,14 @@ import typer
 from cycode.cli.apps.scan.commit_history.commit_history_command import commit_history_command
 from cycode.cli.apps.scan.path.path_command import path_command
 from cycode.cli.apps.scan.pre_commit.pre_commit_command import pre_commit_command
+from cycode.cli.apps.scan.pre_push.pre_push_command import pre_push_command
 from cycode.cli.apps.scan.pre_receive.pre_receive_command import pre_receive_command
 from cycode.cli.apps.scan.repository.repository_command import repository_command
 from cycode.cli.apps.scan.scan_command import scan_command, scan_command_result_callback
 
 app = typer.Typer(name='scan', no_args_is_help=True)
+
+_AUTOMATION_COMMANDS_RICH_HELP_PANEL = 'Automation commands'
 
 _scan_command_docs = 'https://github.com/cycodehq/cycode-cli/blob/main/README.md#scan-command'
 _scan_command_epilog = f'[bold]Documentation:[/] [link={_scan_command_docs}]{_scan_command_docs}[/link]'
@@ -26,16 +29,22 @@ app.command(name='commit-history', short_help='Scan commit history or perform di
 app.command(
     name='pre-commit',
     short_help='Use this command in pre-commit hook to scan any content that was not committed yet.',
-    rich_help_panel='Automation commands',
+    rich_help_panel=_AUTOMATION_COMMANDS_RICH_HELP_PANEL,
 )(pre_commit_command)
+app.command(
+    name='pre-push',
+    short_help='Use this command in pre-push hook to scan commits before pushing them to the remote repository.',
+    rich_help_panel=_AUTOMATION_COMMANDS_RICH_HELP_PANEL,
+)(pre_push_command)
 app.command(
     name='pre-receive',
     short_help='Use this command in pre-receive hook '
     'to scan commits on the server side before pushing them to the repository.',
-    rich_help_panel='Automation commands',
+    rich_help_panel=_AUTOMATION_COMMANDS_RICH_HELP_PANEL,
 )(pre_receive_command)
 
 # backward compatibility
 app.command(hidden=True, name='commit_history')(commit_history_command)
 app.command(hidden=True, name='pre_commit')(pre_commit_command)
+app.command(hidden=True, name='pre_push')(pre_push_command)
 app.command(hidden=True, name='pre_receive')(pre_receive_command)

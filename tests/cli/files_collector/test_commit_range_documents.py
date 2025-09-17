@@ -2,13 +2,18 @@ import os
 import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
+from io import StringIO
+from unittest.mock import Mock, patch
 
+import pytest
 from git import Repo
 
 from cycode.cli import consts
 from cycode.cli.files_collector.commit_range_documents import (
+    calculate_pre_push_commit_range,
     get_diff_file_path,
     get_safe_head_reference_for_diff,
+    parse_pre_push_input,
 )
 from cycode.cli.utils.path_utils import get_path_by_os
 
@@ -336,3 +341,273 @@ class TestGetDiffFilePath:
 
             result = get_diff_file_path(MockDiff(), repo=repo)
             assert result is None
+
+
+class TestParsePrePushInput:
+    """Test the parse_pre_push_input function with various pre-push hook input scenarios."""
+
+    def test_parse_single_push_input(self) -> None:
+        """Test parsing a single branch push input."""
+        pre_push_input = 'refs/heads/main 1234567890abcdef refs/heads/main 0987654321fedcba'
+
+        with patch('sys.stdin', StringIO(pre_push_input)):
+            result = parse_pre_push_input()
+            assert result == 'refs/heads/main 1234567890abcdef refs/heads/main 0987654321fedcba'
+
+    def test_parse_multiple_push_input_returns_first_line(self) -> None:
+        """Test parsing multiple branch push input returns only the first line."""
+        pre_push_input = """refs/heads/main 1234567890abcdef refs/heads/main 0987654321fedcba
+refs/heads/feature 1111111111111111 refs/heads/feature 2222222222222222"""
+
+        with patch('sys.stdin', StringIO(pre_push_input)):
+            result = parse_pre_push_input()
+            assert result == 'refs/heads/main 1234567890abcdef refs/heads/main 0987654321fedcba'
+
+    def test_parse_new_branch_push_input(self) -> None:
+        """Test parsing input for pushing a new branch (remote object name is all zeros)."""
+        pre_push_input = f'refs/heads/feature 1234567890abcdef refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+        with patch('sys.stdin', StringIO(pre_push_input)):
+            result = parse_pre_push_input()
+            assert result == pre_push_input
+
+    def test_parse_branch_deletion_input(self) -> None:
+        """Test parsing input for deleting a branch (local object name is all zeros)."""
+        pre_push_input = f'refs/heads/feature {consts.EMPTY_COMMIT_SHA} refs/heads/feature 1234567890abcdef'
+
+        with patch('sys.stdin', StringIO(pre_push_input)):
+            result = parse_pre_push_input()
+            assert result == pre_push_input
+
+    def test_parse_empty_input_raises_error(self) -> None:
+        """Test that empty input raises ValueError."""
+        with patch('sys.stdin', StringIO('')), pytest.raises(ValueError, match='Pre push input was not found'):
+            parse_pre_push_input()
+
+    def test_parse_whitespace_only_input_raises_error(self) -> None:
+        """Test that whitespace-only input raises ValueError."""
+        with patch('sys.stdin', StringIO('   \n\t  ')), pytest.raises(ValueError, match='Pre push input was not found'):
+            parse_pre_push_input()
+
+
+class TestCalculatePrePushCommitRange:
+    """Test the calculate_pre_push_commit_range function with various Git repository scenarios."""
+
+    def test_calculate_range_for_existing_branch_update(self) -> None:
+        """Test calculating commit range for updating an existing branch."""
+        push_details = 'refs/heads/main 1234567890abcdef refs/heads/main 0987654321fedcba'
+
+        result = calculate_pre_push_commit_range(push_details)
+        assert result == '0987654321fedcba..1234567890abcdef'
+
+    def test_calculate_range_for_branch_deletion_returns_none(self) -> None:
+        """Test that branch deletion returns None (no scanning needed)."""
+        push_details = f'refs/heads/feature {consts.EMPTY_COMMIT_SHA} refs/heads/feature 1234567890abcdef'
+
+        result = calculate_pre_push_commit_range(push_details)
+        assert result is None
+
+    def test_calculate_range_for_new_branch_with_merge_base(self) -> None:
+        """Test calculating commit range for a new branch when merge base is found."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create initial commit on main
+            test_file = os.path.join(temp_dir, 'main.py')
+            with open(test_file, 'w') as f:
+                f.write("print('main')")
+
+            repo.index.add(['main.py'])
+            main_commit = repo.index.commit('Initial commit on main')
+
+            # Create and switch to a feature branch
+            feature_branch = repo.create_head('feature')
+            feature_branch.checkout()
+
+            # Add commits to a feature branch
+            feature_file = os.path.join(temp_dir, 'feature.py')
+            with open(feature_file, 'w') as f:
+                f.write("print('feature')")
+
+            repo.index.add(['feature.py'])
+            feature_commit = repo.index.commit('Add feature')
+
+            # Switch back to master to simulate we're pushing a feature branch
+            repo.heads.master.checkout()
+
+            # Test new branch push
+            push_details = f'refs/heads/feature {feature_commit.hexsha} refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+            with patch('os.getcwd', return_value=temp_dir):
+                result = calculate_pre_push_commit_range(push_details)
+                assert result == f'{main_commit.hexsha}..{feature_commit.hexsha}'
+
+    def test_calculate_range_for_new_branch_no_merge_base_fallback_to_all(self) -> None:
+        """Test that when no merge base is found, it falls back to scanning all commits."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a single commit
+            test_file = os.path.join(temp_dir, 'test.py')
+            with open(test_file, 'w') as f:
+                f.write("print('test')")
+
+            repo.index.add(['test.py'])
+            commit = repo.index.commit('Initial commit')
+
+            # Test a new branch push with no default branch available
+            push_details = f'refs/heads/orphan {commit.hexsha} refs/heads/orphan {consts.EMPTY_COMMIT_SHA}'
+
+            # Create a mock repo with a git interface that always raises exceptions for merge_base
+            mock_repo = Mock()
+            mock_git = Mock()
+            mock_git.merge_base.side_effect = Exception('No merge base found')
+            mock_repo.git = mock_git
+
+            with (
+                patch('os.getcwd', return_value=temp_dir),
+                patch('cycode.cli.files_collector.commit_range_documents.git_proxy.get_repo', return_value=mock_repo),
+            ):
+                result = calculate_pre_push_commit_range(push_details)
+                # Should fallback to --all when no merge base is found
+                assert result == '--all'
+
+    def test_calculate_range_with_origin_main_as_merge_base(self) -> None:
+        """Test calculating commit range using origin/main as merge base."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create the main branch with commits
+            main_file = os.path.join(temp_dir, 'main.py')
+            with open(main_file, 'w') as f:
+                f.write("print('main')")
+
+            repo.index.add(['main.py'])
+            main_commit = repo.index.commit('Main commit')
+
+            # Create origin/main reference (simulating a remote)
+            repo.create_head('origin/main', main_commit)
+
+            # Create feature branch from main
+            feature_branch = repo.create_head('feature', main_commit)
+            feature_branch.checkout()
+
+            # Add feature commits
+            feature_file = os.path.join(temp_dir, 'feature.py')
+            with open(feature_file, 'w') as f:
+                f.write("print('feature')")
+
+            repo.index.add(['feature.py'])
+            feature_commit = repo.index.commit('Feature commit')
+
+            # Test new branch push
+            push_details = f'refs/heads/feature {feature_commit.hexsha} refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+            with patch('os.getcwd', return_value=temp_dir):
+                result = calculate_pre_push_commit_range(push_details)
+                assert result == f'{main_commit.hexsha}..{feature_commit.hexsha}'
+
+    def test_calculate_range_with_origin_master_as_merge_base(self) -> None:
+        """Test calculating commit range using origin/master as a merge base."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a main branch with commits
+            master_file = os.path.join(temp_dir, 'master.py')
+            with open(master_file, 'w') as f:
+                f.write("print('master')")
+
+            repo.index.add(['master.py'])
+            master_commit = repo.index.commit('Master commit')
+
+            # Create origin/master (master branch already exists by default)
+            repo.create_head('origin/master', master_commit)
+
+            # Create a feature branch
+            feature_branch = repo.create_head('feature', master_commit)
+            feature_branch.checkout()
+
+            # Add feature commits
+            feature_file = os.path.join(temp_dir, 'feature.py')
+            with open(feature_file, 'w') as f:
+                f.write("print('feature')")
+
+            repo.index.add(['feature.py'])
+            feature_commit = repo.index.commit('Feature commit')
+
+            # Test new branch push
+            push_details = f'refs/heads/feature {feature_commit.hexsha} refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+            with patch('os.getcwd', return_value=temp_dir):
+                result = calculate_pre_push_commit_range(push_details)
+                assert result == f'{master_commit.hexsha}..{feature_commit.hexsha}'
+
+    def test_calculate_range_exception_handling_fallback_to_all(self) -> None:
+        """Test that exceptions during Git repository access fall back to --all."""
+        push_details = f'refs/heads/feature 1234567890abcdef refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+        # Mock git_proxy.get_repo to raise an exception and capture the exception handling
+        with patch('cycode.cli.files_collector.commit_range_documents.git_proxy.get_repo') as mock_get_repo:
+            mock_get_repo.side_effect = Exception('Test exception')
+            result = calculate_pre_push_commit_range(push_details)
+            assert result == '--all'
+
+    def test_calculate_range_parsing_push_details(self) -> None:
+        """Test that push details are correctly parsed into components."""
+        # Test with standard format
+        push_details = 'refs/heads/feature abc123def456 refs/heads/feature 789xyz456abc'
+
+        result = calculate_pre_push_commit_range(push_details)
+        assert result == '789xyz456abc..abc123def456'
+
+    def test_calculate_range_with_tags(self) -> None:
+        """Test calculating commit range when pushing tags."""
+        push_details = f'refs/tags/v1.0.0 1234567890abcdef refs/tags/v1.0.0 {consts.EMPTY_COMMIT_SHA}'
+
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a commit
+            test_file = os.path.join(temp_dir, 'test.py')
+            with open(test_file, 'w') as f:
+                f.write("print('test')")
+
+            repo.index.add(['test.py'])
+            commit = repo.index.commit('Test commit')
+
+            # Create tag
+            repo.create_tag('v1.0.0', commit)
+
+            with patch('os.getcwd', return_value=temp_dir):
+                result = calculate_pre_push_commit_range(push_details)
+                # For new tags, should try to find a merge base or fall back to --all
+                assert result in [f'{commit.hexsha}..{commit.hexsha}', '--all']
+
+
+class TestPrePushHookIntegration:
+    """Integration tests for pre-push hook functionality."""
+
+    def test_simulate_pre_push_hook_input_format(self) -> None:
+        """Test that our parsing handles the actual format Git sends to pre-push hooks."""
+        # Simulate the exact format Git sends to pre-push hooks
+        test_cases = [
+            # Standard branch push
+            'refs/heads/main 67890abcdef12345 refs/heads/main 12345abcdef67890',
+            # New branch push
+            f'refs/heads/feature 67890abcdef12345 refs/heads/feature {consts.EMPTY_COMMIT_SHA}',
+            # Branch deletion
+            f'refs/heads/old-feature {consts.EMPTY_COMMIT_SHA} refs/heads/old-feature 12345abcdef67890',
+            # Tag push
+            f'refs/tags/v1.0.0 67890abcdef12345 refs/tags/v1.0.0 {consts.EMPTY_COMMIT_SHA}',
+        ]
+
+        for push_input in test_cases:
+            with patch('sys.stdin', StringIO(push_input)):
+                parsed = parse_pre_push_input()
+                assert parsed == push_input
+
+                # Test that we can calculate the commit range for each case
+                commit_range = calculate_pre_push_commit_range(parsed)
+
+                if consts.EMPTY_COMMIT_SHA in push_input:
+                    if push_input.startswith('refs/heads/') and push_input.split()[1] == consts.EMPTY_COMMIT_SHA:
+                        # Branch deletion - should return None
+                        assert commit_range is None
+                    else:
+                        # New branch/tag - should return a range or --all
+                        assert commit_range is not None
+                else:
+                    # Regular update - should return proper range
+                    parts = push_input.split()
+                    expected_range = f'{parts[3]}..{parts[1]}'
+                    assert commit_range == expected_range
