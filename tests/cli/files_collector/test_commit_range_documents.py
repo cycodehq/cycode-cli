@@ -10,6 +10,7 @@ from git import Repo
 
 from cycode.cli import consts
 from cycode.cli.files_collector.commit_range_documents import (
+    _get_default_branches_for_merge_base,
     calculate_pre_push_commit_range,
     get_diff_file_path,
     get_safe_head_reference_for_diff,
@@ -390,6 +391,114 @@ refs/heads/feature 1111111111111111 refs/heads/feature 2222222222222222"""
             parse_pre_push_input()
 
 
+class TestGetDefaultBranchesForMergeBase:
+    """Test the _get_default_branches_for_merge_base function with various scenarios."""
+
+    def test_environment_variable_override(self) -> None:
+        """Test that the environment variable takes precedence."""
+        with (
+            temporary_git_repository() as (temp_dir, repo),
+            patch.dict(os.environ, {consts.CYCODE_DEFAULT_BRANCH_ENV_VAR_NAME: 'custom-main'}),
+        ):
+            branches = _get_default_branches_for_merge_base(repo)
+            assert branches[0] == 'custom-main'
+            assert 'origin/main' in branches  # Fallbacks should still be included
+
+    def test_git_symbolic_ref_success(self) -> None:
+        """Test getting default branch via git symbolic-ref."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a mock repo with a git interface that returns origin/main
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/main'
+
+            branches = _get_default_branches_for_merge_base(mock_repo)
+            assert 'origin/main' in branches
+            assert 'main' in branches
+
+    def test_git_symbolic_ref_with_master(self) -> None:
+        """Test getting default branch via git symbolic-ref when it's master."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a mock repo with a git interface that returns origin/master
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/master'
+
+            branches = _get_default_branches_for_merge_base(mock_repo)
+            assert 'origin/master' in branches
+            assert 'master' in branches
+
+    def test_git_remote_show_fallback(self) -> None:
+        """Test fallback to git remote show when symbolic-ref fails."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a mock repo where symbolic-ref fails but the remote show succeeds
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.side_effect = Exception('symbolic-ref failed')
+            remote_output = """* remote origin
+  Fetch URL: https://github.com/user/repo.git
+  Push  URL: https://github.com/user/repo.git
+  HEAD branch: develop
+  Remote branches:
+    develop tracked
+    main    tracked"""
+            mock_repo.git.remote.return_value = remote_output
+
+            branches = _get_default_branches_for_merge_base(mock_repo)
+            assert 'origin/develop' in branches
+            assert 'develop' in branches
+
+    def test_both_git_methods_fail_fallback_to_hardcoded(self) -> None:
+        """Test fallback to hardcoded branches when both Git methods fail."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a mock repo where both Git methods fail
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.side_effect = Exception('symbolic-ref failed')
+            mock_repo.git.remote.side_effect = Exception('remote show failed')
+
+            branches = _get_default_branches_for_merge_base(mock_repo)
+            # Should contain fallback branches
+            assert 'origin/main' in branches
+            assert 'origin/master' in branches
+            assert 'main' in branches
+            assert 'master' in branches
+
+    def test_no_duplicates_in_branch_list(self) -> None:
+        """Test that duplicate branches are not added to the list."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a mock repo that returns main (which is also in fallback list)
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/main'
+
+            branches = _get_default_branches_for_merge_base(mock_repo)
+            # Count occurrences of origin/main - should be exactly 1
+            assert branches.count('origin/main') == 1
+            assert branches.count('main') == 1
+
+    def test_env_var_plus_git_detection(self) -> None:
+        """Test combination of environment variable and git detection."""
+        with temporary_git_repository() as (temp_dir, repo):
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/develop'
+
+            with patch.dict(os.environ, {consts.CYCODE_DEFAULT_BRANCH_ENV_VAR_NAME: 'origin/custom'}):
+                branches = _get_default_branches_for_merge_base(mock_repo)
+                # Env var should be first
+                assert branches[0] == 'origin/custom'
+                # Git detected branches should also be present
+                assert 'origin/develop' in branches
+                assert 'develop' in branches
+
+    def test_malformed_symbolic_ref_response(self) -> None:
+        """Test handling of malformed symbolic-ref response."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a mock repo that returns a malformed response
+            mock_repo = Mock()
+            mock_repo.git.symbolic_ref.return_value = 'malformed-response'
+
+            branches = _get_default_branches_for_merge_base(mock_repo)
+            # Should fall back to hardcoded branches
+            assert 'origin/main' in branches
+            assert 'origin/master' in branches
+
+
 class TestCalculatePrePushCommitRange:
     """Test the calculate_pre_push_commit_range function with various Git repository scenarios."""
 
@@ -500,6 +609,91 @@ class TestCalculatePrePushCommitRange:
             with patch('os.getcwd', return_value=temp_dir):
                 result = calculate_pre_push_commit_range(push_details)
                 assert result == f'{main_commit.hexsha}..{feature_commit.hexsha}'
+
+    def test_calculate_range_with_environment_variable_override(self) -> None:
+        """Test that environment variable override works for commit range calculation."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create custom default branch
+            custom_file = os.path.join(temp_dir, 'custom.py')
+            with open(custom_file, 'w') as f:
+                f.write("print('custom')")
+
+            repo.index.add(['custom.py'])
+            custom_commit = repo.index.commit('Custom branch commit')
+
+            # Create a custom branch
+            repo.create_head('custom-main', custom_commit)
+
+            # Create a feature branch from custom
+            feature_branch = repo.create_head('feature', custom_commit)
+            feature_branch.checkout()
+
+            # Add feature commits
+            feature_file = os.path.join(temp_dir, 'feature.py')
+            with open(feature_file, 'w') as f:
+                f.write("print('feature')")
+
+            repo.index.add(['feature.py'])
+            feature_commit = repo.index.commit('Feature commit')
+
+            # Test new branch push with custom default branch
+            push_details = f'refs/heads/feature {feature_commit.hexsha} refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+            with (
+                patch('os.getcwd', return_value=temp_dir),
+                patch.dict(os.environ, {consts.CYCODE_DEFAULT_BRANCH_ENV_VAR_NAME: 'custom-main'}),
+            ):
+                result = calculate_pre_push_commit_range(push_details)
+                assert result == f'{custom_commit.hexsha}..{feature_commit.hexsha}'
+
+    def test_calculate_range_with_git_symbolic_ref_detection(self) -> None:
+        """Test commit range calculation with Git symbolic-ref detection."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create develop branch and commits
+            develop_file = os.path.join(temp_dir, 'develop.py')
+            with open(develop_file, 'w') as f:
+                f.write("print('develop')")
+
+            repo.index.add(['develop.py'])
+            develop_commit = repo.index.commit('Develop commit')
+
+            # Create origin/develop reference
+            repo.create_head('origin/develop', develop_commit)
+            repo.create_head('develop', develop_commit)
+
+            # Create a feature branch
+            feature_branch = repo.create_head('feature', develop_commit)
+            feature_branch.checkout()
+
+            # Add feature commits
+            feature_file = os.path.join(temp_dir, 'feature.py')
+            with open(feature_file, 'w') as f:
+                f.write("print('feature')")
+
+            repo.index.add(['feature.py'])
+            feature_commit = repo.index.commit('Feature commit')
+
+            # Test a new branch push with mocked default branch detection
+            push_details = f'refs/heads/feature {feature_commit.hexsha} refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
+
+            # # Mock the default branch detection to return origin/develop first
+            with (
+                patch('os.getcwd', return_value=temp_dir),
+                patch(
+                    'cycode.cli.files_collector.commit_range_documents._get_default_branches_for_merge_base'
+                ) as mock_get_branches,
+            ):
+                mock_get_branches.return_value = [
+                    'origin/develop',
+                    'develop',
+                    'origin/main',
+                    'main',
+                    'origin/master',
+                    'master',
+                ]
+                with patch('cycode.cli.files_collector.commit_range_documents.git_proxy.get_repo', return_value=repo):
+                    result = calculate_pre_push_commit_range(push_details)
+                    assert result == f'{develop_commit.hexsha}..{feature_commit.hexsha}'
 
     def test_calculate_range_with_origin_master_as_merge_base(self) -> None:
         """Test calculating commit range using origin/master as a merge base."""

@@ -888,6 +888,22 @@ The pre-push hook:
 - For existing branches: scans only the new commits since the last push
 - Runs the same comprehensive scanning as other Cycode scan modes
 
+#### Smart Default Branch Detection
+
+The pre-push hook intelligently detects the default branch for merge base calculation using this priority order:
+
+1. **Environment Variable**: `CYCODE_DEFAULT_BRANCH` - allows manual override
+2. **Git Remote HEAD**: Uses `git symbolic-ref refs/remotes/origin/HEAD` to detect the actual remote default branch
+3. **Git Remote Info**: Falls back to `git remote show origin` if symbolic-ref fails
+4. **Hardcoded Fallbacks**: Uses common default branch names (origin/main, origin/master, main, master)
+
+**Setting a Custom Default Branch:**
+```bash
+export CYCODE_DEFAULT_BRANCH=origin/develop
+```
+
+This smart detection ensures the pre-push hook works correctly regardless of whether your repository uses `main`, `master`, `develop`, or any other default branch name.
+
 #### Skipping Pre-Push Scans
 
 To skip the pre-push scan for a specific push operation, use:

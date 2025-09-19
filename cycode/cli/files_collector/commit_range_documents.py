@@ -232,6 +232,62 @@ def parse_pre_push_input() -> str:
     return pre_push_input.splitlines()[0]
 
 
+def _get_default_branches_for_merge_base(repo: 'Repo') -> list[str]:
+    """Get a list of default branches to try for merge base calculation.
+
+    Priority order:
+    1. Environment variable CYCODE_DEFAULT_BRANCH
+    2. Git remote HEAD (git symbolic-ref refs/remotes/origin/HEAD)
+    3. Fallback to common default branch names
+
+    Args:
+        repo: Git repository object
+
+    Returns:
+        List of branch names to try for merge base calculation
+    """
+    default_branches = []
+
+    # 1. Check environment variable first
+    env_default_branch = os.getenv(consts.CYCODE_DEFAULT_BRANCH_ENV_VAR_NAME)
+    if env_default_branch:
+        logger.debug('Using default branch from environment variable: %s', env_default_branch)
+        default_branches.append(env_default_branch)
+
+    # 2. Try to get the actual default branch from remote HEAD
+    try:
+        remote_head = repo.git.symbolic_ref('refs/remotes/origin/HEAD')
+        # symbolic-ref returns something like "refs/remotes/origin/main"
+        if remote_head.startswith('refs/remotes/origin/'):
+            default_branch = remote_head.replace('refs/remotes/origin/', '')
+            logger.debug('Found remote default branch: %s', default_branch)
+            # Add both the remote tracking branch and local branch variants
+            default_branches.extend([f'origin/{default_branch}', default_branch])
+    except Exception as e:
+        logger.debug('Failed to get remote HEAD via symbolic-ref: %s', exc_info=e)
+
+        # Try an alternative method: git remote show origin
+        try:
+            remote_info = repo.git.remote('show', 'origin')
+            for line in remote_info.splitlines():
+                if 'HEAD branch:' in line:
+                    default_branch = line.split('HEAD branch:')[1].strip()
+                    logger.debug('Found default branch via remote show: %s', default_branch)
+                    default_branches.extend([f'origin/{default_branch}', default_branch])
+                    break
+        except Exception as e2:
+            logger.debug('Failed to get remote info via remote show: %s', exc_info=e2)
+
+    # 3. Add fallback branches (avoiding duplicates)
+    fallback_branches = ['origin/main', 'origin/master', 'main', 'master']
+    for branch in fallback_branches:
+        if branch not in default_branches:
+            default_branches.append(branch)
+
+    logger.debug('Default branches to try: %s', default_branches)
+    return default_branches
+
+
 def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
     """Calculate the commit range for pre-push hook scanning.
 
@@ -240,18 +296,22 @@ def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
 
     Returns:
         Commit range string for scanning, or None if no scanning is needed
+
+    Environment Variables:
+        CYCODE_DEFAULT_BRANCH: Override the default branch for merge base calculation
     """
     local_ref, local_object_name, remote_ref, remote_object_name = push_update_details.split()
 
     if remote_object_name == consts.EMPTY_COMMIT_SHA:
         try:
             repo = git_proxy.get_repo(os.getcwd())
-            default_branches = ['origin/main', 'origin/master', 'main', 'master']
+            default_branches = _get_default_branches_for_merge_base(repo)
 
             merge_base = None
             for default_branch in default_branches:
                 try:
                     merge_base = repo.git.merge_base(local_object_name, default_branch)
+                    logger.debug('Found merge base %s with branch %s', merge_base, default_branch)
                     break
                 except Exception as e:
                     logger.debug('Failed to find merge base with %s: %s', default_branch, exc_info=e)
