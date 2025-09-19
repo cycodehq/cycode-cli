@@ -37,6 +37,7 @@ This guide walks you through both installation and usage.
         4. [Commit History Scan](#commit-history-scan)
             1. [Commit Range Option (Diff Scanning)](#commit-range-option-diff-scanning)
         5. [Pre-Commit Scan](#pre-commit-scan)
+        6. [Pre-Push Scan](#pre-push-scan)
     2. [Scan Results](#scan-results)
         1. [Show/Hide Secrets](#showhide-secrets)
         2. [Soft Fail](#soft-fail)
@@ -213,12 +214,14 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
 ## Install Pre-Commit Hook
 
-Cycode’s pre-commit hook can be set up within your local repository so that the Cycode CLI application will identify any issues with your code automatically before you commit it to your codebase.
+Cycode's pre-commit and pre-push hooks can be set up within your local repository so that the Cycode CLI application will identify any issues with your code automatically before you commit or push it to your codebase.
 
 > [!NOTE]
-> pre-commit hook is not available for IaC scans.
+> pre-commit and pre-push hooks are not available for IaC scans.
 
 Perform the following steps to install the pre-commit hook:
+
+### Installing Pre-Commit Hook
 
 1. Install the pre-commit framework (Python 3.9 or higher must be installed):
 
@@ -233,11 +236,10 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.4.2
+        rev: v3.5.0
         hooks:
           - id: cycode
-            stages:
-              - pre-commit
+            stages: [pre-commit]
     ```
 
 4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. Use hook ID `cycode-sast` to enable SAST scan. If you want to enable all scanning types, use this configuration:
@@ -245,17 +247,14 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.4.2
+        rev: v3.5.0
         hooks:
           - id: cycode
-            stages:
-              - pre-commit
+            stages: [pre-commit]
           - id: cycode-sca
-            stages:
-              - pre-commit
+            stages: [pre-commit]
           - id: cycode-sast
-            stages:
-              - pre-commit
+            stages: [pre-commit]
     ```
 
 5. Install Cycode’s hook:
@@ -277,6 +276,37 @@ Perform the following steps to install the pre-commit hook:
 > [!NOTE]
 > Trigger happens on `git commit` command.
 > Hook triggers only on the files that are staged for commit.
+
+### Installing Pre-Push Hook
+
+To install the pre-push hook in addition to or instead of the pre-commit hook:
+
+1. Add the pre-push hooks to your `.pre-commit-config.yaml` file:
+
+   ```yaml
+   repos:
+     - repo: https://github.com/cycodehq/cycode-cli
+       rev: v3.5.0
+       hooks:
+         - id: cycode-pre-push
+           stages: [pre-push]
+   ```
+
+2. Install the pre-push hook:
+
+   ```bash
+   pre-commit install --hook-type pre-push
+   ```
+
+3. For both pre-commit and pre-push hooks, use:
+
+   ```bash
+   pre-commit install
+   pre-commit install --hook-type pre-push
+   ```
+
+> [!NOTE]
+> Pre-push hooks trigger on `git push` command and scan only the commits about to be pushed.
 
 # Cycode CLI Commands
 
@@ -785,6 +815,107 @@ After installing the pre-commit hook, you may occasionally wish to skip scanning
 ```bash
 SKIP=cycode git commit -m <your commit message>`
 ```
+
+### Pre-Push Scan
+
+A pre-push scan automatically identifies any issues before you push changes to the remote repository. This hook runs on the client side and scans only the commits that are about to be pushed, making it efficient for catching issues before they reach the remote repository.
+
+> [!NOTE]
+> Pre-push hook is not available for IaC scans.
+
+The pre-push hook integrates with the pre-commit framework and can be configured to run before any `git push` operation.
+
+#### Installing Pre-Push Hook
+
+To set up the pre-push hook using the pre-commit framework:
+
+1. Install the pre-commit framework (if not already installed):
+
+   ```bash
+   pip3 install pre-commit
+   ```
+
+2. Create or update your `.pre-commit-config.yaml` file to include the pre-push hooks:
+
+   ```yaml
+   repos:
+     - repo: https://github.com/cycodehq/cycode-cli
+       rev: v3.5.0
+       hooks:
+         - id: cycode-pre-push
+           stages: [pre-push]
+   ```
+
+3. For multiple scan types, use this configuration:
+
+   ```yaml
+   repos:
+     - repo: https://github.com/cycodehq/cycode-cli
+       rev: v3.5.0
+       hooks:
+         - id: cycode-pre-push          # Secrets scan
+           stages: [pre-push]
+         - id: cycode-sca-pre-push      # SCA scan
+           stages: [pre-push]
+         - id: cycode-sast-pre-push     # SAST scan
+           stages: [pre-push]
+   ```
+
+4. Install the pre-push hook:
+
+   ```bash
+   pre-commit install --hook-type pre-push
+   ```
+
+   A successful installation will result in the message: `Pre-push installed at .git/hooks/pre-push`.
+
+5. Keep the pre-push hook up to date:
+
+   ```bash
+   pre-commit autoupdate
+   ```
+
+#### How Pre-Push Scanning Works
+
+The pre-push hook:
+- Receives information about what commits are being pushed
+- Calculates the appropriate commit range to scan
+- For new branches: scans all commits from the merge base with the default branch
+- For existing branches: scans only the new commits since the last push
+- Runs the same comprehensive scanning as other Cycode scan modes
+
+#### Smart Default Branch Detection
+
+The pre-push hook intelligently detects the default branch for merge base calculation using this priority order:
+
+1. **Environment Variable**: `CYCODE_DEFAULT_BRANCH` - allows manual override
+2. **Git Remote HEAD**: Uses `git symbolic-ref refs/remotes/origin/HEAD` to detect the actual remote default branch
+3. **Git Remote Info**: Falls back to `git remote show origin` if symbolic-ref fails
+4. **Hardcoded Fallbacks**: Uses common default branch names (origin/main, origin/master, main, master)
+
+**Setting a Custom Default Branch:**
+```bash
+export CYCODE_DEFAULT_BRANCH=origin/develop
+```
+
+This smart detection ensures the pre-push hook works correctly regardless of whether your repository uses `main`, `master`, `develop`, or any other default branch name.
+
+#### Skipping Pre-Push Scans
+
+To skip the pre-push scan for a specific push operation, use:
+
+```bash
+SKIP=cycode-pre-push git push
+```
+
+Or to skip all pre-push hooks:
+
+```bash
+git push --no-verify
+```
+
+> [!TIP]
+> The pre-push hook is triggered on `git push` command and scans only the commits that are about to be pushed, making it more efficient than scanning the entire repository.
 
 ## Scan Results
 

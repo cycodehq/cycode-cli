@@ -135,10 +135,10 @@ class ConfigurationManager:
             )
         )
 
-    def get_pre_receive_max_commits_to_scan_count(self, command_scan_type: str) -> int:
-        max_commits = self._get_value_from_environment_variables(
-            consts.PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME
-        )
+    def _get_git_hook_max_commits_to_scan_count(
+        self, command_scan_type: str, env_var_name: str, default_count: int
+    ) -> int:
+        max_commits = self._get_value_from_environment_variables(env_var_name)
         if max_commits is not None:
             return int(max_commits)
 
@@ -150,10 +150,24 @@ class ConfigurationManager:
         if max_commits is not None:
             return max_commits
 
-        return consts.DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT
+        return default_count
 
-    def get_pre_receive_command_timeout(self, command_scan_type: str) -> int:
-        command_timeout = self._get_value_from_environment_variables(consts.PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME)
+    def get_pre_receive_max_commits_to_scan_count(self, command_scan_type: str) -> int:
+        return self._get_git_hook_max_commits_to_scan_count(
+            command_scan_type,
+            consts.PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME,
+            consts.DEFAULT_PRE_RECEIVE_MAX_COMMITS_TO_SCAN_COUNT,
+        )
+
+    def get_pre_push_max_commits_to_scan_count(self, command_scan_type: str) -> int:
+        return self._get_git_hook_max_commits_to_scan_count(
+            command_scan_type,
+            consts.PRE_PUSH_MAX_COMMITS_TO_SCAN_COUNT_ENV_VAR_NAME,
+            consts.DEFAULT_PRE_PUSH_MAX_COMMITS_TO_SCAN_COUNT,
+        )
+
+    def _get_git_hook_command_timeout(self, command_scan_type: str, env_var_name: str, default_timeout: int) -> int:
+        command_timeout = self._get_value_from_environment_variables(env_var_name)
         if command_timeout is not None:
             return int(command_timeout)
 
@@ -165,7 +179,21 @@ class ConfigurationManager:
         if command_timeout is not None:
             return command_timeout
 
-        return consts.DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS
+        return default_timeout
+
+    def get_pre_receive_command_timeout(self, command_scan_type: str) -> int:
+        return self._get_git_hook_command_timeout(
+            command_scan_type,
+            consts.PRE_RECEIVE_COMMAND_TIMEOUT_ENV_VAR_NAME,
+            consts.DEFAULT_PRE_RECEIVE_COMMAND_TIMEOUT_IN_SECONDS,
+        )
+
+    def get_pre_push_command_timeout(self, command_scan_type: str) -> int:
+        return self._get_git_hook_command_timeout(
+            command_scan_type,
+            consts.PRE_PUSH_COMMAND_TIMEOUT_ENV_VAR_NAME,
+            consts.DEFAULT_PRE_PUSH_COMMAND_TIMEOUT_IN_SECONDS,
+        )
 
     def get_should_exclude_detections_in_deleted_lines(self, command_scan_type: str) -> bool:
         exclude_detections_in_deleted_lines = self._get_value_from_environment_variables(

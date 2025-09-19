@@ -16,3 +16,24 @@
   language_version: python3
   entry: cycode
   args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sast', 'pre-commit' ]
+- id: cycode-pre-push
+  name: Cycode Secrets pre-push defender
+  language: python
+  language_version: python3
+  entry: cycode
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'secret', 'pre-push' ]
+  stages: [pre-push]
+- id: cycode-sca-pre-push
+  name: Cycode SCA pre-push defender
+  language: python
+  language_version: python3
+  entry: cycode
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sca', 'pre-push' ]
+  stages: [pre-push]
+- id: cycode-sast-pre-push
+  name: Cycode SAST pre-push defender
+  language: python
+  language_version: python3
+  entry: cycode
+  args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sast', 'pre-push' ]
+  stages: [pre-push]

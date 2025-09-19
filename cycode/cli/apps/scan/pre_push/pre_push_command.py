@@ -14,8 +14,8 @@ from cycode.cli.config import configuration_manager
 from cycode.cli.console import console
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.commit_range_documents import (
-    calculate_pre_receive_commit_range,
-    parse_pre_receive_input,
+    calculate_pre_push_commit_range,
+    parse_pre_push_input,
 )
 from cycode.cli.logger import logger
 from cycode.cli.utils import scan_utils
@@ -24,12 +24,12 @@ from cycode.cli.utils.task_timer import TimeoutAfter
 from cycode.logger import set_logging_level
 
 
-def pre_receive_command(
+def pre_push_command(
     ctx: typer.Context,
     _: Annotated[Optional[list[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
 ) -> None:
     try:
-        add_breadcrumb('pre_receive')
+        add_breadcrumb('pre_push')
 
         if should_skip_pre_receive_scan():
             logger.info(
@@ -44,14 +44,14 @@ def pre_receive_command(
             logger.debug('Verbose mode enabled: all log levels will be displayed.')
 
         command_scan_type = ctx.info_name
-        timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
+        timeout = configuration_manager.get_pre_push_command_timeout(command_scan_type)
         with TimeoutAfter(timeout):
-            branch_update_details = parse_pre_receive_input()
-            commit_range = calculate_pre_receive_commit_range(branch_update_details)
+            push_update_details = parse_pre_push_input()
+            commit_range = calculate_pre_push_commit_range(push_update_details)
             if not commit_range:
                 logger.info(
                     'No new commits found for pushed branch, %s',
-                    {'branch_update_details': branch_update_details},
+                    {'push_update_details': push_update_details},
                 )
                 return
 
@@ -59,7 +59,7 @@ def pre_receive_command(
                 ctx=ctx,
                 repo_path=os.getcwd(),
                 commit_range=commit_range,
-                max_commits_count=configuration_manager.get_pre_receive_max_commits_to_scan_count(command_scan_type),
+                max_commits_count=configuration_manager.get_pre_push_max_commits_to_scan_count(command_scan_type),
             )
 
             if scan_utils.is_scan_failed(ctx):
