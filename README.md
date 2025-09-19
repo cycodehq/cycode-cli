@@ -236,11 +236,10 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.4.2
+        rev: v3.5.0
         hooks:
           - id: cycode
-            stages:
-              - pre-commit
+            stages: [pre-commit]
     ```
 
 4. Modify the created file for your specific needs. Use hook ID `cycode` to enable scan for Secrets. Use hook ID `cycode-sca` to enable SCA scan. Use hook ID `cycode-sast` to enable SAST scan. If you want to enable all scanning types, use this configuration:
@@ -248,17 +247,14 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.4.2
+        rev: v3.5.0
         hooks:
           - id: cycode
-            stages:
-              - pre-commit
+            stages: [pre-commit]
           - id: cycode-sca
-            stages:
-              - pre-commit
+            stages: [pre-commit]
           - id: cycode-sast
-            stages:
-              - pre-commit
+            stages: [pre-commit]
     ```
 
 5. Install Cycode’s hook:
@@ -290,7 +286,7 @@ To install the pre-push hook in addition to or instead of the pre-commit hook:
    ```yaml
    repos:
      - repo: https://github.com/cycodehq/cycode-cli
-       rev: v3.4.2
+       rev: v3.5.0
        hooks:
          - id: cycode-pre-push
            stages: [pre-push]
@@ -844,7 +840,7 @@ To set up the pre-push hook using the pre-commit framework:
    ```yaml
    repos:
      - repo: https://github.com/cycodehq/cycode-cli
-       rev: v3.4.2
+       rev: v3.5.0
        hooks:
          - id: cycode-pre-push
            stages: [pre-push]
@@ -855,7 +851,7 @@ To set up the pre-push hook using the pre-commit framework:
    ```yaml
    repos:
      - repo: https://github.com/cycodehq/cycode-cli
-       rev: v3.4.2
+       rev: v3.5.0
        hooks:
          - id: cycode-pre-push          # Secrets scan
            stages: [pre-push]
