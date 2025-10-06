@@ -4,7 +4,7 @@ from collections.abc import Generator, Iterable
 from cycode.cli.logger import get_logger
 from cycode.cli.utils.ignore_utils import IgnoreFilterManager
 
-logger = get_logger('File Ignore')
+logger = get_logger('Ignores')
 
 _SUPPORTED_IGNORE_PATTERN_FILES = {
     '.gitignore',
@@ -43,15 +43,17 @@ def walk_ignore(path: str) -> Generator[tuple[str, list[str], list[str]], None, 
         global_ignore_file_paths=_collect_top_level_ignore_files(path),
         global_patterns=_DEFAULT_GLOBAL_IGNORE_PATTERNS,
     )
-
     for dirpath, dirnames, filenames, ignored_dirnames, ignored_filenames in ignore_filter_manager.walk_with_ignored():
         rel_dirpath = '' if dirpath == path else os.path.relpath(dirpath, path)
         display_dir = rel_dirpath or '.'
-        for kind, names in (
-            ('directory', ignored_dirnames),
-            ('file', ignored_filenames),
+        for is_dir, names in (
+            (True, ignored_dirnames),
+            (False, ignored_filenames),
         ):
             for name in names:
-                logger.debug('Skipping matched %s %s/%s', kind, display_dir, name)
+                full_path = os.path.join(path, display_dir, name)
+                if is_dir:
+                    full_path = os.path.join(full_path, '*')
+                logger.debug('Ignoring match %s', full_path)
 
         yield dirpath, dirnames, filenames
