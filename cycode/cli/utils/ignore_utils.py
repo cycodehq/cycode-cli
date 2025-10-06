@@ -388,19 +388,38 @@ class IgnoreFilterManager:
             return matches[-1].is_exclude
         return None
 
-    def walk(self, **kwargs) -> Generator[tuple[str, list[str], list[str]], None, None]:
-        """Wrap os.walk() without ignored files and subdirectories and kwargs are passed to walk."""
+    def walk_with_ignored(
+        self, **kwargs
+    ) -> Generator[tuple[str, list[str], list[str], list[str], list[str]], None, None]:
+        """Wrap os.walk() and also return lists of ignored directories and files.
+
+        Yields tuples: (dirpath, included_dirnames, included_filenames, ignored_dirnames, ignored_filenames)
+        """
         for dirpath, dirnames, filenames in os.walk(self.path, topdown=True, **kwargs):
             rel_dirpath = '' if dirpath == self.path else os.path.relpath(dirpath, self.path)
 
+            original_dirnames = list(dirnames)
+            included_dirnames = []
+            ignored_dirnames = []
+            for d in original_dirnames:
+                if self.is_ignored(os.path.join(rel_dirpath, d)):
+                    ignored_dirnames.append(d)
+                else:
+                    included_dirnames.append(d)
+
             # decrease recursion depth of os.walk() by ignoring subdirectories because of topdown=True
             # slicing ([:]) is mandatory to change dict in-place!
-            dirnames[:] = [d for d in dirnames if not self.is_ignored(os.path.join(rel_dirpath, d))]
+            dirnames[:] = included_dirnames
 
-            # remove ignored files
-            filenames = [f for f in filenames if not self.is_ignored(os.path.join(rel_dirpath, f))]
+            included_filenames = []
+            ignored_filenames = []
+            for f in filenames:
+                if self.is_ignored(os.path.join(rel_dirpath, f)):
+                    ignored_filenames.append(f)
+                else:
+                    included_filenames.append(f)
 
-            yield dirpath, dirnames, filenames
+            yield dirpath, dirnames, included_filenames, ignored_dirnames, ignored_filenames
 
     @classmethod
     def build(
