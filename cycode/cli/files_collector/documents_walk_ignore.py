@@ -118,6 +118,8 @@ def filter_documents_with_cycodeignore(
     if not os.path.exists(cycodeignore_path):
         return documents
     
+    logger.info('Using %s for filtering documents', cycodeignore_path)
+    
     ignore_filter_manager = _create_ignore_filter_manager(repo_path, cycodeignore_path)
     
     allowed_paths = _build_allowed_paths_set(ignore_filter_manager, repo_path)
