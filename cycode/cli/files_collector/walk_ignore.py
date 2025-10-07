@@ -1,6 +1,8 @@
 import os
 from collections.abc import Generator, Iterable
+from typing import TYPE_CHECKING
 
+from cycode.cli import consts
 from cycode.cli.logger import get_logger
 from cycode.cli.utils.ignore_utils import IgnoreFilterManager
 
@@ -8,7 +10,7 @@ logger = get_logger('Ignores')
 
 _SUPPORTED_IGNORE_PATTERN_FILES = {
     '.gitignore',
-    '.cycodeignore',
+    consts.CYCODEIGNORE_FILENAME,
 }
 _DEFAULT_GLOBAL_IGNORE_PATTERNS = [
     '.git',
