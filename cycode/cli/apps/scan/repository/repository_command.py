@@ -16,6 +16,7 @@ from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
+from cycode.cli.utils.scan_utils import is_cycodeignore_allowed_by_scan_config
 from cycode.cli.utils.sentry import add_breadcrumb
 
 
@@ -61,7 +62,8 @@ def repository_command(
 
         documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
         
-        documents_to_scan = filter_documents_with_cycodeignore(documents_to_scan, str(path))
+        is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
+        documents_to_scan = filter_documents_with_cycodeignore(documents_to_scan, str(path), is_cycodeignore_allowed)
 
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents_to_scan)
 

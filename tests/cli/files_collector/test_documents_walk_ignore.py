@@ -228,7 +228,7 @@ def test_filter_documents_with_cycodeignore_no_ignore_file(fs: 'FakeFilesystem')
         Document(path='file2.log', content='log'),
     ]
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Should return all documents since no .cycodeignore exists
     assert len(result) == 2
@@ -242,7 +242,7 @@ def test_filter_documents_with_cycodeignore_basic_filtering(fs: 'FakeFilesystem'
     repo_path = normpath('/home/user/project')
     documents = _create_test_documents(repo_path)
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Count expected results: should exclude *.pyc, *.log, and build/* files
     expected_files = {
@@ -278,7 +278,7 @@ def test_filter_documents_with_cycodeignore_relative_paths(fs: 'FakeFilesystem')
         Document(path='src/debug.log', content='log'),
     ]
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Should filter out .pyc and .log files
     expected_files = {'presented.py', 'src/main.py'}
@@ -300,7 +300,7 @@ def test_filter_documents_with_cycodeignore_absolute_paths(fs: 'FakeFilesystem')
         Document(path=normpath('/home/user/project/src/debug.log'), content='log'),
     ]
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Should filter out .pyc and .log files
     expected_files = {
@@ -324,7 +324,7 @@ def test_filter_documents_with_cycodeignore_empty_file(fs: 'FakeFilesystem') -> 
         Document(path='file2.log', content='log'),
     ]
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Should return all documents since .cycodeignore is empty
     assert len(result) == 2
@@ -343,7 +343,7 @@ def test_filter_documents_with_cycodeignore_comments_only(fs: 'FakeFilesystem') 
         Document(path='file2.log', content='log'),
     ]
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Should return all documents since no real ignore patterns
     assert len(result) == 2
@@ -360,7 +360,7 @@ def test_filter_documents_with_cycodeignore_error_handling() -> None:
     ]
     
     # Should return all documents since .cycodeignore doesn't exist
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     assert len(result) == 2
 
 
@@ -409,9 +409,31 @@ tests/*.pyc
     repo_path = normpath('/home/user/project')
     documents = [Document(path=f, content='content') for f in test_files]
     
-    result = filter_documents_with_cycodeignore(documents, repo_path)
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=True)
     
     # Should only allow: app.py, tests/test.py, src/main.py
     expected_files = {'app.py', 'tests/test.py', 'src/main.py'}
     result_files = {doc.path for doc in result}
     assert result_files == expected_files
+
+
+def test_filter_documents_with_cycodeignore_not_allowed(fs: 'FakeFilesystem') -> None:
+    """Test that filtering is skipped when is_cycodeignore_allowed is False."""
+    _create_mocked_file_structure(fs)
+    
+    repo_path = normpath('/home/user/project')
+    documents = _create_test_documents(repo_path)
+    
+    # With filtering disabled, should return all documents
+    result = filter_documents_with_cycodeignore(documents, repo_path, is_cycodeignore_allowed=False)
+    
+    # Should return all documents without filtering
+    assert len(result) == len(documents)
+    assert set(doc.path for doc in result) == set(doc.path for doc in documents)
+    
+    # Verify that files that would normally be filtered are still present
+    result_files = {doc.path for doc in result}
+    assert 'ignored.pyc' in result_files
+    assert 'ignored.log' in result_files
+    assert 'build/output.js' in result_files
+    assert 'src/debug.log' in result_files

@@ -1,11 +1,12 @@
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 import typer
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
+    from cycode.cyclient.models import ScanConfiguration
 
 
 def set_issue_detected(ctx: typer.Context, issue_detected: bool) -> None:
@@ -20,6 +21,11 @@ def is_scan_failed(ctx: typer.Context) -> bool:
     did_fail = ctx.obj.get('did_fail')
     issue_detected = ctx.obj.get('issue_detected')
     return did_fail or issue_detected
+
+
+def is_cycodeignore_allowed_by_scan_config(ctx: typer.Context) -> bool:
+    scan_config: Optional['ScanConfiguration'] = ctx.obj.get('scan_config')
+    return scan_config.is_repository_ignore_configuration_allowed if scan_config else True
 
 
 def generate_unique_scan_id() -> UUID:

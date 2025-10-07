@@ -12,6 +12,7 @@ from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependenci
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
+from cycode.cli.utils.scan_utils import is_cycodeignore_allowed_by_scan_config
 from cycode.cli.utils.sentry import add_breadcrumb
 
 
@@ -36,8 +37,9 @@ def path_command(
     report_execution_id = -1
 
     try:
+        is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
         documents = get_relevant_documents(
-            progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, (str(path),)
+            progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, (str(path),), is_cycodeignore_allowed=is_cycodeignore_allowed
         )
         # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
         #  unhardcode usage of context in perform_pre_scan_documents_actions

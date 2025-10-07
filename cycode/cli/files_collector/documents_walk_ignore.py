@@ -86,13 +86,16 @@ def _filter_documents_by_allowed_paths(
                 logger.debug('Filtered out document due to .cycodeignore: %s', relative_path)
         except Exception as e:
             logger.debug('Error processing document %s: %s', document.path, e)
-            # Include document if we can't determine if it should be ignored
             filtered_documents.append(document)
     
     return filtered_documents
 
 
-def filter_documents_with_cycodeignore(documents: list['Document'], repo_path: str) -> list['Document']:
+def filter_documents_with_cycodeignore(
+    documents: list['Document'], 
+    repo_path: str, 
+    is_cycodeignore_allowed: bool = True
+) -> list['Document']:
     """Filter documents based on .cycodeignore patterns.
     
     This function uses .cycodeignore file in the repository root to filter out
@@ -101,10 +104,15 @@ def filter_documents_with_cycodeignore(documents: list['Document'], repo_path: s
     Args:
         documents: List of Document objects to filter
         repo_path: Path to the repository root
+        is_cycodeignore_allowed: Whether .cycodeignore filtering is allowed by scan configuration
         
     Returns:
         List of Document objects that don't match any .cycodeignore patterns
     """
+    if not is_cycodeignore_allowed:
+        logger.debug('.cycodeignore filtering is not allowed by scan configuration')
+        return documents
+    
     cycodeignore_path = _get_cycodeignore_path(repo_path)
     
     if not os.path.exists(cycodeignore_path):
