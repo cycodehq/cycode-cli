@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -13,6 +14,7 @@ from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
+from cycode.cli.apps.scan.remote_url_resolver import _try_get_git_remote_url
 
 _EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
@@ -161,7 +163,10 @@ def scan_command(
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
 
-    remote_scan_config = scan_client.get_scan_configuration_safe(scan_type)
+    # Get remote URL from current working directory
+    remote_url = _try_get_git_remote_url(os.getcwd())
+    
+    remote_scan_config = scan_client.get_scan_configuration_safe(scan_type, remote_url)
     if remote_scan_config:
         excluder.apply_scan_config(str(scan_type), remote_scan_config)
 
