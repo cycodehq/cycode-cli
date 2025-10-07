@@ -30,7 +30,7 @@ def _collect_top_level_ignore_files(path: str, *, is_cycodeignore_allowed: bool 
     ignore_files = []
     top_paths = reversed(list(_walk_to_top(path)))  # we must reverse it to make top levels more prioritized
     
-    supported_files = {_SUPPORTED_IGNORE_PATTERN_FILES}
+    supported_files = set(_SUPPORTED_IGNORE_PATTERN_FILES)
     if is_cycodeignore_allowed:
         supported_files.add(consts.CYCODEIGNORE_FILENAME)
         logger.debug('.cycodeignore files included due to scan configuration')
