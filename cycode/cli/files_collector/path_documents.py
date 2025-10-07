@@ -1,4 +1,5 @@
 import os
+from collections.abc import Generator
 from typing import TYPE_CHECKING
 
 from cycode.cli.files_collector.file_excluder import excluder
@@ -18,18 +19,17 @@ if TYPE_CHECKING:
 
 
 def _get_all_existing_files_in_directory(
-    path: str, 
-    *, 
-    walk_with_ignore_patterns: bool = True,
-    is_cycodeignore_allowed: bool = True
+    path: str, *, walk_with_ignore_patterns: bool = True, is_cycodeignore_allowed: bool = True
 ) -> list[str]:
     files: list[str] = []
 
     if walk_with_ignore_patterns:
-        walk_func = lambda p: walk_ignore(p, is_cycodeignore_allowed=is_cycodeignore_allowed)
+
+        def walk_func(path: str) -> Generator[tuple[str, list[str], list[str]], None, None]:
+            return walk_ignore(path, is_cycodeignore_allowed=is_cycodeignore_allowed)
     else:
         walk_func = os.walk
-        
+
     for root, _, filenames in walk_func(path):
         for filename in filenames:
             files.append(os.path.join(root, filename))
@@ -51,12 +51,12 @@ def _get_relevant_files_in_path(path: str, *, is_cycodeignore_allowed: bool = Tr
 
 
 def _get_relevant_files(
-    progress_bar: 'BaseProgressBar', 
-    progress_bar_section: 'ProgressBarSection', 
-    scan_type: str, 
+    progress_bar: 'BaseProgressBar',
+    progress_bar_section: 'ProgressBarSection',
+    scan_type: str,
     paths: tuple[str, ...],
     *,
-    is_cycodeignore_allowed: bool = True
+    is_cycodeignore_allowed: bool = True,
 ) -> list[str]:
     all_files_to_scan = []
     for path in paths:
@@ -110,7 +110,9 @@ def get_relevant_documents(
     is_git_diff: bool = False,
     is_cycodeignore_allowed: bool = True,
 ) -> list[Document]:
-    relevant_files = _get_relevant_files(progress_bar, progress_bar_section, scan_type, paths, is_cycodeignore_allowed=is_cycodeignore_allowed)
+    relevant_files = _get_relevant_files(
+        progress_bar, progress_bar_section, scan_type, paths, is_cycodeignore_allowed=is_cycodeignore_allowed
+    )
 
     documents: list[Document] = []
     for file in relevant_files:

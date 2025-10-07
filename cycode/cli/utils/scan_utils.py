@@ -24,7 +24,7 @@ def is_scan_failed(ctx: typer.Context) -> bool:
 
 
 def is_cycodeignore_allowed_by_scan_config(ctx: typer.Context) -> bool:
-    scan_config: Optional['ScanConfiguration'] = ctx.obj.get('scan_config')
+    scan_config: Optional[ScanConfiguration] = ctx.obj.get('scan_config')
     return scan_config.is_repository_ignore_configuration_allowed if scan_config else True
 
 

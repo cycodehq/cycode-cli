@@ -29,7 +29,7 @@ def _log_ignored_files(repo_path: str, dirpath: str, ignored_dirnames: list[str]
     """Log ignored files for debugging (similar to walk_ignore function)."""
     rel_dirpath = '' if dirpath == repo_path else os.path.relpath(dirpath, repo_path)
     display_dir = rel_dirpath or '.'
-    
+
     for is_dir, names in (
         (True, ignored_dirnames),
         (False, ignored_filenames),
@@ -44,14 +44,14 @@ def _log_ignored_files(repo_path: str, dirpath: str, ignored_dirnames: list[str]
 def _build_allowed_paths_set(ignore_filter_manager: IgnoreFilterManager, repo_path: str) -> set[str]:
     """Build set of allowed file paths using walk_with_ignored."""
     allowed_paths = set()
-    
-    for dirpath, dirnames, filenames, ignored_dirnames, ignored_filenames in ignore_filter_manager.walk_with_ignored():
+
+    for dirpath, _dirnames, filenames, ignored_dirnames, ignored_filenames in ignore_filter_manager.walk_with_ignored():
         _log_ignored_files(repo_path, dirpath, ignored_dirnames, ignored_filenames)
-        
+
         for filename in filenames:
             file_path = os.path.join(dirpath, filename)
             allowed_paths.add(file_path)
-    
+
     return allowed_paths
 
 
@@ -59,26 +59,21 @@ def _get_document_check_path(document: 'Document', repo_path: str) -> str:
     """Get the normalized absolute path for a document to check against allowed paths."""
     check_path = document.absolute_path
     if not check_path:
-        if os.path.isabs(document.path):
-            check_path = document.path
-        else:
-            check_path = os.path.join(repo_path, document.path)
-    
+        check_path = document.path if os.path.isabs(document.path) else os.path.join(repo_path, document.path)
+
     return os.path.normpath(check_path)
 
 
 def _filter_documents_by_allowed_paths(
-    documents: list['Document'], 
-    allowed_paths: set[str], 
-    repo_path: str
+    documents: list['Document'], allowed_paths: set[str], repo_path: str
 ) -> list['Document']:
     """Filter documents by checking if their paths are in the allowed set."""
     filtered_documents = []
-    
+
     for document in documents:
         try:
             check_path = _get_document_check_path(document, repo_path)
-            
+
             if check_path in allowed_paths:
                 filtered_documents.append(document)
             else:
@@ -87,44 +82,42 @@ def _filter_documents_by_allowed_paths(
         except Exception as e:
             logger.debug('Error processing document %s: %s', document.path, e)
             filtered_documents.append(document)
-    
+
     return filtered_documents
 
 
 def filter_documents_with_cycodeignore(
-    documents: list['Document'], 
-    repo_path: str, 
-    is_cycodeignore_allowed: bool = True
+    documents: list['Document'], repo_path: str, is_cycodeignore_allowed: bool = True
 ) -> list['Document']:
     """Filter documents based on .cycodeignore patterns.
-    
+
     This function uses .cycodeignore file in the repository root to filter out
     documents whose paths match any of those patterns.
-    
+
     Args:
         documents: List of Document objects to filter
         repo_path: Path to the repository root
         is_cycodeignore_allowed: Whether .cycodeignore filtering is allowed by scan configuration
-        
+
     Returns:
         List of Document objects that don't match any .cycodeignore patterns
     """
     if not is_cycodeignore_allowed:
         logger.debug('.cycodeignore filtering is not allowed by scan configuration')
         return documents
-    
+
     cycodeignore_path = _get_cycodeignore_path(repo_path)
-    
+
     if not os.path.exists(cycodeignore_path):
         return documents
-    
+
     logger.info('Using %s for filtering documents', cycodeignore_path)
-    
+
     ignore_filter_manager = _create_ignore_filter_manager(repo_path, cycodeignore_path)
-    
+
     allowed_paths = _build_allowed_paths_set(ignore_filter_manager, repo_path)
-    
+
     filtered_documents = _filter_documents_by_allowed_paths(documents, allowed_paths, repo_path)
-    
+
     logger.debug('Filtered %d documents using .cycodeignore patterns', len(documents) - len(filtered_documents))
     return filtered_documents

@@ -284,7 +284,7 @@ class ScanClient:
         params = {}
         if remote_url:
             params['remote_url'] = remote_url
-            
+
         response = self.scan_cycode_client.get(
             url_path=self.get_scan_configuration_path(scan_type),
             params=params,
@@ -292,7 +292,9 @@ class ScanClient:
         )
         return models.ScanConfigurationSchema().load(response.json())
 
-    def get_scan_configuration_safe(self, scan_type: str, remote_url: Optional[str] = None) -> Optional['models.ScanConfiguration']:
+    def get_scan_configuration_safe(
+        self, scan_type: str, remote_url: Optional[str] = None
+    ) -> Optional['models.ScanConfiguration']:
         try:
             return self.get_scan_configuration(scan_type, remote_url)
         except RequestHttpError as e:

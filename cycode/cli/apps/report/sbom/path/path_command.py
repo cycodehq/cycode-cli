@@ -39,7 +39,11 @@ def path_command(
     try:
         is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
         documents = get_relevant_documents(
-            progress_bar, SbomReportProgressBarSection.PREPARE_LOCAL_FILES, consts.SCA_SCAN_TYPE, (str(path),), is_cycodeignore_allowed=is_cycodeignore_allowed
+            progress_bar,
+            SbomReportProgressBarSection.PREPARE_LOCAL_FILES,
+            consts.SCA_SCAN_TYPE,
+            (str(path),),
+            is_cycodeignore_allowed=is_cycodeignore_allowed,
         )
         # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
         #  unhardcode usage of context in perform_pre_scan_documents_actions

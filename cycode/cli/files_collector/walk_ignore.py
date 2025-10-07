@@ -1,6 +1,5 @@
 import os
 from collections.abc import Generator, Iterable
-from typing import TYPE_CHECKING
 
 from cycode.cli import consts
 from cycode.cli.logger import get_logger
@@ -29,12 +28,12 @@ def _walk_to_top(path: str) -> Iterable[str]:
 def _collect_top_level_ignore_files(path: str, *, is_cycodeignore_allowed: bool = True) -> list[str]:
     ignore_files = []
     top_paths = reversed(list(_walk_to_top(path)))  # we must reverse it to make top levels more prioritized
-    
+
     supported_files = set(_SUPPORTED_IGNORE_PATTERN_FILES)
     if is_cycodeignore_allowed:
         supported_files.add(consts.CYCODEIGNORE_FILENAME)
         logger.debug('.cycodeignore files included due to scan configuration')
-    
+
     for dir_path in top_paths:
         for ignore_file in supported_files:
             ignore_file_path = os.path.join(dir_path, ignore_file)
@@ -44,7 +43,9 @@ def _collect_top_level_ignore_files(path: str, *, is_cycodeignore_allowed: bool 
     return ignore_files
 
 
-def walk_ignore(path: str, *, is_cycodeignore_allowed: bool = True) -> Generator[tuple[str, list[str], list[str]], None, None]:
+def walk_ignore(
+    path: str, *, is_cycodeignore_allowed: bool = True
+) -> Generator[tuple[str, list[str], list[str]], None, None]:
     ignore_file_paths = _collect_top_level_ignore_files(path, is_cycodeignore_allowed=is_cycodeignore_allowed)
     ignore_filter_manager = IgnoreFilterManager.build(
         path=path,
