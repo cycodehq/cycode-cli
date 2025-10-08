@@ -101,7 +101,7 @@ class Excluder:
             return False
 
         # We don't want to check for IAC scans, the extension is handled internally
-        if not scan_type == consts.IAC_SCAN_TYPE and not self._is_file_extension_supported(scan_type, filename):
+        if scan_type != consts.IAC_SCAN_TYPE and not self._is_file_extension_supported(scan_type, filename):
             logger.debug(
                 'The document is irrelevant because its extension is not supported, %s',
                 {'scan_type': scan_type, 'filename': filename},
