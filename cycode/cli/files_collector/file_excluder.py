@@ -75,6 +75,7 @@ class Excluder:
         scannable_prefixes = self._scannable_prefixes.get(scan_type)
         if scannable_prefixes:
             return file_name.startswith(scannable_prefixes)
+        return False
 
     def _is_file_extension_supported(self, scan_type: str, filename: str) -> bool:
         filename = filename.lower()
