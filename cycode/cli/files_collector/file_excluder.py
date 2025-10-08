@@ -13,14 +13,15 @@ if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
     from cycode.cyclient import models
 
+
 logger = get_logger('File Excluder')
 
 
 def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     return (
-            is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename)
-            or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename)
-            or filename.endswith(ConfigFileManager.get_config_file_route())
+        is_sub_path(configuration_manager.global_config_file_manager.get_config_directory_path(), filename)
+        or is_sub_path(configuration_manager.local_config_file_manager.get_config_directory_path(), filename)
+        or filename.endswith(ConfigFileManager.get_config_file_route())
     )
 
 
@@ -155,11 +156,11 @@ class Excluder:
         return True
 
     def exclude_irrelevant_files(
-            self,
-            progress_bar: 'BaseProgressBar',
-            progress_bar_section: 'ProgressBarSection',
-            scan_type: str,
-            filenames: list[str],
+        self,
+        progress_bar: 'BaseProgressBar',
+        progress_bar_section: 'ProgressBarSection',
+        scan_type: str,
+        filenames: list[str],
     ) -> list[str]:
         relevant_files = []
         for filename in filenames:
@@ -172,7 +173,7 @@ class Excluder:
         return relevant_files
 
     def exclude_irrelevant_documents_to_scan(
-            self, scan_type: str, documents_to_scan: list['Document']
+        self, scan_type: str, documents_to_scan: list['Document']
     ) -> list['Document']:
         logger.debug('Excluding irrelevant documents to scan')
 
