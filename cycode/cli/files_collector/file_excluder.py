@@ -69,9 +69,17 @@ class Excluder:
         if scan_config.scannable_extensions:
             self._scannable_extensions[scan_type] = tuple(scan_config.scannable_extensions)
 
+    @staticmethod
+    def check_if_docker_file(file_path: str) -> bool:
+        path = Path(file_path)
+        file = path.name
+        if file == consts.DOCKER_FILE_NAME:
+            return True
+
     def _is_file_extension_supported(self, scan_type: str, filename: str) -> bool:
         filename = filename.lower()
-
+        if self.check_if_docker_file(filename):
+            return True
         scannable_extensions = self._scannable_extensions.get(scan_type)
         if scannable_extensions:
             return filename.endswith(scannable_extensions)
