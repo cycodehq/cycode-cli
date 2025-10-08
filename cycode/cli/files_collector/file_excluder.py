@@ -69,6 +69,13 @@ class Excluder:
         if scan_config.scannable_extensions:
             self._scannable_extensions[scan_type] = tuple(scan_config.scannable_extensions)
 
+    def _is_file_prefix_supported(self, scan_type: str, file_path: str):
+        path = Path(file_path)
+        file_name = path.name.lower()
+        scannable_prefixes = self._scannable_prefixes.get(scan_type)
+        if scannable_prefixes:
+            return file_name.startswith(scannable_prefixes)
+
     def _is_file_extension_supported(self, scan_type: str, filename: str) -> bool:
         filename = filename.lower()
 
@@ -79,10 +86,6 @@ class Excluder:
         non_scannable_extensions = self._non_scannable_extensions.get(scan_type)
         if non_scannable_extensions:
             return not filename.endswith(non_scannable_extensions)
-
-        scannable_prefixes = self._scannable_prefixes.get(scan_type)
-        if scannable_prefixes:
-            return filename.startswith(scannable_prefixes)
 
         return True
 
@@ -99,8 +102,10 @@ class Excluder:
                 'The document is irrelevant because its path is in the ignore paths list, %s', {'filename': filename}
             )
             return False
+        if self._is_file_prefix_supported(scan_type, filename):
+            return True
 
-        if self._should_check_if_extensions_are_supported(scan_type, filename):
+        if not self._is_file_extension_supported(scan_type, filename):
             logger.debug(
                 'The document is irrelevant because its extension is not supported, %s',
                 {'scan_type': scan_type, 'filename': filename},
@@ -108,10 +113,6 @@ class Excluder:
             return False
 
         return True
-
-    # We don't want to check for IAC scans, the extensions is handled internally
-    def _should_check_if_extensions_are_supported(self, scan_type: str, filename: str) -> bool:
-        return scan_type != consts.IAC_SCAN_TYPE and not self._is_file_extension_supported(scan_type, filename)
 
     def _is_relevant_file_to_scan(self, scan_type: str, filename: str) -> bool:
         if not self._is_relevant_file_to_scan_common(scan_type, filename):
