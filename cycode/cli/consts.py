@@ -17,8 +17,6 @@ SAST_SCAN_TYPE = 'sast'
 IAC_SCAN_SUPPORTED_FILE_EXTENSIONS = ('.tf', '.tf.json', '.json', '.yaml', '.yml', '.dockerfile', '.containerfile')
 IAC_SCAN_SUPPORTED_FILE_PREFIXES = ('dockerfile', 'containerfile')
 
-DOCKER_FILE_NAME = 'dockerfile'
-
 SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
     '.DS_Store',
     '.bmp',
