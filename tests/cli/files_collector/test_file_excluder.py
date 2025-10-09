@@ -3,6 +3,7 @@ import pytest
 from cycode.cli import consts
 from cycode.cli.files_collector.file_excluder import Excluder, _is_file_relevant_for_sca_scan
 
+
 class TestIsFileRelevantForScaScan:
     """Test the SCA path exclusion logic."""
 
