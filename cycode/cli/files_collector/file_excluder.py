@@ -103,6 +103,7 @@ class Excluder:
                 'The document is irrelevant because its path is in the ignore paths list, %s', {'filename': filename}
             )
             return False
+
         if self._is_file_prefix_supported(scan_type, filename):
             return True
 
