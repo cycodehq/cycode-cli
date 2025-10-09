@@ -70,10 +70,10 @@ class Excluder:
             self._scannable_extensions[scan_type] = tuple(scan_config.scannable_extensions)
 
     def _is_file_prefix_supported(self, scan_type: str, file_path: str) -> bool:
-        path = Path(file_path)
-        file_name = path.name.lower()
         scannable_prefixes = self._scannable_prefixes.get(scan_type)
         if scannable_prefixes:
+            path = Path(file_path)
+            file_name = path.name.lower()
             return file_name.startswith(scannable_prefixes)
         return False
 
