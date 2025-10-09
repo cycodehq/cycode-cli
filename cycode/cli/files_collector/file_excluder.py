@@ -104,10 +104,8 @@ class Excluder:
             )
             return False
 
-        if self._is_file_prefix_supported(scan_type, filename):
-            return True
-
-        if not self._is_file_extension_supported(scan_type, filename):
+        if (not self._is_file_extension_supported(scan_type, filename)
+                and not self._is_file_prefix_supported(scan_type, filename)):
             logger.debug(
                 'The document is irrelevant because its extension is not supported, %s',
                 {'scan_type': scan_type, 'filename': filename},
