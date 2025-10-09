@@ -42,14 +42,14 @@ class TestIsFileRelevantForScaScan:
         """Test that files containing excluded extensions are NOT excluded."""
         excluder = Excluder()
         # These should be INCLUDED because the excluded terms are in the filename
-        assert excluder._is_relevant_file_to_scan_common('iac','project/cfg/Dockerfile') is True
-        assert excluder._is_relevant_file_to_scan_common('iac','project/cfg/build.tf') is True
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/Dockerfile') is True
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/build.tf') is True
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/build.tf.json') is True
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.json') is True
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.yaml') is True
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.yml') is True
         # These should be EXCLUDED because the excluded terms are not in the filename
-        assert excluder._is_relevant_file_to_scan_common('iac','project/cfg/build') is False
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/build') is False
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/build') is False
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/Dockerfile.txt') is False
         assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.ini') is False
