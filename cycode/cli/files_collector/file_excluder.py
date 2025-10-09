@@ -69,6 +69,14 @@ class Excluder:
         if scan_config.scannable_extensions:
             self._scannable_extensions[scan_type] = tuple(scan_config.scannable_extensions)
 
+    def _is_file_prefix_supported(self, scan_type: str, file_path: str) -> bool:
+        scannable_prefixes = self._scannable_prefixes.get(scan_type)
+        if scannable_prefixes:
+            path = Path(file_path)
+            file_name = path.name.lower()
+            return file_name in scannable_prefixes
+        return False
+
     def _is_file_extension_supported(self, scan_type: str, filename: str) -> bool:
         filename = filename.lower()
 
@@ -79,10 +87,6 @@ class Excluder:
         non_scannable_extensions = self._non_scannable_extensions.get(scan_type)
         if non_scannable_extensions:
             return not filename.endswith(non_scannable_extensions)
-
-        scannable_prefixes = self._scannable_prefixes.get(scan_type)
-        if scannable_prefixes:
-            return filename.startswith(scannable_prefixes)
 
         return True
 
@@ -100,7 +104,10 @@ class Excluder:
             )
             return False
 
-        if not self._is_file_extension_supported(scan_type, filename):
+        if not (
+            self._is_file_extension_supported(scan_type, filename)
+            or self._is_file_prefix_supported(scan_type, filename)
+        ):
             logger.debug(
                 'The document is irrelevant because its extension is not supported, %s',
                 {'scan_type': scan_type, 'filename': filename},
