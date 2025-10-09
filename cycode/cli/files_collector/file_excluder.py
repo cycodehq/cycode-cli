@@ -74,7 +74,7 @@ class Excluder:
         if scannable_prefixes:
             path = Path(file_path)
             file_name = path.name.lower()
-            return file_name.startswith(scannable_prefixes)
+            return file_name in scannable_prefixes
         return False
 
     def _is_file_extension_supported(self, scan_type: str, filename: str) -> bool:
@@ -104,8 +104,8 @@ class Excluder:
             )
             return False
 
-        if (not self._is_file_extension_supported(scan_type, filename)
-                and not self._is_file_prefix_supported(scan_type, filename)):
+        if not (self._is_file_extension_supported(scan_type, filename)
+                or self._is_file_prefix_supported(scan_type, filename)):
             logger.debug(
                 'The document is irrelevant because its extension is not supported, %s',
                 {'scan_type': scan_type, 'filename': filename},

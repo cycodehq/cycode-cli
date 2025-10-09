@@ -2,7 +2,7 @@ import pytest
 
 from cycode.cli import consts
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
-
+from cycode.cli.files_collector.file_excluder import Excluder
 
 class TestIsFileRelevantForScaScan:
     """Test the SCA path exclusion logic."""
@@ -37,6 +37,21 @@ class TestIsFileRelevantForScaScan:
         assert _is_file_relevant_for_sca_scan('src/venv_setup.py') is True
         assert _is_file_relevant_for_sca_scan('utils/pycache_cleaner.py') is True
         assert _is_file_relevant_for_sca_scan('config/gradle_config.xml') is True
+
+    def test_files_with_excluded_extensions_in_should_be_included(self) -> None:
+        """Test that files containing excluded directory names in their filename are NOT excluded."""
+        # These should be INCLUDED because the excluded terms are in the filename, not directory path
+        excluder = Excluder()
+        assert excluder._is_relevant_file_to_scan_common('iac','project/cfg/Dockerfile') is True
+        assert excluder._is_relevant_file_to_scan_common('iac','project/cfg/build.tf') is True
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/build.tf.json') is True
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.json') is True
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.yaml') is True
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.yml') is True
+        assert excluder._is_relevant_file_to_scan_common('iac','project/cfg/build') is False
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/build') is False
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/Dockerfile.txt') is False
+        assert excluder._is_relevant_file_to_scan_common('iac', 'project/cfg/config.ini') is False
 
     def test_files_in_regular_directories_should_be_included(self) -> None:
         """Test that files in regular directories (not excluded) are included."""
