@@ -14,6 +14,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     calculate_pre_push_commit_range,
     get_diff_file_path,
     get_safe_head_reference_for_diff,
+    parse_commit_range,
     parse_pre_push_input,
 )
 from cycode.cli.utils.path_utils import get_path_by_os
@@ -22,7 +23,8 @@ from cycode.cli.utils.path_utils import get_path_by_os
 @contextmanager
 def git_repository(path: str) -> Generator[Repo, None, None]:
     """Context manager for Git repositories that ensures proper cleanup on Windows."""
-    repo = Repo.init(path)
+    # Ensure the initialized repository uses 'main' as the default branch
+    repo = Repo.init(path, b='main')
     try:
         yield repo
     finally:
@@ -539,8 +541,8 @@ class TestCalculatePrePushCommitRange:
             repo.index.add(['feature.py'])
             feature_commit = repo.index.commit('Add feature')
 
-            # Switch back to master to simulate we're pushing a feature branch
-            repo.heads.master.checkout()
+            # Switch back to the default branch to simulate pushing the feature branch
+            repo.heads.main.checkout()
 
             # Test new branch push
             push_details = f'refs/heads/feature {feature_commit.hexsha} refs/heads/feature {consts.EMPTY_COMMIT_SHA}'
@@ -805,3 +807,67 @@ class TestPrePushHookIntegration:
                     parts = push_input.split()
                     expected_range = f'{parts[3]}..{parts[1]}'
                     assert commit_range == expected_range
+
+
+class TestParseCommitRange:
+    """Tests to validate unified parse_commit_range behavior matches git semantics."""
+
+    def _make_linear_history(self, repo: Repo, base_dir: str) -> tuple[str, str, str]:
+        """Create three linear commits A -> B -> C and return their SHAs."""
+        a_file = os.path.join(base_dir, 'a.txt')
+        with open(a_file, 'w') as f:
+            f.write('A')
+        repo.index.add(['a.txt'])
+        a = repo.index.commit('A')
+
+        with open(a_file, 'a') as f:
+            f.write('B')
+        repo.index.add(['a.txt'])
+        b = repo.index.commit('B')
+
+        with open(a_file, 'a') as f:
+            f.write('C')
+        repo.index.add(['a.txt'])
+        c = repo.index.commit('C')
+
+        return a.hexsha, b.hexsha, c.hexsha
+
+    def test_two_dot_linear_history(self) -> None:
+        """For 'A..C', expect (A,C) in linear history."""
+        with temporary_git_repository() as (temp_dir, repo):
+            a, b, c = self._make_linear_history(repo, temp_dir)
+
+            parsed_from, parsed_to = parse_commit_range(f'{a}..{c}', temp_dir)
+            assert (parsed_from, parsed_to) == (a, c)
+
+    def test_three_dot_linear_history(self) -> None:
+        """For 'A...C' in linear history, expect (A,C)."""
+        with temporary_git_repository() as (temp_dir, repo):
+            a, b, c = self._make_linear_history(repo, temp_dir)
+
+            parsed_from, parsed_to = parse_commit_range(f'{a}...{c}', temp_dir)
+            assert (parsed_from, parsed_to) == (a, c)
+
+    def test_open_right_linear_history(self) -> None:
+        """For 'A..', expect (A,HEAD=C)."""
+        with temporary_git_repository() as (temp_dir, repo):
+            a, b, c = self._make_linear_history(repo, temp_dir)
+
+            parsed_from, parsed_to = parse_commit_range(f'{a}..', temp_dir)
+            assert (parsed_from, parsed_to) == (a, c)
+
+    def test_open_left_linear_history(self) -> None:
+        """For '..C' where HEAD==C, expect (HEAD=C,C)."""
+        with temporary_git_repository() as (temp_dir, repo):
+            a, b, c = self._make_linear_history(repo, temp_dir)
+
+            parsed_from, parsed_to = parse_commit_range(f'..{c}', temp_dir)
+            assert (parsed_from, parsed_to) == (c, c)
+
+    def test_single_commit_spec(self) -> None:
+        """For 'A', expect (A,HEAD=C)."""
+        with temporary_git_repository() as (temp_dir, repo):
+            a, b, c = self._make_linear_history(repo, temp_dir)
+
+            parsed_from, parsed_to = parse_commit_range(a, temp_dir)
+            assert (parsed_from, parsed_to) == (a, c)
