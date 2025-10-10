@@ -26,8 +26,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     get_diff_file_path,
     get_pre_commit_modified_documents,
     get_safe_head_reference_for_diff,
-    parse_commit_range_sast,
-    parse_commit_range_sca,
+    parse_commit_range,
 )
 from cycode.cli.files_collector.documents_walk_ignore import filter_documents_with_cycodeignore
 from cycode.cli.files_collector.file_excluder import excluder
@@ -187,7 +186,7 @@ def _scan_commit_range_documents(
 def _scan_sca_commit_range(ctx: typer.Context, repo_path: str, commit_range: str, **_) -> None:
     scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
-    from_commit_rev, to_commit_rev = parse_commit_range_sca(commit_range, repo_path)
+    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, repo_path)
     from_commit_documents, to_commit_documents, _ = get_commit_range_modified_documents(
         ctx.obj['progress_bar'], ScanProgressBarSection.PREPARE_LOCAL_FILES, repo_path, from_commit_rev, to_commit_rev
     )
@@ -228,7 +227,7 @@ def _scan_secret_commit_range(
 def _scan_sast_commit_range(ctx: typer.Context, repo_path: str, commit_range: str, **_) -> None:
     scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
-    from_commit_rev, to_commit_rev = parse_commit_range_sast(commit_range, repo_path)
+    from_commit_rev, to_commit_rev = parse_commit_range(commit_range, repo_path)
     _, commit_documents, diff_documents = get_commit_range_modified_documents(
         ctx.obj['progress_bar'],
         ScanProgressBarSection.PREPARE_LOCAL_FILES,

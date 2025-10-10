@@ -408,22 +408,7 @@ def get_pre_commit_modified_documents(
     return git_head_documents, pre_committed_documents, diff_documents
 
 
-def parse_commit_range_sca(commit_range: str, path: str) -> tuple[Optional[str], Optional[str]]:
-    # FIXME(MarshalX): i truly believe that this function does NOT work as expected
-    #  it does not handle cases like 'A..B' correctly
-    #  i leave it as it for SCA to not break anything
-    #  the more correct approach is implemented for SAST
-    from_commit_rev = to_commit_rev = None
-
-    for commit in git_proxy.get_repo(path).iter_commits(rev=commit_range):
-        if not to_commit_rev:
-            to_commit_rev = commit.hexsha
-        from_commit_rev = commit.hexsha
-
-    return from_commit_rev, to_commit_rev
-
-
-def parse_commit_range_sast(commit_range: str, path: str) -> tuple[Optional[str], Optional[str]]:
+def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Optional[str]]:
     """Parses a git commit range string and returns the full SHAs for the 'from' and 'to' commits.
 
     Supports:
