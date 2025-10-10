@@ -109,6 +109,7 @@ def filter_documents_with_cycodeignore(
     cycodeignore_path = _get_cycodeignore_path(repo_path)
 
     if not os.path.exists(cycodeignore_path):
+        logger.debug('.cycodeignore file does not exist in the repository root')
         return documents
 
     logger.info('Using %s for filtering documents', cycodeignore_path)

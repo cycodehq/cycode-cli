@@ -513,7 +513,7 @@ class ScanConfigurationSchema(Schema):
         unknown = EXCLUDE
 
     scannable_extensions = fields.List(fields.String(), allow_none=True)
-    is_cycode_ignore_allowed = fields.Boolean(load_default=False)
+    is_cycode_ignore_allowed = fields.Boolean(load_default=True)
 
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> 'ScanConfiguration':
