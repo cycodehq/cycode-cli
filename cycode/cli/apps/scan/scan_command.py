@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 from typing import Annotated, Optional
 
 import click
 import typer
 
+from cycode.cli.apps.scan.remote_url_resolver import _try_get_git_remote_url
 from cycode.cli.cli_types import ExportTypeOption, ScanTypeOption, ScaScanTypeOption, SeverityOption
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
@@ -161,9 +163,14 @@ def scan_command(
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
 
-    remote_scan_config = scan_client.get_scan_configuration_safe(scan_type)
+    # Get remote URL from current working directory
+    remote_url = _try_get_git_remote_url(os.getcwd())
+
+    remote_scan_config = scan_client.get_scan_configuration_safe(scan_type, remote_url)
     if remote_scan_config:
         excluder.apply_scan_config(str(scan_type), remote_scan_config)
+
+    ctx.obj['scan_config'] = remote_scan_config
 
     if export_type and export_file:
         console_printer = ctx.obj['console_printer']

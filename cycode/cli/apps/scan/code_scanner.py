@@ -23,7 +23,11 @@ from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, LocalScanResult
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
-from cycode.cli.utils.scan_utils import generate_unique_scan_id, set_issue_detected_by_scan_results
+from cycode.cli.utils.scan_utils import (
+    generate_unique_scan_id,
+    is_cycodeignore_allowed_by_scan_config,
+    set_issue_detected_by_scan_results,
+)
 from cycode.cyclient.models import ZippedFileScanResult
 from cycode.logger import get_logger
 
@@ -42,7 +46,13 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
     progress_bar = ctx.obj['progress_bar']
 
     try:
-        documents = get_relevant_documents(progress_bar, ScanProgressBarSection.PREPARE_LOCAL_FILES, scan_type, paths)
+        documents = get_relevant_documents(
+            progress_bar,
+            ScanProgressBarSection.PREPARE_LOCAL_FILES,
+            scan_type,
+            paths,
+            is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
+        )
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents)
         scan_documents(ctx, documents, get_scan_parameters(ctx, paths))
     except Exception as e:

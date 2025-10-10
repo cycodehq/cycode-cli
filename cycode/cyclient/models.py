@@ -505,6 +505,7 @@ class SupportedModulesPreferencesSchema(Schema):
 @dataclass
 class ScanConfiguration:
     scannable_extensions: list[str]
+    is_cycode_ignore_allowed: bool
 
 
 class ScanConfigurationSchema(Schema):
@@ -512,6 +513,7 @@ class ScanConfigurationSchema(Schema):
         unknown = EXCLUDE
 
     scannable_extensions = fields.List(fields.String(), allow_none=True)
+    is_cycode_ignore_allowed = fields.Boolean(load_default=True)
 
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> 'ScanConfiguration':

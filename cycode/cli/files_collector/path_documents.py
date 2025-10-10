@@ -1,4 +1,5 @@
 import os
+from collections.abc import Generator
 from typing import TYPE_CHECKING
 
 from cycode.cli.files_collector.file_excluder import excluder
@@ -17,10 +18,18 @@ if TYPE_CHECKING:
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
 
-def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns: bool = True) -> list[str]:
+def _get_all_existing_files_in_directory(
+    path: str, *, walk_with_ignore_patterns: bool = True, is_cycodeignore_allowed: bool = True
+) -> list[str]:
     files: list[str] = []
 
-    walk_func = walk_ignore if walk_with_ignore_patterns else os.walk
+    if walk_with_ignore_patterns:
+
+        def walk_func(path: str) -> Generator[tuple[str, list[str], list[str]], None, None]:
+            return walk_ignore(path, is_cycodeignore_allowed=is_cycodeignore_allowed)
+    else:
+        walk_func = os.walk
+
     for root, _, filenames in walk_func(path):
         for filename in filenames:
             files.append(os.path.join(root, filename))
@@ -28,7 +37,7 @@ def _get_all_existing_files_in_directory(path: str, *, walk_with_ignore_patterns
     return files
 
 
-def _get_relevant_files_in_path(path: str) -> list[str]:
+def _get_relevant_files_in_path(path: str, *, is_cycodeignore_allowed: bool = True) -> list[str]:
     absolute_path = get_absolute_path(path)
 
     if not os.path.isfile(absolute_path) and not os.path.isdir(absolute_path):
@@ -37,16 +46,21 @@ def _get_relevant_files_in_path(path: str) -> list[str]:
     if os.path.isfile(absolute_path):
         return [absolute_path]
 
-    file_paths = _get_all_existing_files_in_directory(absolute_path)
+    file_paths = _get_all_existing_files_in_directory(absolute_path, is_cycodeignore_allowed=is_cycodeignore_allowed)
     return [file_path for file_path in file_paths if os.path.isfile(file_path)]
 
 
 def _get_relevant_files(
-    progress_bar: 'BaseProgressBar', progress_bar_section: 'ProgressBarSection', scan_type: str, paths: tuple[str, ...]
+    progress_bar: 'BaseProgressBar',
+    progress_bar_section: 'ProgressBarSection',
+    scan_type: str,
+    paths: tuple[str, ...],
+    *,
+    is_cycodeignore_allowed: bool = True,
 ) -> list[str]:
     all_files_to_scan = []
     for path in paths:
-        all_files_to_scan.extend(_get_relevant_files_in_path(path))
+        all_files_to_scan.extend(_get_relevant_files_in_path(path, is_cycodeignore_allowed=is_cycodeignore_allowed))
 
     # we are double the progress bar section length because we are going to process the files twice
     # first time to get the file list with respect of excluded patterns (excluding takes seconds to execute)
@@ -94,8 +108,11 @@ def get_relevant_documents(
     paths: tuple[str, ...],
     *,
     is_git_diff: bool = False,
+    is_cycodeignore_allowed: bool = True,
 ) -> list[Document]:
-    relevant_files = _get_relevant_files(progress_bar, progress_bar_section, scan_type, paths)
+    relevant_files = _get_relevant_files(
+        progress_bar, progress_bar_section, scan_type, paths, is_cycodeignore_allowed=is_cycodeignore_allowed
+    )
 
     documents: list[Document] = []
     for file in relevant_files:

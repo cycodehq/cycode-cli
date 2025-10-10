@@ -8,6 +8,7 @@ from cycode.cli import consts
 from cycode.cli.apps.scan.code_scanner import scan_documents
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.files_collector.documents_walk_ignore import filter_documents_with_cycodeignore
 from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.files_collector.repository_documents import get_git_repository_tree_file_entries
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
@@ -15,6 +16,7 @@ from cycode.cli.logger import logger
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
+from cycode.cli.utils.scan_utils import is_cycodeignore_allowed_by_scan_config
 from cycode.cli.utils.sentry import add_breadcrumb
 
 
@@ -59,6 +61,9 @@ def repository_command(
             )
 
         documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(scan_type, documents_to_scan)
+
+        is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
+        documents_to_scan = filter_documents_with_cycodeignore(documents_to_scan, str(path), is_cycodeignore_allowed)
 
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents_to_scan)
 

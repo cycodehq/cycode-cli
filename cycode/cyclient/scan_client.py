@@ -280,16 +280,23 @@ class ScanClient:
         correct_scan_type = self.scan_config.get_async_scan_type(scan_type)
         return f'{self.get_scan_service_url_path(scan_type)}/{correct_scan_type}/configuration'
 
-    def get_scan_configuration(self, scan_type: str) -> models.ScanConfiguration:
+    def get_scan_configuration(self, scan_type: str, remote_url: Optional[str] = None) -> models.ScanConfiguration:
+        params = {}
+        if remote_url:
+            params['remote_url'] = remote_url
+
         response = self.scan_cycode_client.get(
             url_path=self.get_scan_configuration_path(scan_type),
+            params=params,
             hide_response_content_log=self._hide_response_log,
         )
         return models.ScanConfigurationSchema().load(response.json())
 
-    def get_scan_configuration_safe(self, scan_type: str) -> Optional['models.ScanConfiguration']:
+    def get_scan_configuration_safe(
+        self, scan_type: str, remote_url: Optional[str] = None
+    ) -> Optional['models.ScanConfiguration']:
         try:
-            return self.get_scan_configuration(scan_type)
+            return self.get_scan_configuration(scan_type, remote_url)
         except RequestHttpError as e:
             if e.status_code == 404:
                 logger.debug(
