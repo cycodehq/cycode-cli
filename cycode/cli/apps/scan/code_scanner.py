@@ -46,13 +46,12 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
     progress_bar = ctx.obj['progress_bar']
 
     try:
-        is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
         documents = get_relevant_documents(
             progress_bar,
             ScanProgressBarSection.PREPARE_LOCAL_FILES,
             scan_type,
             paths,
-            is_cycodeignore_allowed=is_cycodeignore_allowed,
+            is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
         )
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents)
         scan_documents(ctx, documents, get_scan_parameters(ctx, paths))

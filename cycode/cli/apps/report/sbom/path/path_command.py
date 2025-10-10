@@ -37,13 +37,12 @@ def path_command(
     report_execution_id = -1
 
     try:
-        is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
         documents = get_relevant_documents(
             progress_bar,
             SbomReportProgressBarSection.PREPARE_LOCAL_FILES,
             consts.SCA_SCAN_TYPE,
             (str(path),),
-            is_cycodeignore_allowed=is_cycodeignore_allowed,
+            is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
         )
         # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
         #  unhardcode usage of context in perform_pre_scan_documents_actions
