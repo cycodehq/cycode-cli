@@ -1,16 +1,14 @@
-[tool.poetry]
+[project]
 name = "cycode"
-version = "0.0.0" # DON'T TOUCH. Placeholder. Will be filled automatically on poetry build from Git Tag
 description = "Boost security in your dev lifecycle via SAST, SCA, Secrets & IaC scanning."
-keywords=["secret-scan", "cycode", "devops", "token", "secret", "security", "cycode", "code"]
-authors = ["Cycode <support@cycode.com>"]
+keywords = ["secret-scan", "cycode", "devops", "token", "secret", "security", "code"]
+authors = [{name = "Cycode", email = "support@cycode.com"}]
 license = "MIT"
-repository = "https://github.com/cycodehq/cycode-cli"
+requires-python = ">=3.9"
 readme = "README.md"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
@@ -22,13 +20,19 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-requires-poetry = ">=2.0"
+dynamic = ["dependencies", "version"]
 
-[tool.poetry.scripts]
+[project.scripts]
 cycode = "cycode.cli.app:app"
 
+[project.urls]
+repository = "https://github.com/cycodehq/cycode-cli"
+
+[tool.poetry]
+requires-poetry = ">=2.0"
+version = "0.0.0" # DON'T TOUCH. Placeholder. Will be filled automatically on poetry build from Git Tag
+
 [tool.poetry.dependencies]
-python = ">=3.9"
 click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
@@ -144,5 +148,5 @@ ban-relative-imports = "all"
 quote-style = "single"
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+requires = ["poetry-core>=2.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"
