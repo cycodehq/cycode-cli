@@ -3,7 +3,7 @@ WORKDIR /usr/cycode/app
 RUN apk add git=2.47.3-r0
 
 FROM base AS builder
-ENV POETRY_VERSION=1.8.3
+ENV POETRY_VERSION=2.2.1
 
 # deps are required to build cffi
 RUN apk add --no-cache --virtual .build-deps gcc=14.2.0-r4 libffi-dev=3.4.7-r0 musl-dev=1.2.5-r9 &&  \
