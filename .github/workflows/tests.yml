@@ -35,13 +35,13 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local
-          key: poetry-ubuntu-0  # increment to reset cache
+          key: poetry-ubuntu-1  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
         with:
-          version: 1.8.3
+          version: 2.2.1
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
