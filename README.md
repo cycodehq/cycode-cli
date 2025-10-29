@@ -932,7 +932,7 @@ It works just like a `.gitignore` file. This helps you focus scans on your relev
 
 ### Supported Scanners
 - SAST
-- Iac (comming soon)
+- IaC (comming soon)
 - SCA (comming soon)
 
 ## Scan Results
