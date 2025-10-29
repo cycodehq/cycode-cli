@@ -917,6 +917,24 @@ git push --no-verify
 > [!TIP]
 > The pre-push hook is triggered on `git push` command and scans only the commits that are about to be pushed, making it more efficient than scanning the entire repository.
 
+## Exclude Paths From Scans
+You can use a `.cycodeignore` file to tell the Cycode CLI which files and directories to exclude from scans.
+It works just like a `.gitignore` file. This helps you focus scans on your relevant code and prevent certain paths from triggering violations locally.
+
+### How It Works
+1. Create a file named `.cycodeignore` in your workfolder.
+2. List the files and directories you want to exclude, using the same patterns as `.gitignore`.
+3. Place this file in the directory where you plan to run the cycode scan command.
+
+> [!WARNING]
+> - **Invalid files**: If the `.cycodeignore` file contains a syntax error, the CLI scan will fail and return an error.
+> - **Ignoring paths vs. violations**: This file is for excluding paths. It's different from the CLI's capability to ignore specific violations (for example, by using the --ignore-violation flag).
+
+### Supported Scanners
+- SAST
+- Iac (comming soon)
+- SCA (comming soon)
+
 ## Scan Results
 
 Each scan will complete with a message stating if any issues were found or not.
