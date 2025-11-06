@@ -3,11 +3,12 @@ from typing import TYPE_CHECKING, Optional, Union
 import click
 
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
-from cycode.cyclient.client_creator import create_report_client, create_scan_client
+from cycode.cyclient.client_creator import create_import_sbom_client, create_report_client, create_scan_client
 
 if TYPE_CHECKING:
     import typer
 
+    from cycode.cyclient.import_sbom_client import ImportSbomClient
     from cycode.cyclient.report_client import ReportClient
     from cycode.cyclient.scan_client import ScanClient
 
@@ -36,6 +37,12 @@ def get_report_cycode_client(ctx: 'typer.Context', hide_response_log: bool = Tru
     client_id = ctx.obj.get('client_id')
     client_secret = ctx.obj.get('client_secret')
     return _get_cycode_client(create_report_client, client_id, client_secret, hide_response_log)
+
+
+def get_import_sbom_cycode_client(ctx: 'typer.Context', hide_response_log: bool = True) -> 'ImportSbomClient':
+    client_id = ctx.obj.get('client_id')
+    client_secret = ctx.obj.get('client_secret')
+    return _get_cycode_client(create_import_sbom_client, client_id, client_secret, hide_response_log)
 
 
 def _get_configured_credentials() -> tuple[str, str]:

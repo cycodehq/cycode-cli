@@ -56,8 +56,9 @@ This guide walks you through both installation and usage.
         6. [Ignoring via a config file](#ignoring-via-a-config-file)
 6. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
-7. [Scan logs](#scan-logs)
-8. [Syntax Help](#syntax-help)
+7. [Import command](#import-command)
+8. [Scan logs](#scan-logs)
+9. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
@@ -1294,6 +1295,26 @@ To create an SBOM report for a path:\
 
 For example:\
 `cycode report sbom --format spdx-2.3 --include-vulnerabilities --include-dev-dependencies path /path/to/local/project`
+
+# Import Command
+
+## Importing SBOM
+
+A software bill of materials (SBOM) is an inventory of all constituent components and software dependencies involved in the development and delivery of an application.
+Using this command, you can import an SBOM file from your file system into Cycode.
+
+The following options are available for use with this command:
+
+| Option                                             | Description                                | Required | Default                                               |
+|----------------------------------------------------|--------------------------------------------|----------|-------------------------------------------------------|
+| `-n, --name TEXT`                                  | Display name of the SBOM                   | Yes      |                                                       |
+| `-v, --vendor TEXT`                                | Name of the entity that provided the SBOM  | Yes      |                                                       |
+| `-l, --label TEXT`                                 | Attach label to the SBOM                   | No       |                                                       |
+| `-o, --owner TEXT`                                 | Email address of the Cycode user that serves as point of contact for this SBOM | No |                         |
+| `-b, --business-impact [High \| Medium \| Low]`    | Business Impact                            | No       | Medium                                                |
+
+For example:\
+`cycode import sbom --name example-sbom --vendor cycode -label tag1 -label tag2 --owner example@cycode.com /path/to/local/project`
 
 # Scan Logs
 

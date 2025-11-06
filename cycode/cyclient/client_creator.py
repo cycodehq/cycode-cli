@@ -2,6 +2,7 @@ from cycode.cyclient.config import dev_mode
 from cycode.cyclient.config_dev import DEV_CYCODE_API_URL
 from cycode.cyclient.cycode_dev_based_client import CycodeDevBasedClient
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
+from cycode.cyclient.import_sbom_client import ImportSbomClient
 from cycode.cyclient.report_client import ReportClient
 from cycode.cyclient.scan_client import ScanClient
 from cycode.cyclient.scan_config_base import DefaultScanConfig, DevScanConfig
@@ -21,3 +22,8 @@ def create_scan_client(client_id: str, client_secret: str, hide_response_log: bo
 def create_report_client(client_id: str, client_secret: str, _: bool) -> ReportClient:
     client = CycodeDevBasedClient(DEV_CYCODE_API_URL) if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
     return ReportClient(client)
+
+
+def create_import_sbom_client(client_id: str, client_secret: str, _: bool) -> ImportSbomClient:
+    client = CycodeDevBasedClient(DEV_CYCODE_API_URL) if dev_mode else CycodeTokenBasedClient(client_id, client_secret)
+    return ImportSbomClient(client)
