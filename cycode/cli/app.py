@@ -9,7 +9,7 @@ from typer._completion_shared import Shells
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
-from cycode.cli.apps import ai_remediation, auth, configure, ignore, report, scan, status
+from cycode.cli.apps import ai_remediation, auth, configure, ignore, report, report_import, scan, status
 
 if sys.version_info >= (3, 10):
     from cycode.cli.apps import mcp
@@ -50,6 +50,7 @@ app.add_typer(auth.app)
 app.add_typer(configure.app)
 app.add_typer(ignore.app)
 app.add_typer(report.app)
+app.add_typer(report_import.app)
 app.add_typer(scan.app)
 app.add_typer(status.app)
 if sys.version_info >= (3, 10):

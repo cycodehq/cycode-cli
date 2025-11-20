@@ -47,10 +47,10 @@ class DetectionSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
-    id = fields.String(missing=None)
+    id = fields.String(load_default=None)
     message = fields.String()
     type = fields.String()
-    severity = fields.String(missing=None)
+    severity = fields.String(load_default=None)
     detection_type_id = fields.String()
     detection_details = fields.Dict()
     detection_rule_id = fields.String()
@@ -400,6 +400,42 @@ class RequestedSbomReportResultSchema(Schema):
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> SbomReport:
         return SbomReport(**data)
+
+
+@dataclass
+class Member:
+    external_id: str
+
+
+class MemberSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    external_id = fields.String()
+
+    @post_load
+    def build_dto(self, data: dict[str, Any], **_) -> Member:
+        return Member(**data)
+
+
+@dataclass
+class MemberDetails:
+    items: list[Member]
+    page_size: int
+    next_page_token: Optional[str]
+
+
+class RequestedMemberDetailsResultSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    items = fields.List(fields.Nested(MemberSchema))
+    page_size = fields.Integer()
+    next_page_token = fields.String(allow_none=True)
+
+    @post_load
+    def build_dto(self, data: dict[str, Any], **_) -> MemberDetails:
+        return MemberDetails(**data)
 
 
 @dataclass

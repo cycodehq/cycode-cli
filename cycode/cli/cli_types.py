@@ -52,6 +52,12 @@ class SbomOutputFormatOption(StrEnum):
     JSON = 'json'
 
 
+class BusinessImpactOption(StrEnum):
+    HIGH = 'High'
+    MEDIUM = 'Medium'
+    LOW = 'Low'
+
+
 class SeverityOption(StrEnum):
     INFO = 'info'
     LOW = 'low'
