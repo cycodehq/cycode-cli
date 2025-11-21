@@ -12,12 +12,21 @@ from cycode.cli import consts
 from cycode.cli.files_collector.commit_range_documents import (
     _get_default_branches_for_merge_base,
     calculate_pre_push_commit_range,
+    calculate_pre_receive_commit_range,
     get_diff_file_path,
     get_safe_head_reference_for_diff,
     parse_commit_range,
     parse_pre_push_input,
+    parse_pre_receive_input,
 )
 from cycode.cli.utils.path_utils import get_path_by_os
+
+DUMMY_SHA_0 = '0' * 40
+DUMMY_SHA_1 = '1' * 40
+DUMMY_SHA_2 = '2' * 40
+DUMMY_SHA_A = 'a' * 40
+DUMMY_SHA_B = 'b' * 40
+DUMMY_SHA_C = 'c' * 40
 
 
 @contextmanager
@@ -871,3 +880,170 @@ class TestParseCommitRange:
 
             parsed_from, parsed_to = parse_commit_range(a, temp_dir)
             assert (parsed_from, parsed_to) == (a, c)
+
+
+class TestParsePreReceiveInput:
+    """Test the parse_pre_receive_input function with various pre-receive hook input scenarios."""
+
+    def test_parse_single_update_input(self) -> None:
+        """Test parsing a single branch update input."""
+        pre_receive_input = f'{DUMMY_SHA_1} {DUMMY_SHA_2} refs/heads/main'
+
+        with patch('sys.stdin', StringIO(pre_receive_input)):
+            result = parse_pre_receive_input()
+            assert result == pre_receive_input
+
+    def test_parse_multiple_update_input_returns_first_line(self) -> None:
+        """Test parsing multiple branch updates returns only the first line."""
+        pre_receive_input = f"""{DUMMY_SHA_0} {DUMMY_SHA_A} refs/heads/main
+{DUMMY_SHA_B} {DUMMY_SHA_C} refs/heads/feature"""
+
+        with patch('sys.stdin', StringIO(pre_receive_input)):
+            result = parse_pre_receive_input()
+            assert result == f'{DUMMY_SHA_0} {DUMMY_SHA_A} refs/heads/main'
+
+    def test_parse_empty_input_raises_error(self) -> None:
+        """Test that empty input raises ValueError."""
+        match = 'Pre receive input was not found'
+        with patch('sys.stdin', StringIO('')), pytest.raises(ValueError, match=match):
+            parse_pre_receive_input()
+
+
+class TestCalculatePreReceiveCommitRange:
+    """Test the calculate_pre_receive_commit_range function with representative scenarios."""
+
+    def test_branch_deletion_returns_none(self) -> None:
+        """When end commit is all zeros (deletion), no scan is needed."""
+        update_details = f'{DUMMY_SHA_A} {consts.EMPTY_COMMIT_SHA} refs/heads/feature'
+        assert calculate_pre_receive_commit_range(os.getcwd(), update_details) is None
+
+    def test_no_new_commits_returns_none(self) -> None:
+        """When there are no commits not in remote, return None."""
+        with tempfile.TemporaryDirectory() as server_dir:
+            server_repo = Repo.init(server_dir, bare=True)
+            try:
+                with tempfile.TemporaryDirectory() as work_dir:
+                    work_repo = Repo.init(work_dir, b='main')
+                    try:
+                        # Create a single commit and push it to the server as main (end commit is already on a ref)
+                        test_file = os.path.join(work_dir, 'file.txt')
+                        with open(test_file, 'w') as f:
+                            f.write('base')
+                        work_repo.index.add(['file.txt'])
+                        end_commit = work_repo.index.commit('initial')
+
+                        work_repo.create_remote('origin', server_dir)
+                        work_repo.remotes.origin.push('main:main')
+
+                        update_details = f'{DUMMY_SHA_A} {end_commit.hexsha} refs/heads/main'
+                        assert calculate_pre_receive_commit_range(server_dir, update_details) is None
+                    finally:
+                        work_repo.close()
+            finally:
+                server_repo.close()
+
+    def test_returns_triple_dot_range_from_oldest_unupdated(self) -> None:
+        """Returns '<oldest>~1...<end>' when there are new commits to scan."""
+        with tempfile.TemporaryDirectory() as server_dir:
+            server_repo = Repo.init(server_dir, bare=True)
+            try:
+                with tempfile.TemporaryDirectory() as work_dir:
+                    work_repo = Repo.init(work_dir, b='main')
+                    try:
+                        # Create commit A and push it to server as main (server has A on a ref)
+                        a_path = os.path.join(work_dir, 'a.txt')
+                        with open(a_path, 'w') as f:
+                            f.write('A')
+                        work_repo.index.add(['a.txt'])
+                        work_repo.index.commit('A')
+
+                        work_repo.create_remote('origin', server_dir)
+                        work_repo.remotes.origin.push('main:main')
+
+                        # Create commits B and C locally (not yet on server ref)
+                        b_path = os.path.join(work_dir, 'b.txt')
+                        with open(b_path, 'w') as f:
+                            f.write('B')
+                        work_repo.index.add(['b.txt'])
+                        b_commit = work_repo.index.commit('B')
+
+                        c_path = os.path.join(work_dir, 'c.txt')
+                        with open(c_path, 'w') as f:
+                            f.write('C')
+                        work_repo.index.add(['c.txt'])
+                        end_commit = work_repo.index.commit('C')
+
+                        # Push the objects to a temporary ref and then delete that ref on server,
+                        # so the objects exist but are not reachable from any ref.
+                        work_repo.remotes.origin.push(f'{end_commit.hexsha}:refs/tmp/hold')
+                        Repo(server_dir).git.update_ref('-d', 'refs/tmp/hold')
+
+                        update_details = f'{DUMMY_SHA_A} {end_commit.hexsha} refs/heads/main'
+                        result = calculate_pre_receive_commit_range(server_dir, update_details)
+                        assert result == f'{b_commit.hexsha}~1...{end_commit.hexsha}'
+                    finally:
+                        work_repo.close()
+            finally:
+                server_repo.close()
+
+    def test_initial_oldest_commit_without_parent_returns_single_commit_range(self) -> None:
+        """If oldest commit has no parent, avoid '~1' and scan from end commit only."""
+        with tempfile.TemporaryDirectory() as server_dir:
+            server_repo = Repo.init(server_dir, bare=True)
+            try:
+                with tempfile.TemporaryDirectory() as work_dir:
+                    work_repo = Repo.init(work_dir, b='main')
+                    try:
+                        # Create a single root commit locally
+                        p = os.path.join(work_dir, 'root.txt')
+                        with open(p, 'w') as f:
+                            f.write('root')
+                        work_repo.index.add(['root.txt'])
+                        end_commit = work_repo.index.commit('root')
+
+                        work_repo.create_remote('origin', server_dir)
+                        # Push objects to a temporary ref and delete it so server has objects but no refs
+                        work_repo.remotes.origin.push(f'{end_commit.hexsha}:refs/tmp/hold')
+                        Repo(server_dir).git.update_ref('-d', 'refs/tmp/hold')
+
+                        update_details = f'{DUMMY_SHA_A} {end_commit.hexsha} refs/heads/main'
+                        result = calculate_pre_receive_commit_range(server_dir, update_details)
+                        assert result == end_commit.hexsha
+                    finally:
+                        work_repo.close()
+            finally:
+                server_repo.close()
+
+    def test_initial_oldest_commit_without_parent_with_two_commits_returns_single_commit_range(self) -> None:
+        """If there are two new commits and the oldest has no parent, avoid '~1' and scan from end commit only."""
+        with tempfile.TemporaryDirectory() as server_dir:
+            server_repo = Repo.init(server_dir, bare=True)
+            try:
+                with tempfile.TemporaryDirectory() as work_dir:
+                    work_repo = Repo.init(work_dir, b='main')
+                    try:
+                        # Create two commits locally: oldest has no parent, second on top
+                        a_path = os.path.join(work_dir, 'a.txt')
+                        with open(a_path, 'w') as f:
+                            f.write('A')
+                        work_repo.index.add(['a.txt'])
+                        work_repo.index.commit('A')
+
+                        d_path = os.path.join(work_dir, 'd.txt')
+                        with open(d_path, 'w') as f:
+                            f.write('D')
+                        work_repo.index.add(['d.txt'])
+                        end_commit = work_repo.index.commit('D')
+
+                        work_repo.create_remote('origin', server_dir)
+                        # Push objects to a temporary ref and delete it so server has objects but no refs
+                        work_repo.remotes.origin.push(f'{end_commit.hexsha}:refs/tmp/hold')
+                        Repo(server_dir).git.update_ref('-d', 'refs/tmp/hold')
+
+                        update_details = f'{consts.EMPTY_COMMIT_SHA} {end_commit.hexsha} refs/heads/main'
+                        result = calculate_pre_receive_commit_range(server_dir, update_details)
+                        assert result == end_commit.hexsha
+                    finally:
+                        work_repo.close()
+            finally:
+                server_repo.close()
