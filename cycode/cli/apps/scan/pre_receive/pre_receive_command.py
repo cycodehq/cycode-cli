@@ -47,7 +47,9 @@ def pre_receive_command(
         timeout = configuration_manager.get_pre_receive_command_timeout(command_scan_type)
         with TimeoutAfter(timeout):
             branch_update_details = parse_pre_receive_input()
-            commit_range = calculate_pre_receive_commit_range(branch_update_details)
+            commit_range = calculate_pre_receive_commit_range(
+                repo_path=os.getcwd(), branch_update_details=branch_update_details
+            )
             if not commit_range:
                 logger.info(
                     'No new commits found for pushed branch, %s',
