@@ -14,10 +14,10 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 
 def execute_commands(
-        commands: list[list[str]],
-        timeout: int,
-        output_file_path: Optional[str] = None,
-        working_directory: Optional[str] = None,
+    commands: list[list[str]],
+    timeout: int,
+    output_file_path: Optional[str] = None,
+    working_directory: Optional[str] = None,
 ) -> Optional[str]:
     try:
         outputs = []
@@ -40,7 +40,7 @@ def execute_commands(
 
 class BaseRestoreDependencies(ABC):
     def __init__(
-            self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
+        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, create_output_file_manually: bool = False
     ) -> None:
         self.ctx = ctx
         self.is_git_diff = is_git_diff
@@ -57,11 +57,14 @@ class BaseRestoreDependencies(ABC):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        restore_file_paths = [build_dep_tree_path(document.absolute_path, restore_file_path_item) for
-                              restore_file_path_item in self.get_lock_file_names()]
+        restore_file_paths = [
+            build_dep_tree_path(document.absolute_path, restore_file_path_item)
+            for restore_file_path_item in self.get_lock_file_names()
+        ]
         restore_file_path = self.get_any_restore_file_already_exist(restore_file_paths)
-        relative_restore_file_path = build_dep_tree_path(document.path,
-                                                         self.get_restored_lock_file_name(restore_file_path))
+        relative_restore_file_path = build_dep_tree_path(
+            document.path, self.get_restored_lock_file_name(restore_file_path)
+        )
 
         if self.verify_lockfile_missing(restore_file_path):
             output = execute_commands(

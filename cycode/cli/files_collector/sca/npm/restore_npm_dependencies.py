@@ -7,12 +7,7 @@ from cycode.cli.models import Document
 
 NPM_PROJECT_FILE_EXTENSIONS = ['.json']
 NPM_LOCK_FILE_NAME = 'package-lock.json'
-NPM_LOCK_FILE_NAMES = [
-    NPM_LOCK_FILE_NAME,
-    'yarn.lock',
-    'pnpm-lock.yaml',
-    'deno.lock'
-]
+NPM_LOCK_FILE_NAMES = [NPM_LOCK_FILE_NAME, 'yarn.lock', 'pnpm-lock.yaml', 'deno.lock']
 NPM_MANIFEST_FILE_NAME = 'package.json'
 
 
