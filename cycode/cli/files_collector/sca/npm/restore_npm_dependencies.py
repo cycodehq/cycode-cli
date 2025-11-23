@@ -37,7 +37,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         ]
 
     def get_restored_lock_file_name(self, restore_file_path: str) -> str:
-        return NPM_LOCK_FILE_NAME if restore_file_path is None else  os.path.basename(restore_file_path)
+        return NPM_LOCK_FILE_NAME if restore_file_path is None else os.path.basename(restore_file_path)
 
     def get_lock_file_name(self) -> str:
         return NPM_LOCK_FILE_NAME
