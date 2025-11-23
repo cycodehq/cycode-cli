@@ -7,6 +7,12 @@ from cycode.cli.models import Document
 
 NPM_PROJECT_FILE_EXTENSIONS = ['.json']
 NPM_LOCK_FILE_NAME = 'package-lock.json'
+NPM_LOCK_FILE_NAMES = [
+    NPM_LOCK_FILE_NAME,
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'deno.lock'
+]
 NPM_MANIFEST_FILE_NAME = 'package.json'
 
 
@@ -29,9 +35,15 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
                 '--no-audit',
             ]
         ]
+        
+    def get_restored_lock_file_name(self, restore_file_path: str) -> str:
+        return NPM_LOCK_FILE_NAME if restore_file_path is None else  os.path.basename(restore_file_path)
 
     def get_lock_file_name(self) -> str:
         return NPM_LOCK_FILE_NAME
+    
+    def get_lock_file_names(self) -> str:
+        return NPM_LOCK_FILE_NAMES
 
     @staticmethod
     def prepare_manifest_file_path_for_command(manifest_file_path: str) -> str:

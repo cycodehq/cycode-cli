@@ -40,6 +40,9 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return BUILD_GRADLE_DEP_TREE_FILE_NAME
+    
+    def get_lock_file_names(self) -> str:
+        return [self.get_lock_file_name()]
 
     def get_working_directory(self, document: Document) -> Optional[str]:
         return get_path_from_context(self.ctx) if self.is_gradle_sub_projects() else None

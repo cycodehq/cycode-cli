@@ -55,12 +55,13 @@ class BaseRestoreDependencies(ABC):
             join_paths(get_path_from_context(self.ctx), document.path) if self.ctx.obj.get('monitor') else document.path
         )
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]: 
+    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_file_path = self.get_manifest_file_path(document)
-        restore_file_path = build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
-        relative_restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
+        restore_file_paths = [build_dep_tree_path(document.absolute_path, restore_file_path_item) for restore_file_path_item in self.get_lock_file_names()]
+        restore_file_path = self.get_any_restore_file_already_exist(restore_file_paths)
+        relative_restore_file_path = build_dep_tree_path(document.path, self.get_restored_lock_file_name(restore_file_path))
 
-        if not self.verify_restore_file_already_exist(restore_file_path):
+        if self.verify_lockfile_missing(restore_file_path):
             output = execute_commands(
                 commands=self.get_commands(manifest_file_path),
                 timeout=self.command_timeout,
@@ -75,10 +76,21 @@ class BaseRestoreDependencies(ABC):
 
     def get_working_directory(self, document: Document) -> Optional[str]:
         return os.path.dirname(document.absolute_path)
+    
+    def get_restored_lock_file_name(self, restore_file_path: str) -> str:
+        return self.get_lock_file_name()
+    
+    @staticmethod
+    def get_any_restore_file_already_exist(restore_file_paths: list[str]) -> Optional[str]:
+        for restore_file_path in restore_file_paths:
+            if os.path.isfile(restore_file_path):
+                return restore_file_path
+        
+        return None
 
     @staticmethod
-    def verify_restore_file_already_exist(restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)
+    def verify_lockfile_missing(restore_file_path: Optional[str]) -> bool:
+        return restore_file_path is None
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:
@@ -90,4 +102,8 @@ class BaseRestoreDependencies(ABC):
 
     @abstractmethod
     def get_lock_file_name(self) -> str:
+        pass
+    
+    @abstractmethod
+    def get_lock_file_names(self) -> list[str]:
         pass
