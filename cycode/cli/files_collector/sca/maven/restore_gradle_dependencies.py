@@ -40,7 +40,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return BUILD_GRADLE_DEP_TREE_FILE_NAME
-    
+
     def get_lock_file_names(self) -> str:
         return [self.get_lock_file_name()]
 
