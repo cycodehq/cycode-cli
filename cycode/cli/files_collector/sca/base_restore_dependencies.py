@@ -55,7 +55,7 @@ class BaseRestoreDependencies(ABC):
             join_paths(get_path_from_context(self.ctx), document.path) if self.ctx.obj.get('monitor') else document.path
         )
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Optional[Document]: 
         manifest_file_path = self.get_manifest_file_path(document)
         restore_file_path = build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
         relative_restore_file_path = build_dep_tree_path(document.path, self.get_lock_file_name())
