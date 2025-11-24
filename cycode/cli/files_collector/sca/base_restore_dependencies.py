@@ -61,12 +61,12 @@ class BaseRestoreDependencies(ABC):
             build_dep_tree_path(document.absolute_path, restore_file_path_item)
             for restore_file_path_item in self.get_lock_file_names()
         ]
-        restore_file_path = self.get_any_restore_file_already_exist(restore_file_paths)
+        restore_file_path = self.get_any_restore_file_already_exist(document, restore_file_paths)
         relative_restore_file_path = build_dep_tree_path(
             document.path, self.get_restored_lock_file_name(restore_file_path)
         )
 
-        if self.verify_lockfile_missing(restore_file_path):
+        if not self.verify_restore_file_already_exist(restore_file_path):
             output = execute_commands(
                 commands=self.get_commands(manifest_file_path),
                 timeout=self.command_timeout,
@@ -85,17 +85,16 @@ class BaseRestoreDependencies(ABC):
     def get_restored_lock_file_name(self, restore_file_path: str) -> str:
         return self.get_lock_file_name()
 
-    @staticmethod
-    def get_any_restore_file_already_exist(restore_file_paths: list[str]) -> Optional[str]:
+    def get_any_restore_file_already_exist(self, document: Document, restore_file_paths: list[str]) -> Optional[str]:
         for restore_file_path in restore_file_paths:
             if os.path.isfile(restore_file_path):
                 return restore_file_path
 
-        return None
+        return build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
 
     @staticmethod
-    def verify_lockfile_missing(restore_file_path: Optional[str]) -> bool:
-        return restore_file_path is None
+    def verify_restore_file_already_exist(restore_file_path: Optional[str]) -> bool:
+        return os.path.isfile(restore_file_path)
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:
