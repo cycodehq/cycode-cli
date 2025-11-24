@@ -85,7 +85,7 @@ class BaseRestoreDependencies(ABC):
     def get_restored_lock_file_name(self, restore_file_path: str) -> str:
         return self.get_lock_file_name()
 
-    def get_any_restore_file_already_exist(self, document: Document, restore_file_paths: list[str]) -> Optional[str]:
+    def get_any_restore_file_already_exist(self, document: Document, restore_file_paths: list[str]) -> str:
         for restore_file_path in restore_file_paths:
             if os.path.isfile(restore_file_path):
                 return restore_file_path
@@ -93,7 +93,7 @@ class BaseRestoreDependencies(ABC):
         return build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
 
     @staticmethod
-    def verify_restore_file_already_exist(restore_file_path: Optional[str]) -> bool:
+    def verify_restore_file_already_exist(restore_file_path: str) -> bool:
         return os.path.isfile(restore_file_path)
 
     @abstractmethod
