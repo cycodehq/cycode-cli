@@ -1,7 +1,13 @@
-name: Build executable version of CLI and upload artifact. On dispatch event build the latest tag and upload to release assets
+name: Build executable version of CLI and optionally upload artifact
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Upload artifacts to release'
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
@@ -15,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, macos-13, macos-14, windows-2022 ]
+        os: [ ubuntu-22.04, macos-15-intel, macos-15, windows-2022 ]
         mode: [ 'onefile', 'onedir' ]
         exclude:
           - os: ubuntu-22.04
@@ -200,7 +206,7 @@ jobs:
           path: dist
 
       - name: Upload files to release
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
         uses: svenstaro/upload-release-action@v2
         with:
           file: dist/*
