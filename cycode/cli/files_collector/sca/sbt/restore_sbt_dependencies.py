@@ -14,3 +14,6 @@ class RestoreSbtDependencies(BaseRestoreDependencies):
 
     def get_lock_file_name(self) -> str:
         return SBT_LOCK_FILE_NAME
+
+    def get_lock_file_names(self) -> str:
+        return [self.get_lock_file_name()]
