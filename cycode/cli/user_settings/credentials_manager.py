@@ -2,7 +2,11 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from cycode.cli.config import CYCODE_CLIENT_ID_ENV_VAR_NAME, CYCODE_CLIENT_SECRET_ENV_VAR_NAME
+from cycode.cli.config import (
+    CYCODE_CLIENT_ID_ENV_VAR_NAME,
+    CYCODE_CLIENT_SECRET_ENV_VAR_NAME,
+    CYCODE_ID_TOKEN_ENV_VAR_NAME,
+)
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
 from cycode.cli.user_settings.jwt_creator import JwtCreator
 from cycode.cli.utils.sentry import setup_scope_from_access_token
@@ -15,6 +19,7 @@ class CredentialsManager(BaseFileManager):
 
     CLIENT_ID_FIELD_NAME: str = 'cycode_client_id'
     CLIENT_SECRET_FIELD_NAME: str = 'cycode_client_secret'
+    ID_TOKEN_FIELD_NAME: str = 'cycode_id_token'
     ACCESS_TOKEN_FIELD_NAME: str = 'cycode_access_token'
     ACCESS_TOKEN_EXPIRES_IN_FIELD_NAME: str = 'cycode_access_token_expires_in'
     ACCESS_TOKEN_CREATOR_FIELD_NAME: str = 'cycode_access_token_creator'
@@ -37,6 +42,25 @@ class CredentialsManager(BaseFileManager):
         client_id = file_content.get(self.CLIENT_ID_FIELD_NAME)
         client_secret = file_content.get(self.CLIENT_SECRET_FIELD_NAME)
         return client_id, client_secret
+
+    def get_oidc_credentials_from_file(self) -> tuple[Optional[str], Optional[str]]:
+        file_content = self.read_file()
+        client_id = file_content.get(self.CLIENT_ID_FIELD_NAME)
+        id_token = file_content.get(self.ID_TOKEN_FIELD_NAME)
+        return client_id, id_token
+
+    def get_oidc_credentials(self) -> tuple[Optional[str], Optional[str]]:
+        client_id = os.getenv(CYCODE_CLIENT_ID_ENV_VAR_NAME)
+        id_token = os.getenv(CYCODE_ID_TOKEN_ENV_VAR_NAME)
+
+        if client_id is not None and id_token is not None:
+            return client_id, id_token
+
+        return self.get_oidc_credentials_from_file()
+
+    def update_oidc_credentials(self, client_id: str, id_token: str) -> None:
+        file_content_to_update = {self.CLIENT_ID_FIELD_NAME: client_id, self.ID_TOKEN_FIELD_NAME: id_token}
+        self.write_content_to_file(file_content_to_update)
 
     def update_credentials(self, client_id: str, client_secret: str) -> None:
         file_content_to_update = {self.CLIENT_ID_FIELD_NAME: client_id, self.CLIENT_SECRET_FIELD_NAME: client_secret}

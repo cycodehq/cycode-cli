@@ -6,6 +6,7 @@ import responses
 
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cyclient.client_creator import create_scan_client
+from cycode.cyclient.cycode_oidc_based_client import CycodeOidcBasedClient
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from cycode.cyclient.scan_client import ScanClient
 
@@ -14,6 +15,7 @@ _EXPECTED_API_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3
 
 _CLIENT_ID = 'b1234568-0eaa-1234-beb8-6f0c12345678'
 _CLIENT_SECRET = 'a12345a-42b2-1234-3bdd-c0130123456'
+_ID_TOKEN = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1NiJ9.eyJzdWIiOiI4NzY1NDMyMSIsImF1ZCI6ImN5Y29kZSIsImV4cCI6MTUxNjIzOTAyMiwiaXNfb2lkYyI6MX0.Rrby2hPzsoMM3'  # noqa: E501
 
 CLI_ENV_VARS = {'CYCODE_CLIENT_ID': _CLIENT_ID, 'CYCODE_CLIENT_SECRET': _CLIENT_SECRET}
 
@@ -45,6 +47,17 @@ def create_token_based_client(
     return CycodeTokenBasedClient(client_id, client_secret)
 
 
+def create_oidc_based_client(client_id: Optional[str] = None, id_token: Optional[str] = None) -> CycodeOidcBasedClient:
+    CredentialsManager.FILE_NAME = 'unit-tests-credentials.yaml'
+
+    if client_id is None:
+        client_id = _CLIENT_ID
+    if id_token is None:
+        id_token = _ID_TOKEN
+
+    return CycodeOidcBasedClient(client_id, id_token)
+
+
 @pytest.fixture(scope='session')
 def token_based_client() -> CycodeTokenBasedClient:
     return create_token_based_client()
@@ -74,3 +87,34 @@ def api_token_response(api_token_url: str) -> responses.Response:
 def api_token(token_based_client: CycodeTokenBasedClient, api_token_response: responses.Response) -> str:
     responses.add(api_token_response)
     return token_based_client.get_access_token()
+
+
+@pytest.fixture(scope='session')
+def oidc_based_client() -> CycodeOidcBasedClient:
+    return create_oidc_based_client()
+
+
+@pytest.fixture(scope='session')
+def oidc_api_token_url(oidc_based_client: CycodeOidcBasedClient) -> str:
+    return f'{oidc_based_client.api_url}/api/v1/auth/oidc/api-token'
+
+
+@pytest.fixture(scope='session')
+@responses.activate
+def oidc_api_token(oidc_based_client: CycodeOidcBasedClient, oidc_api_token_response: responses.Response) -> str:
+    responses.add(oidc_api_token_response)
+    return oidc_based_client.get_access_token()
+
+
+@pytest.fixture(scope='session')
+def oidc_api_token_response(oidc_api_token_url: str) -> responses.Response:
+    return responses.Response(
+        method=responses.POST,
+        url=oidc_api_token_url,
+        json={
+            'token': _EXPECTED_API_TOKEN,
+            'refresh_token': '12345678-0c68-1234-91ba-a13123456789',
+            'expires_in': 86400,
+        },
+        status=200,
+    )
