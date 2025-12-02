@@ -36,7 +36,13 @@ def test_configure_command_no_exist_values_in_file(mocker: 'MockerFixture') -> N
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch(
         'typer.prompt',
-        side_effect=[api_url_user_input, app_url_user_input, client_id_user_input, client_secret_user_input, id_token_user_input],
+        side_effect=[
+            api_url_user_input,
+            app_url_user_input,
+            client_id_user_input,
+            client_secret_user_input,
+            id_token_user_input,
+        ],
     )
 
     mocked_update_credentials = mocker.patch(
@@ -90,7 +96,13 @@ def test_configure_command_update_current_configs_in_files(mocker: 'MockerFixtur
     # side effect - multiple return values, each item in the list represents return of a call
     mocker.patch(
         'typer.prompt',
-        side_effect=[api_url_user_input, app_url_user_input, client_id_user_input, client_secret_user_input, id_token_user_input],
+        side_effect=[
+            api_url_user_input,
+            app_url_user_input,
+            client_id_user_input,
+            client_secret_user_input,
+            id_token_user_input,
+        ],
     )
 
     mocked_update_credentials = mocker.patch(
