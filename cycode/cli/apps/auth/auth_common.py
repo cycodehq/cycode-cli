@@ -4,6 +4,7 @@ from cycode.cli.apps.auth.models import AuthInfo
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, RequestHttpError
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.utils.jwt_utils import get_user_and_tenant_ids_from_access_token
+from cycode.cyclient.cycode_oidc_based_client import CycodeOidcBasedClient
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 
 if TYPE_CHECKING:
@@ -13,15 +14,49 @@ if TYPE_CHECKING:
 def get_authorization_info(ctx: 'Context') -> Optional[AuthInfo]:
     printer = ctx.obj.get('console_printer')
 
-    client_id, client_secret = ctx.obj.get('client_id'), ctx.obj.get('client_secret')
+    client_id = ctx.obj.get('client_id')
+    client_secret = ctx.obj.get('client_secret')
+    id_token = ctx.obj.get('id_token')
+
+    credentials_manager = CredentialsManager()
+
+    auth_info = _try_oidc_authorization(ctx, printer, client_id, id_token)
+    if auth_info:
+        return auth_info
+
     if not client_id or not client_secret:
-        client_id, client_secret = CredentialsManager().get_credentials()
+        stored_client_id, stored_id_token = credentials_manager.get_oidc_credentials()
+        auth_info = _try_oidc_authorization(ctx, printer, stored_client_id, stored_id_token)
+        if auth_info:
+            return auth_info
+
+        client_id, client_secret = credentials_manager.get_credentials()
 
     if not client_id or not client_secret:
         return None
 
     try:
         access_token = CycodeTokenBasedClient(client_id, client_secret).get_access_token()
+        if not access_token:
+            return None
+
+        user_id, tenant_id = get_user_and_tenant_ids_from_access_token(access_token)
+        return AuthInfo(user_id=user_id, tenant_id=tenant_id)
+    except (RequestHttpError, HttpUnauthorizedError):
+        if ctx:
+            printer.print_exception()
+
+        return None
+
+
+def _try_oidc_authorization(
+    ctx: 'Context', printer: any, client_id: Optional[str], id_token: Optional[str]
+) -> Optional[AuthInfo]:
+    if not client_id or not id_token:
+        return None
+
+    try:
+        access_token = CycodeOidcBasedClient(client_id, id_token).get_access_token()
         if not access_token:
             return None
 

@@ -7,6 +7,7 @@ from cycode.cli.apps.configure.prompts import (
     get_app_url_input,
     get_client_id_input,
     get_client_secret_input,
+    get_id_token_input,
 )
 from cycode.cli.console import console
 from cycode.cli.utils.sentry import add_breadcrumb
@@ -32,6 +33,7 @@ def configure_command() -> None:
     * APP URL: The base URL for Cycode's web application (for on-premise or EU installations)
     * Client ID: Your Cycode client ID for authentication
     * Client Secret: Your Cycode client secret for authentication
+    * ID Token: Your Cycode ID token for authentication
 
     Example usage:
     * `cycode configure`: Start interactive configuration
@@ -55,15 +57,22 @@ def configure_command() -> None:
         config_updated = True
 
     current_client_id, current_client_secret = CREDENTIALS_MANAGER.get_credentials_from_file()
+    _, current_id_token = CREDENTIALS_MANAGER.get_oidc_credentials_from_file()
     client_id = get_client_id_input(current_client_id)
     client_secret = get_client_secret_input(current_client_secret)
+    id_token = get_id_token_input(current_id_token)
 
     credentials_updated = False
     if _should_update_value(current_client_id, client_id) or _should_update_value(current_client_secret, client_secret):
         credentials_updated = True
         CREDENTIALS_MANAGER.update_credentials(client_id, client_secret)
 
+    oidc_credentials_updated = False
+    if _should_update_value(current_client_id, client_id) or _should_update_value(current_id_token, id_token):
+        oidc_credentials_updated = True
+        CREDENTIALS_MANAGER.update_oidc_credentials(client_id, id_token)
+
     if config_updated:
         console.print(get_urls_update_result_message())
-    if credentials_updated:
+    if credentials_updated or oidc_credentials_updated:
         console.print(get_credentials_update_result_message())

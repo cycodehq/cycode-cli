@@ -46,3 +46,14 @@ def get_api_url_input(current_api_url: Optional[str]) -> str:
         default = current_api_url
 
     return typer.prompt(text=prompt_text, default=default, type=str)
+
+
+def get_id_token_input(current_id_token: Optional[str]) -> Optional[str]:
+    prompt_text = 'Cycode ID Token'
+
+    prompt_suffix = ' []: '
+    if current_id_token:
+        prompt_suffix = f' [{obfuscate_text(current_id_token)}]: '
+
+    new_id_token = typer.prompt(text=prompt_text, prompt_suffix=prompt_suffix, default='', show_default=False)
+    return new_id_token or current_id_token

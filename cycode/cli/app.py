@@ -110,6 +110,13 @@ def app_callback(
             rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
+    id_token: Annotated[
+        Optional[str],
+        typer.Option(
+            help='Specify a Cycode OIDC ID token for this specific scan execution.',
+            rich_help_panel=_AUTH_RICH_HELP_PANEL,
+        ),
+    ] = None,
     _: Annotated[
         Optional[bool],
         typer.Option(
@@ -152,6 +159,7 @@ def app_callback(
 
     ctx.obj['client_id'] = client_id
     ctx.obj['client_secret'] = client_secret
+    ctx.obj['id_token'] = id_token
 
     ctx.obj['progress_bar'] = get_progress_bar(hidden=no_progress_meter, sections=SCAN_PROGRESS_BAR_SECTIONS)
 
