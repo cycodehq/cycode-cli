@@ -101,7 +101,7 @@ To install the Cycode CLI application on your local machine, perform the followi
      ./cycode
      ```
 
-3. Finally authenticate the CLI. There are three methods to set the Cycode client ID and client secret:
+3. Finally authenticate the CLI. There are three methods to set the Cycode client ID and credentials (client secret or OIDC ID token):
 
    - [cycode auth](#using-the-auth-command) (**Recommended**)
    - [cycode configure](#using-the-configure-command)
@@ -164,11 +164,15 @@ To install the Cycode CLI application on your local machine, perform the followi
 
     `Cycode Client ID []: 7fe5346b-xxxx-xxxx-xxxx-55157625c72d`
 
-5. Enter your Cycode Client Secret value.
+5. Enter your Cycode Client Secret value (skip if you plan to use an OIDC ID token).
 
     `Cycode Client Secret []: c1e24929-xxxx-xxxx-xxxx-8b08c1839a2e`
 
-6. If the values were entered successfully, you'll see the following message:
+6. Enter your Cycode OIDC ID Token value (optional).
+
+    `Cycode ID Token []: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+7. If the values were entered successfully, you'll see the following message:
 
     `Successfully configured CLI credentials!`
 
@@ -193,6 +197,12 @@ and
 export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 ```
 
+If your organization uses OIDC authentication, you can provide the ID token instead (or in addition):
+
+```bash
+export CYCODE_ID_TOKEN={your Cycode OIDC ID token}
+```
+
 #### On Windows
 
 1. From the Control Panel, navigate to the System menu:
@@ -207,7 +217,7 @@ export CYCODE_CLIENT_SECRET={your Cycode Secret Key}
 
    <img height="30" src="https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image3.png" alt="environments variables button"/>
 
-4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively:
+4. Create `CYCODE_CLIENT_ID` and `CYCODE_CLIENT_SECRET` variables with values matching your ID and Secret Key, respectively. If you authenticate via OIDC, add `CYCODE_ID_TOKEN` with your OIDC ID token value as well:
 
    <img height="100" src="https://raw.githubusercontent.com/cycodehq/cycode-cli/main/images/image4.png" alt="environment variables window"/>
 
@@ -321,6 +331,7 @@ The following are the options and commands available with the Cycode CLI applica
 | `-o`, `--output [rich\|text\|json\|table]`                        | Specify the output type. The default is `rich`.                                    |
 | `--client-id TEXT`                                                | Specify a Cycode client ID for this specific scan execution.                       |
 | `--client-secret TEXT`                                            | Specify a Cycode client secret for this specific scan execution.                   |
+| `--id-token TEXT`                                                 | Specify a Cycode OIDC ID token for this specific scan execution.                   |
 | `--install-completion`                                            | Install completion for the current shell..                                         |
 | `--show-completion           [bash\|zsh\|fish\|powershell\|pwsh]` | Show completion for the specified shell, to copy it or customize the installation. |
 | `-h`, `--help`                                                    | Show options for given command.                                                    |
