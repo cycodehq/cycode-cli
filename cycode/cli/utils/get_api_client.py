@@ -20,16 +20,17 @@ def _get_cycode_client(
     hide_response_log: bool,
     id_token: Optional[str] = None,
 ) -> Union['ScanClient', 'ReportClient']:
-    if id_token:
-        if not client_id:
-            raise click.ClickException('Cycode client id needed for OIDC authentication.')
+    if client_id and id_token:
         return create_client_func(client_id, None, hide_response_log, id_token)
 
-    if not client_id or not client_secret:
+    if not client_id or not id_token:
         oidc_client_id, oidc_id_token = _get_configured_oidc_credentials()
         if oidc_client_id and oidc_id_token:
             return create_client_func(oidc_client_id, None, hide_response_log, oidc_id_token)
+        if oidc_id_token and not oidc_client_id:
+            raise click.ClickException('Cycode client id needed for OIDC authentication.')
 
+    if not client_id or not client_secret:
         client_id, client_secret = _get_configured_credentials()
         if not client_id:
             raise click.ClickException('Cycode client id needed.')
