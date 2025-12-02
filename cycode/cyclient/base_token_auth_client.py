@@ -98,4 +98,3 @@ class BaseTokenAuthClient(CycodeClient, ABC):
     @abstractmethod
     def _request_new_access_token(self) -> dict[str, Any]:
         """Return the authentication payload with token and expires_in."""
-
