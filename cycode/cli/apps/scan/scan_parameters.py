@@ -33,4 +33,9 @@ def get_scan_parameters(ctx: typer.Context, paths: Optional[tuple[str, ...]] = N
     ctx.obj['remote_url'] = remote_url
     scan_parameters['remote_url'] = remote_url
 
+    # Include branch information if available (for repository scans)
+    branch = ctx.obj.get('branch')
+    if branch:
+        scan_parameters['branch'] = branch
+
     return scan_parameters
