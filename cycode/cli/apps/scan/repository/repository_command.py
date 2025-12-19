@@ -67,6 +67,10 @@ def repository_command(
 
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents_to_scan)
 
+        # Store branch in context so it can be included in scan parameters
+        if branch:
+            ctx.obj['branch'] = branch
+
         logger.debug('Found all relevant files for scanning %s', {'path': path, 'branch': branch})
         scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx, (str(path),)))
     except Exception as e:
