@@ -36,7 +36,7 @@ version = "0.0.0" # DON'T TOUCH. Placeholder. Will be filled automatically on po
 click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
-marshmallow = ">=3.15.0,<3.23.0" # 3.23 dropped support for Python 3.8
+marshmallow = ">=3.15.0,<3.27.0" # 3.23 dropped support for Python 3.8
 gitpython = ">=3.1.30,<3.2.0"
 arrow = ">=1.0.0,<1.4.0"
 binaryornot = ">=0.4.4,<0.5.0"
