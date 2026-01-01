@@ -172,8 +172,9 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
     def prepare_manifest_file_path_for_command(manifest_file_path: str) -> str:
         # Remove package.json from the path
         if manifest_file_path.endswith(NPM_MANIFEST_FILE_NAME):
-            # Handle both cases: with separator (e.g., '/path/to/package.json') and without (e.g., 'package.json')
-            if os.sep in manifest_file_path:
-                return manifest_file_path.replace(os.sep + NPM_MANIFEST_FILE_NAME, '')
-            return ''
+            # Use os.path.dirname to handle both Unix (/) and Windows (\) separators
+            # This is cross-platform and handles edge cases correctly
+            dir_path = os.path.dirname(manifest_file_path)
+            # If dir_path is empty or just '.', return an empty string (package.json in current dir)
+            return dir_path if dir_path and dir_path != '.' else ''
         return manifest_file_path
