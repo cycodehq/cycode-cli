@@ -96,7 +96,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
                 {'path': document.path, 'lockfile': lock_file_name, 'content_size': len(restore_file_content)},
             )
             return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
-      
+
         logger.warning(
             'Lockfile exists but could not read content, %s',
             {'path': document.path, 'lockfile': lock_file_name, 'lockfile_path': lockfile_path},
@@ -109,7 +109,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         The base class uses document.absolute_path which might be None or incorrect.
         We need to use the same path resolution logic as get_manifest_file_path()
         to ensure we check for lockfiles in the correct location.
- 
+
         If any lockfile exists (package-lock.json, pnpm-lock.yaml, yarn.lock, deno.lock),
         we use it directly without running npm install to avoid generating invalid lockfiles.
         """
@@ -128,7 +128,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
             return super().try_restore_dependencies(document)
 
         # Check for existing lockfiles
-        logger.debug('Checking for existing lockfiles in directory, %s', 
+        logger.debug('Checking for existing lockfiles in directory, %s',
                      {'directory': manifest_dir, 'path': document.path})
         existing_lock_file, checked_lockfiles = self._find_existing_lockfile(manifest_dir)
 

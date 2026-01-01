@@ -31,7 +31,7 @@ class TestRestoreNpmDependenciesAlternativeLockfiles:
     """Test that lockfiles prevent npm install from running."""
 
     @pytest.mark.parametrize(
-        ('lockfile_name,lockfile_content,expected_content'),
+        ('lockfile_name', 'lockfile_content', 'expected_content'),
         [
             ('pnpm-lock.yaml', 'lockfileVersion: 5.4\n', 'lockfileVersion: 5.4\n'),
             ('yarn.lock', '# yarn lockfile v1\n', '# yarn lockfile v1\n'),
@@ -239,7 +239,7 @@ class TestRestoreNpmDependenciesEdgeCases:
     def test_multiple_alternative_lockfiles_should_use_first_found(
             self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
-        """Test that when multiple alternative lockfiles exist (but no package-lock.json), 
+        """Test that when multiple alternative lockfiles exist (but no package-lock.json),
         the first one found is used."""
         package_json_path = tmp_path / 'package.json'
         yarn_lock_path = tmp_path / 'yarn.lock'
