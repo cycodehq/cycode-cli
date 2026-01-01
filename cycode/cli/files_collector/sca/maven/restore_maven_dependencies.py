@@ -34,7 +34,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
     def get_lock_file_name(self) -> str:
         return join_paths('target', MAVEN_CYCLONE_DEP_TREE_FILE_NAME)
 
-    def get_lock_file_names(self) -> str:
+    def get_lock_file_names(self) -> list[str]:
         return [self.get_lock_file_name()]
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:

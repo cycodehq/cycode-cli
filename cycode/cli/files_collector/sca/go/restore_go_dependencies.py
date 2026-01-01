@@ -44,5 +44,5 @@ class RestoreGoDependencies(BaseRestoreDependencies):
     def get_lock_file_name(self) -> str:
         return GO_RESTORE_FILE_NAME
 
-    def get_lock_file_names(self) -> str:
+    def get_lock_file_names(self) -> list[str]:
         return [self.get_lock_file_name()]
