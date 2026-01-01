@@ -14,7 +14,7 @@ NPM_PROJECT_FILE_EXTENSIONS = ['.json']
 NPM_LOCK_FILE_NAME = 'package-lock.json'
 # Alternative lockfiles that should prevent npm install from running
 ALTERNATIVE_LOCK_FILES = ['yarn.lock', 'pnpm-lock.yaml', 'deno.lock']
-NPM_LOCK_FILE_NAMES = [NPM_LOCK_FILE_NAME] + ALTERNATIVE_LOCK_FILES
+NPM_LOCK_FILE_NAMES = [NPM_LOCK_FILE_NAME, *ALTERNATIVE_LOCK_FILES]
 NPM_MANIFEST_FILE_NAME = 'package.json'
 class RestoreNpmDependencies(BaseRestoreDependencies):
     def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
@@ -25,10 +25,10 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
 
     def _resolve_manifest_directory(self, document: Document) -> Optional[str]:
         """Resolve the directory containing the manifest file.
-        
+
         Uses the same path resolution logic as get_manifest_file_path() to ensure consistency.
         Falls back to absolute_path or document.path if needed.
-        
+
         Returns:
             Directory path if resolved, None otherwise.
         """
@@ -45,17 +45,16 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
 
     def _find_existing_lockfile(self, manifest_dir: str) -> tuple[Optional[str], list[str]]:
         """Find the first existing lockfile in the manifest directory.
-        
+
         Args:
             manifest_dir: Directory to search for lockfiles.
-            
+
         Returns:
             Tuple of (lockfile_path if found, list of checked lockfiles with status).
         """
-        all_lock_file_names = [NPM_LOCK_FILE_NAME] + ALTERNATIVE_LOCK_FILES
         lock_file_paths = [
             os.path.join(manifest_dir, lock_file_name)
-            for lock_file_name in all_lock_file_names
+            for lock_file_name in NPM_LOCK_FILE_NAMES
         ]
 
         existing_lock_file = None
@@ -74,11 +73,11 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
             self, document: Document, lockfile_path: str
     ) -> Optional[Document]:
         """Create a Document from an existing lockfile.
-        
+
         Args:
             document: Original document (package.json).
             lockfile_path: Path to the existing lockfile.
-            
+    
         Returns:
             Document with lockfile content if successful, None otherwise.
         """
@@ -106,7 +105,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         """Override to prevent npm install when any lockfile exists.
-        
+
         The base class uses document.absolute_path which might be None or incorrect.
         We need to use the same path resolution logic as get_manifest_file_path()
         to ensure we check for lockfiles in the correct location.
