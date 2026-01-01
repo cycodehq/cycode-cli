@@ -31,7 +31,7 @@ class TestRestoreNpmDependenciesAlternativeLockfiles:
     """Test that lockfiles prevent npm install from running."""
 
     @pytest.mark.parametrize(
-        'lockfile_name,lockfile_content,expected_content',
+        ('lockfile_name,lockfile_content,expected_content'),
         [
             ('pnpm-lock.yaml', 'lockfileVersion: 5.4\n', 'lockfileVersion: 5.4\n'),
             ('yarn.lock', '# yarn lockfile v1\n', '# yarn lockfile v1\n'),
@@ -90,7 +90,7 @@ class TestRestoreNpmDependenciesAlternativeLockfiles:
                 return_value=None,
         ) as mock_super:
             # Execute
-            result = restore_npm_dependencies.try_restore_dependencies(document)
+            restore_npm_dependencies.try_restore_dependencies(document)
 
             # Verify: Should call parent's try_restore_dependencies (which will run npm install)
             mock_super.assert_called_once_with(document)
@@ -239,7 +239,8 @@ class TestRestoreNpmDependenciesEdgeCases:
     def test_multiple_alternative_lockfiles_should_use_first_found(
             self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
-        """Test that when multiple alternative lockfiles exist (but no package-lock.json), the first one found is used."""
+        """Test that when multiple alternative lockfiles exist (but no package-lock.json), 
+        the first one found is used."""
         package_json_path = tmp_path / 'package.json'
         yarn_lock_path = tmp_path / 'yarn.lock'
         pnpm_lock_path = tmp_path / 'pnpm-lock.yaml'
@@ -285,7 +286,7 @@ class TestRestoreNpmDependenciesEdgeCases:
                 'try_restore_dependencies',
                 return_value=None,
         ) as mock_super:
-            result = restore_npm_dependencies.try_restore_dependencies(document)
+            restore_npm_dependencies.try_restore_dependencies(document)
 
             # Should proceed with normal flow since lockfile not in same directory
             mock_super.assert_called_once_with(document)
