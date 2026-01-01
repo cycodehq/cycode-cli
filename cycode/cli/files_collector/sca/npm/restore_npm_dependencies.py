@@ -16,6 +16,8 @@ NPM_LOCK_FILE_NAME = 'package-lock.json'
 ALTERNATIVE_LOCK_FILES = ['yarn.lock', 'pnpm-lock.yaml', 'deno.lock']
 NPM_LOCK_FILE_NAMES = [NPM_LOCK_FILE_NAME, *ALTERNATIVE_LOCK_FILES]
 NPM_MANIFEST_FILE_NAME = 'package.json'
+
+
 class RestoreNpmDependencies(BaseRestoreDependencies):
     def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(ctx, is_git_diff, command_timeout)
@@ -52,10 +54,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         Returns:
             Tuple of (lockfile_path if found, list of checked lockfiles with status).
         """
-        lock_file_paths = [
-            os.path.join(manifest_dir, lock_file_name)
-            for lock_file_name in NPM_LOCK_FILE_NAMES
-        ]
+        lock_file_paths = [os.path.join(manifest_dir, lock_file_name) for lock_file_name in NPM_LOCK_FILE_NAMES]
 
         existing_lock_file = None
         checked_lockfiles = []
@@ -69,9 +68,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
 
         return existing_lock_file, checked_lockfiles
 
-    def _create_document_from_lockfile(
-            self, document: Document, lockfile_path: str
-    ) -> Optional[Document]:
+    def _create_document_from_lockfile(self, document: Document, lockfile_path: str) -> Optional[Document]:
         """Create a Document from an existing lockfile.
 
         Args:
@@ -128,8 +125,9 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
             return super().try_restore_dependencies(document)
 
         # Check for existing lockfiles
-        logger.debug('Checking for existing lockfiles in directory, %s',
-                     {'directory': manifest_dir, 'path': document.path})
+        logger.debug(
+            'Checking for existing lockfiles in directory, %s', {'directory': manifest_dir, 'path': document.path}
+        )
         existing_lock_file, checked_lockfiles = self._find_existing_lockfile(manifest_dir)
 
         logger.debug(

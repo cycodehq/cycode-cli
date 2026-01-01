@@ -40,12 +40,12 @@ class TestRestoreNpmDependenciesAlternativeLockfiles:
         ],
     )
     def test_lockfile_exists_should_skip_npm_install(
-            self,
-            restore_npm_dependencies: RestoreNpmDependencies,
-            tmp_path: Path,
-            lockfile_name: str,
-            lockfile_content: str,
-            expected_content: str,
+        self,
+        restore_npm_dependencies: RestoreNpmDependencies,
+        tmp_path: Path,
+        lockfile_name: str,
+        lockfile_content: str,
+        expected_content: str,
     ) -> None:
         """Test that when any lockfile exists, npm install is skipped."""
         # Setup: Create package.json and lockfile
@@ -70,7 +70,7 @@ class TestRestoreNpmDependenciesAlternativeLockfiles:
         assert result.content == expected_content
 
     def test_no_lockfile_exists_should_proceed_with_normal_flow(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test that when no lockfile exists, normal flow proceeds (will run npm install)."""
         # Setup: Create only package.json (no lockfile)
@@ -85,9 +85,9 @@ class TestRestoreNpmDependenciesAlternativeLockfiles:
 
         # Mock the base class's try_restore_dependencies to verify it's called
         with patch.object(
-                restore_npm_dependencies.__class__.__bases__[0],
-                'try_restore_dependencies',
-                return_value=None,
+            restore_npm_dependencies.__class__.__bases__[0],
+            'try_restore_dependencies',
+            return_value=None,
         ) as mock_super:
             # Execute
             restore_npm_dependencies.try_restore_dependencies(document)
@@ -104,10 +104,10 @@ class TestRestoreNpmDependenciesPathResolution:
         [True, False],
     )
     def test_path_resolution_with_different_path_types(
-            self,
-            restore_npm_dependencies: RestoreNpmDependencies,
-            tmp_path: Path,
-            has_absolute_path: bool,
+        self,
+        restore_npm_dependencies: RestoreNpmDependencies,
+        tmp_path: Path,
+        has_absolute_path: bool,
     ) -> None:
         """Test path resolution with absolute or relative paths."""
         package_json_path = tmp_path / 'package.json'
@@ -127,9 +127,7 @@ class TestRestoreNpmDependenciesPathResolution:
         assert result is not None
         assert result.content == 'lockfileVersion: 5.4\n'
 
-    def test_path_resolution_in_monitor_mode(
-            self, tmp_path: Path
-    ) -> None:
+    def test_path_resolution_in_monitor_mode(self, tmp_path: Path) -> None:
         """Test path resolution in monitor mode."""
         # Setup monitor mode context
         ctx = MagicMock(spec=typer.Context)
@@ -160,7 +158,7 @@ class TestRestoreNpmDependenciesPathResolution:
         assert result.content == 'lockfileVersion: 5.4\n'
 
     def test_path_resolution_with_nested_directory(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test path resolution with a nested directory structure."""
         subdir = tmp_path / 'src' / 'app'
@@ -188,7 +186,7 @@ class TestRestoreNpmDependenciesEdgeCases:
     """Test edge cases and error scenarios."""
 
     def test_empty_lockfile_should_still_be_used(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test that the empty lockfile is still used (prevents npm install)."""
         package_json_path = tmp_path / 'package.json'
@@ -210,7 +208,7 @@ class TestRestoreNpmDependenciesEdgeCases:
         assert result.content == ''
 
     def test_multiple_lockfiles_should_use_first_found(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test that when multiple lockfiles exist, the first one found is used (package-lock.json has priority)."""
         package_json_path = tmp_path / 'package.json'
@@ -237,7 +235,7 @@ class TestRestoreNpmDependenciesEdgeCases:
         assert result.content == '{"lockfileVersion": 2}\n'
 
     def test_multiple_alternative_lockfiles_should_use_first_found(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test that when multiple alternative lockfiles exist (but no package-lock.json),
         the first one found is used."""
@@ -263,7 +261,7 @@ class TestRestoreNpmDependenciesEdgeCases:
         assert result.content == '# yarn lockfile\n'
 
     def test_lockfile_in_different_directory_should_not_be_found(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test that lockfile in a different directory is not found."""
         package_json_path = tmp_path / 'package.json'
@@ -282,9 +280,9 @@ class TestRestoreNpmDependenciesEdgeCases:
 
         # Mock the base class to verify it's called (since lockfile not found)
         with patch.object(
-                restore_npm_dependencies.__class__.__bases__[0],
-                'try_restore_dependencies',
-                return_value=None,
+            restore_npm_dependencies.__class__.__bases__[0],
+            'try_restore_dependencies',
+            return_value=None,
         ) as mock_super:
             restore_npm_dependencies.try_restore_dependencies(document)
 
@@ -292,7 +290,7 @@ class TestRestoreNpmDependenciesEdgeCases:
             mock_super.assert_called_once_with(document)
 
     def test_non_json_file_should_not_trigger_restore(
-            self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
+        self, restore_npm_dependencies: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
         """Test that non-JSON files don't trigger restore."""
         text_file = tmp_path / 'readme.txt'
@@ -340,9 +338,7 @@ class TestRestoreNpmDependenciesHelperMethods:
         for alt_lock in ALTERNATIVE_LOCK_FILES:
             assert alt_lock in lock_file_names
 
-    def test_prepare_manifest_file_path_for_command(
-            self, restore_npm_dependencies: RestoreNpmDependencies
-    ) -> None:
+    def test_prepare_manifest_file_path_for_command(self, restore_npm_dependencies: RestoreNpmDependencies) -> None:
         """Test prepare_manifest_file_path_for_command removes package.json from the path."""
         result = restore_npm_dependencies.prepare_manifest_file_path_for_command('/path/to/package.json')
         assert result == '/path/to'
