@@ -153,7 +153,11 @@ def _add_dependencies_tree_documents(
                 continue
 
             if restore_dependencies_document.path in documents_to_add:
-                logger.debug('Duplicate document on restore for path: %s', restore_dependencies_document.path)
+                # Lockfile was already collected during file discovery, so we skip adding it again
+                logger.debug(
+                    'Lockfile already exists in scan, skipping duplicate document, %s',
+                    {'path': restore_dependencies_document.path, 'source': 'restore'},
+                )
             else:
                 logger.debug('Adding dependencies tree document, %s', restore_dependencies_document.path)
                 documents_to_add[restore_dependencies_document.path] = restore_dependencies_document
