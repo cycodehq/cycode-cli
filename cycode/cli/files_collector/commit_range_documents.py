@@ -67,11 +67,12 @@ def collect_commit_range_diff_documents(
     commit_documents_to_scan = []
 
     repo = git_proxy.get_repo(path)
-    
+
     normalized_commit_range = normalize_commit_range(commit_range, path)
-    
+
     total_commits_count = int(repo.git.rev_list('--count', normalized_commit_range))
-    logger.debug('Calculating diffs for %s commits in the commit range %s', total_commits_count, normalized_commit_range)
+    logger.debug('Calculating diffs for %s commits in the commit range %s',
+        total_commits_count, normalized_commit_range)
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
@@ -100,9 +101,9 @@ def collect_commit_range_diff_documents(
         logger.debug(
             'Found all relevant files in commit %s',
             {
-                'path': path, 
-                'commit_range': commit_range, 
-                'normalized_commit_range': normalized_commit_range, 
+                'path': path,
+                'commit_range': commit_range,
+                'normalized_commit_range': normalized_commit_range,
                 'commit_id': commit_id,
             },
         )
@@ -437,7 +438,8 @@ def get_pre_commit_modified_documents(
 
 
 def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """Parses a git commit range string and returns the full SHAs for the 'from' and 'to' commits as well as the separator.
+    """Parses a git commit range string and returns the full SHAs for the 'from' and 'to' commits.
+    Also, it returns the separator in the commit range.
 
     Supports:
     - 'from..to'
@@ -462,8 +464,10 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
     # If a spec is empty (e.g., from '..master'), default it to 'HEAD'
     if not from_spec:
         from_spec = consts.GIT_HEAD_COMMIT_REV
+        separator = '..'
     if not to_spec:
         to_spec = consts.GIT_HEAD_COMMIT_REV
+        separator = '..'
 
     try:
         # Use rev_parse to resolve each specifier to its full commit SHA
@@ -476,7 +480,7 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
 
 def normalize_commit_range(commit_range: str, path: str) -> str:
     """Normalize a commit range string to handle various formats consistently with all scan types.
-        
+
     Returns:
         A normalized commit range string suitable for Git operations (e.g., 'full_sha1..full_sha2')
     """
@@ -488,7 +492,7 @@ def normalize_commit_range(commit_range: str, path: str) -> str:
         )
         # Fall back to using the raw commit_range string
         return commit_range
-    
+
     # Construct a normalized range string using the original separator for iter_commits
     # This preserves the semantics of two-dot vs three-dot syntax
     normalized_commit_range = f'{from_commit_rev}{separator}{to_commit_rev}'

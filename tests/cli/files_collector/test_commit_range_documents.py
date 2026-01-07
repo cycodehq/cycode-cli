@@ -847,40 +847,40 @@ class TestParseCommitRange:
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'{a}..{c}', temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'{a}..{c}', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
     def test_three_dot_linear_history(self) -> None:
         """For 'A...C' in linear history, expect (A,C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'{a}...{c}', temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'{a}...{c}', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '...')
 
     def test_open_right_linear_history(self) -> None:
         """For 'A..', expect (A,HEAD=C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'{a}..', temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'{a}..', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
     def test_open_left_linear_history(self) -> None:
         """For '..C' where HEAD==C, expect (HEAD=C,C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'..{c}', temp_dir)
-            assert (parsed_from, parsed_to) == (c, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'..{c}', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (c, c, '..')
 
     def test_single_commit_spec(self) -> None:
         """For 'A', expect (A,HEAD=C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(a, temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(a, temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
 
 class TestParsePreReceiveInput:
@@ -1085,7 +1085,8 @@ class TestCollectCommitRangeDiffDocuments:
             documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
             assert len(documents) == 2, f'Expected 2 documents from range A..C, got {len(documents)}'
             commit_ids_in_documents = {doc.unique_id for doc in documents if doc.unique_id}
-            assert b_commit.hexsha in commit_ids_in_documents and c_commit.hexsha in commit_ids_in_documents
+            assert b_commit.hexsha in commit_ids_in_documents
+            assert c_commit.hexsha in commit_ids_in_documents
 
             # Test three-dot range - should collect documents from commits B and C (2 commits, 2 documents)
             commit_range = f'{a_commit.hexsha}...{c_commit.hexsha}'
@@ -1101,4 +1102,4 @@ class TestCollectCommitRangeDiffDocuments:
             # Test single commit spec - should be interpreted as A..HEAD (commits B and C, 2 documents)
             commit_range = a_commit.hexsha
             documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
-            assert len(documents) == 2, f'Expected 2 documents from single commit A (interpreted as A..HEAD), got {len(documents)}'
+            assert len(documents) == 2, f'Expected 2 documents from single commit A, got {len(documents)}'
