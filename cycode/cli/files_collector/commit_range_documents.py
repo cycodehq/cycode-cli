@@ -100,12 +100,7 @@ def collect_commit_range_diff_documents(
 
         logger.debug(
             'Found all relevant files in commit %s',
-            {
-                'path': path,
-                'commit_range': commit_range,
-                'normalized_commit_range': normalized_commit_range,
-                'commit_id': commit_id,
-            },
+            {'path': path, 'commit_range': normalized_commit_range, 'commit_id': commit_id},
         )
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
@@ -450,12 +445,12 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
     """
     repo = git_proxy.get_repo(path)
 
+    separator = '..'
     if '...' in commit_range:
         from_spec, to_spec = commit_range.split('...', 1)
         separator = '...'
     elif '..' in commit_range:
         from_spec, to_spec = commit_range.split('..', 1)
-        separator = '..'
     else:
         # Git commands like 'git diff <commit>' compare against HEAD.
         from_spec = commit_range
@@ -464,10 +459,8 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
     # If a spec is empty (e.g., from '..master'), default it to 'HEAD'
     if not from_spec:
         from_spec = consts.GIT_HEAD_COMMIT_REV
-        separator = '..'
     if not to_spec:
         to_spec = consts.GIT_HEAD_COMMIT_REV
-        separator = '..'
 
     try:
         # Use rev_parse to resolve each specifier to its full commit SHA
