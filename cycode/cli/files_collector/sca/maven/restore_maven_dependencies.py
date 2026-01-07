@@ -24,7 +24,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         return path.basename(document.path).split('/')[-1] == BUILD_MAVEN_FILE_NAME
 
     def get_commands(self, manifest_file_path: str) -> list[list[str]]:
-        command = ['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.7.4:makeAggregateBom', '-f', manifest_file_path]
+        command = ['mvn', 'org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom', '-f', manifest_file_path]
 
         maven_settings_file = self.ctx.obj.get('maven_settings_file')
         if maven_settings_file:
