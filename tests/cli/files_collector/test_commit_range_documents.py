@@ -13,6 +13,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     _get_default_branches_for_merge_base,
     calculate_pre_push_commit_range,
     calculate_pre_receive_commit_range,
+    collect_commit_range_diff_documents,
     get_diff_file_path,
     get_safe_head_reference_for_diff,
     parse_commit_range,
@@ -846,40 +847,40 @@ class TestParseCommitRange:
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'{a}..{c}', temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'{a}..{c}', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
     def test_three_dot_linear_history(self) -> None:
         """For 'A...C' in linear history, expect (A,C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'{a}...{c}', temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'{a}...{c}', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '...')
 
     def test_open_right_linear_history(self) -> None:
         """For 'A..', expect (A,HEAD=C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'{a}..', temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'{a}..', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
     def test_open_left_linear_history(self) -> None:
         """For '..C' where HEAD==C, expect (HEAD=C,C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(f'..{c}', temp_dir)
-            assert (parsed_from, parsed_to) == (c, c)
+            parsed_from, parsed_to, separator = parse_commit_range(f'..{c}', temp_dir)
+            assert (parsed_from, parsed_to, separator) == (c, c, '..')
 
     def test_single_commit_spec(self) -> None:
         """For 'A', expect (A,HEAD=C)."""
         with temporary_git_repository() as (temp_dir, repo):
             a, b, c = self._make_linear_history(repo, temp_dir)
 
-            parsed_from, parsed_to = parse_commit_range(a, temp_dir)
-            assert (parsed_from, parsed_to) == (a, c)
+            parsed_from, parsed_to, separator = parse_commit_range(a, temp_dir)
+            assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
 
 class TestParsePreReceiveInput:
@@ -1047,3 +1048,58 @@ class TestCalculatePreReceiveCommitRange:
                         work_repo.close()
             finally:
                 server_repo.close()
+
+
+class TestCollectCommitRangeDiffDocuments:
+    """Test the collect_commit_range_diff_documents function with various commit range formats."""
+
+    def test_collect_with_various_commit_range_formats(self) -> None:
+        """Test that different commit range formats are normalized and work correctly."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create three commits
+            a_file = os.path.join(temp_dir, 'a.txt')
+            with open(a_file, 'w') as f:
+                f.write('A')
+            repo.index.add(['a.txt'])
+            a_commit = repo.index.commit('A')
+
+            with open(a_file, 'a') as f:
+                f.write('B')
+            repo.index.add(['a.txt'])
+            b_commit = repo.index.commit('B')
+
+            with open(a_file, 'a') as f:
+                f.write('C')
+            repo.index.add(['a.txt'])
+            c_commit = repo.index.commit('C')
+
+            # Create mock context
+            mock_ctx = Mock()
+            mock_progress_bar = Mock()
+            mock_progress_bar.set_section_length = Mock()
+            mock_progress_bar.update = Mock()
+            mock_ctx.obj = {'progress_bar': mock_progress_bar}
+
+            # Test two-dot range - should collect documents from commits B and C (2 commits, 2 documents)
+            commit_range = f'{a_commit.hexsha}..{c_commit.hexsha}'
+            documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
+            assert len(documents) == 2, f'Expected 2 documents from range A..C, got {len(documents)}'
+            commit_ids_in_documents = {doc.unique_id for doc in documents if doc.unique_id}
+            assert b_commit.hexsha in commit_ids_in_documents
+            assert c_commit.hexsha in commit_ids_in_documents
+
+            # Test three-dot range - should collect documents from commits B and C (2 commits, 2 documents)
+            commit_range = f'{a_commit.hexsha}...{c_commit.hexsha}'
+            documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
+            assert len(documents) == 2, f'Expected 2 documents from range A...C, got {len(documents)}'
+
+            # Test parent notation with three-dot - should collect document from commit C (1 commit, 1 document)
+            commit_range = f'{c_commit.hexsha}~1...{c_commit.hexsha}'
+            documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
+            assert len(documents) == 1, f'Expected 1 document from range C~1...C, got {len(documents)}'
+            assert documents[0].unique_id == c_commit.hexsha
+
+            # Test single commit spec - should be interpreted as A..HEAD (commits B and C, 2 documents)
+            commit_range = a_commit.hexsha
+            documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
+            assert len(documents) == 2, f'Expected 2 documents from single commit A, got {len(documents)}'
