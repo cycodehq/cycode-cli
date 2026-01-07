@@ -487,14 +487,12 @@ def normalize_commit_range(commit_range: str, path: str) -> str:
     from_commit_rev, to_commit_rev, separator = parse_commit_range(commit_range, path)
     if from_commit_rev is None or to_commit_rev is None:
         logger.warning(
-            'Failed to parse commit range "%s", falling back to raw string. This may cause unexpected behavior.',
+            'Failed to parse commit range "%s", falling back to raw string.',
             commit_range
         )
-        # Fall back to using the raw commit_range string
         return commit_range
 
     # Construct a normalized range string using the original separator for iter_commits
-    # This preserves the semantics of two-dot vs three-dot syntax
     normalized_commit_range = f'{from_commit_rev}{separator}{to_commit_rev}'
     logger.debug(
         'Normalized commit range "%s" to "%s"',
