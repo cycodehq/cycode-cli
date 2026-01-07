@@ -71,8 +71,9 @@ def collect_commit_range_diff_documents(
     normalized_commit_range = normalize_commit_range(commit_range, path)
 
     total_commits_count = int(repo.git.rev_list('--count', normalized_commit_range))
-    logger.debug('Calculating diffs for %s commits in the commit range %s',
-        total_commits_count, normalized_commit_range)
+    logger.debug(
+        'Calculating diffs for %s commits in the commit range %s', total_commits_count, normalized_commit_range
+    )
 
     progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, total_commits_count)
 
@@ -100,7 +101,12 @@ def collect_commit_range_diff_documents(
 
         logger.debug(
             'Found all relevant files in commit %s',
-            {'path': path, 'commit_range': normalized_commit_range, 'commit_id': commit_id},
+            {
+                'path': path,
+                'commit_range': commit_range,
+                'normalized_commit_range': normalized_commit_range,
+                'commit_id': commit_id,
+            },
         )
 
     logger.debug('List of commit ids to scan, %s', {'commit_ids': commit_ids_to_scan})
@@ -471,6 +477,7 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
         logger.warning("Failed to parse commit range '%s'", commit_range, exc_info=e)
         return None, None, None
 
+
 def normalize_commit_range(commit_range: str, path: str) -> str:
     """Normalize a commit range string to handle various formats consistently with all scan types.
 
@@ -479,10 +486,7 @@ def normalize_commit_range(commit_range: str, path: str) -> str:
     """
     from_commit_rev, to_commit_rev, separator = parse_commit_range(commit_range, path)
     if from_commit_rev is None or to_commit_rev is None:
-        logger.warning(
-            'Failed to parse commit range "%s", falling back to raw string.',
-            commit_range
-        )
+        logger.warning('Failed to parse commit range "%s", falling back to raw string.', commit_range)
         return commit_range
 
     # Construct a normalized range string using the original separator for iter_commits
