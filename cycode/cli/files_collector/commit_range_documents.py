@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 logger = get_logger('Commit Range Collector')
 
+COMMIT_RANGE_ALL = '--all'
 
 def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
     """Get a safe reference to use for diffing against the current HEAD.
@@ -351,10 +352,10 @@ def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
                 return f'{merge_base}..{local_object_name}'
 
             logger.debug('Failed to find merge base with any default branch')
-            return '--all'
+            return COMMIT_RANGE_ALL
         except Exception as e:
             logger.debug('Failed to get repo for pre-push commit range calculation: %s', exc_info=e)
-            return '--all'
+            return COMMIT_RANGE_ALL
 
     # If deleting a branch (local_object_name is all zeros), no need to scan
     if local_object_name == consts.EMPTY_COMMIT_SHA:
@@ -454,7 +455,7 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
 
     # Handle '--all' special case: scan all commits from first to HEAD
     # Usually represents an empty remote repository
-    if commit_range == '--all':
+    if commit_range == COMMIT_RANGE_ALL:
         try:
             head_commit = repo.rev_parse(consts.GIT_HEAD_COMMIT_REV).hexsha
             all_commits = repo.git.rev_list('--reverse', head_commit).strip()
