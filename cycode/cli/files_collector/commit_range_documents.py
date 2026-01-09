@@ -461,9 +461,8 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
             if all_commits:
                 first_commit = all_commits.splitlines()[0]
                 return first_commit, head_commit, '..'
-            else:
-                logger.warning("No commits found for range '%s'", commit_range)
-                return None, None, None
+            logger.warning("No commits found for range '%s'", commit_range)
+            return None, None, None
         except Exception as e:
             logger.warning("Failed to parse commit range '%s'", commit_range, exc_info=e)
             return None, None, None
