@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 logger = get_logger('Commit Range Collector')
 
+
 def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
     """Get a safe reference to use for diffing against the current HEAD.
     In repositories with no commits, HEAD doesn't exist, so we return the empty tree hash.
