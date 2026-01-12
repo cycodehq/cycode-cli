@@ -882,6 +882,67 @@ class TestParseCommitRange:
             parsed_from, parsed_to, separator = parse_commit_range(a, temp_dir)
             assert (parsed_from, parsed_to, separator) == (a, c, '..')
 
+    def test_parse_all_for_empty_remote_scenario(self) -> None:
+        """Test that '--all' is parsed correctly for empty remote repository.
+        This repository has one commit locally.
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create a local commit (simulating first commit to empty remote)
+            test_file = os.path.join(temp_dir, 'test.py')
+            with open(test_file, 'w') as f:
+                f.write("print('test')")
+
+            repo.index.add(['test.py'])
+            commit = repo.index.commit('Initial commit')
+
+            # Test that '--all' (returned by calculate_pre_push_commit_range for empty remote)
+            # can be parsed to a valid commit range
+            parsed_from, parsed_to, separator = parse_commit_range('--all', temp_dir)
+
+            # Should return first commit to HEAD (which is the only commit in this case)
+            assert parsed_from == commit.hexsha
+            assert parsed_to == commit.hexsha
+            assert separator == '..'
+
+    def test_parse_all_for_empty_remote_scenario_with_two_commits(self) -> None:
+        """Test that '--all' is parsed correctly for empty remote repository.
+        This repository has two commits locally.
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            # Create first commit
+            test_file = os.path.join(temp_dir, 'test.py')
+            with open(test_file, 'w') as f:
+                f.write("print('test')")
+
+            repo.index.add(['test.py'])
+            commit1 = repo.index.commit('First commit')
+
+            # Create second commit
+            test_file2 = os.path.join(temp_dir, 'test2.py')
+            with open(test_file2, 'w') as f:
+                f.write("print('test2')")
+
+            repo.index.add(['test2.py'])
+            commit2 = repo.index.commit('Second commit')
+
+            # Test that '--all' returns first commit to HEAD (second commit)
+            parsed_from, parsed_to, separator = parse_commit_range('--all', temp_dir)
+
+            # Should return first commit to HEAD (second commit)
+            assert parsed_from == commit1.hexsha  # First commit
+            assert parsed_to == commit2.hexsha  # HEAD (second commit)
+            assert separator == '..'
+
+    def test_parse_all_with_empty_repository_returns_none(self) -> None:
+        """Test that '--all' returns None when repository has no commits."""
+        with temporary_git_repository() as (temp_dir, repo):
+            # Empty repository with no commits
+            parsed_from, parsed_to, separator = parse_commit_range('--all', temp_dir)
+            # Should return None, None, None when HEAD doesn't exist
+            assert parsed_from is None
+            assert parsed_to is None
+            assert separator is None
+
 
 class TestParsePreReceiveInput:
     """Test the parse_pre_receive_input function with various pre-receive hook input scenarios."""
