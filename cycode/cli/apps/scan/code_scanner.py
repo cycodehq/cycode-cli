@@ -1,3 +1,4 @@
+import os
 import time
 from platform import platform
 from typing import TYPE_CHECKING, Callable, Optional
@@ -30,6 +31,7 @@ from cycode.cli.utils.scan_utils import (
 )
 from cycode.cyclient.models import ZippedFileScanResult
 from cycode.logger import get_logger
+from cycode.cli.utils.path_utils import get_path_by_os, get_absolute_path
 
 if TYPE_CHECKING:
     from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
@@ -53,6 +55,19 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
             paths,
             is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
         )
+        
+        # Add entrypoint.cycode file at each root path to mark the scan root
+        for root_path in paths:
+            absolute_root_path = get_absolute_path(root_path)
+            entrypoint_path = get_path_by_os(os.path.join(absolute_root_path, consts.CYCODE_ENTRYPOINT_FILENAME))
+            entrypoint_document = Document(
+                entrypoint_path,
+                '',  # Empty file content
+                is_git_diff_format=False,
+                absolute_path=entrypoint_path,
+            )
+            documents.append(entrypoint_document)
+        
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents)
         scan_documents(ctx, documents, get_scan_parameters(ctx, paths))
     except Exception as e:
