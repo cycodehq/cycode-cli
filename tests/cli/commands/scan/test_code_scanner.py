@@ -1,4 +1,5 @@
 import os
+from os.path import normpath
 from unittest.mock import MagicMock, Mock, patch
 
 from cycode.cli import consts
@@ -92,7 +93,7 @@ def test_entrypoint_cycode_added_to_documents(
         'progress_bar': MagicMock(),
     }
     mock_get_scan_parameters.return_value = {}
-    
+
     mock_documents = [
         Document('/test/path/file1.py', 'content1', is_git_diff_format=False),
         Document('/test/path/file2.js', 'content2', is_git_diff_format=False),
@@ -108,13 +109,13 @@ def test_entrypoint_cycode_added_to_documents(
     documents_passed = call_args[0][1]
 
     # Verify entrypoint document was added
-    entrypoint_docs = [
-        doc for doc in documents_passed if doc.path.endswith(consts.CYCODE_ENTRYPOINT_FILENAME)
-    ]
+    entrypoint_docs = [doc for doc in documents_passed if doc.path.endswith(consts.CYCODE_ENTRYPOINT_FILENAME)]
     assert len(entrypoint_docs) == 1
 
     entrypoint_doc = entrypoint_docs[0]
-    assert entrypoint_doc.path == os.path.join(test_path, consts.CYCODE_ENTRYPOINT_FILENAME)
+    # Normalize paths for cross-platform compatibility
+    expected_path = normpath(os.path.join(os.path.abspath(test_path), consts.CYCODE_ENTRYPOINT_FILENAME))
+    assert normpath(entrypoint_doc.path) == expected_path
     assert entrypoint_doc.content == ''
     assert entrypoint_doc.is_git_diff_format is False
-    assert entrypoint_doc.absolute_path == entrypoint_doc.path
+    assert normpath(entrypoint_doc.absolute_path) == normpath(entrypoint_doc.path)
