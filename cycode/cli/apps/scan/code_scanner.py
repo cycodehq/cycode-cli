@@ -1,3 +1,4 @@
+import os
 import time
 from platform import platform
 from typing import TYPE_CHECKING, Callable, Optional
@@ -21,6 +22,7 @@ from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, LocalScanResult
+from cycode.cli.utils.path_utils import get_absolute_path, get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import (
@@ -53,6 +55,20 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
             paths,
             is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
         )
+
+        # Add entrypoint.cycode file at root path to mark the scan root (only for single path)
+        if len(paths) == 1:
+            root_path = paths[0]
+            absolute_root_path = get_absolute_path(root_path)
+            entrypoint_path = get_path_by_os(os.path.join(absolute_root_path, consts.CYCODE_ENTRYPOINT_FILENAME))
+            entrypoint_document = Document(
+                entrypoint_path,
+                '',  # Empty file content
+                is_git_diff_format=False,
+                absolute_path=entrypoint_path,
+            )
+            documents.append(entrypoint_document)
+
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents)
         scan_documents(ctx, documents, get_scan_parameters(ctx, paths))
     except Exception as e:
