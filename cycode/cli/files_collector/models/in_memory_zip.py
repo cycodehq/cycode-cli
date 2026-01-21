@@ -26,7 +26,11 @@ class InMemoryZip:
         if unique_id:
             filename = concat_unique_id(filename, unique_id)
 
-        self.zip.writestr(filename, content)
+        # Encode content to bytes with error handling to handle surrogate characters
+        # that cannot be encoded to UTF-8. Use 'replace' to replace invalid characters
+        # with the Unicode replacement character (U+FFFD).
+        content_bytes = content.encode('utf-8', errors='replace')
+        self.zip.writestr(filename, content_bytes)
 
     def close(self) -> None:
         self.zip.close()
