@@ -8,6 +8,10 @@ from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_except
 from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 from cycode.cli.utils.sentry import add_breadcrumb
+from cycode.cli.utils.url_utils import sanitize_repository_url
+from cycode.logger import get_logger
+
+logger = get_logger('Repository URL Command')
 
 
 def repository_url_command(
@@ -28,8 +32,13 @@ def repository_url_command(
     start_scan_time = time.time()
     report_execution_id = -1
 
+    # Sanitize repository URL to remove any embedded credentials/tokens before sending to API
+    sanitized_uri = sanitize_repository_url(uri)
+    if sanitized_uri != uri:
+        logger.debug('Sanitized repository URL to remove credentials')
+
     try:
-        report_execution = client.request_sbom_report_execution(report_parameters, repository_url=uri)
+        report_execution = client.request_sbom_report_execution(report_parameters, repository_url=sanitized_uri)
         report_execution_id = report_execution.id
 
         create_sbom_report(progress_bar, client, report_execution_id, output_file, output_format)

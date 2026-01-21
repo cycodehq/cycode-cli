@@ -6,8 +6,12 @@ from requests import Response
 
 from cycode.cli.exceptions.custom_exceptions import CycodeError
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+from cycode.cli.utils.url_utils import sanitize_repository_url
 from cycode.cyclient import models
 from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.logger import get_logger
+
+logger = get_logger('Report Client')
 
 
 @dataclasses.dataclass
@@ -49,7 +53,11 @@ class ReportClient:
         # entity type required only for zipped-file
         request_data = {'report_parameters': params.to_json(without_entity_type=zip_file is None)}
         if repository_url:
-            request_data['repository_url'] = repository_url
+            # Sanitize repository URL to remove any embedded credentials/tokens before sending to API
+            sanitized_url = sanitize_repository_url(repository_url)
+            if sanitized_url != repository_url:
+                logger.debug('Sanitized repository URL to remove credentials')
+            request_data['repository_url'] = sanitized_url
 
         request_args = {
             'url_path': url_path,
