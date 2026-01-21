@@ -1,5 +1,3 @@
-import pytest
-
 from cycode.cli.utils.url_utils import sanitize_repository_url
 
 

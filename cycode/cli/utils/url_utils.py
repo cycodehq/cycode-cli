@@ -32,8 +32,12 @@ def sanitize_repository_url(url: Optional[str]) -> Optional[str]:
     if not url:
         return url
 
-    # Handle SSH URLs (git@host:path format) - no credentials to remove
-    if '@' in url and '://' not in url and url.startswith(('git@', 'ssh://')):
+    # Handle SSH URLs - no credentials to remove
+    # ssh:// URLs have the format ssh://git@host/path
+    if url.startswith('ssh://'):
+        return url
+    # git@host:path format (scp-style)
+    if '@' in url and '://' not in url and url.startswith('git@'):
         return url
 
     try:
@@ -44,15 +48,16 @@ def sanitize_repository_url(url: Optional[str]) -> Optional[str]:
         if parsed.port:
             sanitized_netloc = f'{sanitized_netloc}:{parsed.port}'
 
-        sanitized = urlunparse((
-            parsed.scheme,
-            sanitized_netloc,
-            parsed.path,
-            parsed.params,
-            parsed.query,
-            parsed.fragment,
-        ))
-        return sanitized
+        return urlunparse(
+            (
+                parsed.scheme,
+                sanitized_netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
     except Exception as e:
         logger.debug('Failed to sanitize repository URL, returning original, %s', {'url': url, 'error': str(e)})
         # If parsing fails, return original URL to avoid breaking functionality
