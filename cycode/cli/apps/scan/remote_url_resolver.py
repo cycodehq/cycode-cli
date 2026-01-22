@@ -3,6 +3,7 @@ from typing import Optional
 from cycode.cli import consts
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.shell_executor import shell
+from cycode.cli.utils.url_utils import sanitize_repository_url
 from cycode.logger import get_logger
 
 logger = get_logger('Remote URL Resolver')
@@ -102,7 +103,11 @@ def _try_get_git_remote_url(path: str) -> Optional[str]:
         repo = git_proxy.get_repo(path, search_parent_directories=True)
         remote_url = repo.remotes[0].config_reader.get('url')
         logger.debug('Found Git remote URL, %s', {'remote_url': remote_url, 'repo_path': repo.working_dir})
-        return remote_url
+        # Sanitize URL to remove any embedded credentials/tokens before returning
+        sanitized_url = sanitize_repository_url(remote_url)
+        if sanitized_url != remote_url:
+            logger.debug('Sanitized repository URL to remove credentials')
+        return sanitized_url
     except Exception as e:
         logger.debug('Failed to get Git remote URL. Probably not a Git repository', exc_info=e)
         return None
@@ -124,7 +129,9 @@ def get_remote_url_scan_parameter(paths: tuple[str, ...]) -> Optional[str]:
         #  - len(paths)*2 Plastic SCM subprocess calls
         remote_url = _try_get_any_remote_url(path)
         if remote_url:
-            remote_urls.add(remote_url)
+            # URLs are already sanitized in _try_get_git_remote_url, but sanitize again as safety measure
+            sanitized_url = sanitize_repository_url(remote_url)
+            remote_urls.add(sanitized_url)
 
     if len(remote_urls) == 1:
         # we are resolving remote_url only if all paths belong to the same repo (identical remote URLs),
