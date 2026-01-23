@@ -65,3 +65,12 @@ def shortcut_dependency_paths(dependency_paths_list: str) -> str:
         result += '\n'
 
     return result.rstrip().rstrip(',')
+
+
+def sanitize_text_for_encoding(text: str) -> str:
+    """Sanitize text by replacing surrogate characters and invalid UTF-8 sequences.
+    
+    This prevents encoding errors when Rich tries to display the content, especially on Windows.
+    Surrogate characters (U+D800 to U+DFFF) cannot be encoded to UTF-8 and will cause errors.
+    """
+    return text.encode('utf-8', errors='replace').decode('utf-8')
