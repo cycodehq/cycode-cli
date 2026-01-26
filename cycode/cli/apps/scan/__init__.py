@@ -5,6 +5,7 @@ from cycode.cli.apps.scan.path.path_command import path_command
 from cycode.cli.apps.scan.pre_commit.pre_commit_command import pre_commit_command
 from cycode.cli.apps.scan.pre_push.pre_push_command import pre_push_command
 from cycode.cli.apps.scan.pre_receive.pre_receive_command import pre_receive_command
+from cycode.cli.apps.scan.prompt.prompt_command import prompt_command
 from cycode.cli.apps.scan.repository.repository_command import repository_command
 from cycode.cli.apps.scan.scan_command import scan_command, scan_command_result_callback
 
@@ -42,6 +43,14 @@ app.command(
     'to scan commits on the server side before pushing them to the repository.',
     rich_help_panel=_AUTOMATION_COMMANDS_RICH_HELP_PANEL,
 )(pre_receive_command)
+
+_AI_GUARDRAILS_RICH_HELP_PANEL = 'AI Guardrails commands'
+
+app.command(
+    name='prompt',
+    short_help='Handle AI guardrails hooks from supported IDEs (reads JSON from stdin).',
+    rich_help_panel=_AI_GUARDRAILS_RICH_HELP_PANEL,
+)(prompt_command)
 
 # backward compatibility
 app.command(hidden=True, name='commit_history')(commit_history_command)
