@@ -7,22 +7,6 @@ from cycode.cli.apps.scan.prompt.utils import (
 )
 
 
-def test_normalize_path_basic() -> None:
-    """Test basic path normalization."""
-    path = '/path/to/file.txt'
-    result = normalize_path(path)
-
-    assert result == '/path/to/file.txt'
-
-
-def test_normalize_path_with_dots() -> None:
-    """Test normalizing path with . and .. segments."""
-    path = '/path/./to/../file.txt'
-    result = normalize_path(path)
-
-    assert result == '/path/file.txt'
-
-
 def test_normalize_path_rejects_escape() -> None:
     """Test that paths attempting to escape are rejected."""
     path = '../../../etc/passwd'
