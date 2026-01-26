@@ -1,4 +1,5 @@
 """Type definitions for AI guardrails."""
+
 from enum import Enum
 
 
