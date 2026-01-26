@@ -51,12 +51,12 @@ class AISecurityManagerClient:
         return conversation_id
 
     def create_event(
-            self,
-            payload: 'AIHookPayload',
-            event_type: 'AiHookEventType',
-            outcome: 'AIHookOutcome',
-            scan_id: Optional[str] = None,
-            block_reason: Optional['BlockReason'] = None,
+        self,
+        payload: 'AIHookPayload',
+        event_type: 'AiHookEventType',
+        outcome: 'AIHookOutcome',
+        scan_id: Optional[str] = None,
+        block_reason: Optional['BlockReason'] = None,
     ) -> None:
         """Create an AI hook event from hook payload."""
         conversation_id = payload.conversation_id

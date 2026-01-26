@@ -66,7 +66,7 @@ def is_cycode_hook_entry(entry: dict) -> bool:
 
 
 def install_hooks(
-        scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE
+    scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE
 ) -> tuple[bool, str]:
     """
     Install Cycode AI guardrails hooks.
@@ -110,7 +110,7 @@ def install_hooks(
 
 
 def uninstall_hooks(
-        scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE
+    scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE
 ) -> tuple[bool, str]:
     """
     Remove Cycode AI guardrails hooks.

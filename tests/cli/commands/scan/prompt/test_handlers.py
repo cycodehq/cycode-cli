@@ -130,7 +130,7 @@ def test_handle_before_submit_prompt_scan_failure_fail_open(mock_scan, mock_ctx,
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
 def test_handle_before_submit_prompt_scan_failure_fail_closed(
-        mock_scan, mock_ctx, mock_payload, default_policy
+    mock_scan, mock_ctx, mock_payload, default_policy
 ) -> None:
     """Test that scan failure with fail_open=False blocks the prompt."""
     mock_scan.side_effect = RuntimeError('Scan failed')

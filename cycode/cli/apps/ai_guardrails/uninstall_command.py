@@ -17,33 +17,33 @@ from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def uninstall_command(
-        ctx: typer.Context,
-        scope: Annotated[
-            str,
-            typer.Option(
-                '--scope',
-                '-s',
-                help='Uninstall scope: "user" for user-level hooks, "repo" for repository-level hooks.',
-            ),
-        ] = 'user',
-        ide: Annotated[
-            str,
-            typer.Option(
-                '--ide',
-                help='IDE to uninstall hooks from (e.g., "cursor"). Defaults to cursor.',
-            ),
-        ] = 'cursor',
-        repo_path: Annotated[
-            Optional[Path],
-            typer.Option(
-                '--repo-path',
-                help='Repository path for repo-scoped uninstallation (defaults to current directory).',
-                exists=True,
-                file_okay=False,
-                dir_okay=True,
-                resolve_path=True,
-            ),
-        ] = None,
+    ctx: typer.Context,
+    scope: Annotated[
+        str,
+        typer.Option(
+            '--scope',
+            '-s',
+            help='Uninstall scope: "user" for user-level hooks, "repo" for repository-level hooks.',
+        ),
+    ] = 'user',
+    ide: Annotated[
+        str,
+        typer.Option(
+            '--ide',
+            help='IDE to uninstall hooks from (e.g., "cursor"). Defaults to cursor.',
+        ),
+    ] = 'cursor',
+    repo_path: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--repo-path',
+            help='Repository path for repo-scoped uninstallation (defaults to current directory).',
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = None,
 ) -> None:
     """Remove AI guardrails hooks from supported IDEs.
 

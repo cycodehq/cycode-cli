@@ -57,7 +57,7 @@ def create_import_sbom_client(
 
 
 def create_ai_security_manager_client(
-        client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
+    client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
 ) -> AISecurityManagerClient:
     if dev_mode:
         client = CycodeDevBasedClient(DEV_CYCODE_API_URL)

@@ -13,33 +13,33 @@ from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def status_command(
-        ctx: typer.Context,
-        scope: Annotated[
-            str,
-            typer.Option(
-                '--scope',
-                '-s',
-                help='Check scope: "user", "repo", or "all" for both.',
-            ),
-        ] = 'all',
-        ide: Annotated[
-            str,
-            typer.Option(
-                '--ide',
-                help='IDE to check status for (e.g., "cursor"). Defaults to cursor.',
-            ),
-        ] = 'cursor',
-        repo_path: Annotated[
-            Optional[Path],
-            typer.Option(
-                '--repo-path',
-                help='Repository path for repo-scoped status (defaults to current directory).',
-                exists=True,
-                file_okay=False,
-                dir_okay=True,
-                resolve_path=True,
-            ),
-        ] = None,
+    ctx: typer.Context,
+    scope: Annotated[
+        str,
+        typer.Option(
+            '--scope',
+            '-s',
+            help='Check scope: "user", "repo", or "all" for both.',
+        ),
+    ] = 'all',
+    ide: Annotated[
+        str,
+        typer.Option(
+            '--ide',
+            help='IDE to check status for (e.g., "cursor"). Defaults to cursor.',
+        ),
+    ] = 'cursor',
+    repo_path: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--repo-path',
+            help='Repository path for repo-scoped status (defaults to current directory).',
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = None,
 ) -> None:
     """Show AI guardrails hook installation status.
 

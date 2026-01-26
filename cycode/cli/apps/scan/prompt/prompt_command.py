@@ -28,15 +28,15 @@ logger = get_logger('AI Guardrails')
 
 
 def prompt_command(
-        ctx: typer.Context,
-        ide: Annotated[
-            str,
-            typer.Option(
-                '--ide',
-                help='IDE that sent the payload (e.g., "cursor"). Defaults to cursor.',
-                hidden=True,
-            ),
-        ] = 'cursor',
+    ctx: typer.Context,
+    ide: Annotated[
+        str,
+        typer.Option(
+            '--ide',
+            help='IDE that sent the payload (e.g., "cursor"). Defaults to cursor.',
+            hidden=True,
+        ),
+    ] = 'cursor',
 ) -> None:
     """Handle AI guardrails hooks from supported IDEs.
 

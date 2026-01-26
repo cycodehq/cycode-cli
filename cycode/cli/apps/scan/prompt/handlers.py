@@ -62,9 +62,9 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
         violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
 
         if (
-                violation_summary
-                and get_policy_value(prompt_config, 'action', default='block') == 'block'
-                and mode == 'block'
+            violation_summary
+            and get_policy_value(prompt_config, 'action', default='block') == 'block'
+            and mode == 'block'
         ):
             outcome = AIHookOutcome.BLOCKED
             block_reason = BlockReason.SECRETS_IN_PROMPT
@@ -256,7 +256,7 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
 
 
 def _perform_scan(
-        ctx: typer.Context, documents: list[Document], scan_parameters: dict, timeout_seconds: float
+    ctx: typer.Context, documents: list[Document], scan_parameters: dict, timeout_seconds: float
 ) -> tuple[Optional[str], Optional[str]]:
     """
     Perform a scan on documents and extract results.

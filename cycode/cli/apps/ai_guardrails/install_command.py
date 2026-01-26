@@ -17,33 +17,33 @@ from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def install_command(
-        ctx: typer.Context,
-        scope: Annotated[
-            str,
-            typer.Option(
-                '--scope',
-                '-s',
-                help='Installation scope: "user" for all projects, "repo" for current repository only.',
-            ),
-        ] = 'user',
-        ide: Annotated[
-            str,
-            typer.Option(
-                '--ide',
-                help='IDE to install hooks for (e.g., "cursor"). Defaults to cursor.',
-            ),
-        ] = 'cursor',
-        repo_path: Annotated[
-            Optional[Path],
-            typer.Option(
-                '--repo-path',
-                help='Repository path for repo-scoped installation (defaults to current directory).',
-                exists=True,
-                file_okay=False,
-                dir_okay=True,
-                resolve_path=True,
-            ),
-        ] = None,
+    ctx: typer.Context,
+    scope: Annotated[
+        str,
+        typer.Option(
+            '--scope',
+            '-s',
+            help='Installation scope: "user" for all projects, "repo" for current repository only.',
+        ),
+    ] = 'user',
+    ide: Annotated[
+        str,
+        typer.Option(
+            '--ide',
+            help='IDE to install hooks for (e.g., "cursor"). Defaults to cursor.',
+        ),
+    ] = 'cursor',
+    repo_path: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--repo-path',
+            help='Repository path for repo-scoped installation (defaults to current directory).',
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = None,
 ) -> None:
     """Install AI guardrails hooks for supported IDEs.
 

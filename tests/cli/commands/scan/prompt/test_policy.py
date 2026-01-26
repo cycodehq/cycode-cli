@@ -161,6 +161,7 @@ def test_load_policy_with_repo_config(tmp_path: Path) -> None:
     repo_config.write_text('mode: block\nprompt:\n  enabled: false\n')
 
     with patch('cycode.cli.apps.scan.prompt.policy.load_yaml_file') as mock_load:
+
         def side_effect(path: Path):
             if path == repo_config:
                 return {'mode': 'block', 'prompt': {'enabled': False}}
