@@ -105,9 +105,9 @@ def prompt_command(
             # Fail closed
             if event_name == AiHookEventType.PROMPT:
                 output_json(
-                    response_builder.deny_prompt('Cycode guardrails error - blocking due to fail-closed policy'))
+                    response_builder.deny_prompt('Cycode guardrails error - blocking due to fail-closed policy')
+                )
             else:
-                output_json(response_builder.deny_permission(
-                    'Cycode guardrails error',
-                    'Blocking due to fail-closed policy'
-                ))
+                output_json(
+                    response_builder.deny_permission('Cycode guardrails error', 'Blocking due to fail-closed policy')
+                )

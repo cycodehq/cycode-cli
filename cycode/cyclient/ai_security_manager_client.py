@@ -7,7 +7,7 @@ from cycode.cyclient.logger import logger
 
 if TYPE_CHECKING:
     from cycode.cli.apps.scan.prompt.payload import AIHookPayload
-    from cycode.cli.apps.scan.prompt.types import AIHookOutcome, AiHookEventType, BlockReason
+    from cycode.cli.apps.scan.prompt.types import AiHookEventType, AIHookOutcome, BlockReason
     from cycode.cyclient.ai_security_manager_service_config import AISecurityManagerServiceConfigBase
 
 

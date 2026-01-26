@@ -27,9 +27,7 @@ def test_deep_merge_nested() -> None:
     override = {'level1': {'level2': {'key2': 'override2', 'key3': 'value3'}}}
     result = deep_merge(base, override)
 
-    assert result == {
-        'level1': {'level2': {'key1': 'value1', 'key2': 'override2', 'key3': 'value3'}}
-    }
+    assert result == {'level1': {'level2': {'key1': 'value1', 'key2': 'override2', 'key3': 'value3'}}}
 
 
 def test_deep_merge_override_with_non_dict() -> None:

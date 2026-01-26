@@ -69,4 +69,4 @@ def is_denied_path(file_path: str, policy: dict) -> bool:
 
 def output_json(obj: dict) -> None:
     """Write JSON response to stdout (for IDE to read)."""
-    print(json.dumps(obj), end='')
+    print(json.dumps(obj), end='')  # noqa: T201

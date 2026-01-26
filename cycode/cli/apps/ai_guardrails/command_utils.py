@@ -32,7 +32,7 @@ def validate_and_parse_ide(ide: str) -> AIIDEType:
             f'[red]Error:[/] Invalid IDE "{ide}". Supported IDEs: {valid_ides}',
             style='bold red',
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def validate_scope(scope: str, allowed_scopes: tuple[str, ...] = ('user', 'repo')) -> None:

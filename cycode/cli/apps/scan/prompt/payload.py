@@ -67,5 +67,4 @@ class AIHookPayload:
         """
         if tool == 'cursor':
             return cls.from_cursor_payload(payload)
-        else:
-            raise ValueError(f'Unsupported IDE/tool: {tool}.')
+        raise ValueError(f'Unsupported IDE/tool: {tool}.')

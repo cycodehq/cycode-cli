@@ -67,9 +67,7 @@ def test_handle_before_submit_prompt_disabled(mock_ctx, mock_payload, default_po
 
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
-def test_handle_before_submit_prompt_no_secrets(
-        mock_scan, mock_ctx, mock_payload, default_policy
-) -> None:
+def test_handle_before_submit_prompt_no_secrets(mock_scan, mock_ctx, mock_payload, default_policy) -> None:
     """Test that prompt with no secrets is allowed."""
     mock_scan.return_value = (None, 'scan-id-123')
 
@@ -85,9 +83,7 @@ def test_handle_before_submit_prompt_no_secrets(
 
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
-def test_handle_before_submit_prompt_with_secrets_blocked(
-        mock_scan, mock_ctx, mock_payload, default_policy
-) -> None:
+def test_handle_before_submit_prompt_with_secrets_blocked(mock_scan, mock_ctx, mock_payload, default_policy) -> None:
     """Test that prompt with secrets is blocked."""
     mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-456')
 
@@ -102,9 +98,7 @@ def test_handle_before_submit_prompt_with_secrets_blocked(
 
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
-def test_handle_before_submit_prompt_with_secrets_warned(
-        mock_scan, mock_ctx, mock_payload, default_policy
-) -> None:
+def test_handle_before_submit_prompt_with_secrets_warned(mock_scan, mock_ctx, mock_payload, default_policy) -> None:
     """Test that prompt with secrets in warn mode is allowed."""
     default_policy['prompt']['action'] = 'warn'
     mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-789')
@@ -118,9 +112,7 @@ def test_handle_before_submit_prompt_with_secrets_warned(
 
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
-def test_handle_before_submit_prompt_scan_failure_fail_open(
-        mock_scan, mock_ctx, mock_payload, default_policy
-) -> None:
+def test_handle_before_submit_prompt_scan_failure_fail_open(mock_scan, mock_ctx, mock_payload, default_policy) -> None:
     """Test that scan failure with fail_open=True allows the prompt."""
     mock_scan.side_effect = RuntimeError('Scan failed')
     default_policy['fail_open'] = True
@@ -193,9 +185,7 @@ def test_handle_before_read_file_sensitive_path(mock_is_denied, mock_ctx, defaul
 
 @patch('cycode.cli.apps.scan.prompt.handlers.is_denied_path')
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_path_for_secrets')
-def test_handle_before_read_file_no_secrets(
-        mock_scan, mock_is_denied, mock_ctx, default_policy
-) -> None:
+def test_handle_before_read_file_no_secrets(mock_scan, mock_is_denied, mock_ctx, default_policy) -> None:
     """Test that file with no secrets is allowed."""
     mock_is_denied.return_value = False
     mock_scan.return_value = (None, 'scan-id-123')
@@ -214,9 +204,7 @@ def test_handle_before_read_file_no_secrets(
 
 @patch('cycode.cli.apps.scan.prompt.handlers.is_denied_path')
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_path_for_secrets')
-def test_handle_before_read_file_with_secrets(
-        mock_scan, mock_is_denied, mock_ctx, default_policy
-) -> None:
+def test_handle_before_read_file_with_secrets(mock_scan, mock_is_denied, mock_ctx, default_policy) -> None:
     """Test that file with secrets is blocked."""
     mock_is_denied.return_value = False
     mock_scan.return_value = ('Found 1 secret: password', 'scan-id-456')
@@ -237,9 +225,7 @@ def test_handle_before_read_file_with_secrets(
 
 @patch('cycode.cli.apps.scan.prompt.handlers.is_denied_path')
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_path_for_secrets')
-def test_handle_before_read_file_scan_disabled(
-        mock_scan, mock_is_denied, mock_ctx, default_policy
-) -> None:
+def test_handle_before_read_file_scan_disabled(mock_scan, mock_is_denied, mock_ctx, default_policy) -> None:
     """Test that file is allowed when content scanning is disabled."""
     mock_is_denied.return_value = False
     default_policy['file_read']['scan_content'] = False
@@ -292,9 +278,7 @@ def test_handle_before_mcp_execution_no_secrets(mock_scan, mock_ctx, default_pol
 
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
-def test_handle_before_mcp_execution_with_secrets_blocked(
-        mock_scan, mock_ctx, default_policy
-) -> None:
+def test_handle_before_mcp_execution_with_secrets_blocked(mock_scan, mock_ctx, default_policy) -> None:
     """Test that MCP execution with secrets is blocked."""
     mock_scan.return_value = ('Found 1 secret: token', 'scan-id-456')
     payload = AIHookPayload(
@@ -314,9 +298,7 @@ def test_handle_before_mcp_execution_with_secrets_blocked(
 
 
 @patch('cycode.cli.apps.scan.prompt.handlers._scan_text_for_secrets')
-def test_handle_before_mcp_execution_with_secrets_warned(
-        mock_scan, mock_ctx, default_policy
-) -> None:
+def test_handle_before_mcp_execution_with_secrets_warned(mock_scan, mock_ctx, default_policy) -> None:
     """Test that MCP execution with secrets in warn mode asks permission."""
     mock_scan.return_value = ('Found 1 secret: token', 'scan-id-789')
     default_policy['mcp']['action'] = 'warn'

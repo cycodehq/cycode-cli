@@ -7,8 +7,9 @@ and returns a response that either allows or blocks the action.
 
 import json
 import os
-from multiprocessing.pool import ThreadPool, TimeoutError as PoolTimeoutError
-from typing import Optional
+from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import TimeoutError as PoolTimeoutError
+from typing import Callable, Optional
 
 import typer
 
@@ -16,7 +17,7 @@ from cycode.cli.apps.scan.code_scanner import _get_scan_documents_thread_func
 from cycode.cli.apps.scan.prompt.payload import AIHookPayload
 from cycode.cli.apps.scan.prompt.policy import get_policy_value
 from cycode.cli.apps.scan.prompt.response_builders import get_response_builder
-from cycode.cli.apps.scan.prompt.types import AIHookOutcome, AiHookEventType, BlockReason
+from cycode.cli.apps.scan.prompt.types import AiHookEventType, AIHookOutcome, BlockReason
 from cycode.cli.apps.scan.prompt.utils import (
     is_denied_path,
     truncate_utf8,
@@ -60,8 +61,11 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     try:
         violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
 
-        if violation_summary and get_policy_value(prompt_config, 'action',
-                                                  default='block') == 'block' and mode == 'block':
+        if (
+                violation_summary
+                and get_policy_value(prompt_config, 'action', default='block') == 'block'
+                and mode == 'block'
+        ):
             outcome = AIHookOutcome.BLOCKED
             block_reason = BlockReason.SECRETS_IN_PROMPT
             user_message = f'{violation_summary}. Remove secrets before sending.'
@@ -72,8 +76,9 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             response = response_builder.allow_prompt()
         return response
     except Exception as e:
-        outcome = AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open',
-                                                            default=True) else AIHookOutcome.BLOCKED
+        outcome = (
+            AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
+        )
         block_reason = BlockReason.SCAN_FAILURE if outcome == AIHookOutcome.BLOCKED else None
         raise e
     finally:
@@ -133,15 +138,15 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
                     user_message,
                     'Secrets detected; do not send this file to the model.',
                 )
-            else:
-                if violation_summary:
-                    outcome = AIHookOutcome.WARNED
-                return response_builder.allow_permission()
+            if violation_summary:
+                outcome = AIHookOutcome.WARNED
+            return response_builder.allow_permission()
 
         return response_builder.allow_permission()
     except Exception as e:
-        outcome = AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open',
-                                                            default=True) else AIHookOutcome.BLOCKED
+        outcome = (
+            AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
+        )
         block_reason = BlockReason.SCAN_FAILURE if outcome == AIHookOutcome.BLOCKED else None
         raise e
     finally:
@@ -197,17 +202,17 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
                         user_message,
                         'Do not pass secrets to tools. Use secret references (name/id) instead.',
                     )
-                else:
-                    outcome = AIHookOutcome.WARNED
-                    return response_builder.ask_permission(
-                        f'{violation_summary} in MCP tool call "{tool}". Allow execution?',
-                        'Possible secrets detected in tool arguments; proceed with caution.',
-                    )
+                outcome = AIHookOutcome.WARNED
+                return response_builder.ask_permission(
+                    f'{violation_summary} in MCP tool call "{tool}". Allow execution?',
+                    'Possible secrets detected in tool arguments; proceed with caution.',
+                )
 
         return response_builder.allow_permission()
     except Exception as e:
-        outcome = AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open',
-                                                            default=True) else AIHookOutcome.BLOCKED
+        outcome = (
+            AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
+        )
         block_reason = BlockReason.SCAN_FAILURE if outcome == AIHookOutcome.BLOCKED else None
         raise e
     finally:
@@ -220,7 +225,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         )
 
 
-def get_handler_for_event(event_type: str):
+def get_handler_for_event(event_type: str) -> Optional[Callable[[typer.Context, AIHookPayload, dict], dict]]:
     """Get the appropriate handler function for a canonical event type.
 
     Args:
@@ -274,8 +279,8 @@ def _perform_scan(
         try:
             scan_id, error, local_scan_result = result.get(timeout=timeout_seconds)
         except PoolTimeoutError:
-            logger.debug(f'Scan timed out after {timeout_seconds} seconds')
-            raise RuntimeError(f'Scan timed out after {timeout_seconds} seconds')
+            logger.debug('Scan timed out after %s seconds', timeout_seconds)
+            raise RuntimeError(f'Scan timed out after {timeout_seconds} seconds') from None
 
     # Check if scan failed - raise exception to trigger fail_open policy
     if error:
@@ -294,9 +299,7 @@ def _perform_scan(
     return None, scan_id
 
 
-def _scan_text_for_secrets(
-        ctx: typer.Context, text: str, timeout_ms: int
-) -> tuple[Optional[str], Optional[str]]:
+def _scan_text_for_secrets(ctx: typer.Context, text: str, timeout_ms: int) -> tuple[Optional[str], Optional[str]]:
     """
     Scan text content for secrets using Cycode CLI.
 
@@ -322,7 +325,7 @@ def _scan_path_for_secrets(ctx: typer.Context, file_path: str, policy: dict) -> 
     if not file_path or not os.path.exists(file_path):
         return None, None
 
-    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+    with open(file_path, encoding='utf-8', errors='replace') as f:
         content = f.read()
 
     # Truncate content based on policy max_bytes

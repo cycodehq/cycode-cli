@@ -141,7 +141,7 @@ inline-quotes = "single"
 ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*.py" = ["S101", "S105"]
+"tests/**/*.py" = ["S101", "S105", "ANN"]
 "cycode/*.py" = ["BLE001"]
 
 [tool.ruff.format]

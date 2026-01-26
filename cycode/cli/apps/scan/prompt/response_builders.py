@@ -14,27 +14,22 @@ class IDEResponseBuilder(ABC):
     @abstractmethod
     def allow_permission(self) -> dict:
         """Build response to allow file read or MCP execution."""
-        pass
 
     @abstractmethod
     def deny_permission(self, user_message: str, agent_message: str) -> dict:
         """Build response to deny file read or MCP execution."""
-        pass
 
     @abstractmethod
     def ask_permission(self, user_message: str, agent_message: str) -> dict:
         """Build response to ask user for permission (warn mode)."""
-        pass
 
     @abstractmethod
     def allow_prompt(self) -> dict:
         """Build response to allow prompt submission."""
-        pass
 
     @abstractmethod
     def deny_prompt(self, user_message: str) -> dict:
         """Build response to deny prompt submission."""
-        pass
 
 
 class CursorResponseBuilder(IDEResponseBuilder):

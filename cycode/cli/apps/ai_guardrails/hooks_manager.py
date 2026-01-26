@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Optional
 
 from cycode.cli.apps.ai_guardrails.consts import (
-    AIIDEType,
     CYCODE_MARKER,
     CYCODE_SCAN_PROMPT_COMMAND,
     DEFAULT_IDE,
     IDE_CONFIGS,
+    AIIDEType,
     get_hooks_config,
 )
 from cycode.logger import get_logger
@@ -162,9 +162,7 @@ def uninstall_hooks(
     return False, f'Failed to update hooks file: {hooks_path}'
 
 
-def get_hooks_status(
-        scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE
-) -> dict:
+def get_hooks_status(scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE) -> dict:
     """
     Get the status of AI guardrails hooks.
 

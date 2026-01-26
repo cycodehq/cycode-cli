@@ -18,11 +18,13 @@ from typing import NamedTuple
 
 class AIIDEType(str, Enum):
     """Supported AI IDE types."""
+
     CURSOR = 'cursor'
 
 
 class IDEConfig(NamedTuple):
     """Configuration for an AI IDE."""
+
     name: str
     hooks_dir: Path
     repo_hooks_subdir: str  # Subdirectory in repo for hooks (e.g., '.cursor')
@@ -34,10 +36,10 @@ def _get_cursor_hooks_dir() -> Path:
     """Get Cursor hooks directory based on platform."""
     if platform.system() == 'Darwin':
         return Path.home() / '.cursor'
-    elif platform.system() == 'Windows':
+    if platform.system() == 'Windows':
         return Path.home() / 'AppData' / 'Roaming' / 'Cursor'
-    else:  # Linux
-        return Path.home() / '.config' / 'Cursor'
+    # Linux
+    return Path.home() / '.config' / 'Cursor'
 
 
 # IDE-specific configurations
