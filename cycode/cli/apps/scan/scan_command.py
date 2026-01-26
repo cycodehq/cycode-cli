@@ -160,6 +160,11 @@ def scan_command(
     ctx.obj['gradle_all_sub_projects'] = gradle_all_sub_projects
     ctx.obj['no_restore'] = no_restore
 
+    # Skip standard scan initialization for prompt command.
+    # Prompt command handles its own authentication and doesn't need scan configuration
+    if ctx.invoked_subcommand == 'prompt':
+        return
+
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
 

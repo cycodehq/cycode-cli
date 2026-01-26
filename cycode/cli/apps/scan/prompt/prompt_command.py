@@ -20,7 +20,7 @@ from cycode.cli.apps.scan.prompt.policy import load_policy
 from cycode.cli.apps.scan.prompt.response_builders import get_response_builder
 from cycode.cli.apps.scan.prompt.types import AiHookEventType
 from cycode.cli.apps.scan.prompt.utils import output_json, safe_json_parse
-from cycode.cli.utils.get_api_client import get_ai_security_manager_client
+from cycode.cli.utils.get_api_client import get_ai_security_manager_client, get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.logger import get_logger
 
@@ -52,17 +52,11 @@ def prompt_command(
     """
     add_breadcrumb('prompt')
 
-    # Initialize AI Security Manager client
-    ai_security_client = get_ai_security_manager_client(ctx)
-    ctx.obj['ai_security_client'] = ai_security_client
-
     # Read JSON payload from stdin
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)
 
     tool = ide.lower()
-
-    # Get response builder for this IDE
     response_builder = get_response_builder(tool)
 
     if not payload:
@@ -76,6 +70,12 @@ def prompt_command(
     # Extract event type from unified payload
     event_name = unified_payload.event_name
     logger.debug('Processing AI guardrails hook', extra={'event_name': event_name, 'tool': tool})
+
+    scan_client = get_scan_cycode_client(ctx)
+    ctx.obj['client'] = scan_client
+
+    ai_security_client = get_ai_security_manager_client(ctx)
+    ctx.obj['ai_security_client'] = ai_security_client
 
     # Load policy (merges defaults <- user config <- repo config)
     # Extract first workspace root from payload if available

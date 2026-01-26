@@ -47,6 +47,7 @@ app.command(
 _AI_GUARDRAILS_RICH_HELP_PANEL = 'AI Guardrails commands'
 
 app.command(
+    hidden=True,
     name='prompt',
     short_help='Handle AI guardrails hooks from supported IDEs (reads JSON from stdin).',
     rich_help_panel=_AI_GUARDRAILS_RICH_HELP_PANEL,
