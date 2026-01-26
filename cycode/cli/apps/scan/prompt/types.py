@@ -1,6 +1,10 @@
 """Type definitions for AI guardrails."""
+from enum import Enum
 
-from enum import StrEnum
+
+class StrEnum(str, Enum):
+    def __str__(self) -> str:
+        return self.value
 
 
 class AiHookEventType(StrEnum):
