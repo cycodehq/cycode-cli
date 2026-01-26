@@ -5,7 +5,7 @@ from rich.syntax import Syntax
 from cycode.cli import consts
 from cycode.cli.console import _SYNTAX_HIGHLIGHT_THEME
 from cycode.cli.printers.utils import is_git_diff_based_scan
-from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
+from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text, sanitize_text_for_encoding
 
 if TYPE_CHECKING:
     from cycode.cli.models import Document
@@ -72,6 +72,7 @@ def _get_code_snippet_syntax_from_file(
             code_lines_to_render.append(line_content)
 
     code_to_render = '\n'.join(code_lines_to_render)
+    code_to_render = sanitize_text_for_encoding(code_to_render)
     return _get_syntax_highlighted_code(
         code=code_to_render,
         lexer=Syntax.guess_lexer(document.path, code=code_to_render),
@@ -94,6 +95,7 @@ def _get_code_snippet_syntax_from_git_diff(
         violation = line_content[detection_position_in_line : detection_position_in_line + violation_length]
         line_content = line_content.replace(violation, obfuscate_text(violation))
 
+    line_content = sanitize_text_for_encoding(line_content)
     return _get_syntax_highlighted_code(
         code=line_content,
         lexer='diff',

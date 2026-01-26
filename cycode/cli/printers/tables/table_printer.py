@@ -8,7 +8,7 @@ from cycode.cli.printers.tables.table_models import ColumnInfoBuilder
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
 from cycode.cli.printers.utils import is_git_diff_based_scan
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
-from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text
+from cycode.cli.utils.string_utils import get_position_in_line, obfuscate_text, sanitize_text_for_encoding
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
@@ -95,6 +95,8 @@ class TablePrinter(TablePrinterBase):
 
             if not self.show_secret:
                 violation = obfuscate_text(violation)
+
+        violation = sanitize_text_for_encoding(violation)
 
         table.add_cell(LINE_NUMBER_COLUMN, str(detection_line))
         table.add_cell(COLUMN_NUMBER_COLUMN, str(detection_column))
