@@ -5,6 +5,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from cycode.cli.console import console
+from cycode.cli.utils.string_utils import sanitize_text_for_encoding
 
 if TYPE_CHECKING:
     from rich.console import RenderableType
@@ -20,8 +21,9 @@ def get_panel(renderable: 'RenderableType', title: str) -> Panel:
 
 
 def get_markdown_panel(markdown_text: str, title: str) -> Panel:
+    sanitized_text = sanitize_text_for_encoding(markdown_text.strip())
     return get_panel(
-        Markdown(markdown_text.strip()),
+        Markdown(sanitized_text),
         title=title,
     )
 

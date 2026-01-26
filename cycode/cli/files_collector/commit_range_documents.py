@@ -351,10 +351,10 @@ def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
                 return f'{merge_base}..{local_object_name}'
 
             logger.debug('Failed to find merge base with any default branch')
-            return '--all'
+            return consts.COMMIT_RANGE_ALL_COMMITS
         except Exception as e:
             logger.debug('Failed to get repo for pre-push commit range calculation: %s', exc_info=e)
-            return '--all'
+            return consts.COMMIT_RANGE_ALL_COMMITS
 
     # If deleting a branch (local_object_name is all zeros), no need to scan
     if local_object_name == consts.EMPTY_COMMIT_SHA:
@@ -448,8 +448,24 @@ def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Opt
     - 'commit' (interpreted as 'commit..HEAD')
     - '..to' (interpreted as 'HEAD..to')
     - 'from..' (interpreted as 'from..HEAD')
+    - '--all' (interpreted as 'first_commit..HEAD' to scan all commits)
     """
     repo = git_proxy.get_repo(path)
+
+    # Handle '--all' special case: scan all commits from first to HEAD
+    # Usually represents an empty remote repository
+    if commit_range == consts.COMMIT_RANGE_ALL_COMMITS:
+        try:
+            head_commit = repo.rev_parse(consts.GIT_HEAD_COMMIT_REV).hexsha
+            all_commits = repo.git.rev_list('--reverse', head_commit).strip()
+            if all_commits:
+                first_commit = all_commits.splitlines()[0]
+                return first_commit, head_commit, '..'
+            logger.warning("No commits found for range '%s'", commit_range)
+            return None, None, None
+        except Exception as e:
+            logger.warning("Failed to parse commit range '%s'", commit_range, exc_info=e)
+            return None, None, None
 
     separator = '..'
     if '...' in commit_range:

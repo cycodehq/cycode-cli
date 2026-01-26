@@ -1,6 +1,9 @@
 import os
+from os.path import normpath
+from unittest.mock import MagicMock, Mock, patch
 
 from cycode.cli import consts
+from cycode.cli.apps.scan.code_scanner import scan_disk_files
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
@@ -72,3 +75,90 @@ def test_generate_document() -> None:
     assert isinstance(generated_tfplan_document, Document)
     assert generated_tfplan_document.path.endswith('.tf')
     assert generated_tfplan_document.is_git_diff_format == is_git_diff
+
+
+@patch('cycode.cli.apps.scan.code_scanner.get_relevant_documents')
+@patch('cycode.cli.apps.scan.code_scanner.scan_documents')
+@patch('cycode.cli.apps.scan.code_scanner.get_scan_parameters')
+@patch('cycode.cli.apps.scan.code_scanner.os.path.isdir')
+def test_entrypoint_cycode_added_to_documents(
+    mock_isdir: Mock,
+    mock_get_scan_parameters: Mock,
+    mock_scan_documents: Mock,
+    mock_get_relevant_documents: Mock,
+) -> None:
+    """Test that entrypoint.cycode file is added to documents in scan_disk_files."""
+    # Arrange
+    mock_ctx = MagicMock()
+    mock_ctx.obj = {
+        'scan_type': consts.SAST_SCAN_TYPE,
+        'progress_bar': MagicMock(),
+    }
+    mock_get_scan_parameters.return_value = {}
+    mock_isdir.return_value = True  # Path is a directory
+
+    mock_documents = [
+        Document('/test/path/file1.py', 'content1', is_git_diff_format=False),
+        Document('/test/path/file2.js', 'content2', is_git_diff_format=False),
+    ]
+    mock_get_relevant_documents.return_value = mock_documents.copy()
+    test_path = '/Users/test/repositories'
+
+    # Act
+    scan_disk_files(mock_ctx, (test_path,))
+
+    # Assert
+    call_args = mock_scan_documents.call_args
+    documents_passed = call_args[0][1]
+
+    # Verify entrypoint document was added
+    entrypoint_docs = [doc for doc in documents_passed if doc.path.endswith(consts.CYCODE_ENTRYPOINT_FILENAME)]
+    assert len(entrypoint_docs) == 1
+
+    entrypoint_doc = entrypoint_docs[0]
+    # Normalize paths for cross-platform compatibility
+    expected_path = normpath(os.path.join(os.path.abspath(test_path), consts.CYCODE_ENTRYPOINT_FILENAME))
+    assert normpath(entrypoint_doc.path) == expected_path
+    assert entrypoint_doc.content == ''
+    assert entrypoint_doc.is_git_diff_format is False
+    assert normpath(entrypoint_doc.absolute_path) == normpath(entrypoint_doc.path)
+
+
+@patch('cycode.cli.apps.scan.code_scanner.get_relevant_documents')
+@patch('cycode.cli.apps.scan.code_scanner.scan_documents')
+@patch('cycode.cli.apps.scan.code_scanner.get_scan_parameters')
+@patch('cycode.cli.apps.scan.code_scanner.os.path.isdir')
+def test_entrypoint_cycode_not_added_for_single_file(
+    mock_isdir: Mock,
+    mock_get_scan_parameters: Mock,
+    mock_scan_documents: Mock,
+    mock_get_relevant_documents: Mock,
+) -> None:
+    """Test that entrypoint.cycode file is NOT added when path is a single file."""
+    # Arrange
+    mock_ctx = MagicMock()
+    mock_ctx.obj = {
+        'scan_type': consts.SAST_SCAN_TYPE,
+        'progress_bar': MagicMock(),
+    }
+    mock_get_scan_parameters.return_value = {}
+    mock_isdir.return_value = False  # Path is a file, not a directory
+
+    mock_documents = [
+        Document('/test/path/file1.py', 'content1', is_git_diff_format=False),
+    ]
+    mock_get_relevant_documents.return_value = mock_documents.copy()
+    test_path = '/Users/test/file.py'
+
+    # Act
+    scan_disk_files(mock_ctx, (test_path,))
+
+    # Assert
+    call_args = mock_scan_documents.call_args
+    documents_passed = call_args[0][1]
+
+    # Verify entrypoint document was NOT added
+    entrypoint_docs = [doc for doc in documents_passed if doc.path.endswith(consts.CYCODE_ENTRYPOINT_FILENAME)]
+    assert len(entrypoint_docs) == 0
+    # Verify only the original documents are present
+    assert len(documents_passed) == len(mock_documents)
