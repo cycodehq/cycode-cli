@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Optional
 
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.logger import logger
 
@@ -44,9 +45,12 @@ class AISecurityManagerClient:
 
         try:
             self.client.post(self._build_endpoint_path(self._CONVERSATIONS_PATH), body=body)
+        except HttpUnauthorizedError:
+            # Authentication error - re-raise so prompt_command can catch it
+            raise
         except Exception as e:
             logger.debug('Failed to create conversation', exc_info=e)
-            # Don't fail the hook if tracking fails
+            # Don't fail the hook if tracking fails (non-auth errors)
 
         return conversation_id
 
