@@ -15,9 +15,9 @@ class AiHookEventType(StrEnum):
     are mapped to these canonical types using the mapping dictionaries below.
     """
 
-    PROMPT = 'prompt'
-    FILE_READ = 'file_read'
-    MCP_EXECUTION = 'mcp_execution'
+    PROMPT = 'Prompt'
+    FILE_READ = 'FileRead'
+    MCP_EXECUTION = 'McpExecution'
 
 
 # IDE-specific event name mappings to canonical types
