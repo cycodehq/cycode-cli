@@ -12,6 +12,7 @@ beforeReadFile, beforeMCPExecution).
 import sys
 from typing import Annotated
 
+import click
 import typer
 
 from cycode.cli.apps.scan.prompt.handlers import get_handler_for_event
@@ -20,11 +21,42 @@ from cycode.cli.apps.scan.prompt.policy import load_policy
 from cycode.cli.apps.scan.prompt.response_builders import get_response_builder
 from cycode.cli.apps.scan.prompt.types import AiHookEventType
 from cycode.cli.apps.scan.prompt.utils import output_json, safe_json_parse
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cli.utils.get_api_client import get_ai_security_manager_client, get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails')
+
+
+def _get_auth_error_message(error: Exception) -> str:
+    """Get user-friendly message for authentication errors."""
+    if isinstance(error, click.ClickException):
+        # Missing credentials
+        return f'{error.message} Please run `cycode configure` to set up your credentials.'
+
+    if isinstance(error, HttpUnauthorizedError):
+        # Invalid/expired credentials
+        return (
+            'Unable to authenticate to Cycode. Your credentials are invalid or have expired. '
+            'Please run `cycode configure` to update your credentials.'
+        )
+
+    # Fallback
+    return 'Authentication failed. Please run `cycode configure` to set up your credentials.'
+
+
+def _initialize_clients(ctx: typer.Context) -> None:
+    """Initialize API clients.
+
+    May raise click.ClickException if credentials are missing,
+    or HttpUnauthorizedError if credentials are invalid.
+    """
+    scan_client = get_scan_cycode_client(ctx)
+    ctx.obj['client'] = scan_client
+
+    ai_security_client = get_ai_security_manager_client(ctx)
+    ctx.obj['ai_security_client'] = ai_security_client
 
 
 def prompt_command(
@@ -52,7 +84,6 @@ def prompt_command(
     """
     add_breadcrumb('prompt')
 
-    # Read JSON payload from stdin
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)
 
@@ -64,50 +95,43 @@ def prompt_command(
         output_json(response_builder.allow_prompt())
         return
 
-    # Create unified payload object
     unified_payload = AIHookPayload.from_payload(payload, tool=tool)
-
-    # Extract event type from unified payload
     event_name = unified_payload.event_name
     logger.debug('Processing AI guardrails hook', extra={'event_name': event_name, 'tool': tool})
 
-    scan_client = get_scan_cycode_client(ctx)
-    ctx.obj['client'] = scan_client
-
-    ai_security_client = get_ai_security_manager_client(ctx)
-    ctx.obj['ai_security_client'] = ai_security_client
-
-    # Load policy (merges defaults <- user config <- repo config)
-    # Extract first workspace root from payload if available
     workspace_roots = payload.get('workspace_roots', ['.'])
     policy = load_policy(workspace_roots[0])
 
-    # Get the appropriate handler for this event
-    handler = get_handler_for_event(event_name)
-
-    if handler is None:
-        logger.debug('Unknown hook event, allowing by default', extra={'event_name': event_name})
-        # Unknown event type - allow by default
-        output_json(response_builder.allow_prompt())
-        return
-
-    # Execute the handler and output the response
     try:
+        _initialize_clients(ctx)
+
+        handler = get_handler_for_event(event_name)
+        if handler is None:
+            logger.debug('Unknown hook event, allowing by default', extra={'event_name': event_name})
+            output_json(response_builder.allow_prompt())
+            return
+
         response = handler(ctx, unified_payload, policy)
         logger.debug('Hook handler completed', extra={'event_name': event_name, 'response': response})
         output_json(response)
+
+    except (click.ClickException, HttpUnauthorizedError) as e:
+        error_message = _get_auth_error_message(e)
+        if event_name == AiHookEventType.PROMPT:
+            output_json(response_builder.deny_prompt(error_message))
+            return
+        output_json(response_builder.deny_permission(error_message, 'Authentication required'))
+
     except Exception as e:
         logger.error('Hook handler failed', exc_info=e)
-        # Fail open by default
         if policy.get('fail_open', True):
             output_json(response_builder.allow_prompt())
-        else:
-            # Fail closed
-            if event_name == AiHookEventType.PROMPT:
-                output_json(
-                    response_builder.deny_prompt('Cycode guardrails error - blocking due to fail-closed policy')
-                )
-            else:
-                output_json(
-                    response_builder.deny_permission('Cycode guardrails error', 'Blocking due to fail-closed policy')
-                )
+            return
+        if event_name == AiHookEventType.PROMPT:
+            output_json(
+                response_builder.deny_prompt('Cycode guardrails error - blocking due to fail-closed policy')
+            )
+            return
+        output_json(
+            response_builder.deny_permission('Cycode guardrails error', 'Blocking due to fail-closed policy')
+        )
