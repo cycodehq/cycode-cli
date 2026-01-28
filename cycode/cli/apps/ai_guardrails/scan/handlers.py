@@ -250,7 +250,7 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
     ctx.obj['sync'] = True  # Synchronous scan
 
     # Set command name for scan logic
-    ctx.info_name = 'prompt'
+    ctx.info_name = 'ai-guardrails'
 
     return ctx
 
