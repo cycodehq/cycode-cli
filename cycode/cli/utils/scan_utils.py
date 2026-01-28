@@ -1,8 +1,11 @@
 import os
+from collections import defaultdict
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 import typer
+
+from cycode.cli.cli_types import SeverityOption
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
@@ -33,3 +36,24 @@ def generate_unique_scan_id() -> UUID:
         return UUID(os.environ['PYTEST_TEST_UNIQUE_ID'])
 
     return uuid4()
+
+
+def build_violation_summary(local_scan_results: list['LocalScanResult']) -> str:
+    """Build violation summary string with severity breakdown and emojis."""
+    detections_count = 0
+    severity_counts = defaultdict(int)
+
+    for local_scan_result in local_scan_results:
+        for document_detections in local_scan_result.document_detections:
+            for detection in document_detections.detections:
+                if detection.severity:
+                    detections_count += 1
+                    severity_counts[SeverityOption(detection.severity)] += 1
+
+    severity_parts = []
+    for severity in reversed(SeverityOption):
+        emoji = SeverityOption.get_member_unicode_emoji(severity)
+        count = severity_counts[severity]
+        severity_parts.append(f'{emoji} {severity.upper()} - {count}')
+
+    return f'Cycode found {detections_count} violations: {" | ".join(severity_parts)}'

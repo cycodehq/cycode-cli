@@ -86,6 +86,10 @@ class SeverityOption(StrEnum):
     def get_member_emoji(name: str) -> str:
         return _SEVERITY_EMOJIS.get(name.lower(), _SEVERITY_DEFAULT_EMOJI)
 
+    @staticmethod
+    def get_member_unicode_emoji(name: str) -> str:
+        return _SEVERITY_UNICODE_EMOJIS.get(name.lower(), _SEVERITY_DEFAULT_UNICODE_EMOJI)
+
     def __rich__(self) -> str:
         color = self.get_member_color(self.value)
         return f'[{color}]{self.value.upper()}[/]'
@@ -116,4 +120,13 @@ _SEVERITY_EMOJIS = {
     SeverityOption.MEDIUM.value: ':orange_circle:',
     SeverityOption.HIGH.value: ':red_circle:',
     SeverityOption.CRITICAL.value: ':exclamation_mark:',  # double_exclamation_mark is not red
+}
+
+_SEVERITY_DEFAULT_UNICODE_EMOJI = '⚪'
+_SEVERITY_UNICODE_EMOJIS = {
+    SeverityOption.INFO.value: '🔵',
+    SeverityOption.LOW.value: '🟡',
+    SeverityOption.MEDIUM.value: '🟠',
+    SeverityOption.HIGH.value: '🔴',
+    SeverityOption.CRITICAL.value: '❗',
 }
