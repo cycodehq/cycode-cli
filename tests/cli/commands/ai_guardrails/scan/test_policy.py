@@ -1,7 +1,10 @@
 """Tests for AI guardrails policy loading and management."""
 
 from pathlib import Path
-from unittest.mock import patch
+from typing import Optional
+from unittest.mock import MagicMock, patch
+
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from cycode.cli.apps.ai_guardrails.scan.policy import (
     deep_merge,
@@ -39,36 +42,33 @@ def test_deep_merge_override_with_non_dict() -> None:
     assert result == {'key': 'simple_value'}
 
 
-def test_load_yaml_file_nonexistent(tmp_path: Path) -> None:
+def test_load_yaml_file_nonexistent(fs: FakeFilesystem) -> None:
     """Test loading a non-existent file returns None."""
-    result = load_yaml_file(tmp_path / 'nonexistent.yaml')
+    result = load_yaml_file(Path('/fake/nonexistent.yaml'))
     assert result is None
 
 
-def test_load_yaml_file_valid_yaml(tmp_path: Path) -> None:
+def test_load_yaml_file_valid_yaml(fs: FakeFilesystem) -> None:
     """Test loading a valid YAML file."""
-    yaml_file = tmp_path / 'config.yaml'
-    yaml_file.write_text('mode: block\nfail_open: true\n')
+    fs.create_file('/fake/config.yaml', contents='mode: block\nfail_open: true\n')
 
-    result = load_yaml_file(yaml_file)
+    result = load_yaml_file(Path('/fake/config.yaml'))
     assert result == {'mode': 'block', 'fail_open': True}
 
 
-def test_load_yaml_file_valid_json(tmp_path: Path) -> None:
+def test_load_yaml_file_valid_json(fs: FakeFilesystem) -> None:
     """Test loading a valid JSON file."""
-    json_file = tmp_path / 'config.json'
-    json_file.write_text('{"mode": "block", "fail_open": true}')
+    fs.create_file('/fake/config.json', contents='{"mode": "block", "fail_open": true}')
 
-    result = load_yaml_file(json_file)
+    result = load_yaml_file(Path('/fake/config.json'))
     assert result == {'mode': 'block', 'fail_open': True}
 
 
-def test_load_yaml_file_invalid_yaml(tmp_path: Path) -> None:
+def test_load_yaml_file_invalid_yaml(fs: FakeFilesystem) -> None:
     """Test loading an invalid YAML file returns None."""
-    yaml_file = tmp_path / 'invalid.yaml'
-    yaml_file.write_text('{ invalid yaml content [')
+    fs.create_file('/fake/invalid.yaml', contents='{ invalid yaml content [')
 
-    result = load_yaml_file(yaml_file)
+    result = load_yaml_file(Path('/fake/invalid.yaml'))
     assert result is None
 
 
@@ -123,92 +123,77 @@ def test_get_policy_value_non_dict_in_path() -> None:
     assert get_policy_value(policy, 'key', 'nested', default='default') == 'default'
 
 
-def test_load_policy_defaults_only() -> None:
+@patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file')
+def test_load_policy_defaults_only(mock_load: MagicMock) -> None:
     """Test loading policy with only defaults (no user or repo config)."""
-    with patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file') as mock_load:
-        mock_load.return_value = None  # No user or repo config
+    mock_load.return_value = None  # No user or repo config
 
-        policy = load_policy()
+    policy = load_policy()
 
-        assert 'mode' in policy
-        assert 'fail_open' in policy
+    assert 'mode' in policy
+    assert 'fail_open' in policy
 
 
-def test_load_policy_with_user_config(tmp_path: Path) -> None:
+@patch('pathlib.Path.home')
+def test_load_policy_with_user_config(mock_home: MagicMock, fs: FakeFilesystem) -> None:
     """Test loading policy with user config override."""
-    with patch('pathlib.Path.home') as mock_home:
-        mock_home.return_value = tmp_path
+    mock_home.return_value = Path('/home/testuser')
 
-        # Create user config
-        user_config_dir = tmp_path / '.cycode'
-        user_config_dir.mkdir()
-        user_config = user_config_dir / 'ai-guardrails.yaml'
-        user_config.write_text('mode: warn\nfail_open: false\n')
+    # Create user config in fake filesystem
+    fs.create_file('/home/testuser/.cycode/ai-guardrails.yaml', contents='mode: warn\nfail_open: false\n')
 
-        policy = load_policy()
+    policy = load_policy()
 
-        # User config should override defaults
-        assert policy['mode'] == 'warn'
-        assert policy['fail_open'] is False
+    # User config should override defaults
+    assert policy['mode'] == 'warn'
+    assert policy['fail_open'] is False
 
 
-def test_load_policy_with_repo_config(tmp_path: Path) -> None:
+@patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file')
+def test_load_policy_with_repo_config(mock_load: MagicMock) -> None:
     """Test loading policy with repo config (highest precedence)."""
-    # Create repo config
-    repo_config_dir = tmp_path / '.cycode'
-    repo_config_dir.mkdir()
-    repo_config = repo_config_dir / 'ai-guardrails.yaml'
-    repo_config.write_text('mode: block\nprompt:\n  enabled: false\n')
+    repo_path = Path('/fake/repo')
+    repo_config = repo_path / '.cycode' / 'ai-guardrails.yaml'
 
-    with patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file') as mock_load:
+    def side_effect(path: Path) -> Optional[dict]:
+        if path == repo_config:
+            return {'mode': 'block', 'prompt': {'enabled': False}}
+        return None
 
-        def side_effect(path: Path) -> dict | None:
-            if path == repo_config:
-                return {'mode': 'block', 'prompt': {'enabled': False}}
-            return None
+    mock_load.side_effect = side_effect
 
-        mock_load.side_effect = side_effect
+    policy = load_policy(str(repo_path))
 
-        policy = load_policy(str(tmp_path))
-
-        # Repo config should have highest precedence
-        assert policy['mode'] == 'block'
-        assert policy['prompt']['enabled'] is False
+    # Repo config should have highest precedence
+    assert policy['mode'] == 'block'
+    assert policy['prompt']['enabled'] is False
 
 
-def test_load_policy_precedence(tmp_path: Path) -> None:
+@patch('pathlib.Path.home')
+def test_load_policy_precedence(mock_home: MagicMock, fs: FakeFilesystem) -> None:
     """Test that policy precedence is: defaults < user < repo."""
-    with patch('pathlib.Path.home') as mock_home:
-        mock_home.return_value = tmp_path
+    mock_home.return_value = Path('/home/testuser')
 
-        # Create user config
-        user_config_dir = tmp_path / '.cycode'
-        user_config_dir.mkdir()
-        user_config = user_config_dir / 'ai-guardrails.yaml'
-        user_config.write_text('mode: warn\nfail_open: false\n')
+    # Create user config
+    fs.create_file('/home/testuser/.cycode/ai-guardrails.yaml', contents='mode: warn\nfail_open: false\n')
 
-        # Create repo config in a different location
-        repo_path = tmp_path / 'repo'
-        repo_path.mkdir()
-        repo_config_dir = repo_path / '.cycode'
-        repo_config_dir.mkdir()
-        repo_config = repo_config_dir / 'ai-guardrails.yaml'
-        repo_config.write_text('mode: block\n')  # Override mode but not fail_open
+    # Create repo config
+    fs.create_file('/fake/repo/.cycode/ai-guardrails.yaml', contents='mode: block\n')
 
-        policy = load_policy(str(repo_path))
+    policy = load_policy('/fake/repo')
 
-        # mode should come from repo (highest precedence)
-        assert policy['mode'] == 'block'
-        # fail_open should come from user config (repo doesn't override it)
-        assert policy['fail_open'] is False
+    # mode should come from repo (highest precedence)
+    assert policy['mode'] == 'block'
+    # fail_open should come from user config (repo doesn't override it)
+    assert policy['fail_open'] is False
 
 
-def test_load_policy_none_workspace_root() -> None:
+@patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file')
+def test_load_policy_none_workspace_root(mock_load: MagicMock) -> None:
     """Test that None workspace_root is handled correctly."""
-    with patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file') as mock_load:
-        mock_load.return_value = None
+    mock_load.return_value = None
 
-        policy = load_policy(None)
+    policy = load_policy(None)
 
-        # Should only load defaults (no repo config)
-        assert 'mode' in policy
+    # Should only load defaults (no repo config)
+    assert 'mode' in policy
