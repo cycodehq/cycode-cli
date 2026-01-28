@@ -2,7 +2,7 @@
 
 import pytest
 
-from cycode.cli.apps.scan.prompt.response_builders import (
+from cycode.cli.apps.ai_guardrails.scan.response_builders import (
     CursorResponseBuilder,
     IDEResponseBuilder,
     get_response_builder,

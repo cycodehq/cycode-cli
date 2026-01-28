@@ -13,15 +13,15 @@ from typing import Callable, Optional
 
 import typer
 
-from cycode.cli.apps.scan.code_scanner import _get_scan_documents_thread_func
-from cycode.cli.apps.scan.prompt.payload import AIHookPayload
-from cycode.cli.apps.scan.prompt.policy import get_policy_value
-from cycode.cli.apps.scan.prompt.response_builders import get_response_builder
-from cycode.cli.apps.scan.prompt.types import AiHookEventType, AIHookOutcome, BlockReason
-from cycode.cli.apps.scan.prompt.utils import (
+from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
+from cycode.cli.apps.ai_guardrails.scan.response_builders import get_response_builder
+from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
+from cycode.cli.apps.ai_guardrails.scan.utils import (
     is_denied_path,
     truncate_utf8,
 )
+from cycode.cli.apps.scan.code_scanner import _get_scan_documents_thread_func
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import DummyProgressBar, ScanProgressBarSection

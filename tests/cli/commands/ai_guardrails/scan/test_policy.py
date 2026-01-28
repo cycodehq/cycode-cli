@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from cycode.cli.apps.scan.prompt.policy import (
+from cycode.cli.apps.ai_guardrails.scan.policy import (
     deep_merge,
     get_policy_value,
     load_defaults,
@@ -125,7 +125,7 @@ def test_get_policy_value_non_dict_in_path() -> None:
 
 def test_load_policy_defaults_only() -> None:
     """Test loading policy with only defaults (no user or repo config)."""
-    with patch('cycode.cli.apps.scan.prompt.policy.load_yaml_file') as mock_load:
+    with patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file') as mock_load:
         mock_load.return_value = None  # No user or repo config
 
         policy = load_policy()
@@ -160,9 +160,9 @@ def test_load_policy_with_repo_config(tmp_path: Path) -> None:
     repo_config = repo_config_dir / 'ai-guardrails.yaml'
     repo_config.write_text('mode: block\nprompt:\n  enabled: false\n')
 
-    with patch('cycode.cli.apps.scan.prompt.policy.load_yaml_file') as mock_load:
+    with patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file') as mock_load:
 
-        def side_effect(path: Path):
+        def side_effect(path: Path) -> dict | None:
             if path == repo_config:
                 return {'mode': 'block', 'prompt': {'enabled': False}}
             return None
@@ -205,7 +205,7 @@ def test_load_policy_precedence(tmp_path: Path) -> None:
 
 def test_load_policy_none_workspace_root() -> None:
     """Test that None workspace_root is handled correctly."""
-    with patch('cycode.cli.apps.scan.prompt.policy.load_yaml_file') as mock_load:
+    with patch('cycode.cli.apps.ai_guardrails.scan.policy.load_yaml_file') as mock_load:
         mock_load.return_value = None
 
         policy = load_policy(None)

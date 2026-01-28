@@ -1,8 +1,9 @@
 """
-Prompt scan command for AI guardrails.
+Scan command for AI guardrails.
 
 This command handles AI IDE hooks by reading JSON from stdin and outputting
-a JSON response to stdout.
+a JSON response to stdout. It scans prompts, file reads, and MCP tool calls
+for secrets before they are sent to AI models.
 
 Supports multiple IDEs with different hook event types. The specific hook events
 supported depend on the IDE being used (e.g., Cursor supports beforeSubmitPrompt,
@@ -15,12 +16,12 @@ from typing import Annotated
 import click
 import typer
 
-from cycode.cli.apps.scan.prompt.handlers import get_handler_for_event
-from cycode.cli.apps.scan.prompt.payload import AIHookPayload
-from cycode.cli.apps.scan.prompt.policy import load_policy
-from cycode.cli.apps.scan.prompt.response_builders import get_response_builder
-from cycode.cli.apps.scan.prompt.types import AiHookEventType
-from cycode.cli.apps.scan.prompt.utils import output_json, safe_json_parse
+from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event
+from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
+from cycode.cli.apps.ai_guardrails.scan.response_builders import get_response_builder
+from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
+from cycode.cli.apps.ai_guardrails.scan.utils import output_json, safe_json_parse
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cli.utils.get_api_client import get_ai_security_manager_client, get_scan_cycode_client
 from cycode.cli.utils.sentry import add_breadcrumb
@@ -59,7 +60,7 @@ def _initialize_clients(ctx: typer.Context) -> None:
     ctx.obj['ai_security_client'] = ai_security_client
 
 
-def prompt_command(
+def scan_command(
     ctx: typer.Context,
     ide: Annotated[
         str,
@@ -70,7 +71,7 @@ def prompt_command(
         ),
     ] = 'cursor',
 ) -> None:
-    """Handle AI guardrails hooks from supported IDEs.
+    """Scan content from AI IDE hooks for secrets.
 
     This command reads a JSON payload from stdin containing hook event data
     and outputs a JSON response to stdout indicating whether to allow or block the action.
@@ -80,9 +81,9 @@ def prompt_command(
     file access, and tool executions.
 
     Example usage (from IDE hooks configuration):
-        { "command": "cycode scan prompt" }
+        { "command": "cycode ai-guardrails scan" }
     """
-    add_breadcrumb('prompt')
+    add_breadcrumb('ai-guardrails-scan')
 
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)

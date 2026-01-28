@@ -13,7 +13,7 @@ from typing import Any, Optional
 
 import yaml
 
-from cycode.cli.apps.scan.prompt.consts import DEFAULT_POLICY, POLICY_FILE_NAME
+from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY, POLICY_FILE_NAME
 
 
 def deep_merge(base: dict, override: dict) -> dict:

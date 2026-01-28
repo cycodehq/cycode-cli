@@ -2,8 +2,8 @@
 
 import pytest
 
-from cycode.cli.apps.scan.prompt.payload import AIHookPayload
-from cycode.cli.apps.scan.prompt.types import AiHookEventType
+from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 
 def test_from_cursor_payload_prompt_event() -> None:

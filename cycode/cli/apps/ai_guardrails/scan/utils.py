@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from cycode.cli.apps.scan.prompt.policy import get_policy_value
+from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
 
 
 def safe_json_parse(s: str) -> dict:

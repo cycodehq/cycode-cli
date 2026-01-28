@@ -1,11 +1,15 @@
 """Type definitions for AI guardrails."""
 
-from enum import Enum
+import sys
 
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
 
-class StrEnum(str, Enum):
-    def __str__(self) -> str:
-        return self.value
+    class StrEnum(str, Enum):
+        def __str__(self) -> str:
+            return self.value
 
 
 class AiHookEventType(StrEnum):

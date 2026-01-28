@@ -1,6 +1,6 @@
 """Tests for AI guardrails utility functions."""
 
-from cycode.cli.apps.scan.prompt.utils import (
+from cycode.cli.apps.ai_guardrails.scan.utils import (
     is_denied_path,
     matches_glob,
     normalize_path,

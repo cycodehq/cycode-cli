@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from cycode.cli.apps.scan.prompt.types import CURSOR_EVENT_MAPPING
+from cycode.cli.apps.ai_guardrails.scan.types import CURSOR_EVENT_MAPPING
 
 
 @dataclass
