@@ -60,7 +60,11 @@ def test_from_cursor_payload_mcp_execution_event() -> None:
     assert unified.event_name == AiHookEventType.MCP_EXECUTION
     assert unified.mcp_server_name == 'GitLab'
     assert unified.mcp_tool_name == 'discussion_list'
-    assert unified.mcp_arguments == {'resource_type': 'merge_request', 'parent_id': 'organization/repo', 'resource_id': '4'}
+    assert unified.mcp_arguments == {
+        'resource_type': 'merge_request',
+        'parent_id': 'organization/repo',
+        'resource_id': '4',
+    }
 
 
 def test_from_cursor_payload_with_alternative_field_names() -> None:
