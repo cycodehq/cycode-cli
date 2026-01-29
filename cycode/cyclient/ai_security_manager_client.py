@@ -75,6 +75,7 @@ class AISecurityManagerClient:
             'generation_id': payload.generation_id,
             'block_reason': block_reason,
             'cli_scan_id': scan_id,
+            'mcp_server_name': payload.mcp_server_name,
             'mcp_tool_name': payload.mcp_tool_name,
         }
 

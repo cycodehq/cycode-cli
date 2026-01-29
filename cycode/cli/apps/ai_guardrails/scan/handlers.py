@@ -248,6 +248,8 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
     # Set up minimal required context
     ctx.obj['progress_bar'] = DummyProgressBar([ScanProgressBarSection])
     ctx.obj['sync'] = True  # Synchronous scan
+    ctx.obj['scan_type'] = ScanTypeOption.SECRET # AI guardrails always scans for secrets
+    ctx.obj['severity_threshold'] = SeverityOption.INFO  # Report all severities
 
     # Set command name for scan logic
     ctx.info_name = 'ai-guardrails'

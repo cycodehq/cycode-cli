@@ -56,11 +56,8 @@ IDE_CONFIGS: dict[AIIDEType, IDEConfig] = {
 # Default IDE
 DEFAULT_IDE = AIIDEType.CURSOR
 
-# Marker to identify Cycode hooks
-CYCODE_MARKER = 'cycode_guardrails'
-
 # Command used in hooks
-CYCODE_SCAN_PROMPT_COMMAND = 'cycode scan prompt'
+CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
 
 
 def get_hooks_config(ide: AIIDEType) -> dict:
@@ -78,5 +75,4 @@ def get_hooks_config(ide: AIIDEType) -> dict:
     return {
         'version': 1,
         'hooks': hooks,
-        CYCODE_MARKER: True,
     }

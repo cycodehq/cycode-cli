@@ -50,15 +50,17 @@ def test_from_cursor_payload_mcp_execution_event() -> None:
     cursor_payload = {
         'hook_event_name': 'beforeMCPExecution',
         'conversation_id': 'conv-123',
-        'tool_name': 'execute_command',
-        'arguments': {'command': 'ls -la', 'secret': 'password123'},
+        'command': 'GitLab',
+        'tool_name': 'discussion_list',
+        'arguments': {'resource_type': 'merge_request', 'parent_id': 'organization/repo', 'resource_id': '4'},
     }
 
     unified = AIHookPayload.from_cursor_payload(cursor_payload)
 
     assert unified.event_name == AiHookEventType.MCP_EXECUTION
-    assert unified.mcp_tool_name == 'execute_command'
-    assert unified.mcp_arguments == {'command': 'ls -la', 'secret': 'password123'}
+    assert unified.mcp_server_name == 'GitLab'
+    assert unified.mcp_tool_name == 'discussion_list'
+    assert unified.mcp_arguments == {'resource_type': 'merge_request', 'parent_id': 'organization/repo', 'resource_id': '4'}
 
 
 def test_from_cursor_payload_with_alternative_field_names() -> None:

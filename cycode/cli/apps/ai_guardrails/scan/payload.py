@@ -24,6 +24,7 @@ class AIHookPayload:
     # Event-specific data
     prompt: Optional[str] = None  # For prompt events
     file_path: Optional[str] = None  # For file_read events
+    mcp_server_name: Optional[str] = None  # For mcp_execution events
     mcp_tool_name: Optional[str] = None  # For mcp_execution events
     mcp_arguments: Optional[dict] = None  # For mcp_execution events
 
@@ -47,6 +48,7 @@ class AIHookPayload:
             ide_version=payload.get('cursor_version'),
             prompt=payload.get('prompt', ''),
             file_path=payload.get('file_path') or payload.get('path'),
+            mcp_server_name=payload.get('command'),  # MCP server name
             mcp_tool_name=payload.get('tool_name') or payload.get('tool'),
             mcp_arguments=payload.get('arguments') or payload.get('tool_input') or payload.get('input'),
         )

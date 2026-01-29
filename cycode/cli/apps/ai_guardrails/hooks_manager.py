@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Optional
 
 from cycode.cli.apps.ai_guardrails.consts import (
-    CYCODE_MARKER,
     CYCODE_SCAN_PROMPT_COMMAND,
     DEFAULT_IDE,
     IDE_CONFIGS,
@@ -100,9 +99,6 @@ def install_hooks(
         for entry in entries:
             existing['hooks'][event].append(entry)
 
-    # Add marker
-    existing[CYCODE_MARKER] = True
-
     # Save
     if save_hooks_file(hooks_path, existing):
         return True, f'AI guardrails hooks installed: {hooks_path}'
@@ -139,11 +135,6 @@ def uninstall_hooks(
         # Remove empty event lists
         if not existing['hooks'][event]:
             del existing['hooks'][event]
-
-    # Remove marker
-    if CYCODE_MARKER in existing:
-        del existing[CYCODE_MARKER]
-        modified = True
 
     if not modified:
         return True, 'No Cycode hooks found to remove'
@@ -190,17 +181,20 @@ def get_hooks_status(scope: str = 'user', repo_path: Optional[Path] = None, ide:
     if existing is None:
         return status
 
-    status['cycode_installed'] = existing.get(CYCODE_MARKER, False)
-
     # Check each hook event for this IDE
     ide_config = IDE_CONFIGS[ide]
+    has_cycode_hooks = False
     for event in ide_config.hook_events:
         entries = existing.get('hooks', {}).get(event, [])
         cycode_entries = [e for e in entries if is_cycode_hook_entry(e)]
+        if cycode_entries:
+            has_cycode_hooks = True
         status['hooks'][event] = {
             'total_entries': len(entries),
             'cycode_entries': len(cycode_entries),
             'enabled': len(cycode_entries) > 0,
         }
+
+    status['cycode_installed'] = has_cycode_hooks
 
     return status
