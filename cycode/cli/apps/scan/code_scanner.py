@@ -91,7 +91,7 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
     if not sync_option and scan_type != consts.IAC_SCAN_TYPE:
         return False
 
-    if command_scan_type not in {'path', 'repository'}:
+    if command_scan_type not in {'path', 'repository', 'ai_guardrails'}:
         return False
 
     if scan_type == consts.IAC_SCAN_TYPE:

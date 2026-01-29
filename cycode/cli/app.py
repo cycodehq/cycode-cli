@@ -9,7 +9,7 @@ from typer._completion_shared import Shells
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
-from cycode.cli.apps import ai_remediation, auth, configure, ignore, report, report_import, scan, status
+from cycode.cli.apps import ai_guardrails, ai_remediation, auth, configure, ignore, report, report_import, scan, status
 
 if sys.version_info >= (3, 10):
     from cycode.cli.apps import mcp
@@ -45,6 +45,7 @@ app = typer.Typer(
     add_completion=False,  # we add it manually to control the rich help panel
 )
 
+app.add_typer(ai_guardrails.app)
 app.add_typer(ai_remediation.app)
 app.add_typer(auth.app)
 app.add_typer(configure.app)

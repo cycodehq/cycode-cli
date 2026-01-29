@@ -1,5 +1,10 @@
 from typing import Optional
 
+from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
+from cycode.cyclient.ai_security_manager_service_config import (
+    DefaultAISecurityManagerServiceConfig,
+    DevAISecurityManagerServiceConfig,
+)
 from cycode.cyclient.config import dev_mode
 from cycode.cyclient.config_dev import DEV_CYCODE_API_URL
 from cycode.cyclient.cycode_dev_based_client import CycodeDevBasedClient
@@ -49,3 +54,18 @@ def create_import_sbom_client(
     else:
         client = CycodeTokenBasedClient(client_id, client_secret)
     return ImportSbomClient(client)
+
+
+def create_ai_security_manager_client(
+    client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
+) -> AISecurityManagerClient:
+    if dev_mode:
+        client = CycodeDevBasedClient(DEV_CYCODE_API_URL)
+        service_config = DevAISecurityManagerServiceConfig()
+    else:
+        if id_token:
+            client = CycodeOidcBasedClient(client_id, id_token)
+        else:
+            client = CycodeTokenBasedClient(client_id, client_secret)
+        service_config = DefaultAISecurityManagerServiceConfig()
+    return AISecurityManagerClient(client, service_config)
