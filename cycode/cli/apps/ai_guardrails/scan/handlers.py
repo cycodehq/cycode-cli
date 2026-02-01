@@ -250,7 +250,7 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
     ctx.obj['severity_threshold'] = SeverityOption.INFO  # Report all severities
 
     # Set command name for scan logic
-    ctx.info_name = 'ai-guardrails'
+    ctx.info_name = 'ai_guardrails'
 
     return ctx
 
