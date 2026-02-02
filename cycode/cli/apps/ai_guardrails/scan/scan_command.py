@@ -88,9 +88,6 @@ def scan_command(
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)
 
-    with open ('/tmp/test.input', 'w') as f:
-        f.write(stdin_data)
-
     tool = ide.lower()
     response_builder = get_response_builder(tool)
 
