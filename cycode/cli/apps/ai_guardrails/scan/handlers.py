@@ -59,25 +59,19 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     try:
         violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
 
-        if (
-            violation_summary
-            and get_policy_value(prompt_config, 'action', default='block') == 'block'
-            and mode == 'block'
-        ):
-            outcome = AIHookOutcome.BLOCKED
+        if violation_summary:
             block_reason = BlockReason.SECRETS_IN_PROMPT
-            user_message = f'{violation_summary}. Remove secrets before sending.'
-            response = response_builder.deny_prompt(user_message)
-        else:
-            if violation_summary:
-                outcome = AIHookOutcome.WARNED
-            response = response_builder.allow_prompt()
-        return response
+            if get_policy_value(prompt_config, 'action', default='block') == 'block' and mode == 'block':
+                outcome = AIHookOutcome.BLOCKED
+                user_message = f'{violation_summary}. Remove secrets before sending.'
+                return response_builder.deny_prompt(user_message)
+            outcome = AIHookOutcome.WARNED
+        return response_builder.allow_prompt()
     except Exception as e:
         outcome = (
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
         )
-        block_reason = BlockReason.SCAN_FAILURE if outcome == AIHookOutcome.BLOCKED else None
+        block_reason = BlockReason.SCAN_FAILURE
         raise e
     finally:
         ai_client.create_event(
@@ -116,28 +110,42 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
 
     try:
         # Check path-based denylist first
-        if is_denied_path(file_path, policy) and action == 'block':
-            outcome = AIHookOutcome.BLOCKED
+        if is_denied_path(file_path, policy):
             block_reason = BlockReason.SENSITIVE_PATH
-            user_message = f'Cycode blocked sending {file_path} to the AI (sensitive path policy).'
-            return response_builder.deny_permission(
+            if mode == 'block' and action == 'block':
+                outcome = AIHookOutcome.BLOCKED
+                user_message = f'Cycode blocked sending {file_path} to the AI (sensitive path policy).'
+                return response_builder.deny_permission(
+                    user_message,
+                    'This file path is classified as sensitive; do not read/send it to the model.',
+                )
+            # Warn mode - ask user for permission
+            outcome = AIHookOutcome.WARNED
+            user_message = f'Cycode flagged {file_path} as sensitive. Allow reading?'
+            return response_builder.ask_permission(
                 user_message,
-                'This file path is classified as sensitive; do not read/send it to the model.',
+                'This file path is classified as sensitive; proceed with caution.',
             )
 
         # Scan file content if enabled
         if get_policy_value(file_read_config, 'scan_content', default=True):
             violation_summary, scan_id = _scan_path_for_secrets(ctx, file_path, policy)
-            if violation_summary and action == 'block' and mode == 'block':
-                outcome = AIHookOutcome.BLOCKED
-                block_reason = BlockReason.SECRETS_IN_FILE
-                user_message = f'Cycode blocked reading {file_path}. {violation_summary}'
-                return response_builder.deny_permission(
-                    user_message,
-                    'Secrets detected; do not send this file to the model.',
-                )
             if violation_summary:
+                block_reason = BlockReason.SECRETS_IN_FILE
+                if mode == 'block' and action == 'block':
+                    outcome = AIHookOutcome.BLOCKED
+                    user_message = f'Cycode blocked reading {file_path}. {violation_summary}'
+                    return response_builder.deny_permission(
+                        user_message,
+                        'Secrets detected; do not send this file to the model.',
+                    )
+                # Warn mode - ask user for permission
                 outcome = AIHookOutcome.WARNED
+                user_message = f'Cycode detected secrets in {file_path}. {violation_summary}'
+                return response_builder.ask_permission(
+                    user_message,
+                    'Possible secrets detected; proceed with caution.',
+                )
             return response_builder.allow_permission()
 
         return response_builder.allow_permission()
@@ -145,7 +153,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
         outcome = (
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
         )
-        block_reason = BlockReason.SCAN_FAILURE if outcome == AIHookOutcome.BLOCKED else None
+        block_reason = BlockReason.SCAN_FAILURE
         raise e
     finally:
         ai_client.create_event(
@@ -192,9 +200,9 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         if get_policy_value(mcp_config, 'scan_arguments', default=True):
             violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
             if violation_summary:
+                block_reason = BlockReason.SECRETS_IN_MCP_ARGS
                 if mode == 'block' and action == 'block':
                     outcome = AIHookOutcome.BLOCKED
-                    block_reason = BlockReason.SECRETS_IN_MCP_ARGS
                     user_message = f'Cycode blocked MCP tool call "{tool}". {violation_summary}'
                     return response_builder.deny_permission(
                         user_message,
@@ -211,7 +219,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         outcome = (
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
         )
-        block_reason = BlockReason.SCAN_FAILURE if outcome == AIHookOutcome.BLOCKED else None
+        block_reason = BlockReason.SCAN_FAILURE
         raise e
     finally:
         ai_client.create_event(

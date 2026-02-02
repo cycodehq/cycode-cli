@@ -88,11 +88,24 @@ def scan_command(
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)
 
+    with open ('/tmp/test.input', 'w') as f:
+        f.write(stdin_data)
+
     tool = ide.lower()
     response_builder = get_response_builder(tool)
 
     if not payload:
         logger.debug('Empty or invalid JSON payload received')
+        output_json(response_builder.allow_prompt())
+        return
+
+    # Check if the payload matches the expected IDE - prevents double-processing
+    # when Cursor reads Claude Code hooks from ~/.claude/settings.json
+    if not AIHookPayload.is_payload_for_ide(payload, tool):
+        logger.debug(
+            'Payload event does not match expected IDE, skipping',
+            extra={'hook_event_name': payload.get('hook_event_name'), 'expected_ide': tool},
+        )
         output_json(response_builder.allow_prompt())
         return
 

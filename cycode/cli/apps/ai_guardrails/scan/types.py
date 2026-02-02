@@ -31,6 +31,17 @@ CURSOR_EVENT_MAPPING = {
     'beforeMCPExecution': AiHookEventType.MCP_EXECUTION,
 }
 
+# Claude Code event mapping - note that PreToolUse requires tool_name inspection
+# to determine the actual event type (file read vs MCP execution)
+CLAUDE_CODE_EVENT_MAPPING = {
+    'UserPromptSubmit': AiHookEventType.PROMPT,
+    'PreToolUse': None,  # Requires tool_name inspection to determine actual type
+}
+
+# Set of known event names per IDE (for IDE detection)
+CURSOR_EVENT_NAMES = set(CURSOR_EVENT_MAPPING.keys())
+CLAUDE_CODE_EVENT_NAMES = set(CLAUDE_CODE_EVENT_MAPPING.keys())
+
 
 class AIHookOutcome(StrEnum):
     """Outcome of an AI hook event evaluation."""

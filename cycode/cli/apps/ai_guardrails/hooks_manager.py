@@ -59,9 +59,27 @@ def save_hooks_file(hooks_path: Path, hooks_config: dict) -> bool:
 
 
 def is_cycode_hook_entry(entry: dict) -> bool:
-    """Check if a hook entry is from cycode-cli."""
+    """Check if a hook entry is from cycode-cli.
+
+    Handles both Cursor format (flat) and Claude Code format (nested).
+
+    Cursor format: {"command": "cycode ai-guardrails scan"}
+    Claude Code format: {"hooks": [{"type": "command", "command": "cycode ai-guardrails scan --ide claude-code"}]}
+    """
+    # Check Cursor format (flat command)
     command = entry.get('command', '')
-    return CYCODE_SCAN_PROMPT_COMMAND in command
+    if CYCODE_SCAN_PROMPT_COMMAND in command:
+        return True
+
+    # Check Claude Code format (nested hooks array)
+    hooks = entry.get('hooks', [])
+    for hook in hooks:
+        if isinstance(hook, dict):
+            hook_command = hook.get('command', '')
+            if CYCODE_SCAN_PROMPT_COMMAND in hook_command:
+                return True
+
+    return False
 
 
 def install_hooks(

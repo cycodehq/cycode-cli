@@ -62,9 +62,56 @@ class CursorResponseBuilder(IDEResponseBuilder):
         return {'continue': False, 'user_message': user_message}
 
 
+class ClaudeCodeResponseBuilder(IDEResponseBuilder):
+    """Response builder for Claude Code IDE hooks.
+
+    Claude Code hook response formats:
+    - UserPromptSubmit: {} for allow, {"decision": "block", "reason": str} for deny
+    - PreToolUse: hookSpecificOutput with permissionDecision (allow/deny/ask)
+    """
+
+    def allow_permission(self) -> dict:
+        """Allow file read or MCP execution."""
+        return {
+            'hookSpecificOutput': {
+                'hookEventName': 'PreToolUse',
+                'permissionDecision': 'allow',
+            }
+        }
+
+    def deny_permission(self, user_message: str, agent_message: str) -> dict:
+        """Deny file read or MCP execution."""
+        return {
+            'hookSpecificOutput': {
+                'hookEventName': 'PreToolUse',
+                'permissionDecision': 'deny',
+                'permissionDecisionReason': user_message,
+            }
+        }
+
+    def ask_permission(self, user_message: str, agent_message: str) -> dict:
+        """Ask user for permission (warn mode)."""
+        return {
+            'hookSpecificOutput': {
+                'hookEventName': 'PreToolUse',
+                'permissionDecision': 'ask',
+                'permissionDecisionReason': user_message,
+            }
+        }
+
+    def allow_prompt(self) -> dict:
+        """Allow prompt submission (empty response means allow)."""
+        return {}
+
+    def deny_prompt(self, user_message: str) -> dict:
+        """Deny prompt submission."""
+        return {'decision': 'block', 'reason': user_message}
+
+
 # Registry of response builders by IDE name
 _RESPONSE_BUILDERS: dict[str, IDEResponseBuilder] = {
     'cursor': CursorResponseBuilder(),
+    'claude-code': ClaudeCodeResponseBuilder(),
 }
 
 

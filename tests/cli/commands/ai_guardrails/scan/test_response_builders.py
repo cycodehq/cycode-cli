@@ -3,6 +3,7 @@
 import pytest
 
 from cycode.cli.apps.ai_guardrails.scan.response_builders import (
+    ClaudeCodeResponseBuilder,
     CursorResponseBuilder,
     IDEResponseBuilder,
     get_response_builder,
@@ -77,3 +78,71 @@ def test_cursor_response_builder_is_singleton() -> None:
     builder2 = get_response_builder('cursor')
 
     assert builder1 is builder2
+
+
+# Claude Code response builder tests
+
+
+def test_claude_code_response_builder_allow_permission() -> None:
+    """Test Claude Code allow permission response."""
+    builder = ClaudeCodeResponseBuilder()
+    response = builder.allow_permission()
+
+    assert response == {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'permissionDecision': 'allow',
+        }
+    }
+
+
+def test_claude_code_response_builder_deny_permission() -> None:
+    """Test Claude Code deny permission response with messages."""
+    builder = ClaudeCodeResponseBuilder()
+    response = builder.deny_permission('User message', 'Agent message')
+
+    assert response == {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'permissionDecision': 'deny',
+            'permissionDecisionReason': 'User message',
+        }
+    }
+
+
+def test_claude_code_response_builder_ask_permission() -> None:
+    """Test Claude Code ask permission response for warnings."""
+    builder = ClaudeCodeResponseBuilder()
+    response = builder.ask_permission('Warning message', 'Agent warning')
+
+    assert response == {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'permissionDecision': 'ask',
+            'permissionDecisionReason': 'Warning message',
+        }
+    }
+
+
+def test_claude_code_response_builder_allow_prompt() -> None:
+    """Test Claude Code allow prompt response (empty dict)."""
+    builder = ClaudeCodeResponseBuilder()
+    response = builder.allow_prompt()
+
+    assert response == {}
+
+
+def test_claude_code_response_builder_deny_prompt() -> None:
+    """Test Claude Code deny prompt response with message."""
+    builder = ClaudeCodeResponseBuilder()
+    response = builder.deny_prompt('Secrets detected')
+
+    assert response == {'decision': 'block', 'reason': 'Secrets detected'}
+
+
+def test_get_response_builder_claude_code() -> None:
+    """Test getting Claude Code response builder."""
+    builder = get_response_builder('claude-code')
+
+    assert isinstance(builder, ClaudeCodeResponseBuilder)
+    assert isinstance(builder, IDEResponseBuilder)
