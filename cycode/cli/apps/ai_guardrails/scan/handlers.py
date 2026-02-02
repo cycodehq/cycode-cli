@@ -55,6 +55,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     scan_id = None
     block_reason = None
     outcome = AIHookOutcome.ALLOWED
+    error_message = None
 
     try:
         violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
@@ -72,6 +73,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
         )
         block_reason = BlockReason.SCAN_FAILURE
+        error_message = str(e)
         raise e
     finally:
         ai_client.create_event(
@@ -80,6 +82,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             outcome,
             scan_id=scan_id,
             block_reason=block_reason,
+            error_message=error_message,
         )
 
 
@@ -107,6 +110,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
     scan_id = None
     block_reason = None
     outcome = AIHookOutcome.ALLOWED
+    error_message = None
 
     try:
         # Check path-based denylist first
@@ -154,6 +158,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
         )
         block_reason = BlockReason.SCAN_FAILURE
+        error_message = str(e)
         raise e
     finally:
         ai_client.create_event(
@@ -162,6 +167,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
             outcome,
             scan_id=scan_id,
             block_reason=block_reason,
+            error_message=error_message,
         )
 
 
@@ -195,6 +201,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
     scan_id = None
     block_reason = None
     outcome = AIHookOutcome.ALLOWED
+    error_message = None
 
     try:
         if get_policy_value(mcp_config, 'scan_arguments', default=True):
@@ -220,6 +227,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
         )
         block_reason = BlockReason.SCAN_FAILURE
+        error_message = str(e)
         raise e
     finally:
         ai_client.create_event(
@@ -228,6 +236,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
             outcome,
             scan_id=scan_id,
             block_reason=block_reason,
+            error_message=error_message,
         )
 
 
