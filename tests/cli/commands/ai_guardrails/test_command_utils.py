@@ -15,6 +15,9 @@ def test_validate_and_parse_ide_valid() -> None:
     assert validate_and_parse_ide('cursor') == AIIDEType.CURSOR
     assert validate_and_parse_ide('CURSOR') == AIIDEType.CURSOR
     assert validate_and_parse_ide('CuRsOr') == AIIDEType.CURSOR
+    assert validate_and_parse_ide('claude-code') == AIIDEType.CLAUDE_CODE
+    assert validate_and_parse_ide('Claude-Code') == AIIDEType.CLAUDE_CODE
+    assert validate_and_parse_ide('all') is None
 
 
 def test_validate_and_parse_ide_invalid() -> None:

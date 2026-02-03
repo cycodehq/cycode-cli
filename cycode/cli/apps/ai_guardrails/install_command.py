@@ -11,7 +11,7 @@ from cycode.cli.apps.ai_guardrails.command_utils import (
     validate_and_parse_ide,
     validate_scope,
 )
-from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS
+from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS, AIIDEType
 from cycode.cli.apps.ai_guardrails.hooks_manager import install_hooks
 from cycode.cli.utils.sentry import add_breadcrumb
 
@@ -30,7 +30,7 @@ def install_command(
         str,
         typer.Option(
             '--ide',
-            help='IDE to install hooks for (e.g., "cursor"). Defaults to cursor.',
+            help='IDE to install hooks for (e.g., "cursor", "claude-code", or "all" for all IDEs). Defaults to cursor.',
         ),
     ] = 'cursor',
     repo_path: Annotated[
@@ -54,6 +54,7 @@ def install_command(
         cycode ai-guardrails install                    # Install for all projects (user scope)
         cycode ai-guardrails install --scope repo       # Install for current repo only
         cycode ai-guardrails install --ide cursor       # Install for Cursor IDE
+        cycode ai-guardrails install --ide all          # Install for all supported IDEs
         cycode ai-guardrails install --scope repo --repo-path /path/to/repo
     """
     add_breadcrumb('ai-guardrails-install')
@@ -62,17 +63,35 @@ def install_command(
     validate_scope(scope)
     repo_path = resolve_repo_path(scope, repo_path)
     ide_type = validate_and_parse_ide(ide)
-    ide_name = IDE_CONFIGS[ide_type].name
-    success, message = install_hooks(scope, repo_path, ide=ide_type)
 
-    if success:
-        console.print(f'[green]✓[/] {message}')
+    ides_to_install: list[AIIDEType] = list(AIIDEType) if ide_type is None else [ide_type]
+
+    results: list[tuple[str, bool, str]] = []
+    for current_ide in ides_to_install:
+        ide_name = IDE_CONFIGS[current_ide].name
+        success, message = install_hooks(scope, repo_path, ide=current_ide)
+        results.append((ide_name, success, message))
+
+    # Report results for each IDE
+    any_success = False
+    all_success = True
+    for _ide_name, success, message in results:
+        if success:
+            console.print(f'[green]✓[/] {message}')
+            any_success = True
+        else:
+            console.print(f'[red]✗[/] {message}', style='bold red')
+            all_success = False
+
+    if any_success:
         console.print()
         console.print('[bold]Next steps:[/]')
-        console.print(f'1. Restart {ide_name} to activate the hooks')
+        successful_ides = [name for name, success, _ in results if success]
+        ide_list = ', '.join(successful_ides)
+        console.print(f'1. Restart {ide_list} to activate the hooks')
         console.print('2. (Optional) Customize policy in ~/.cycode/ai-guardrails.yaml')
         console.print()
         console.print('[dim]The hooks will scan prompts, file reads, and MCP tool calls for secrets.[/]')
-    else:
-        console.print(f'[red]✗[/] {message}', style='bold red')
+
+    if not all_success:
         raise typer.Exit(1)

@@ -12,24 +12,26 @@ from cycode.cli.apps.ai_guardrails.consts import AIIDEType
 console = Console()
 
 
-def validate_and_parse_ide(ide: str) -> AIIDEType:
-    """Validate IDE parameter and convert to AIIDEType enum.
+def validate_and_parse_ide(ide: str) -> Optional[AIIDEType]:
+    """Validate IDE parameter, returning None for 'all'.
 
     Args:
-        ide: IDE name string (e.g., 'cursor')
+        ide: IDE name string (e.g., 'cursor', 'claude-code', 'all')
 
     Returns:
-        AIIDEType enum value
+        AIIDEType enum value, or None if 'all' was specified
 
     Raises:
         typer.Exit: If IDE is invalid
     """
+    if ide.lower() == 'all':
+        return None
     try:
         return AIIDEType(ide.lower())
     except ValueError:
         valid_ides = ', '.join([ide_type.value for ide_type in AIIDEType])
         console.print(
-            f'[red]Error:[/] Invalid IDE "{ide}". Supported IDEs: {valid_ides}',
+            f'[red]Error:[/] Invalid IDE "{ide}". Supported IDEs: {valid_ides}, all',
             style='bold red',
         )
         raise typer.Exit(1) from None

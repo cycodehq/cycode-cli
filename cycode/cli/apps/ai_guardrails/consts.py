@@ -60,7 +60,7 @@ IDE_CONFIGS: dict[AIIDEType, IDEConfig] = {
         hooks_dir=_get_claude_code_hooks_dir(),
         repo_hooks_subdir='.claude',
         hooks_file_name='settings.json',
-        hook_events=['UserPromptSubmit', 'PreToolUse'],
+        hook_events=['UserPromptSubmit', 'PreToolUse:Read', 'PreToolUse:mcp'],
     ),
 }
 

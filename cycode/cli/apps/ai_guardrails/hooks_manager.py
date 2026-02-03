@@ -203,7 +203,15 @@ def get_hooks_status(scope: str = 'user', repo_path: Optional[Path] = None, ide:
     ide_config = IDE_CONFIGS[ide]
     has_cycode_hooks = False
     for event in ide_config.hook_events:
-        entries = existing.get('hooks', {}).get(event, [])
+        # Handle event:matcher format
+        if ':' in event:
+            actual_event, matcher_prefix = event.split(':', 1)
+            all_entries = existing.get('hooks', {}).get(actual_event, [])
+            # Filter entries by matcher
+            entries = [e for e in all_entries if e.get('matcher', '').startswith(matcher_prefix)]
+        else:
+            entries = existing.get('hooks', {}).get(event, [])
+
         cycode_entries = [e for e in entries if is_cycode_hook_entry(e)]
         if cycode_entries:
             has_cycode_hooks = True
