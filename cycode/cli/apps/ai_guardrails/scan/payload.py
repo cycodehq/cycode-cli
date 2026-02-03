@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from cycode.cli.apps.ai_guardrails.consts import AIIDEType
 from cycode.cli.apps.ai_guardrails.scan.types import (
     CLAUDE_CODE_EVENT_MAPPING,
     CLAUDE_CODE_EVENT_NAMES,
@@ -47,7 +48,7 @@ def _reverse_readline(path: Path, buf_size: int = 8192) -> Iterator[str]:
                     if newline_pos == -1:
                         break
                 # Yield the line after this newline
-                line = buffer[newline_pos + 1 :]
+                line = buffer[newline_pos + 1:]
                 buffer = buffer[: newline_pos + 1]
                 if line.strip():
                     yield line.decode('utf-8', errors='replace')
@@ -57,8 +58,20 @@ def _reverse_readline(path: Path, buf_size: int = 8192) -> Iterator[str]:
             yield buffer.decode('utf-8', errors='replace')
 
 
-def _extract_from_claude_transcript(  # noqa: C901
-    transcript_path: str,
+def _extract_model(entry: dict) -> Optional[str]:
+    """Extract model from a transcript entry (top level or nested in message)."""
+    return entry.get('model') or (entry.get('message') or {}).get('model')
+
+
+def _extract_generation_id(entry: dict) -> Optional[str]:
+    """Extract generation ID from a user-type transcript entry."""
+    if entry.get('type') == 'user':
+        return entry.get('uuid')
+    return None
+
+
+def _extract_from_claude_transcript(
+        transcript_path: str,
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Extract IDE version, model, and latest generation ID from Claude Code transcript file.
 
@@ -90,16 +103,11 @@ def _extract_from_claude_transcript(  # noqa: C901
                 continue
             try:
                 entry = json.loads(line)
-                if ide_version is None and 'version' in entry:
-                    ide_version = entry['version']
-                # Model can be at top level or nested in message.model
-                if model is None:
-                    model = entry.get('model') or (entry.get('message') or {}).get('model')
-                # Get the latest user message UUID as generation_id
-                if generation_id is None and entry.get('type') == 'user' and entry.get('uuid'):
-                    generation_id = entry['uuid']
-                # Stop early if we found all values
-                if ide_version is not None and model is not None and generation_id is not None:
+                ide_version = ide_version or entry.get('version')
+                model = model or _extract_model(entry)
+                generation_id = generation_id or _extract_generation_id(entry)
+
+                if ide_version and model and generation_id:
                     break
             except json.JSONDecodeError:
                 continue
@@ -121,7 +129,7 @@ class AIHookPayload:
     # User and IDE information
     ide_user_email: Optional[str] = None
     model: Optional[str] = None
-    ide_provider: str = None  # e.g., 'cursor', 'claude-code'
+    ide_provider: str = None  # AIIDEType value (e.g., 'cursor', 'claude-code')
     ide_version: Optional[str] = None
 
     # Event-specific data
@@ -147,7 +155,7 @@ class AIHookPayload:
             generation_id=payload.get('generation_id'),
             ide_user_email=payload.get('user_email'),
             model=payload.get('model'),
-            ide_provider='cursor',
+            ide_provider=AIIDEType.CURSOR,
             ide_version=payload.get('cursor_version'),
             prompt=payload.get('prompt', ''),
             file_path=payload.get('file_path') or payload.get('path'),
@@ -205,7 +213,7 @@ class AIHookPayload:
             generation_id=generation_id,
             ide_user_email=None,  # Claude Code doesn't provide this in hook payload
             model=model,
-            ide_provider='claude-code',
+            ide_provider=AIIDEType.CLAUDE_CODE,
             ide_version=ide_version,
             prompt=payload.get('prompt', ''),
             file_path=file_path,
@@ -224,28 +232,28 @@ class AIHookPayload:
 
         Args:
             payload: The raw payload from the IDE
-            ide: The IDE name (e.g., 'cursor', 'claude-code')
+            ide: The IDE name or AIIDEType enum value
 
         Returns:
             True if the payload matches the IDE, False otherwise.
         """
         hook_event_name = payload.get('hook_event_name', '')
 
-        if ide == 'claude-code':
+        if ide == AIIDEType.CLAUDE_CODE:
             return hook_event_name in CLAUDE_CODE_EVENT_NAMES
-        if ide == 'cursor':
+        if ide == AIIDEType.CURSOR:
             return hook_event_name in CURSOR_EVENT_NAMES
 
         # Unknown IDE, allow processing
         return True
 
     @classmethod
-    def from_payload(cls, payload: dict, tool: str = 'cursor') -> 'AIHookPayload':
+    def from_payload(cls, payload: dict, tool: str = AIIDEType.CURSOR) -> 'AIHookPayload':
         """Create AIHookPayload from any tool's payload.
 
         Args:
             payload: The raw payload from the IDE
-            tool: The IDE/tool name (e.g., 'cursor', 'claude-code')
+            tool: The IDE/tool name or AIIDEType enum value
 
         Returns:
             AIHookPayload instance
@@ -253,8 +261,8 @@ class AIHookPayload:
         Raises:
             ValueError: If the tool is not supported
         """
-        if tool == 'cursor':
+        if tool == AIIDEType.CURSOR:
             return cls.from_cursor_payload(payload)
-        if tool == 'claude-code':
+        if tool == AIIDEType.CLAUDE_CODE:
             return cls.from_claude_code_payload(payload)
         raise ValueError(f'Unsupported IDE/tool: {tool}')

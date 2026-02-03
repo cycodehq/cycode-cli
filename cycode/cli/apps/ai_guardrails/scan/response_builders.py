@@ -7,6 +7,8 @@ an abstract interface and concrete implementations for each supported IDE.
 
 from abc import ABC, abstractmethod
 
+from cycode.cli.apps.ai_guardrails.consts import AIIDEType
+
 
 class IDEResponseBuilder(ABC):
     """Abstract base class for IDE-specific response builders."""
@@ -108,18 +110,18 @@ class ClaudeCodeResponseBuilder(IDEResponseBuilder):
         return {'decision': 'block', 'reason': user_message}
 
 
-# Registry of response builders by IDE name
+# Registry of response builders by IDE type
 _RESPONSE_BUILDERS: dict[str, IDEResponseBuilder] = {
-    'cursor': CursorResponseBuilder(),
-    'claude-code': ClaudeCodeResponseBuilder(),
+    AIIDEType.CURSOR: CursorResponseBuilder(),
+    AIIDEType.CLAUDE_CODE: ClaudeCodeResponseBuilder(),
 }
 
 
-def get_response_builder(ide: str = 'cursor') -> IDEResponseBuilder:
+def get_response_builder(ide: str = AIIDEType.CURSOR) -> IDEResponseBuilder:
     """Get the response builder for a specific IDE.
 
     Args:
-        ide: The IDE name (e.g., 'cursor', 'claude-code')
+        ide: The IDE name (e.g., 'cursor', 'claude-code') or AIIDEType enum
 
     Returns:
         IDEResponseBuilder instance for the specified IDE
@@ -127,7 +129,10 @@ def get_response_builder(ide: str = 'cursor') -> IDEResponseBuilder:
     Raises:
         ValueError: If the IDE is not supported
     """
-    builder = _RESPONSE_BUILDERS.get(ide.lower())
+    # Normalize to AIIDEType if string passed
+    if isinstance(ide, str):
+        ide = ide.lower()
+    builder = _RESPONSE_BUILDERS.get(ide)
     if not builder:
         raise ValueError(f'Unsupported IDE: {ide}. Supported IDEs: {list(_RESPONSE_BUILDERS.keys())}')
     return builder

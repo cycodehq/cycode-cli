@@ -16,6 +16,7 @@ from typing import Annotated
 import click
 import typer
 
+from cycode.cli.apps.ai_guardrails.consts import AIIDEType
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
@@ -69,7 +70,7 @@ def scan_command(
             help='IDE that sent the payload (e.g., "cursor"). Defaults to cursor.',
             hidden=True,
         ),
-    ] = 'cursor',
+    ] = AIIDEType.CURSOR,
 ) -> None:
     """Scan content from AI IDE hooks for secrets.
 

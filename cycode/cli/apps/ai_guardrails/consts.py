@@ -18,6 +18,13 @@ class AIIDEType(str, Enum):
     CLAUDE_CODE = 'claude-code'
 
 
+class PolicyMode(str, Enum):
+    """Policy enforcement mode for global mode and per-feature actions."""
+
+    BLOCK = 'block'
+    WARN = 'warn'
+
+
 class IDEConfig(NamedTuple):
     """Configuration for an AI IDE."""
 

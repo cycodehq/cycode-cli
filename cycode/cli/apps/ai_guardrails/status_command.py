@@ -29,7 +29,7 @@ def status_command(
             '--ide',
             help='IDE to check status for (e.g., "cursor", "claude-code", or "all" for all IDEs). Defaults to cursor.',
         ),
-    ] = 'cursor',
+    ] = AIIDEType.CURSOR,
     repo_path: Annotated[
         Optional[Path],
         typer.Option(

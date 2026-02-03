@@ -13,6 +13,7 @@ from typing import Callable, Optional
 
 import typer
 
+from cycode.cli.apps.ai_guardrails.consts import PolicyMode
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
 from cycode.cli.apps.ai_guardrails.scan.response_builders import get_response_builder
@@ -46,7 +47,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
         ai_client.create_event(payload, AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
         return response_builder.allow_prompt()
 
-    mode = get_policy_value(policy, 'mode', default='block')
+    mode = get_policy_value(policy, 'mode', default=PolicyMode.BLOCK)
     prompt = payload.prompt or ''
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
@@ -62,7 +63,8 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
 
         if violation_summary:
             block_reason = BlockReason.SECRETS_IN_PROMPT
-            if get_policy_value(prompt_config, 'action', default='block') == 'block' and mode == 'block':
+            action = get_policy_value(prompt_config, 'action', default=PolicyMode.BLOCK)
+            if action == PolicyMode.BLOCK and mode == PolicyMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
                 user_message = f'{violation_summary}. Remove secrets before sending.'
                 return response_builder.deny_prompt(user_message)
@@ -103,9 +105,9 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
         ai_client.create_event(payload, AiHookEventType.FILE_READ, AIHookOutcome.ALLOWED)
         return response_builder.allow_permission()
 
-    mode = get_policy_value(policy, 'mode', default='block')
+    mode = get_policy_value(policy, 'mode', default=PolicyMode.BLOCK)
     file_path = payload.file_path or ''
-    action = get_policy_value(file_read_config, 'action', default='block')
+    action = get_policy_value(file_read_config, 'action', default=PolicyMode.BLOCK)
 
     scan_id = None
     block_reason = None
@@ -116,7 +118,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
         # Check path-based denylist first
         if is_denied_path(file_path, policy):
             block_reason = BlockReason.SENSITIVE_PATH
-            if mode == 'block' and action == 'block':
+            if mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
                 user_message = f'Cycode blocked sending {file_path} to the AI (sensitive path policy).'
                 return response_builder.deny_permission(
@@ -136,7 +138,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
             violation_summary, scan_id = _scan_path_for_secrets(ctx, file_path, policy)
             if violation_summary:
                 block_reason = BlockReason.SECRETS_IN_FILE
-                if mode == 'block' and action == 'block':
+                if mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK:
                     outcome = AIHookOutcome.BLOCKED
                     user_message = f'Cycode blocked reading {file_path}. {violation_summary}'
                     return response_builder.deny_permission(
@@ -189,14 +191,14 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         ai_client.create_event(payload, AiHookEventType.MCP_EXECUTION, AIHookOutcome.ALLOWED)
         return response_builder.allow_permission()
 
-    mode = get_policy_value(policy, 'mode', default='block')
+    mode = get_policy_value(policy, 'mode', default=PolicyMode.BLOCK)
     tool = payload.mcp_tool_name or 'unknown'
     args = payload.mcp_arguments or {}
     args_text = args if isinstance(args, str) else json.dumps(args)
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
     clipped = truncate_utf8(args_text, max_bytes)
-    action = get_policy_value(mcp_config, 'action', default='block')
+    action = get_policy_value(mcp_config, 'action', default=PolicyMode.BLOCK)
 
     scan_id = None
     block_reason = None
@@ -208,7 +210,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
             violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
             if violation_summary:
                 block_reason = BlockReason.SECRETS_IN_MCP_ARGS
-                if mode == 'block' and action == 'block':
+                if mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK:
                     outcome = AIHookOutcome.BLOCKED
                     user_message = f'Cycode blocked MCP tool call "{tool}". {violation_summary}'
                     return response_builder.deny_permission(
