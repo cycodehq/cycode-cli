@@ -48,7 +48,7 @@ def _reverse_readline(path: Path, buf_size: int = 8192) -> Iterator[str]:
                     if newline_pos == -1:
                         break
                 # Yield the line after this newline
-                line = buffer[newline_pos + 1:]
+                line = buffer[newline_pos + 1 :]
                 buffer = buffer[: newline_pos + 1]
                 if line.strip():
                     yield line.decode('utf-8', errors='replace')
@@ -71,7 +71,7 @@ def _extract_generation_id(entry: dict) -> Optional[str]:
 
 
 def _extract_from_claude_transcript(
-        transcript_path: str,
+    transcript_path: str,
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Extract IDE version, model, and latest generation ID from Claude Code transcript file.
 
