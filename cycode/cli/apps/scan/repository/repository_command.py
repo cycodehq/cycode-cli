@@ -17,7 +17,6 @@ from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_utils import is_cycodeignore_allowed_by_scan_config
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def repository_command(
@@ -30,8 +29,6 @@ def repository_command(
     ] = None,
 ) -> None:
     try:
-        add_breadcrumb('repository')
-
         logger.debug('Starting repository scan process, %s', {'path': path, 'branch': branch})
 
         scan_type = ctx.obj['scan_type']

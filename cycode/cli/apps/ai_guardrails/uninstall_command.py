@@ -13,7 +13,6 @@ from cycode.cli.apps.ai_guardrails.command_utils import (
 )
 from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS, AIIDEType
 from cycode.cli.apps.ai_guardrails.hooks_manager import uninstall_hooks
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def uninstall_command(
@@ -56,8 +55,6 @@ def uninstall_command(
         cycode ai-guardrails uninstall --ide cursor       # Uninstall from Cursor IDE
         cycode ai-guardrails uninstall --ide all          # Uninstall from all supported IDEs
     """
-    add_breadcrumb('ai-guardrails-uninstall')
-
     # Validate inputs
     validate_scope(scope)
     repo_path = resolve_repo_path(scope, repo_path)

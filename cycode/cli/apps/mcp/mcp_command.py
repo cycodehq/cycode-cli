@@ -13,7 +13,6 @@ from pathvalidate import sanitize_filepath
 from pydantic import Field
 
 from cycode.cli.cli_types import McpTransportOption, ScanTypeOption
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.logger import LoggersManager, get_logger
 
 try:
@@ -381,8 +380,6 @@ def mcp_command(
         cycode mcp # Start with default transport (stdio)
         cycode mcp -t sse -p 8080 # Start with Server-Sent Events (SSE) transport on port 8080
     """
-    add_breadcrumb('mcp')
-
     try:
         _run_mcp_server(transport, host, port)
     except Exception as e:

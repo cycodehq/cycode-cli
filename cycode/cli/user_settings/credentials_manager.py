@@ -9,7 +9,6 @@ from cycode.cli.config import (
 )
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
 from cycode.cli.user_settings.jwt_creator import JwtCreator
-from cycode.cli.utils.sentry import setup_scope_from_access_token
 
 
 class CredentialsManager(BaseFileManager):
@@ -77,8 +76,6 @@ class CredentialsManager(BaseFileManager):
         if hashed_creator:
             creator = JwtCreator(hashed_creator)
 
-        setup_scope_from_access_token(access_token)
-
         return access_token, expires_in, creator
 
     def update_access_token(
@@ -90,8 +87,6 @@ class CredentialsManager(BaseFileManager):
             self.ACCESS_TOKEN_CREATOR_FIELD_NAME: str(creator) if creator else None,
         }
         self.write_content_to_file(file_content_to_update)
-
-        setup_scope_from_access_token(access_token)
 
     def get_filename(self) -> str:
         return os.path.join(self.HOME_PATH, self.CYCODE_HIDDEN_DIRECTORY, self.FILE_NAME)

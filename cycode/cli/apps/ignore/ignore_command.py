@@ -9,7 +9,6 @@ from cycode.cli.cli_types import ScanTypeOption
 from cycode.cli.config import configuration_manager
 from cycode.cli.logger import logger
 from cycode.cli.utils.path_utils import get_absolute_path, is_path_exists
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cli.utils.string_utils import hash_string_to_sha256
 
 _FILTER_BY_RICH_HELP_PANEL = 'Filter options'
@@ -97,8 +96,6 @@ def ignore_command(  # noqa: C901
     * `cycode ignore --by-rule GUID`: Ignore rule with the specified GUID
     * `cycode ignore --by-package lodash@4.17.21`: Ignore lodash version 4.17.21
     """
-    add_breadcrumb('ignore')
-
     all_by_values = [by_value, by_sha, by_path, by_rule, by_package, by_cve]
     if all(by is None for by in all_by_values):
         raise click.ClickException('Ignore by type is missing')

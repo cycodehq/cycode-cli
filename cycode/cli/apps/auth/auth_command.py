@@ -4,7 +4,6 @@ from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.handle_auth_errors import handle_auth_exception
 from cycode.cli.logger import logger
 from cycode.cli.models import CliResult
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def auth_command(ctx: typer.Context) -> None:
@@ -16,7 +15,6 @@ def auth_command(ctx: typer.Context) -> None:
     * `cycode auth`: Start interactive authentication
     * `cycode auth --help`: View authentication options
     """
-    add_breadcrumb('auth')
     printer = ctx.obj.get('console_printer')
 
     try:

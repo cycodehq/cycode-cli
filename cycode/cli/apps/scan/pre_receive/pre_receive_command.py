@@ -19,7 +19,6 @@ from cycode.cli.files_collector.commit_range_documents import (
 )
 from cycode.cli.logger import logger
 from cycode.cli.utils import scan_utils
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cli.utils.task_timer import TimeoutAfter
 from cycode.logger import set_logging_level
 
@@ -29,8 +28,6 @@ def pre_receive_command(
     _: Annotated[Optional[list[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
 ) -> None:
     try:
-        add_breadcrumb('pre_receive')
-
         if should_skip_pre_receive_scan():
             logger.info(
                 'A scan has been skipped as per your request. '

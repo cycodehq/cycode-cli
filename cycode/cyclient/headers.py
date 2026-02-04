@@ -5,7 +5,6 @@ from uuid import uuid4
 from cycode import __version__
 from cycode.cli import consts
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
-from cycode.cli.utils.sentry import add_correlation_id_to_scope
 from cycode.cyclient.logger import logger
 
 
@@ -41,8 +40,6 @@ class _CorrelationId:
             # example: 16fd2706-8baf-433b-82eb-8c7fada847da
             self._id = str(uuid4())
             logger.debug('Correlation ID: %s', self._id)
-
-        add_correlation_id_to_scope(self._id)
 
         return self._id
 

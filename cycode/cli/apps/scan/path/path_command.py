@@ -5,7 +5,6 @@ import typer
 
 from cycode.cli.apps.scan.code_scanner import scan_disk_files
 from cycode.cli.logger import logger
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def path_command(
@@ -14,8 +13,6 @@ def path_command(
         list[Path], typer.Argument(exists=True, resolve_path=True, help='Paths to scan', show_default=False)
     ],
 ) -> None:
-    add_breadcrumb('path')
-
     progress_bar = ctx.obj['progress_bar']
     progress_bar.start()
 

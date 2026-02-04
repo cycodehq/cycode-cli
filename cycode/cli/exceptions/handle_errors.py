@@ -4,7 +4,6 @@ import click
 import typer
 
 from cycode.cli.models import CliError, CliErrors
-from cycode.cli.utils.sentry import capture_exception
 
 
 def handle_errors(
@@ -27,8 +26,6 @@ def handle_errors(
 
     if isinstance(err, click.ClickException):
         raise err
-
-    capture_exception(err)
 
     unknown_error = CliError(code='unknown_error', message=str(err))
     if return_exception:

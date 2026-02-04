@@ -7,7 +7,6 @@ from cycode.cli.apps.report.sbom.common import create_sbom_report, send_report_f
 from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cli.utils.url_utils import sanitize_repository_url
 from cycode.logger import get_logger
 
@@ -18,8 +17,6 @@ def repository_url_command(
     ctx: typer.Context,
     uri: Annotated[str, typer.Argument(help='Repository URL to generate SBOM report for.', show_default=False)],
 ) -> None:
-    add_breadcrumb('repository_url')
-
     progress_bar = ctx.obj['progress_bar']
     progress_bar.start()
     progress_bar.set_section_length(SbomReportProgressBarSection.PREPARE_LOCAL_FILES)

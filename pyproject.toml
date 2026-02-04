@@ -42,7 +42,6 @@ arrow = ">=1.0.0,<1.4.0"
 binaryornot = ">=0.4.4,<0.5.0"
 requests = ">=2.32.4,<3.0"
 urllib3 = "1.26.19"  # lock v1 to avoid issues with openssl and old Python versions (<3.9.11) on macOS
-sentry-sdk = ">=2.8.0,<3.0"
 pyjwt = ">=2.8.0,<3.0"
 rich = ">=13.9.4, <14"
 patch-ng = "1.18.1"
