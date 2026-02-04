@@ -135,8 +135,8 @@ def test_handle_before_submit_prompt_scan_failure_fail_open(
     mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.ALLOWED
-    # When fail_open=True, no block_reason since action is allowed
-    assert call_args.kwargs['block_reason'] is None
+    # block_reason is set for tracking even when fail_open allows the action
+    assert call_args.kwargs['block_reason'] == BlockReason.SCAN_FAILURE
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')

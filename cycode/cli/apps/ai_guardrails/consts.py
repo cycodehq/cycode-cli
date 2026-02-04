@@ -2,12 +2,7 @@
 
 Currently supports:
 - Cursor
-
-To add a new IDE (e.g., Claude Code):
-1. Add new value to AIIDEType enum
-2. Create _get_<ide>_hooks_dir() function with platform-specific paths
-3. Add entry to IDE_CONFIGS dict with IDE-specific hook event names
-4. Unhide --ide option in commands (install, uninstall, status)
+- Claude Code
 """
 
 import platform
@@ -20,6 +15,14 @@ class AIIDEType(str, Enum):
     """Supported AI IDE types."""
 
     CURSOR = 'cursor'
+    CLAUDE_CODE = 'claude-code'
+
+
+class PolicyMode(str, Enum):
+    """Policy enforcement mode for global mode and per-feature actions."""
+
+    BLOCK = 'block'
+    WARN = 'warn'
 
 
 class IDEConfig(NamedTuple):
@@ -42,6 +45,14 @@ def _get_cursor_hooks_dir() -> Path:
     return Path.home() / '.config' / 'Cursor'
 
 
+def _get_claude_code_hooks_dir() -> Path:
+    """Get Claude Code hooks directory.
+
+    Claude Code uses ~/.claude on all platforms.
+    """
+    return Path.home() / '.claude'
+
+
 # IDE-specific configurations
 IDE_CONFIGS: dict[AIIDEType, IDEConfig] = {
     AIIDEType.CURSOR: IDEConfig(
@@ -51,6 +62,13 @@ IDE_CONFIGS: dict[AIIDEType, IDEConfig] = {
         hooks_file_name='hooks.json',
         hook_events=['beforeSubmitPrompt', 'beforeReadFile', 'beforeMCPExecution'],
     ),
+    AIIDEType.CLAUDE_CODE: IDEConfig(
+        name='Claude Code',
+        hooks_dir=_get_claude_code_hooks_dir(),
+        repo_hooks_subdir='.claude',
+        hooks_file_name='settings.json',
+        hook_events=['UserPromptSubmit', 'PreToolUse:Read', 'PreToolUse:mcp'],
+    ),
 }
 
 # Default IDE
@@ -58,6 +76,47 @@ DEFAULT_IDE = AIIDEType.CURSOR
 
 # Command used in hooks
 CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
+
+
+def _get_cursor_hooks_config() -> dict:
+    """Get Cursor-specific hooks configuration."""
+    config = IDE_CONFIGS[AIIDEType.CURSOR]
+    hooks = {event: [{'command': CYCODE_SCAN_PROMPT_COMMAND}] for event in config.hook_events}
+
+    return {
+        'version': 1,
+        'hooks': hooks,
+    }
+
+
+def _get_claude_code_hooks_config() -> dict:
+    """Get Claude Code-specific hooks configuration.
+
+    Claude Code uses a different hook format with nested structure:
+    - hooks are arrays of objects with 'hooks' containing command arrays
+    - PreToolUse uses 'matcher' field to specify which tools to intercept
+    """
+    command = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
+
+    return {
+        'hooks': {
+            'UserPromptSubmit': [
+                {
+                    'hooks': [{'type': 'command', 'command': command}],
+                }
+            ],
+            'PreToolUse': [
+                {
+                    'matcher': 'Read',
+                    'hooks': [{'type': 'command', 'command': command}],
+                },
+                {
+                    'matcher': 'mcp__.*',
+                    'hooks': [{'type': 'command', 'command': command}],
+                },
+            ],
+        },
+    }
 
 
 def get_hooks_config(ide: AIIDEType) -> dict:
@@ -69,10 +128,6 @@ def get_hooks_config(ide: AIIDEType) -> dict:
     Returns:
         Dict with hooks configuration for the specified IDE
     """
-    config = IDE_CONFIGS[ide]
-    hooks = {event: [{'command': CYCODE_SCAN_PROMPT_COMMAND}] for event in config.hook_events}
-
-    return {
-        'version': 1,
-        'hooks': hooks,
-    }
+    if ide == AIIDEType.CLAUDE_CODE:
+        return _get_claude_code_hooks_config()
+    return _get_cursor_hooks_config()

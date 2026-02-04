@@ -61,6 +61,7 @@ class AISecurityManagerClient:
         outcome: 'AIHookOutcome',
         scan_id: Optional[str] = None,
         block_reason: Optional['BlockReason'] = None,
+        error_message: Optional[str] = None,
     ) -> None:
         """Create an AI hook event from hook payload."""
         conversation_id = payload.conversation_id
@@ -77,6 +78,7 @@ class AISecurityManagerClient:
             'cli_scan_id': scan_id,
             'mcp_server_name': payload.mcp_server_name,
             'mcp_tool_name': payload.mcp_tool_name,
+            'error_message': error_message,
         }
 
         try:
