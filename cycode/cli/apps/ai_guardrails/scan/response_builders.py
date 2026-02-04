@@ -117,7 +117,7 @@ _RESPONSE_BUILDERS: dict[str, IDEResponseBuilder] = {
 }
 
 
-def get_response_builder(ide: str = AIIDEType.CURSOR) -> IDEResponseBuilder:
+def get_response_builder(ide: str = AIIDEType.CURSOR.value) -> IDEResponseBuilder:
     """Get the response builder for a specific IDE.
 
     Args:
@@ -129,10 +129,7 @@ def get_response_builder(ide: str = AIIDEType.CURSOR) -> IDEResponseBuilder:
     Raises:
         ValueError: If the IDE is not supported
     """
-    # Normalize to AIIDEType if string passed
-    if isinstance(ide, str):
-        ide = ide.lower()
-    builder = _RESPONSE_BUILDERS.get(ide)
+    builder = _RESPONSE_BUILDERS.get(ide.lower())
     if not builder:
         raise ValueError(f'Unsupported IDE: {ide}. Supported IDEs: {list(_RESPONSE_BUILDERS.keys())}')
     return builder

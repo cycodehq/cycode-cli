@@ -31,7 +31,7 @@ def install_command(
             '--ide',
             help='IDE to install hooks for (e.g., "cursor", "claude-code", or "all" for all IDEs). Defaults to cursor.',
         ),
-    ] = AIIDEType.CURSOR,
+    ] = AIIDEType.CURSOR.value,
     repo_path: Annotated[
         Optional[Path],
         typer.Option(

@@ -6,7 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+from typer.testing import CliRunner
 
+from cycode.cli.apps.ai_guardrails import app as ai_guardrails_app
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
 
 
@@ -136,3 +138,32 @@ class TestMatchingIdeProcessesPayload:
         mock_scan_command_deps['load_policy'].assert_called_once()
         mock_scan_command_deps['get_handler'].assert_called_once()
         mock_handler.assert_called_once()
+
+
+class TestDefaultIdeParameterViaCli:
+    """Tests that verify default IDE parameter works correctly via CLI invocation."""
+
+    def test_scan_command_default_ide_via_cli(self, mocker: MockerFixture) -> None:
+        """Test scan_command works with default --ide when invoked via CLI.
+
+        This test catches issues where Typer converts enum defaults to strings
+        incorrectly (e.g., AIIDEType.CURSOR becomes 'AIIDEType.CURSOR' instead of 'cursor').
+        """
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        mocker.patch(
+            'cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy',
+            return_value={'fail_open': True},
+        )
+        mock_handler = MagicMock(return_value={'continue': True})
+        mocker.patch(
+            'cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event',
+            return_value=mock_handler,
+        )
+
+        runner = CliRunner()
+        payload = json.dumps({'hook_event_name': 'beforeSubmitPrompt', 'prompt': 'test'})
+
+        # Invoke via CLI without --ide flag to use default
+        result = runner.invoke(ai_guardrails_app, ['scan'], input=payload)
+
+        assert result.exit_code == 0, f'Command failed: {result.output}'

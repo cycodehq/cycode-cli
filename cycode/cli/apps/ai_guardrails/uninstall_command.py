@@ -31,7 +31,7 @@ def uninstall_command(
             '--ide',
             help='IDE to uninstall hooks from (e.g., "cursor", "claude-code", "all"). Defaults to cursor.',
         ),
-    ] = AIIDEType.CURSOR,
+    ] = AIIDEType.CURSOR.value,
     repo_path: Annotated[
         Optional[Path],
         typer.Option(

@@ -155,7 +155,7 @@ class AIHookPayload:
             generation_id=payload.get('generation_id'),
             ide_user_email=payload.get('user_email'),
             model=payload.get('model'),
-            ide_provider=AIIDEType.CURSOR,
+            ide_provider=AIIDEType.CURSOR.value,
             ide_version=payload.get('cursor_version'),
             prompt=payload.get('prompt', ''),
             file_path=payload.get('file_path') or payload.get('path'),
@@ -213,7 +213,7 @@ class AIHookPayload:
             generation_id=generation_id,
             ide_user_email=None,  # Claude Code doesn't provide this in hook payload
             model=model,
-            ide_provider=AIIDEType.CLAUDE_CODE,
+            ide_provider=AIIDEType.CLAUDE_CODE.value,
             ide_version=ide_version,
             prompt=payload.get('prompt', ''),
             file_path=file_path,
@@ -248,7 +248,7 @@ class AIHookPayload:
         return True
 
     @classmethod
-    def from_payload(cls, payload: dict, tool: str = AIIDEType.CURSOR) -> 'AIHookPayload':
+    def from_payload(cls, payload: dict, tool: str = AIIDEType.CURSOR.value) -> 'AIHookPayload':
         """Create AIHookPayload from any tool's payload.
 
         Args:
