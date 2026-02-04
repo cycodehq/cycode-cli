@@ -10,7 +10,6 @@ from rich.table import Table
 from cycode.cli.apps.ai_guardrails.command_utils import console, validate_and_parse_ide, validate_scope
 from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS, AIIDEType
 from cycode.cli.apps.ai_guardrails.hooks_manager import get_hooks_status
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def status_command(
@@ -53,8 +52,6 @@ def status_command(
         cycode ai-guardrails status --ide cursor   # Check status for Cursor IDE
         cycode ai-guardrails status --ide all      # Check status for all supported IDEs
     """
-    add_breadcrumb('ai-guardrails-status')
-
     # Validate inputs (status allows 'all' scope)
     validate_scope(scope, allowed_scopes=('user', 'repo', 'all'))
     if repo_path is None:

@@ -6,7 +6,6 @@ import typer
 from cycode.cli.cli_types import BusinessImpactOption
 from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.utils.get_api_client import get_import_sbom_cycode_client
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cyclient.import_sbom_client import ImportSbomParameters
 
 
@@ -52,8 +51,6 @@ def sbom_command(
     ] = BusinessImpactOption.MEDIUM,
 ) -> None:
     """Import SBOM."""
-    add_breadcrumb('sbom')
-
     client = get_import_sbom_cycode_client(ctx)
 
     import_parameters = ImportSbomParameters(

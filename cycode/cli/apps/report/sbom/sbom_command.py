@@ -5,7 +5,6 @@ import click
 import typer
 
 from cycode.cli.cli_types import SbomFormatOption, SbomOutputFormatOption
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.cyclient.report_client import ReportParameters
 
 _OUTPUT_RICH_HELP_PANEL = 'Output options'
@@ -50,8 +49,6 @@ def sbom_command(
     ] = False,
 ) -> int:
     """Generate SBOM report."""
-    add_breadcrumb('sbom')
-
     sbom_format_parts = sbom_format.split('-')
     if len(sbom_format_parts) != 2:
         raise click.ClickException('Invalid SBOM format.')

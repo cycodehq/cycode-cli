@@ -13,7 +13,6 @@ from cycode.cli.apps.ai_guardrails.command_utils import (
 )
 from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS, AIIDEType
 from cycode.cli.apps.ai_guardrails.hooks_manager import install_hooks
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def install_command(
@@ -57,8 +56,6 @@ def install_command(
         cycode ai-guardrails install --ide all          # Install for all supported IDEs
         cycode ai-guardrails install --scope repo --repo-path /path/to/repo
     """
-    add_breadcrumb('ai-guardrails-install')
-
     # Validate inputs
     validate_scope(scope)
     repo_path = resolve_repo_path(scope, repo_path)

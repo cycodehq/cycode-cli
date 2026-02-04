@@ -10,7 +10,6 @@ from cycode.cli.apps.configure.prompts import (
     get_id_token_input,
 )
 from cycode.cli.console import console
-from cycode.cli.utils.sentry import add_breadcrumb
 
 
 def _should_update_value(
@@ -39,8 +38,6 @@ def configure_command() -> None:
     * `cycode configure`: Start interactive configuration
     * `cycode configure --help`: View configuration options
     """
-    add_breadcrumb('configure')
-
     global_config_manager = CONFIGURATION_MANAGER.global_config_file_manager
 
     current_api_url = global_config_manager.get_api_url()

@@ -14,7 +14,6 @@ from cycode.cli.consts import (
 from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.utils import scan_utils
 from cycode.cli.utils.get_api_client import get_scan_cycode_client
-from cycode.cli.utils.sentry import add_breadcrumb
 
 _EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
@@ -136,8 +135,6 @@ def scan_command(
     * `cycode scan commit-history <PATH>`: Scan the commit history of a local Git repository.
 
     """
-    add_breadcrumb('scan')
-
     if export_file and export_type is None:
         raise typer.BadParameter(
             'Export type must be specified when --export-file is provided.',
@@ -186,7 +183,6 @@ def _sca_scan_to_context(ctx: typer.Context, sca_scan_user_selected: list[str]) 
 
 @click.pass_context
 def scan_command_result_callback(ctx: click.Context, *_, **__) -> None:
-    add_breadcrumb('scan_finalized')
     ctx.obj['scan_finalized'] = True
 
     progress_bar = ctx.obj.get('progress_bar')

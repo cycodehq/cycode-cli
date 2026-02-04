@@ -19,7 +19,6 @@ from cycode.cli.consts import CLI_CONTEXT_SETTINGS
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
 from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
-from cycode.cli.utils.sentry import add_breadcrumb, init_sentry
 from cycode.cli.utils.version_checker import version_checker
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.models import UserAgentOptionScheme
@@ -143,9 +142,6 @@ def app_callback(
     ] = None,
 ) -> None:
     """[bold cyan]Cycode CLI - Command Line Interface for Cycode.[/]"""
-    init_sentry()
-    add_breadcrumb('cycode')
-
     ctx.ensure_object(dict)
     configuration_manager = ConfigurationManager()
 

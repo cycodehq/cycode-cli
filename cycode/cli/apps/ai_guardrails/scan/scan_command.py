@@ -25,7 +25,6 @@ from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.apps.ai_guardrails.scan.utils import output_json, safe_json_parse
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cli.utils.get_api_client import get_ai_security_manager_client, get_scan_cycode_client
-from cycode.cli.utils.sentry import add_breadcrumb
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails')
@@ -84,8 +83,6 @@ def scan_command(
     Example usage (from IDE hooks configuration):
         { "command": "cycode ai-guardrails scan" }
     """
-    add_breadcrumb('ai-guardrails-scan')
-
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)
 
