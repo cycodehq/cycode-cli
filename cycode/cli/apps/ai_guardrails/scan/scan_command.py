@@ -69,7 +69,7 @@ def scan_command(
             help='IDE that sent the payload (e.g., "cursor"). Defaults to cursor.',
             hidden=True,
         ),
-    ] = AIIDEType.CURSOR,
+    ] = AIIDEType.CURSOR.value,
 ) -> None:
     """Scan content from AI IDE hooks for secrets.
 
