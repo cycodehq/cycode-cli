@@ -34,17 +34,17 @@ def _get_auth_error_message(error: Exception) -> str:
     """Get user-friendly message for authentication errors."""
     if isinstance(error, click.ClickException):
         # Missing credentials
-        return f'{error.message} Please run `cycode configure` to set up your credentials.'
+        return f'{error.message} Please run `cycode auth` to set up your credentials.'
 
     if isinstance(error, HttpUnauthorizedError):
         # Invalid/expired credentials
         return (
             'Unable to authenticate to Cycode. Your credentials are invalid or have expired. '
-            'Please run `cycode configure` to update your credentials.'
+            'Please run `cycode auth` to update your credentials.'
         )
 
     # Fallback
-    return 'Authentication failed. Please run `cycode configure` to set up your credentials.'
+    return 'Authentication failed. Please run `cycode auth` to set up your credentials.'
 
 
 def _initialize_clients(ctx: typer.Context) -> None:
