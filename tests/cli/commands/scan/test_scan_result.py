@@ -1,3 +1,5 @@
+import os
+
 from cycode.cli.apps.scan.scan_result import _get_file_name_from_detection
 from cycode.cli.consts import IAC_SCAN_TYPE, SAST_SCAN_TYPE, SCA_SCAN_TYPE, SECRET_SCAN_TYPE
 
@@ -42,4 +44,4 @@ def test_get_file_name_from_detection_secret_uses_file_path_and_file_name() -> N
         },
     }
     result = _get_file_name_from_detection(SECRET_SCAN_TYPE, raw_detection)
-    assert result == '/repo/src/.env'
+    assert result == os.path.join('/repo/src', '.env')
