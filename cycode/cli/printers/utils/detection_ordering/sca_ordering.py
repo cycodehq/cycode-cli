@@ -49,7 +49,7 @@ def sort_and_group_detections(detections: list['Detection']) -> tuple[list['Dete
 
     grouped_by_repository = __group_by(sorted_detections, 'repository_name')
     for repository_group in grouped_by_repository.values():
-        grouped_by_code_project = __group_by(repository_group, 'file_name')
+        grouped_by_code_project = __group_by(repository_group, 'file_path')
         for code_project_group in grouped_by_code_project.values():
             grouped_by_package = __group_by(code_project_group, 'package_name')
             for package_group in grouped_by_package.values():

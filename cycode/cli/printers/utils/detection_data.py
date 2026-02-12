@@ -105,4 +105,4 @@ def get_detection_file_path(scan_type: str, detection: 'Detection') -> Path:
 
         return Path(file_path)
 
-    return Path(detection.detection_details.get('file_name', ''))
+    return Path(detection.detection_details.get('file_path', ''))
