@@ -47,12 +47,9 @@ class ReportAsyncError(CycodeError):
     pass
 
 
-class HttpUnauthorizedError(RequestError):
+class HttpUnauthorizedError(RequestHttpError):
     def __init__(self, error_message: str, response: Response) -> None:
-        self.status_code = 401
-        self.error_message = error_message
-        self.response = response
-        super().__init__(self.error_message)
+        super().__init__(401, error_message, response)
 
     def __str__(self) -> str:
         return f'HTTP unauthorized error occurred during the request. Message: {self.error_message}'
