@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 import typer
 
@@ -14,6 +14,8 @@ from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 from cycode.cli.utils.scan_utils import is_cycodeignore_allowed_by_scan_config
 
+_SCA_RICH_HELP_PANEL = 'SCA options'
+
 
 def path_command(
     ctx: typer.Context,
@@ -21,7 +23,19 @@ def path_command(
         Path,
         typer.Argument(exists=True, resolve_path=True, help='Path to generate SBOM report for.', show_default=False),
     ],
+    maven_settings_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--maven-settings-file',
+            show_default=False,
+            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
+            dir_okay=False,
+            rich_help_panel=_SCA_RICH_HELP_PANEL,
+        ),
+    ] = None,
 ) -> None:
+    ctx.obj['maven_settings_file'] = maven_settings_file
+
     client = get_report_cycode_client(ctx)
     report_parameters = ctx.obj['report_parameters']
     output_format = report_parameters.output_format

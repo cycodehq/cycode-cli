@@ -1307,6 +1307,12 @@ To create an SBOM report for a path:\
 For example:\
 `cycode report sbom --format spdx-2.3 --include-vulnerabilities --include-dev-dependencies path /path/to/local/project`
 
+The `path` subcommand supports the following additional options:
+
+| Option                  | Description                                                                                                                      |
+|-------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `--maven-settings-file` | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when building the dependency tree |
+
 # Import Command
 
 ## Importing SBOM
