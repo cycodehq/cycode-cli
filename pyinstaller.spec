@@ -23,10 +23,10 @@ with open(_INIT_FILE_PATH, 'w', encoding='UTF-8') as file:
 
 a = Analysis(
     scripts=['cycode/cli/main.py'],
-    excludes=['tests'],
+    excludes=['tests', 'setuptools', 'pkg_resources'],
 )
 
-exe_args = [PYZ(a.pure, a.zipped_data), a.scripts, a.binaries, a.zipfiles, a.datas]
+exe_args = [PYZ(a.pure), a.scripts, a.binaries, a.datas]
 if _ONEDIR_MODE:
     exe_args = [PYZ(a.pure), a.scripts]
 
