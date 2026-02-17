@@ -47,6 +47,15 @@ def sbom_command(
     include_dev_dependencies: Annotated[
         bool, typer.Option('--include-dev-dependencies', help='Include dev dependencies.', show_default=False)
     ] = False,
+    maven_settings_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--maven-settings-file',
+            show_default=False,
+            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
+            dir_okay=False,
+        ),
+    ] = None,
 ) -> int:
     """Generate SBOM report."""
     sbom_format_parts = sbom_format.split('-')
@@ -65,5 +74,6 @@ def sbom_command(
     )
     ctx.obj['report_parameters'] = report_parameters
     ctx.obj['output_file'] = output_file
+    ctx.obj['maven_settings_file'] = maven_settings_file
 
     return 1
