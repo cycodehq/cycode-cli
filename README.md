@@ -62,7 +62,7 @@ This guide walks you through both installation and usage.
 
 # Prerequisites
 
-- The Cycode CLI application requires Python version 3.9 or later.
+- The Cycode CLI application requires Python version 3.9 or later. The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
 - Use the [`cycode auth` command](#using-the-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, you can get a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/docs/en/service-accounts) and [Personal Access Token](https://docs.cycode.com/v1/docs/managing-personal-access-tokens) pages, which contain details on getting these values.
 
