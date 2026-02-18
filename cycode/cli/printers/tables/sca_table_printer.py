@@ -86,7 +86,7 @@ class ScaTablePrinter(TablePrinterBase):
             table.add_cell(SEVERITY_COLUMN, 'N/A')
 
         table.add_cell(REPOSITORY_COLUMN, detection_details.get('repository_name'))
-        table.add_file_path_cell(CODE_PROJECT_COLUMN, detection_details.get('file_name'))
+        table.add_file_path_cell(CODE_PROJECT_COLUMN, detection_details.get('file_path'))
         table.add_cell(ECOSYSTEM_COLUMN, detection_details.get('ecosystem'))
         table.add_cell(PACKAGE_COLUMN, detection_details.get('package_name'))
 

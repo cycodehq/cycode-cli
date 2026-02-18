@@ -88,7 +88,7 @@ def _get_file_name_from_detection(scan_type: str, raw_detection: dict) -> str:
     if scan_type == consts.SECRET_SCAN_TYPE:
         return _get_secret_file_name_from_detection(raw_detection)
 
-    return raw_detection['detection_details']['file_name']
+    return raw_detection['detection_details']['file_path']
 
 
 def _get_secret_file_name_from_detection(raw_detection: dict) -> str:
