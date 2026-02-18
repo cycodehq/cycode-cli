@@ -66,8 +66,7 @@ jobs:
 
       - name: Run executable test
         # we care about the one Python version that will be used to build the executable
-        # TODO(MarshalX): upgrade to Python 3.13
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         run: |
           poetry run pyinstaller pyinstaller.spec
           ./dist/cycode-cli version
