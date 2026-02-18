@@ -170,6 +170,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
             scan_id=scan_id,
             block_reason=block_reason,
             error_message=error_message,
+            file_path=payload.file_path,
         )
 
 
