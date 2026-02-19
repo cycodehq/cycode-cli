@@ -194,6 +194,7 @@ def test_handle_before_read_file_sensitive_path(
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.BLOCKED
     assert call_args.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
+    assert call_args.kwargs['file_path'] == '/path/to/.env'
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
@@ -215,6 +216,7 @@ def test_handle_before_read_file_no_secrets(
     assert result == {'permission': 'allow'}
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.ALLOWED
+    assert call_args.kwargs['file_path'] == '/path/to/file.txt'
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
@@ -238,6 +240,7 @@ def test_handle_before_read_file_with_secrets(
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.BLOCKED
     assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_FILE
+    assert call_args.kwargs['file_path'] == '/path/to/file.txt'
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
