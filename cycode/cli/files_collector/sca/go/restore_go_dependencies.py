@@ -4,8 +4,8 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
-from cycode.logger import get_logger
 from cycode.cli.models import Document
+from cycode.logger import get_logger
 
 logger = get_logger('Go Restore Dependencies')
 
