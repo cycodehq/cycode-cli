@@ -34,8 +34,6 @@ def execute_commands(
     if not commands:
         return None
 
-    if not commands:
-        return None
     try:
         outputs = []
 

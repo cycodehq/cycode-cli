@@ -152,7 +152,7 @@ def _get_restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRes
         RestoreYarnDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestorePnpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreDenoDependencies(ctx, is_git_diff, build_dep_tree_timeout),
-        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout), # Must be after Yarn & Pnpm for fallack
+        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be after Yarn & Pnpm for fallback
         RestoreRubyDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestorePoetryDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestorePipenvDependencies(ctx, is_git_diff, build_dep_tree_timeout),

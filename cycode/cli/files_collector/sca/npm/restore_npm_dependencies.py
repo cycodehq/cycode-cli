@@ -11,7 +11,7 @@ logger = get_logger('NPM Restore Dependencies')
 NPM_MANIFEST_FILE_NAME = 'package.json'
 NPM_LOCK_FILE_NAME = 'package-lock.json'
 # These lockfiles indicate another package manager owns the project — NPM should not run
-_ALTERNATIVE_LOCK_FILES = ('yarn.lock', 'pnpm-lock.yaml')
+_ALTERNATIVE_LOCK_FILES = ('yarn.lock', 'pnpm-lock.yaml', 'deno.lock')
 
 
 class RestoreNpmDependencies(BaseRestoreDependencies):
