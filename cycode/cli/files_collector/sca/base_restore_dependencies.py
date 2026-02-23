@@ -7,6 +7,9 @@ import typer
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, get_path_from_context, join_paths
 from cycode.cli.utils.shell_executor import shell
+from cycode.logger import get_logger
+
+logger = get_logger('SCA Restore')
 
 
 def build_dep_tree_path(path: str, generated_file_name: str) -> str:
@@ -19,9 +22,18 @@ def execute_commands(
     output_file_path: Optional[str] = None,
     working_directory: Optional[str] = None,
 ) -> Optional[str]:
+    logger.debug(
+        'Executing restore commands, %s',
+        {
+            'commands_count': len(commands),
+            'timeout_sec': timeout,
+            'working_directory': working_directory,
+            'output_file_path': output_file_path,
+        },
+    )
+
     if not commands:
         return None
-
     try:
         outputs = []
 
@@ -35,7 +47,8 @@ def execute_commands(
         if output_file_path:
             with open(output_file_path, 'w', encoding='UTF-8') as output_file:
                 output_file.writelines(joined_output)
-    except Exception:
+    except Exception as e:
+        logger.debug('Unexpected error during command execution', exc_info=e)
         return None
 
     return joined_output
@@ -78,8 +91,21 @@ class BaseRestoreDependencies(ABC):
             )
             if output is None:  # one of the commands failed
                 return None
+        else:
+            logger.debug(
+                'Lock file already exists, skipping restore commands, %s',
+                {'restore_file_path': restore_file_path},
+            )
 
         restore_file_content = get_file_content(restore_file_path)
+        logger.debug(
+            'Restore file loaded, %s',
+            {
+                'restore_file_path': restore_file_path,
+                'content_size': len(restore_file_content) if restore_file_content else 0,
+                'content_empty': not restore_file_content,
+            },
+        )
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
     def get_manifest_dir(self, document: Document) -> Optional[str]:
