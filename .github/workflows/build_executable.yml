@@ -127,6 +127,22 @@ jobs:
       - name: Test executable
         run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
 
+      - name: Codesign onedir binaries
+        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        env:
+          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+        run: |
+          # Sign all Mach-O binaries in the onedir output (excluding the main executable)
+          # Main executable must be signed last after all its dependencies
+          find dist/cycode-cli -type f ! -name "cycode-cli" | while read -r file; do
+            if file -b "$file" | grep -q "Mach-O"; then
+              codesign --force --sign "$APPLE_CERT_NAME" --timestamp --options runtime "$file"
+            fi
+          done
+
+          # Re-sign the main executable with entitlements (must be last)
+          codesign --force --sign "$APPLE_CERT_NAME" --timestamp --options runtime --entitlements entitlements.plist dist/cycode-cli/cycode-cli
+
       - name: Notarize macOS executable
         if: runner.os == 'macOS'
         env:
@@ -137,11 +153,26 @@ jobs:
           # create keychain profile
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_NOTARIZATION_EMAIL" --team-id "$APPLE_NOTARIZATION_TEAM_ID" --password "$APPLE_NOTARIZATION_PWD"
 
-          # create zip file (notarization does not support binaries)
+          # create zip file (notarization does not support bare binaries)
           ditto -c -k --keepParent dist/cycode-cli notarization.zip
 
           # notarize app (this will take a while)
-          xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
+          NOTARIZE_OUTPUT=$(xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait 2>&1) || true
+          echo "$NOTARIZE_OUTPUT"
+
+          # extract submission ID for log retrieval
+          SUBMISSION_ID=$(echo "$NOTARIZE_OUTPUT" | grep "  id:" | head -1 | awk '{print $2}')
+
+          # check notarization status explicitly
+          if echo "$NOTARIZE_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization succeeded!"
+          else
+            echo "Notarization failed! Fetching log for details..."
+            if [ -n "$SUBMISSION_ID" ]; then
+              xcrun notarytool log "$SUBMISSION_ID" --keychain-profile "notarytool-profile" || true
+            fi
+            exit 1
+          fi
 
           # we can't staple the app because it's executable
 
