@@ -32,9 +32,7 @@ class TestIsProject:
         assert restore_deno.is_project(doc) is True
 
     @pytest.mark.parametrize('filename', ['package.json', 'tsconfig.json', 'deno.ts', 'main.ts', 'deno.lock'])
-    def test_non_deno_manifest_files_do_not_match(
-        self, restore_deno: RestoreDenoDependencies, filename: str
-    ) -> None:
+    def test_non_deno_manifest_files_do_not_match(self, restore_deno: RestoreDenoDependencies, filename: str) -> None:
         doc = Document(filename, '')
         assert restore_deno.is_project(doc) is False
 

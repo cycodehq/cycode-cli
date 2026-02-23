@@ -37,9 +37,7 @@ class TestIsProject:
         )
         assert restore_poetry.is_project(doc) is True
 
-    def test_pyproject_toml_with_tool_poetry_section_matches(
-        self, restore_poetry: RestorePoetryDependencies
-    ) -> None:
+    def test_pyproject_toml_with_tool_poetry_section_matches(self, restore_poetry: RestorePoetryDependencies) -> None:
         content = '[tool.poetry]\nname = "my-project"\nversion = "1.0.0"\n'
         doc = Document('pyproject.toml', content)
         assert restore_poetry.is_project(doc) is True
@@ -64,9 +62,7 @@ class TestIsProject:
         doc = Document('setup.py', 'from setuptools import setup\nsetup()\n')
         assert restore_poetry.is_project(doc) is False
 
-    def test_empty_content_does_not_match(
-        self, restore_poetry: RestorePoetryDependencies, tmp_path: Path
-    ) -> None:
+    def test_empty_content_does_not_match(self, restore_poetry: RestorePoetryDependencies, tmp_path: Path) -> None:
         (tmp_path / 'pyproject.toml').write_text('')
         doc = Document(
             str(tmp_path / 'pyproject.toml'),
