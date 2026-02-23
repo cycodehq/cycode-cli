@@ -31,6 +31,7 @@ def execute_commands(
             'output_file_path': output_file_path,
         },
     )
+    
     if not commands:
         return None
 
