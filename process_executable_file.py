@@ -140,6 +140,10 @@ def get_cli_archive_path(output_path: Path, is_onedir: bool) -> str:
     return os.path.join(output_path, get_cli_archive_filename(is_onedir))
 
 
+def archive_directory(input_path: Path, output_path: str) -> None:
+    shutil.make_archive(output_path.removesuffix(f'.{_ARCHIVE_FORMAT}'), _ARCHIVE_FORMAT, input_path)
+
+
 def process_executable_file(input_path: Path, is_onedir: bool) -> str:
     output_path = input_path.parent
     hash_file_path = get_cli_hash_path(output_path, is_onedir)
@@ -150,7 +154,7 @@ def process_executable_file(input_path: Path, is_onedir: bool) -> str:
         write_hashes_db_to_file(normalized_hashes, hash_file_path)
 
         archived_file_path = get_cli_archive_path(output_path, is_onedir)
-        shutil.make_archive(archived_file_path, _ARCHIVE_FORMAT, input_path)
+        archive_directory(input_path, f'{archived_file_path}.{_ARCHIVE_FORMAT}')
         shutil.rmtree(input_path)
     else:
         file_hash = get_hash_of_file(input_path)
