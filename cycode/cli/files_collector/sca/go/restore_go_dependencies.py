@@ -4,8 +4,10 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
-from cycode.cli.logger import logger
 from cycode.cli.models import Document
+from cycode.logger import get_logger
+
+logger = get_logger('Go Restore Dependencies')
 
 GO_PROJECT_FILE_EXTENSIONS = ['.mod', '.sum']
 GO_RESTORE_FILE_NAME = 'go.mod.graph'

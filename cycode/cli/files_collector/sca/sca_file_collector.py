@@ -106,11 +106,17 @@ def _try_restore_dependencies(
 
     restore_dependencies_document = restore_dependencies.restore(document)
     if restore_dependencies_document is None:
-        logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
+        logger.warning(
+            'Error occurred while trying to generate dependencies tree, %s',
+            {'filename': document.path, 'handler': type(restore_dependencies).__name__},
+        )
         return None
 
     if restore_dependencies_document.content is None:
-        logger.warning('Error occurred while trying to generate dependencies tree, %s', {'filename': document.path})
+        logger.warning(
+            'Error occurred while trying to generate dependencies tree, %s',
+            {'filename': document.path, 'handler': type(restore_dependencies).__name__},
+        )
         restore_dependencies_document.content = ''
     else:
         is_monitor_action = ctx.obj.get('monitor', False)
@@ -124,6 +130,13 @@ def _try_restore_dependencies(
 
 def _get_restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRestoreDependencies]:
     build_dep_tree_timeout = int(os.getenv('CYCODE_BUILD_DEP_TREE_TIMEOUT_SECONDS', BUILD_DEP_TREE_TIMEOUT))
+    logger.debug(
+        'SCA restore handler timeout, %s',
+        {
+            'timeout_sec': build_dep_tree_timeout,
+            'source': 'env' if os.getenv('CYCODE_BUILD_DEP_TREE_TIMEOUT_SECONDS') else 'default',
+        },
+    )
     return [
         RestoreGradleDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreMavenDependencies(ctx, is_git_diff, build_dep_tree_timeout),
