@@ -101,10 +101,13 @@ class TestGetLockFileName:
 
 class TestPrepareManifestFilePath:
     def test_strips_package_json_filename(self, restore_npm: RestoreNpmDependencies) -> None:
-        assert restore_npm.prepare_manifest_file_path_for_command('/path/to/package.json') == '/path/to'
+        path = str(Path('/path/to/package.json'))
+        expected = str(Path('/path/to'))
+        assert restore_npm.prepare_manifest_file_path_for_command(path) == expected
 
     def test_package_json_in_cwd_returns_empty_string(self, restore_npm: RestoreNpmDependencies) -> None:
         assert restore_npm.prepare_manifest_file_path_for_command('package.json') == ''
 
     def test_non_package_json_path_returned_unchanged(self, restore_npm: RestoreNpmDependencies) -> None:
-        assert restore_npm.prepare_manifest_file_path_for_command('/path/to/') == '/path/to/'
+        path = str(Path('/path/to/'))
+        assert restore_npm.prepare_manifest_file_path_for_command(path) == path
