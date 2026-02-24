@@ -125,20 +125,34 @@ jobs:
           echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode-cli/cycode-cli" >> $GITHUB_ENV
 
       - name: Test executable
-        run: time $PATH_TO_CYCODE_CLI_EXECUTABLE version
+        run: time $PATH_TO_CYCODE_CLI_EXECUTABLE status
 
       - name: Codesign onedir binaries
         if: runner.os == 'macOS' && matrix.mode == 'onedir'
         env:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
-          # Sign all Mach-O binaries in the onedir output (excluding the main executable)
-          # Main executable must be signed last after all its dependencies
-          find dist/cycode-cli -type f ! -name "cycode-cli" | while read -r file; do
+          # The standalone _internal/Python fails codesign --verify --strict because it was
+          # extracted from Python.framework without Info.plist context.
+          # Fix: remove the bare copy and replace with the framework version's binary,
+          # then delete the framework directory (it's redundant).
+          if [ -d dist/cycode-cli/_internal/Python.framework ]; then
+            FRAMEWORK_PYTHON=$(find dist/cycode-cli/_internal/Python.framework/Versions -name "Python" -type f | head -1)
+            if [ -n "$FRAMEWORK_PYTHON" ]; then
+              echo "Replacing _internal/Python with framework binary"
+              rm dist/cycode-cli/_internal/Python
+              cp "$FRAMEWORK_PYTHON" dist/cycode-cli/_internal/Python
+            fi
+            rm -rf dist/cycode-cli/_internal/Python.framework
+          fi
+
+          # Sign all Mach-O binaries (excluding the main executable)
+          while IFS= read -r file; do
             if file -b "$file" | grep -q "Mach-O"; then
+              echo "Signing: $file"
               codesign --force --sign "$APPLE_CERT_NAME" --timestamp --options runtime "$file"
             fi
-          done
+          done < <(find dist/cycode-cli -type f ! -name "cycode-cli")
 
           # Re-sign the main executable with entitlements (must be last)
           codesign --force --sign "$APPLE_CERT_NAME" --timestamp --options runtime --entitlements entitlements.plist dist/cycode-cli/cycode-cli
@@ -176,14 +190,34 @@ jobs:
 
           # we can't staple the app because it's executable
 
+      - name: Verify macOS code signatures
+        if: runner.os == 'macOS'
+        run: |
+          FAILED=false
+          while IFS= read -r file; do
+            if file -b "$file" | grep -q "Mach-O"; then
+              if ! codesign --verify "$file" 2>&1; then
+                echo "INVALID: $file"
+                codesign -dv "$file" 2>&1 || true
+                FAILED=true
+              else
+                echo "OK: $file"
+              fi
+            fi
+          done < <(find dist/cycode-cli -type f)
+
+          if [ "$FAILED" = true ]; then
+            echo "Found binaries with invalid signatures!"
+            exit 1
+          fi
+
+          codesign -dv --verbose=4 $PATH_TO_CYCODE_CLI_EXECUTABLE
+
       - name: Test macOS signed executable
         if: runner.os == 'macOS'
         run: |
           file -b $PATH_TO_CYCODE_CLI_EXECUTABLE
-          time $PATH_TO_CYCODE_CLI_EXECUTABLE version
-
-          # verify signature
-          codesign -dv --verbose=4 $PATH_TO_CYCODE_CLI_EXECUTABLE
+          time $PATH_TO_CYCODE_CLI_EXECUTABLE status
 
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
@@ -222,7 +256,7 @@ jobs:
         shell: cmd
         run: |
           :: call executable and expect correct output
-          .\dist\cycode-cli.exe version
+          .\dist\cycode-cli.exe status
 
           :: verify signature
           signtool.exe verify /v /pa ".\dist\cycode-cli.exe"
@@ -235,6 +269,47 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: dist
+
+      - name: Verify macOS artifact end-to-end
+        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: /tmp/artifact-verify
+
+      - name: Verify macOS artifact signatures and run with quarantine
+        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        run: |
+          # extract the onedir zip exactly as an end user would
+          ARCHIVE=$(find /tmp/artifact-verify -name "*.zip" | head -1)
+          echo "Verifying archive: $ARCHIVE"
+          unzip "$ARCHIVE" -d /tmp/artifact-extracted
+
+          # verify all Mach-O code signatures
+          FAILED=false
+          while IFS= read -r file; do
+            if file -b "$file" | grep -q "Mach-O"; then
+              if ! codesign --verify "$file" 2>&1; then
+                echo "INVALID: $file"
+                codesign -dv "$file" 2>&1 || true
+                FAILED=true
+              else
+                echo "OK: $file"
+              fi
+            fi
+          done < <(find /tmp/artifact-extracted -type f)
+
+          if [ "$FAILED" = true ]; then
+            echo "Artifact contains binaries with invalid signatures!"
+            exit 1
+          fi
+
+          # simulate download quarantine and test execution
+          # this is the definitive test — it triggers the same dlopen checks end users experience
+          find /tmp/artifact-extracted -type f -exec xattr -w com.apple.quarantine "0081;$(printf '%x' $(date +%s));CI;$(uuidgen)" {} \;
+          EXECUTABLE=$(find /tmp/artifact-extracted -name "cycode-cli" -type f | head -1)
+          echo "Testing quarantined executable: $EXECUTABLE"
+          time "$EXECUTABLE" status
 
       - name: Upload files to release
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
