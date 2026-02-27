@@ -114,6 +114,26 @@ class ScanResultSchema(Schema):
         return ScanResult(**data)
 
 
+@dataclass
+class UploadLinkResponse:
+    upload_id: str
+    url: str
+    fields: dict[str, str]
+
+
+class UploadLinkResponseSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    upload_id = fields.String()
+    url = fields.String()
+    fields = fields.Dict(keys=fields.String(), values=fields.String())
+
+    @post_load
+    def build_dto(self, data: dict[str, Any], **_) -> 'UploadLinkResponse':
+        return UploadLinkResponse(**data)
+
+
 class ScanInitializationResponse(Schema):
     def __init__(self, scan_id: Optional[str] = None, err: Optional[str] = None) -> None:
         super().__init__()
