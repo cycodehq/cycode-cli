@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -20,13 +20,13 @@ class RestoreGoDependencies(BaseRestoreDependencies):
         super().__init__(ctx, is_git_diff, command_timeout, create_output_file_manually=True)
 
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
-        manifest_exists = os.path.isfile(self.get_working_directory(document) + os.sep + BUILD_GO_FILE_NAME)
-        lock_exists = os.path.isfile(self.get_working_directory(document) + os.sep + BUILD_GO_LOCK_FILE_NAME)
+        manifest_exists = (Path(self.get_working_directory(document)) / BUILD_GO_FILE_NAME).is_file()
+        lock_exists = (Path(self.get_working_directory(document)) / BUILD_GO_LOCK_FILE_NAME).is_file()
 
         if not manifest_exists or not lock_exists:
             logger.info('No manifest go.mod file found' if not manifest_exists else 'No manifest go.sum file found')
 
-        manifest_files_exists = manifest_exists & lock_exists
+        manifest_files_exists = manifest_exists and lock_exists
 
         if not manifest_files_exists:
             return None

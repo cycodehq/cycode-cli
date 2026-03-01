@@ -9,8 +9,14 @@ from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestore
 from cycode.cli.files_collector.sca.go.restore_go_dependencies import RestoreGoDependencies
 from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
+from cycode.cli.files_collector.sca.npm.restore_deno_dependencies import RestoreDenoDependencies
 from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import RestoreNpmDependencies
+from cycode.cli.files_collector.sca.npm.restore_pnpm_dependencies import RestorePnpmDependencies
+from cycode.cli.files_collector.sca.npm.restore_yarn_dependencies import RestoreYarnDependencies
 from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
+from cycode.cli.files_collector.sca.php.restore_composer_dependencies import RestoreComposerDependencies
+from cycode.cli.files_collector.sca.python.restore_pipenv_dependencies import RestorePipenvDependencies
+from cycode.cli.files_collector.sca.python.restore_poetry_dependencies import RestorePoetryDependencies
 from cycode.cli.files_collector.sca.ruby.restore_ruby_dependencies import RestoreRubyDependencies
 from cycode.cli.files_collector.sca.sbt.restore_sbt_dependencies import RestoreSbtDependencies
 from cycode.cli.models import Document
@@ -143,8 +149,14 @@ def _get_restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRes
         RestoreSbtDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreGoDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreNugetDependencies(ctx, is_git_diff, build_dep_tree_timeout),
-        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreYarnDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestorePnpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreDenoDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be after Yarn & Pnpm for fallback
         RestoreRubyDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestorePoetryDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestorePipenvDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreComposerDependencies(ctx, is_git_diff, build_dep_tree_timeout),
     ]
 
 

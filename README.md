@@ -668,15 +668,33 @@ In the previous example, if you wanted to only scan a branch named `dev`, you co
 > [!NOTE]
 > This option is only available to SCA scans.
 
-We use the sbt-dependency-lock plugin to restore the lock file for SBT projects.
-To disable lock restore in use `--no-restore` option.
+When running an SCA scan, Cycode CLI automatically attempts to restore (generate) a dependency lockfile for each supported manifest file it finds. This allows scanning transitive dependencies, not just the ones listed directly in the manifest. To skip this step and scan only direct dependencies, use the `--no-restore` flag.
 
-Prerequisites:
-* `sbt-dependency-lock` plugin: Install the plugin by adding the following line to `project/plugins.sbt`:
+The following ecosystems support automatic lockfile restoration:
 
-  ```text
-  addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")
-  ```
+| Ecosystem | Manifest file | Lockfile generated | Tool invoked (when lockfile is absent) |
+|---|---|---|---|
+| npm | `package.json` | `package-lock.json` | `npm install --package-lock-only --ignore-scripts --no-audit` |
+| Yarn | `package.json` | `yarn.lock` | `yarn install --ignore-scripts` |
+| pnpm | `package.json` | `pnpm-lock.yaml` | `pnpm install --ignore-scripts` |
+| Deno | `deno.json` / `deno.jsonc` | `deno.lock` | *(read existing lockfile only)* |
+| Go | `go.mod` | `go.mod.graph` | `go list -m -json all` + `go mod graph` |
+| Maven | `pom.xml` | `bcde.mvndeps` | `mvn dependency:tree` |
+| Gradle | `build.gradle` / `build.gradle.kts` | `gradle-dependencies-generated.txt` | `gradle dependencies -q --console plain` |
+| SBT | `build.sbt` | `build.sbt.lock` | `sbt dependencyLockWrite` |
+| NuGet | `*.csproj` | `packages.lock.json` | `dotnet restore --use-lock-file` |
+| Ruby | `Gemfile` | `Gemfile.lock` | `bundle --quiet` |
+| Poetry | `pyproject.toml` | `poetry.lock` | `poetry lock` |
+| Pipenv | `Pipfile` | `Pipfile.lock` | `pipenv lock` |
+| PHP Composer | `composer.json` | `composer.lock` | `composer update --no-cache --no-install --no-scripts --ignore-platform-reqs` |
+
+If a lockfile already exists alongside the manifest, Cycode reads it directly without running any install command.
+
+**SBT prerequisite:** The `sbt-dependency-lock` plugin must be installed. Add the following line to `project/plugins.sbt`:
+
+```text
+addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")
+```
 
 ### Repository Scan
 
@@ -1309,9 +1327,11 @@ For example:\
 
 The `path` subcommand supports the following additional options:
 
-| Option                  | Description                                                                                                                      |
-|-------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| `--maven-settings-file` | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when building the dependency tree |
+| Option                      | Description                                                                                                                         |
+|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `--no-restore`              | Skip lockfile restoration and scan direct dependencies only. See [Lock Restore Option](#lock-restore-option) for details.           |
+| `--gradle-all-sub-projects` | Run the Gradle restore command for all sub-projects (use from the root of a multi-project Gradle build).                           |
+| `--maven-settings-file`     | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when building the dependency tree. |
 
 # Import Command
 

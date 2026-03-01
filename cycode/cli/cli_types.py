@@ -46,6 +46,7 @@ class SbomFormatOption(StrEnum):
     SPDX_2_2 = 'spdx-2.2'
     SPDX_2_3 = 'spdx-2.3'
     CYCLONEDX_1_4 = 'cyclonedx-1.4'
+    CYCLONEDX_1_6 = 'cyclonedx-1.6'
 
 
 class SbomOutputFormatOption(StrEnum):
