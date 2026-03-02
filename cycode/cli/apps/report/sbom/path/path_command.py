@@ -1,11 +1,17 @@
 import time
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
 from cycode.cli import consts
 from cycode.cli.apps.report.sbom.common import create_sbom_report, send_report_feedback
+from cycode.cli.apps.sca_options import (
+    GradleAllSubProjectsOption,
+    MavenSettingsFileOption,
+    NoRestoreOption,
+    apply_sca_restore_options_to_context,
+)
 from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
 from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
@@ -14,8 +20,6 @@ from cycode.cli.utils.get_api_client import get_report_cycode_client
 from cycode.cli.utils.progress_bar import SbomReportProgressBarSection
 from cycode.cli.utils.scan_utils import is_cycodeignore_allowed_by_scan_config
 
-_SCA_RICH_HELP_PANEL = 'SCA options'
-
 
 def path_command(
     ctx: typer.Context,
@@ -23,18 +27,11 @@ def path_command(
         Path,
         typer.Argument(exists=True, resolve_path=True, help='Path to generate SBOM report for.', show_default=False),
     ],
-    maven_settings_file: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--maven-settings-file',
-            show_default=False,
-            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
-            dir_okay=False,
-            rich_help_panel=_SCA_RICH_HELP_PANEL,
-        ),
-    ] = None,
+    no_restore: NoRestoreOption = False,
+    gradle_all_sub_projects: GradleAllSubProjectsOption = False,
+    maven_settings_file: MavenSettingsFileOption = None,
 ) -> None:
-    ctx.obj['maven_settings_file'] = maven_settings_file
+    apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file)
 
     client = get_report_cycode_client(ctx)
     report_parameters = ctx.obj['report_parameters']
