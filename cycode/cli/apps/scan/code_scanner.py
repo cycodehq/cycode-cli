@@ -206,9 +206,7 @@ def scan_documents(
         )
         return
 
-    scan_batch_thread_func = _get_scan_documents_thread_func(
-        ctx, is_git_diff, is_commit_range, scan_parameters
-    )
+    scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
 
     if should_use_presigned_upload(scan_type):
         try:
