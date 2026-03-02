@@ -153,7 +153,7 @@ class ScanClient:
         url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/repository'
         response = self.scan_cycode_client.post(
             url_path=url_path,
-            data={
+            body={
                 'upload_id': upload_id,
                 'is_git_diff': is_git_diff,
                 'is_commit_range': is_commit_range,
@@ -197,6 +197,27 @@ class ScanClient:
                 'compression_manifest': self._create_compression_manifest_string(from_commit_zip_file),
             },
             files=files,
+        )
+        return models.ScanInitializationResponseSchema().load(response.json())
+
+    def commit_range_scan_from_upload_ids(
+        self,
+        scan_type: str,
+        from_upload_id: str,
+        to_upload_id: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
+    ) -> models.ScanInitializationResponse:
+        async_scan_type = self.scan_config.get_async_scan_type(scan_type)
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/repository/commit-range'
+        response = self.scan_cycode_client.post(
+            url_path=url_path,
+            body={
+                'from_upload_id': from_upload_id,
+                'to_upload_id': to_upload_id,
+                'is_git_diff': is_git_diff,
+                'scan_parameters': json.dumps(scan_parameters),
+            },
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 

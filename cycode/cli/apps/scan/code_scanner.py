@@ -29,6 +29,7 @@ from cycode.cli.utils.scan_utils import (
     generate_unique_scan_id,
     is_cycodeignore_allowed_by_scan_config,
     set_issue_detected_by_scan_results,
+    should_use_presigned_upload,
 )
 from cycode.cyclient.models import ZippedFileScanResult
 from cycode.logger import get_logger
@@ -106,7 +107,10 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
 
 
 def _get_scan_documents_thread_func(
-    ctx: typer.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
+    ctx: typer.Context,
+    is_git_diff: bool,
+    is_commit_range: bool,
+    scan_parameters: dict,
 ) -> Callable[[list[Document]], tuple[str, CliError, LocalScanResult]]:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
@@ -202,10 +206,37 @@ def scan_documents(
         )
         return
 
-    scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
-    errors, local_scan_results = run_parallel_batched_scan(
-        scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
+    scan_batch_thread_func = _get_scan_documents_thread_func(
+        ctx, is_git_diff, is_commit_range, scan_parameters
     )
+
+    if should_use_presigned_upload(scan_type):
+        try:
+            # Try to zip all documents as a single batch; ZipTooLargeError raised if it exceeds the scan type's limit
+            zip_documents(scan_type, documents_to_scan)
+            # It fits: skip batching and upload everything as one ZIP
+            errors, local_scan_results = run_parallel_batched_scan(
+                scan_batch_thread_func,
+                scan_type,
+                documents_to_scan,
+                progress_bar=progress_bar,
+                skip_batching=True,
+            )
+        except custom_exceptions.ZipTooLargeError:
+            printer.print_warning(
+                'The repository is too large to upload as a single file. '
+                'Falling back to batched scanning. This may result in multiple scan results.'
+            )
+            errors, local_scan_results = run_parallel_batched_scan(
+                scan_batch_thread_func,
+                scan_type,
+                documents_to_scan,
+                progress_bar=progress_bar,
+            )
+    else:
+        errors, local_scan_results = run_parallel_batched_scan(
+            scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
+        )
 
     try_set_aggregation_report_url_if_needed(ctx, scan_parameters, ctx.obj['client'], scan_type)
 
