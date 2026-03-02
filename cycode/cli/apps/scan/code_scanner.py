@@ -217,7 +217,7 @@ def scan_documents(
     print_local_scan_results(ctx, local_scan_results, errors)
 
 
-def _perform_scan_v2_async(
+def _perform_scan_v4_async(
     cycode_client: 'ScanClient',
     zipped_documents: 'InMemoryZip',
     scan_type: str,
@@ -228,13 +228,13 @@ def _perform_scan_v2_async(
     upload_link = cycode_client.get_upload_link(scan_type)
     logger.debug('Got upload link, %s', {'upload_id': upload_link.upload_id})
 
-    cycode_client.upload_to_presigned_post(upload_link.url, upload_link.fields, zipped_documents)
+    cycode_client.upload_to_presigned_post(upload_link.url, upload_link.presigned_post_fields, zipped_documents)
     logger.debug('Uploaded zip to presigned URL')
 
     scan_async_result = cycode_client.scan_repository_from_upload_id(
         scan_type, upload_link.upload_id, scan_parameters, is_git_diff, is_commit_range
     )
-    logger.debug('V2 scan request triggered, %s', {'scan_id': scan_async_result.scan_id})
+    logger.debug('V4 scan request triggered, %s', {'scan_id': scan_async_result.scan_id})
 
     return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters)
 
@@ -285,7 +285,7 @@ def _perform_scan(
         return _perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
     if scan_type == consts.SAST_SCAN_TYPE:
-        return _perform_scan_v2_async(
+        return _perform_scan_v4_async(
             cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
         )
 

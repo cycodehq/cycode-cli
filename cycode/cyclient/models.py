@@ -118,7 +118,7 @@ class ScanResultSchema(Schema):
 class UploadLinkResponse:
     upload_id: str
     url: str
-    fields: dict[str, str]
+    presigned_post_fields: dict[str, str]
 
 
 class UploadLinkResponseSchema(Schema):
@@ -127,7 +127,7 @@ class UploadLinkResponseSchema(Schema):
 
     upload_id = fields.String()
     url = fields.String()
-    fields = fields.Dict(keys=fields.String(), values=fields.String())
+    presigned_post_fields = fields.Dict(keys=fields.String(), values=fields.String())
 
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> 'UploadLinkResponse':

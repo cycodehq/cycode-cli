@@ -26,7 +26,7 @@ class ScanClient:
         self.scan_config = scan_config
 
         self._SCAN_SERVICE_CLI_CONTROLLER_PATH = 'api/v1/cli-scan'
-        self._SCAN_SERVICE_V2_CLI_CONTROLLER_PATH = 'api/v2/cli-scan'
+        self._SCAN_SERVICE_V4_CLI_CONTROLLER_PATH = 'api/v4/scans/cli'
         self._DETECTIONS_SERVICE_CLI_CONTROLLER_PATH = 'api/v1/detections/cli'
         self._POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
 
@@ -58,9 +58,9 @@ class ScanClient:
         )
         return models.ScanReportUrlResponseSchema().build_dto(response.json())
 
-    def get_scan_service_v2_url_path(self, scan_type: str) -> str:
+    def get_scan_service_v4_url_path(self, scan_type: str) -> str:
         service_path = self.scan_config.get_service_name(scan_type)
-        return f'{service_path}/{self._SCAN_SERVICE_V2_CLI_CONTROLLER_PATH}'
+        return f'{service_path}/{self._SCAN_SERVICE_V4_CLI_CONTROLLER_PATH}'
 
     def get_zipped_file_scan_async_url_path(self, scan_type: str, should_use_sync_flow: bool = False) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
@@ -131,7 +131,7 @@ class ScanClient:
 
     def get_upload_link(self, scan_type: str) -> models.UploadLinkResponse:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
-        url_path = f'{self.get_scan_service_v2_url_path(scan_type)}/{async_scan_type}/upload-link'
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/upload-link'
         response = self.scan_cycode_client.get(url_path=url_path, hide_response_content_log=self._hide_response_log)
         return models.UploadLinkResponseSchema().load(response.json())
 
@@ -150,7 +150,7 @@ class ScanClient:
         is_commit_range: bool = False,
     ) -> models.ScanInitializationResponse:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
-        url_path = f'{self.get_scan_service_v2_url_path(scan_type)}/{async_scan_type}/repository'
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/repository'
         response = self.scan_cycode_client.post(
             url_path=url_path,
             data={
