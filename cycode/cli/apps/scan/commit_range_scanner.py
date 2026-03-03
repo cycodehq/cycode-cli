@@ -1,6 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Optional
 
+import requests
 import click
 import typer
 
@@ -152,14 +153,27 @@ def _scan_commit_range_documents(
             to_commit_zipped_documents = zip_documents(scan_type, to_documents_to_scan)
 
             if should_use_presigned_upload(scan_type):
-                scan_result = _perform_commit_range_scan_v4_async(
-                    cycode_client,
-                    from_commit_zipped_documents,
-                    to_commit_zipped_documents,
-                    scan_type,
-                    scan_parameters,
-                    timeout,
-                )
+                try:
+                    scan_result = _perform_commit_range_scan_v4_async(
+                        cycode_client,
+                        from_commit_zipped_documents,
+                        to_commit_zipped_documents,
+                        scan_type,
+                        scan_parameters,
+                        timeout,
+                    )
+                except requests.exceptions.RequestException:
+                    logger.warning(
+                        'Direct upload to object storage failed. Falling back to upload via Cycode API. '
+                    )
+                    scan_result = _perform_commit_range_scan_async(
+                        cycode_client,
+                        from_commit_zipped_documents,
+                        to_commit_zipped_documents,
+                        scan_type,
+                        scan_parameters,
+                        timeout,
+                    )
             else:
                 scan_result = _perform_commit_range_scan_async(
                     cycode_client,
