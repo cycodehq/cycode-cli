@@ -44,6 +44,7 @@ from cycode.cli.utils.scan_utils import (
     generate_unique_scan_id,
     is_cycodeignore_allowed_by_scan_config,
     set_issue_detected_by_scan_results,
+    should_use_presigned_upload,
 )
 from cycode.cyclient.models import ZippedFileScanResult
 from cycode.logger import get_logger
@@ -86,6 +87,38 @@ def _perform_commit_range_scan_async(
     return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters, timeout)
 
 
+def _perform_commit_range_scan_v4_async(
+    cycode_client: 'ScanClient',
+    from_commit_zipped_documents: 'InMemoryZip',
+    to_commit_zipped_documents: 'InMemoryZip',
+    scan_type: str,
+    scan_parameters: dict,
+    timeout: Optional[int] = None,
+) -> ZippedFileScanResult:
+    from_upload_link = cycode_client.get_upload_link(scan_type)
+    logger.debug('Got from-commit upload link, %s', {'upload_id': from_upload_link.upload_id})
+
+    cycode_client.upload_to_presigned_post(
+        from_upload_link.url, from_upload_link.presigned_post_fields, from_commit_zipped_documents
+    )
+    logger.debug('Uploaded from-commit zip')
+
+    to_upload_link = cycode_client.get_upload_link(scan_type)
+    logger.debug('Got to-commit upload link, %s', {'upload_id': to_upload_link.upload_id})
+
+    cycode_client.upload_to_presigned_post(
+        to_upload_link.url, to_upload_link.presigned_post_fields, to_commit_zipped_documents
+    )
+    logger.debug('Uploaded to-commit zip')
+
+    scan_async_result = cycode_client.commit_range_scan_from_upload_ids(
+        scan_type, from_upload_link.upload_id, to_upload_link.upload_id, scan_parameters
+    )
+    logger.debug('V4 commit range scan request triggered, %s', {'scan_id': scan_async_result.scan_id})
+
+    return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters, timeout)
+
+
 def _scan_commit_range_documents(
     ctx: typer.Context,
     from_documents_to_scan: list[Document],
@@ -118,14 +151,24 @@ def _scan_commit_range_documents(
             # for SAST it is files with diff between from_commit and to_commit
             to_commit_zipped_documents = zip_documents(scan_type, to_documents_to_scan)
 
-            scan_result = _perform_commit_range_scan_async(
-                cycode_client,
-                from_commit_zipped_documents,
-                to_commit_zipped_documents,
-                scan_type,
-                scan_parameters,
-                timeout,
-            )
+            if should_use_presigned_upload(scan_type):
+                scan_result = _perform_commit_range_scan_v4_async(
+                    cycode_client,
+                    from_commit_zipped_documents,
+                    to_commit_zipped_documents,
+                    scan_type,
+                    scan_parameters,
+                    timeout,
+                )
+            else:
+                scan_result = _perform_commit_range_scan_async(
+                    cycode_client,
+                    from_commit_zipped_documents,
+                    to_commit_zipped_documents,
+                    scan_type,
+                    scan_parameters,
+                    timeout,
+                )
             enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
 
         progress_bar.update(ScanProgressBarSection.SCAN)

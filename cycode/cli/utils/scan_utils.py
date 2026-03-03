@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import typer
 
+from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
 
 if TYPE_CHECKING:
@@ -29,6 +30,10 @@ def is_scan_failed(ctx: typer.Context) -> bool:
 def is_cycodeignore_allowed_by_scan_config(ctx: typer.Context) -> bool:
     scan_config: Optional[ScanConfiguration] = ctx.obj.get('scan_config')
     return scan_config.is_cycode_ignore_allowed if scan_config else True
+
+
+def should_use_presigned_upload(scan_type: str) -> bool:
+    return scan_type in consts.PRESIGNED_UPLOAD_SCAN_TYPES
 
 
 def generate_unique_scan_id() -> UUID:

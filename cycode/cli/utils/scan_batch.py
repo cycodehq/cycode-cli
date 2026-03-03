@@ -111,9 +111,13 @@ def run_parallel_batched_scan(
     scan_type: str,
     documents: list[Document],
     progress_bar: 'BaseProgressBar',
+    skip_batching: bool = False,
 ) -> tuple[dict[str, 'CliError'], list['LocalScanResult']]:
     # batching is disabled for SCA; requested by Mor
-    batches = [documents] if scan_type == consts.SCA_SCAN_TYPE else split_documents_into_batches(scan_type, documents)
+    if scan_type == consts.SCA_SCAN_TYPE or skip_batching:
+        batches = [documents]
+    else:
+        batches = split_documents_into_batches(scan_type, documents)
 
     progress_bar.set_section_length(ScanProgressBarSection.SCAN, len(batches))  # * 3
     # TODO(MarshalX): we should multiply the count of batches in SCAN section because each batch has 3 steps:

@@ -29,12 +29,15 @@ from cycode.cli.utils.scan_utils import (
     generate_unique_scan_id,
     is_cycodeignore_allowed_by_scan_config,
     set_issue_detected_by_scan_results,
+    should_use_presigned_upload,
 )
 from cycode.cyclient.models import ZippedFileScanResult
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+    from cycode.cli.printers.console_printer import ConsolePrinter
+    from cycode.cli.utils.progress_bar import BaseProgressBar
     from cycode.cyclient.scan_client import ScanClient
 
 start_scan_time = time.time()
@@ -106,7 +109,10 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
 
 
 def _get_scan_documents_thread_func(
-    ctx: typer.Context, is_git_diff: bool, is_commit_range: bool, scan_parameters: dict
+    ctx: typer.Context,
+    is_git_diff: bool,
+    is_commit_range: bool,
+    scan_parameters: dict,
 ) -> Callable[[list[Document]], tuple[str, CliError, LocalScanResult]]:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
@@ -180,6 +186,36 @@ def _get_scan_documents_thread_func(
     return _scan_batch_thread_func
 
 
+def _run_presigned_upload_scan(
+    scan_batch_thread_func: Callable,
+    scan_type: str,
+    documents_to_scan: list[Document],
+    progress_bar: 'BaseProgressBar',
+    printer: 'ConsolePrinter',
+) -> tuple:
+    try:
+        # Try to zip all documents as a single batch; ZipTooLargeError raised if it exceeds the scan type's limit
+        zip_documents(scan_type, documents_to_scan)
+        # It fits: skip batching and upload everything as one ZIP
+        return run_parallel_batched_scan(
+            scan_batch_thread_func,
+            scan_type,
+            documents_to_scan,
+            progress_bar=progress_bar,
+            skip_batching=True,
+        )
+    except custom_exceptions.ZipTooLargeError:
+        printer.print_warning(
+            'The scan is too large to upload as a single file. This may result in corrupted scan results.'
+        )
+        return run_parallel_batched_scan(
+            scan_batch_thread_func,
+            scan_type,
+            documents_to_scan,
+            progress_bar=progress_bar,
+        )
+
+
 def scan_documents(
     ctx: typer.Context,
     documents_to_scan: list[Document],
@@ -203,9 +239,15 @@ def scan_documents(
         return
 
     scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
-    errors, local_scan_results = run_parallel_batched_scan(
-        scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
-    )
+
+    if should_use_presigned_upload(scan_type):
+        errors, local_scan_results = _run_presigned_upload_scan(
+            scan_batch_thread_func, scan_type, documents_to_scan, progress_bar, printer
+        )
+    else:
+        errors, local_scan_results = run_parallel_batched_scan(
+            scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
+        )
 
     try_set_aggregation_report_url_if_needed(ctx, scan_parameters, ctx.obj['client'], scan_type)
 
@@ -215,6 +257,31 @@ def scan_documents(
 
     set_issue_detected_by_scan_results(ctx, local_scan_results)
     print_local_scan_results(ctx, local_scan_results, errors)
+
+
+def _perform_scan_v4_async(
+    cycode_client: 'ScanClient',
+    zipped_documents: 'InMemoryZip',
+    scan_type: str,
+    scan_parameters: dict,
+    is_git_diff: bool,
+    is_commit_range: bool,
+) -> ZippedFileScanResult:
+    upload_link = cycode_client.get_upload_link(scan_type)
+    logger.debug('Got upload link, %s', {'upload_id': upload_link.upload_id})
+
+    cycode_client.upload_to_presigned_post(upload_link.url, upload_link.presigned_post_fields, zipped_documents)
+    logger.debug('Uploaded zip to presigned URL')
+
+    scan_async_result = cycode_client.scan_repository_from_upload_id(
+        scan_type, upload_link.upload_id, scan_parameters, is_git_diff, is_commit_range
+    )
+    logger.debug(
+        'Presigned upload scan request triggered, %s',
+        {'scan_id': scan_async_result.scan_id, 'upload_id': upload_link.upload_id},
+    )
+
+    return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters)
 
 
 def _perform_scan_async(
@@ -261,6 +328,11 @@ def _perform_scan(
     if should_use_sync_flow:
         # it does not support commit range scans; should_use_sync_flow handles it
         return _perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
+
+    if should_use_presigned_upload(scan_type):
+        return _perform_scan_v4_async(
+            cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
+        )
 
     return _perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
 

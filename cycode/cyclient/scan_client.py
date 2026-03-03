@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
+import requests
 from requests import Response
 
 from cycode.cli import consts
@@ -25,6 +26,7 @@ class ScanClient:
         self.scan_config = scan_config
 
         self._SCAN_SERVICE_CLI_CONTROLLER_PATH = 'api/v1/cli-scan'
+        self._SCAN_SERVICE_V4_CLI_CONTROLLER_PATH = 'api/v4/scans/cli'
         self._DETECTIONS_SERVICE_CLI_CONTROLLER_PATH = 'api/v1/detections/cli'
         self._POLICIES_SERVICE_CONTROLLER_PATH_V3 = 'api/v3/policies'
 
@@ -55,6 +57,10 @@ class ScanClient:
             url_path=self.get_scan_aggregation_report_url_path(aggregation_id, scan_type)
         )
         return models.ScanReportUrlResponseSchema().build_dto(response.json())
+
+    def get_scan_service_v4_url_path(self, scan_type: str) -> str:
+        service_path = self.scan_config.get_service_name(scan_type)
+        return f'{service_path}/{self._SCAN_SERVICE_V4_CLI_CONTROLLER_PATH}'
 
     def get_zipped_file_scan_async_url_path(self, scan_type: str, should_use_sync_flow: bool = False) -> str:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
@@ -123,6 +129,40 @@ class ScanClient:
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
+    def get_upload_link(self, scan_type: str) -> models.UploadLinkResponse:
+        async_scan_type = self.scan_config.get_async_scan_type(scan_type)
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/upload-link'
+        response = self.scan_cycode_client.get(url_path=url_path, hide_response_content_log=self._hide_response_log)
+        return models.UploadLinkResponseSchema().load(response.json())
+
+    def upload_to_presigned_post(self, url: str, fields: dict[str, str], zip_file: 'InMemoryZip') -> None:
+        multipart = {key: (None, value) for key, value in fields.items()}
+        multipart['file'] = (None, zip_file.read())
+        # We are not using Cycode client, as we are calling aws S3.
+        response = requests.post(url, files=multipart, timeout=self.scan_cycode_client.timeout)
+        response.raise_for_status()
+
+    def scan_repository_from_upload_id(
+        self,
+        scan_type: str,
+        upload_id: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
+        is_commit_range: bool = False,
+    ) -> models.ScanInitializationResponse:
+        async_scan_type = self.scan_config.get_async_scan_type(scan_type)
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/repository'
+        response = self.scan_cycode_client.post(
+            url_path=url_path,
+            body={
+                'upload_id': upload_id,
+                'is_git_diff': is_git_diff,
+                'is_commit_range': is_commit_range,
+                'scan_parameters': json.dumps(scan_parameters),
+            },
+        )
+        return models.ScanInitializationResponseSchema().load(response.json())
+
     def commit_range_scan_async(
         self,
         from_commit_zip_file: InMemoryZip,
@@ -158,6 +198,27 @@ class ScanClient:
                 'compression_manifest': self._create_compression_manifest_string(from_commit_zip_file),
             },
             files=files,
+        )
+        return models.ScanInitializationResponseSchema().load(response.json())
+
+    def commit_range_scan_from_upload_ids(
+        self,
+        scan_type: str,
+        from_commit_upload_id: str,
+        to_commit_upload_id: str,
+        scan_parameters: dict,
+        is_git_diff: bool = False,
+    ) -> models.ScanInitializationResponse:
+        async_scan_type = self.scan_config.get_async_scan_type(scan_type)
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/commit-range'
+        response = self.scan_cycode_client.post(
+            url_path=url_path,
+            body={
+                'from_commit_upload_id': from_commit_upload_id,
+                'to_commit_upload_id': to_commit_upload_id,
+                'is_git_diff': is_git_diff,
+                'scan_parameters': json.dumps(scan_parameters),
+            },
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
