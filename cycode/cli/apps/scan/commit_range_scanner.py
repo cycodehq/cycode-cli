@@ -44,6 +44,7 @@ from cycode.cli.utils.scan_utils import (
     generate_unique_scan_id,
     is_cycodeignore_allowed_by_scan_config,
     set_issue_detected_by_scan_results,
+    should_use_presigned_upload,
 )
 from cycode.cyclient.models import ZippedFileScanResult
 from cycode.logger import get_logger
@@ -150,7 +151,7 @@ def _scan_commit_range_documents(
             # for SAST it is files with diff between from_commit and to_commit
             to_commit_zipped_documents = zip_documents(scan_type, to_documents_to_scan)
 
-            if scan_type == consts.SAST_SCAN_TYPE:
+            if should_use_presigned_upload(scan_type):
                 scan_result = _perform_commit_range_scan_v4_async(
                     cycode_client,
                     from_commit_zipped_documents,

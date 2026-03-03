@@ -138,6 +138,7 @@ class ScanClient:
     def upload_to_presigned_post(self, url: str, fields: dict[str, str], zip_file: 'InMemoryZip') -> None:
         multipart = {key: (None, value) for key, value in fields.items()}
         multipart['file'] = (None, zip_file.read())
+        # We are not using Cycode client, as we are calling aws S3.
         response = requests.post(url, files=multipart, timeout=self.scan_cycode_client.timeout)
         response.raise_for_status()
 

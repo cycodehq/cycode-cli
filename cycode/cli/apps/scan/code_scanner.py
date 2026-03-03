@@ -329,7 +329,7 @@ def _perform_scan(
         # it does not support commit range scans; should_use_sync_flow handles it
         return _perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
-    if scan_type == consts.SAST_SCAN_TYPE:
+    if should_use_presigned_upload(scan_type):
         return _perform_scan_v4_async(
             cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
         )
