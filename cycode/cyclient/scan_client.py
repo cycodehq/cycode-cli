@@ -203,8 +203,8 @@ class ScanClient:
     def commit_range_scan_from_upload_ids(
         self,
         scan_type: str,
-        from_upload_id: str,
-        to_upload_id: str,
+        from_commit_upload_id: str,
+        to_commit_upload_id: str,
         scan_parameters: dict,
         is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
@@ -213,8 +213,8 @@ class ScanClient:
         response = self.scan_cycode_client.post(
             url_path=url_path,
             body={
-                'from_upload_id': from_upload_id,
-                'to_upload_id': to_upload_id,
+                'from_commit_upload_id': from_commit_upload_id,
+                'to_commit_upload_id': to_commit_upload_id,
                 'is_git_diff': is_git_diff,
                 'scan_parameters': json.dumps(scan_parameters),
             },
