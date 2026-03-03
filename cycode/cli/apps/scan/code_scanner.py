@@ -336,9 +336,7 @@ def _perform_scan(
                 cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
             )
         except requests.exceptions.RequestException:
-            logger.warning(
-                'Direct upload to object storage failed. Falling back to upload via Cycode API. '
-            )
+            logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
 
     return _perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
 

@@ -1,8 +1,8 @@
 import os
 from typing import TYPE_CHECKING, Optional
 
-import requests
 import click
+import requests
 import typer
 
 from cycode.cli import consts
@@ -163,9 +163,7 @@ def _scan_commit_range_documents(
                         timeout,
                     )
                 except requests.exceptions.RequestException:
-                    logger.warning(
-                        'Direct upload to object storage failed. Falling back to upload via Cycode API. '
-                    )
+                    logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
                     scan_result = _perform_commit_range_scan_async(
                         cycode_client,
                         from_commit_zipped_documents,
