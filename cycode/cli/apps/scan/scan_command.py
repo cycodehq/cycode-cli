@@ -5,6 +5,12 @@ from typing import Annotated, Optional
 import click
 import typer
 
+from cycode.cli.apps.sca_options import (
+    GradleAllSubProjectsOption,
+    MavenSettingsFileOption,
+    NoRestoreOption,
+    apply_sca_restore_options_to_context,
+)
 from cycode.cli.apps.scan.remote_url_resolver import _try_get_git_remote_url
 from cycode.cli.cli_types import ExportTypeOption, ScanTypeOption, ScaScanTypeOption, SeverityOption
 from cycode.cli.consts import (
@@ -72,33 +78,9 @@ def scan_command(
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
     ] = False,
-    no_restore: Annotated[
-        bool,
-        typer.Option(
-            '--no-restore',
-            help='When specified, Cycode will not run restore command. Will scan direct dependencies [b]only[/]!',
-            rich_help_panel=_SCA_RICH_HELP_PANEL,
-        ),
-    ] = False,
-    gradle_all_sub_projects: Annotated[
-        bool,
-        typer.Option(
-            '--gradle-all-sub-projects',
-            help='When specified, Cycode will run gradle restore command for all sub projects. '
-            'Should run from root project directory [b]only[/]!',
-            rich_help_panel=_SCA_RICH_HELP_PANEL,
-        ),
-    ] = False,
-    maven_settings_file: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--maven-settings-file',
-            show_default=False,
-            help='When specified, Cycode will use this settings.xml file when building the maven dependency tree.',
-            dir_okay=False,
-            rich_help_panel=_SCA_RICH_HELP_PANEL,
-        ),
-    ] = None,
+    no_restore: NoRestoreOption = False,
+    gradle_all_sub_projects: GradleAllSubProjectsOption = False,
+    maven_settings_file: MavenSettingsFileOption = None,
     export_type: Annotated[
         ExportTypeOption,
         typer.Option(
@@ -152,10 +134,8 @@ def scan_command(
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
-    ctx.obj['maven_settings_file'] = maven_settings_file
     ctx.obj['report'] = report
-    ctx.obj['gradle_all_sub_projects'] = gradle_all_sub_projects
-    ctx.obj['no_restore'] = no_restore
+    apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file)
 
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client

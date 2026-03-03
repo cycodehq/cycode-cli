@@ -1,5 +1,5 @@
-import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -31,6 +31,9 @@ def execute_commands(
             'output_file_path': output_file_path,
         },
     )
+
+    if not commands:
+        return None
 
     try:
         outputs = []
@@ -106,22 +109,43 @@ class BaseRestoreDependencies(ABC):
         )
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
+    def get_manifest_dir(self, document: Document) -> Optional[str]:
+        """Return the directory containing the manifest file, resolving monitor-mode paths.
+
+        Uses the same path resolution as get_manifest_file_path() to ensure consistency.
+        Falls back to document.absolute_path when the resolved manifest path is ambiguous.
+        """
+        manifest_file_path = self.get_manifest_file_path(document)
+        if manifest_file_path:
+            parent = Path(manifest_file_path).parent
+            # Skip '.' (no parent) and filesystem root (its own parent)
+            if parent != Path('.') and parent != parent.parent:
+                return str(parent)
+
+        base = document.absolute_path or document.path
+        if base:
+            parent = Path(base).parent
+            if parent != Path('.') and parent != parent.parent:
+                return str(parent)
+
+        return None
+
     def get_working_directory(self, document: Document) -> Optional[str]:
-        return os.path.dirname(document.absolute_path)
+        return str(Path(document.absolute_path).parent)
 
     def get_restored_lock_file_name(self, restore_file_path: str) -> str:
         return self.get_lock_file_name()
 
     def get_any_restore_file_already_exist(self, document: Document, restore_file_paths: list[str]) -> str:
         for restore_file_path in restore_file_paths:
-            if os.path.isfile(restore_file_path):
+            if Path(restore_file_path).is_file():
                 return restore_file_path
 
         return build_dep_tree_path(document.absolute_path, self.get_lock_file_name())
 
     @staticmethod
     def verify_restore_file_already_exist(restore_file_path: str) -> bool:
-        return os.path.isfile(restore_file_path)
+        return Path(restore_file_path).is_file()
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:
