@@ -3,6 +3,7 @@ import time
 from platform import platform
 from typing import TYPE_CHECKING, Callable, Optional
 
+import requests
 import typer
 
 from cycode.cli import consts
@@ -330,9 +331,12 @@ def _perform_scan(
         return _perform_scan_sync(cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff)
 
     if should_use_presigned_upload(scan_type):
-        return _perform_scan_v4_async(
-            cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
-        )
+        try:
+            return _perform_scan_v4_async(
+                cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
+            )
+        except requests.exceptions.RequestException:
+            logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
 
     return _perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
 
