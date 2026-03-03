@@ -36,6 +36,8 @@ from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+    from cycode.cli.printers.console_printer import ConsolePrinter
+    from cycode.cli.utils.progress_bar import BaseProgressBar
     from cycode.cyclient.scan_client import ScanClient
 
 start_scan_time = time.time()
@@ -184,6 +186,36 @@ def _get_scan_documents_thread_func(
     return _scan_batch_thread_func
 
 
+def _run_presigned_upload_scan(
+    scan_batch_thread_func: Callable,
+    scan_type: str,
+    documents_to_scan: list[Document],
+    progress_bar: 'BaseProgressBar',
+    printer: 'ConsolePrinter',
+) -> tuple:
+    try:
+        # Try to zip all documents as a single batch; ZipTooLargeError raised if it exceeds the scan type's limit
+        zip_documents(scan_type, documents_to_scan)
+        # It fits: skip batching and upload everything as one ZIP
+        return run_parallel_batched_scan(
+            scan_batch_thread_func,
+            scan_type,
+            documents_to_scan,
+            progress_bar=progress_bar,
+            skip_batching=True,
+        )
+    except custom_exceptions.ZipTooLargeError:
+        printer.print_warning(
+            'The scan is too large to upload as a single file. This may result in corrupted scan results.'
+        )
+        return run_parallel_batched_scan(
+            scan_batch_thread_func,
+            scan_type,
+            documents_to_scan,
+            progress_bar=progress_bar,
+        )
+
+
 def scan_documents(
     ctx: typer.Context,
     documents_to_scan: list[Document],
@@ -209,28 +241,9 @@ def scan_documents(
     scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
 
     if should_use_presigned_upload(scan_type):
-        try:
-            # Try to zip all documents as a single batch; ZipTooLargeError raised if it exceeds the scan type's limit
-            zip_documents(scan_type, documents_to_scan)
-            # It fits: skip batching and upload everything as one ZIP
-            errors, local_scan_results = run_parallel_batched_scan(
-                scan_batch_thread_func,
-                scan_type,
-                documents_to_scan,
-                progress_bar=progress_bar,
-                skip_batching=True,
-            )
-        except custom_exceptions.ZipTooLargeError:
-            printer.print_warning(
-                'The repository is too large to upload as a single file. '
-                'Falling back to batched scanning. This may result in multiple scan results.'
-            )
-            errors, local_scan_results = run_parallel_batched_scan(
-                scan_batch_thread_func,
-                scan_type,
-                documents_to_scan,
-                progress_bar=progress_bar,
-            )
+        errors, local_scan_results = _run_presigned_upload_scan(
+            scan_batch_thread_func, scan_type, documents_to_scan, progress_bar, printer
+        )
     else:
         errors, local_scan_results = run_parallel_batched_scan(
             scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
@@ -263,7 +276,10 @@ def _perform_scan_v4_async(
     scan_async_result = cycode_client.scan_repository_from_upload_id(
         scan_type, upload_link.upload_id, scan_parameters, is_git_diff, is_commit_range
     )
-    logger.debug('V4 scan request triggered, %s', {'scan_id': scan_async_result.scan_id})
+    logger.debug(
+        'Presigned upload scan request triggered, %s',
+        {'scan_id': scan_async_result.scan_id, 'upload_id': upload_link.upload_id},
+    )
 
     return poll_scan_results(cycode_client, scan_async_result.scan_id, scan_type, scan_parameters)
 

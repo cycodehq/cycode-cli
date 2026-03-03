@@ -209,7 +209,7 @@ class ScanClient:
         is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
         async_scan_type = self.scan_config.get_async_scan_type(scan_type)
-        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/repository/commit-range'
+        url_path = f'{self.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/commit-range'
         response = self.scan_cycode_client.post(
             url_path=url_path,
             body={
