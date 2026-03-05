@@ -5,9 +5,8 @@ import re
 import string
 from sys import getsizeof
 
-from binaryornot.check import is_binary_string
-
 from cycode.cli.consts import SCA_SHORTCUT_DEPENDENCY_PATHS
+from cycode.cli.utils.binary_utils import is_binary_string
 
 
 def obfuscate_text(text: str) -> str:
