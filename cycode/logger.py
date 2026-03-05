@@ -31,8 +31,6 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
 logging.getLogger('schedule').setLevel(logging.WARNING)
 logging.getLogger('kubernetes').setLevel(logging.WARNING)
-logging.getLogger('binaryornot').setLevel(logging.WARNING)
-logging.getLogger('chardet').setLevel(logging.WARNING)
 logging.getLogger('git.cmd').setLevel(logging.WARNING)
 logging.getLogger('git.util').setLevel(logging.WARNING)
 

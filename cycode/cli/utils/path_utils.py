@@ -4,9 +4,9 @@ from functools import cache
 from typing import TYPE_CHECKING, AnyStr, Optional, Union
 
 import typer
-from binaryornot.helpers import is_binary_string
 
 from cycode.cli.logger import logger
+from cycode.cli.utils.binary_utils import is_binary_string
 
 if TYPE_CHECKING:
     from os import PathLike
