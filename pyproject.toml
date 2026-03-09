@@ -55,7 +55,7 @@ mock = ">=4.0.3,<4.1.0"
 pytest = ">=7.3.1,<7.4.0"
 pytest-mock = ">=3.10.0,<3.11.0"
 coverage = ">=7.2.3,<7.3.0"
-responses = ">=0.23.1,<0.24.0"
+responses = ">=0.23.1,<0.27.0"
 pyfakefs = ">=5.7.2,<5.11.0"
 
 [tool.poetry.group.executable.dependencies]
