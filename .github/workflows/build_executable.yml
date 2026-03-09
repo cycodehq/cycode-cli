@@ -272,7 +272,7 @@ jobs:
 
       - name: Verify macOS artifact end-to-end
         if: runner.os == 'macOS' && matrix.mode == 'onedir'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: /tmp/artifact-verify
