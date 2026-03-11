@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -97,6 +98,44 @@ class TestGetLockFileName:
 
     def test_get_lock_file_names_contains_only_npm_lock(self, restore_npm: RestoreNpmDependencies) -> None:
         assert restore_npm.get_lock_file_names() == [NPM_LOCK_FILE_NAME]
+
+
+_BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
+
+
+class TestCleanup:
+    def test_generated_lockfile_is_deleted_after_restore(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "test"}')
+        doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
+        lock_path = tmp_path / NPM_LOCK_FILE_NAME
+
+        def side_effect(
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
+        ) -> str:
+            lock_path.write_text('{"lockfileVersion": 3}')
+            return 'output'
+
+        with patch(f'{_BASE_MODULE}.execute_commands', side_effect=side_effect):
+            result = restore_npm.try_restore_dependencies(doc)
+
+        assert result is not None
+        assert not lock_path.exists(), f'{NPM_LOCK_FILE_NAME} must be deleted after restore'
+
+    def test_preexisting_lockfile_is_not_deleted(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "test"}')
+        lock_path = tmp_path / NPM_LOCK_FILE_NAME
+        lock_path.write_text('{"lockfileVersion": 3, "packages": {}}')
+        doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
+
+        result = restore_npm.try_restore_dependencies(doc)
+
+        assert result is not None
+        assert lock_path.exists(), f'Pre-existing {NPM_LOCK_FILE_NAME} must not be deleted'
 
 
 class TestPrepareManifestFilePath:
