@@ -106,7 +106,10 @@ class TestCleanup:
         lock_path = tmp_path / PNPM_LOCK_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             lock_path.write_text('lockfileVersion: 5.4\n')
             return 'output'
@@ -117,9 +120,7 @@ class TestCleanup:
         assert result is not None
         assert not lock_path.exists(), f'{PNPM_LOCK_FILE_NAME} must be deleted after restore'
 
-    def test_preexisting_lockfile_is_not_deleted(
-        self, restore_pnpm: RestorePnpmDependencies, tmp_path: Path
-    ) -> None:
+    def test_preexisting_lockfile_is_not_deleted(self, restore_pnpm: RestorePnpmDependencies, tmp_path: Path) -> None:
         lock_content = 'lockfileVersion: 5.4\n\npackages:\n  /pkg@1.0.0:\n    resolution: {}\n'
         (tmp_path / 'package.json').write_text('{"name": "test"}')
         lock_path = tmp_path / PNPM_LOCK_FILE_NAME

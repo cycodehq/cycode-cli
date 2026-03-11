@@ -69,6 +69,7 @@ class TestTryRestoreDependencies:
     def test_get_lock_file_name(self, restore_composer: RestoreComposerDependencies) -> None:
         assert restore_composer.get_lock_file_name() == COMPOSER_LOCK_FILE_NAME
 
+
 _BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
 
 
@@ -78,13 +79,14 @@ class TestCleanup:
     ) -> None:
         manifest_content = '{"name": "vendor/project"}\n'
         (tmp_path / 'composer.json').write_text(manifest_content)
-        doc = Document(
-            str(tmp_path / 'composer.json'), manifest_content, absolute_path=str(tmp_path / 'composer.json')
-        )
+        doc = Document(str(tmp_path / 'composer.json'), manifest_content, absolute_path=str(tmp_path / 'composer.json'))
         lock_path = tmp_path / COMPOSER_LOCK_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             lock_path.write_text('{"_readme": [], "packages": []}')
             return 'output'

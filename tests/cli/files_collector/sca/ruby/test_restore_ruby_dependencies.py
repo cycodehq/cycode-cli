@@ -58,7 +58,10 @@ class TestCleanup:
         lock_path = tmp_path / RUBY_LOCK_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             lock_path.write_text('GEM\n  remote: https://rubygems.org/\n  specs:\n')
             return 'output'
@@ -69,9 +72,7 @@ class TestCleanup:
         assert result is not None
         assert not lock_path.exists(), f'{RUBY_LOCK_FILE_NAME} must be deleted after restore'
 
-    def test_preexisting_lockfile_is_not_deleted(
-        self, restore_ruby: RestoreRubyDependencies, tmp_path: Path
-    ) -> None:
+    def test_preexisting_lockfile_is_not_deleted(self, restore_ruby: RestoreRubyDependencies, tmp_path: Path) -> None:
         lock_content = 'GEM\n  remote: https://rubygems.org/\n  specs:\n    rake (13.0.6)\n'
         (tmp_path / 'Gemfile').write_text("source 'https://rubygems.org'\ngem 'rake'\n")
         lock_path = tmp_path / RUBY_LOCK_FILE_NAME

@@ -60,7 +60,10 @@ class TestCleanup:
         output_path = tmp_path / BUILD_GRADLE_DEP_TREE_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             # Gradle uses create_output_file_manually=True; output_file_path is provided
             target = output_file_path or str(output_path)
@@ -91,9 +94,7 @@ class TestCleanup:
         assert result is not None
         assert output_path.exists(), f'Pre-existing {BUILD_GRADLE_DEP_TREE_FILE_NAME} must not be deleted'
 
-    def test_kts_build_file_also_cleaned_up(
-        self, restore_gradle: RestoreGradleDependencies, tmp_path: Path
-    ) -> None:
+    def test_kts_build_file_also_cleaned_up(self, restore_gradle: RestoreGradleDependencies, tmp_path: Path) -> None:
         (tmp_path / BUILD_GRADLE_KTS_FILE_NAME).write_text('plugins { java }\n')
         doc = Document(
             str(tmp_path / BUILD_GRADLE_KTS_FILE_NAME),
@@ -103,7 +104,10 @@ class TestCleanup:
         output_path = tmp_path / BUILD_GRADLE_DEP_TREE_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             target = output_file_path or str(output_path)
             Path(target).write_text('compileClasspath\n')

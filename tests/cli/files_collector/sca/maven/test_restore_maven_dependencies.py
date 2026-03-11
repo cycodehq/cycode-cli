@@ -61,7 +61,10 @@ class TestCleanup:
         )
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             bom_path.write_text('{"bomFormat": "CycloneDX", "components": []}')
             return 'output'
@@ -87,7 +90,10 @@ class TestCleanup:
         )
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             dep_tree_path.write_text('[INFO] com.example:my-app:jar:1.0.0\n')
             return '[INFO] BUILD SUCCESS'
@@ -99,9 +105,7 @@ class TestCleanup:
         assert result.content is not None
         assert not dep_tree_path.exists(), f'{MAVEN_DEP_TREE_FILE_NAME} must be deleted after restore'
 
-    def test_preexisting_bom_is_not_deleted(
-        self, restore_maven: RestoreMavenDependencies, tmp_path: Path
-    ) -> None:
+    def test_preexisting_bom_is_not_deleted(self, restore_maven: RestoreMavenDependencies, tmp_path: Path) -> None:
         pom_content = '<project><modelVersion>4.0.0</modelVersion></project>'
         (tmp_path / BUILD_MAVEN_FILE_NAME).write_text(pom_content)
         target_dir = tmp_path / 'target'

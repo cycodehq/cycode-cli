@@ -58,7 +58,10 @@ class TestCleanup:
         lock_path = tmp_path / NUGET_LOCK_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             lock_path.write_text('{"version": 1, "dependencies": {}}')
             return 'output'
@@ -69,9 +72,7 @@ class TestCleanup:
         assert result is not None
         assert not lock_path.exists(), f'{NUGET_LOCK_FILE_NAME} must be deleted after restore'
 
-    def test_preexisting_lockfile_is_not_deleted(
-        self, restore_nuget: RestoreNugetDependencies, tmp_path: Path
-    ) -> None:
+    def test_preexisting_lockfile_is_not_deleted(self, restore_nuget: RestoreNugetDependencies, tmp_path: Path) -> None:
         lock_content = '{"version": 1, "dependencies": {"net8.0": {}}}'
         (tmp_path / 'MyProject.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"/>')
         lock_path = tmp_path / NUGET_LOCK_FILE_NAME

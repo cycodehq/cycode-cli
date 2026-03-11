@@ -60,7 +60,10 @@ class TestCleanup:
         output_path = tmp_path / GO_RESTORE_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             # Go uses create_output_file_manually=True; output_file_path is provided
             target = output_file_path or str(output_path)

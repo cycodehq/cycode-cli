@@ -10,7 +10,7 @@ from cycode.cli.files_collector.sca.base_restore_dependencies import (
     execute_commands,
 )
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
+from cycode.cli.utils.path_utils import get_file_content, join_paths
 from cycode.logger import get_logger
 
 logger = get_logger('Maven Restore Dependencies')

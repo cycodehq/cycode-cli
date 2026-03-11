@@ -87,7 +87,10 @@ class TestCleanup:
         lock_path = tmp_path / PIPENV_LOCK_FILE_NAME
 
         def side_effect(
-            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+            commands: list,
+            timeout: int,
+            output_file_path: Optional[str] = None,
+            working_directory: Optional[str] = None,
         ) -> str:
             lock_path.write_text('{"_meta": {}, "default": {}, "develop": {}}')
             return 'output'
@@ -105,7 +108,9 @@ class TestCleanup:
         (tmp_path / 'Pipfile').write_text('[[source]]\nname = "pypi"\n')
         lock_path = tmp_path / PIPENV_LOCK_FILE_NAME
         lock_path.write_text(lock_content)
-        doc = Document(str(tmp_path / 'Pipfile'), '[[source]]\nname = "pypi"\n', absolute_path=str(tmp_path / 'Pipfile'))
+        doc = Document(
+            str(tmp_path / 'Pipfile'), '[[source]]\nname = "pypi"\n', absolute_path=str(tmp_path / 'Pipfile')
+        )
 
         result = restore_pipenv.try_restore_dependencies(doc)
 
