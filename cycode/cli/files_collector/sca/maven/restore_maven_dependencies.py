@@ -1,4 +1,5 @@
 from os import path
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -10,6 +11,9 @@ from cycode.cli.files_collector.sca.base_restore_dependencies import (
 )
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content, get_file_dir, join_paths
+from cycode.logger import get_logger
+
+logger = get_logger('Maven Restore Dependencies')
 
 BUILD_MAVEN_FILE_NAME = 'pom.xml'
 MAVEN_CYCLONE_DEP_TREE_FILE_NAME = 'bom.json'
@@ -42,15 +46,8 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         if document.content is None:
             return self.restore_from_secondary_command(document, manifest_file_path)
 
-        restore_dependencies_document = super().try_restore_dependencies(document)
-        if restore_dependencies_document is None:
-            return None
-
-        restore_dependencies_document.content = get_file_content(
-            join_paths(get_file_dir(manifest_file_path), self.get_lock_file_name())
-        )
-
-        return restore_dependencies_document
+        # super() reads the content and cleans up any generated file; no re-read needed
+        return super().try_restore_dependencies(document)
 
     def restore_from_secondary_command(self, document: Document, manifest_file_path: str) -> Optional[Document]:
         restore_content = execute_commands(
@@ -62,11 +59,17 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
             return None
 
         restore_file_path = build_dep_tree_path(document.absolute_path, MAVEN_DEP_TREE_FILE_NAME)
+        content = get_file_content(restore_file_path)
+
+        try:
+            Path(restore_file_path).unlink(missing_ok=True)
+        except Exception as e:
+            logger.debug('Failed to clean up generated maven dep tree file', exc_info=e)
+
         return Document(
             path=build_dep_tree_path(document.path, MAVEN_DEP_TREE_FILE_NAME),
-            content=get_file_content(restore_file_path),
+            content=content,
             is_git_diff_format=self.is_git_diff,
-            absolute_path=restore_file_path,
         )
 
     def create_secondary_restore_commands(self, manifest_file_path: str) -> list[list[str]]:

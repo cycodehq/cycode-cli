@@ -92,7 +92,9 @@ class BaseRestoreDependencies(ABC):
             )
             if output is None:  # one of the commands failed
                 return None
+            file_was_generated = True
         else:
+            file_was_generated = False
             logger.debug(
                 'Lock file already exists, skipping restore commands, %s',
                 {'restore_file_path': restore_file_path},
@@ -107,6 +109,14 @@ class BaseRestoreDependencies(ABC):
                 'content_empty': not restore_file_content,
             },
         )
+
+        if file_was_generated:
+            try:
+                Path(restore_file_path).unlink(missing_ok=True)
+                logger.debug('Cleaned up generated restore file, %s', {'restore_file_path': restore_file_path})
+            except Exception as e:
+                logger.debug('Failed to clean up generated restore file', exc_info=e)
+
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
     def get_manifest_dir(self, document: Document) -> Optional[str]:
