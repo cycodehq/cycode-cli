@@ -1,5 +1,6 @@
 from pathlib import Path
-from unittest.mock import MagicMock
+from typing import Optional
+from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
@@ -89,3 +90,43 @@ class TestTryRestoreDependencies:
     def test_get_commands_returns_pnpm_install(self, restore_pnpm: RestorePnpmDependencies) -> None:
         commands = restore_pnpm.get_commands('/path/to/package.json')
         assert commands == [['pnpm', 'install', '--ignore-scripts']]
+
+
+_BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
+
+
+class TestCleanup:
+    def test_generated_lockfile_is_deleted_after_restore(
+        self, restore_pnpm: RestorePnpmDependencies, tmp_path: Path
+    ) -> None:
+        # pnpm: no pre-existing pnpm-lock.yaml but package.json indicates pnpm
+        content = '{"name": "test", "packageManager": "pnpm@8.6.2"}'
+        (tmp_path / 'package.json').write_text(content)
+        doc = Document(str(tmp_path / 'package.json'), content, absolute_path=str(tmp_path / 'package.json'))
+        lock_path = tmp_path / PNPM_LOCK_FILE_NAME
+
+        def side_effect(
+            commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+        ) -> str:
+            lock_path.write_text('lockfileVersion: 5.4\n')
+            return 'output'
+
+        with patch(f'{_BASE_MODULE}.execute_commands', side_effect=side_effect):
+            result = restore_pnpm.try_restore_dependencies(doc)
+
+        assert result is not None
+        assert not lock_path.exists(), f'{PNPM_LOCK_FILE_NAME} must be deleted after restore'
+
+    def test_preexisting_lockfile_is_not_deleted(
+        self, restore_pnpm: RestorePnpmDependencies, tmp_path: Path
+    ) -> None:
+        lock_content = 'lockfileVersion: 5.4\n\npackages:\n  /pkg@1.0.0:\n    resolution: {}\n'
+        (tmp_path / 'package.json').write_text('{"name": "test"}')
+        lock_path = tmp_path / PNPM_LOCK_FILE_NAME
+        lock_path.write_text(lock_content)
+        doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
+
+        result = restore_pnpm.try_restore_dependencies(doc)
+
+        assert result is not None
+        assert lock_path.exists(), f'Pre-existing {PNPM_LOCK_FILE_NAME} must not be deleted'
