@@ -104,9 +104,7 @@ def _load_policy(policy_path: Path) -> dict:
     return {**copy.deepcopy(DEFAULT_POLICY), **existing}
 
 
-def create_policy_file(
-    scope: str, mode: PolicyMode, repo_path: Optional[Path] = None
-) -> tuple[bool, str]:
+def create_policy_file(scope: str, mode: PolicyMode, repo_path: Optional[Path] = None) -> tuple[bool, str]:
     """Create or update the ai-guardrails.yaml policy file.
 
     If the file already exists, only the mode field is updated.
