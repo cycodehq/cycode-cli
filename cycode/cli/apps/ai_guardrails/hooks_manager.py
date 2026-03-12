@@ -5,17 +5,21 @@ Handles installation, removal, and status checking of AI IDE hooks.
 Supports multiple IDEs: Cursor, Claude Code (future).
 """
 
+import copy
 import json
 from pathlib import Path
 from typing import Optional
 
+import yaml
+
 from cycode.cli.apps.ai_guardrails.consts import (
-    CYCODE_SCAN_PROMPT_COMMAND,
     DEFAULT_IDE,
     IDE_CONFIGS,
     AIIDEType,
+    PolicyMode,
     get_hooks_config,
 )
+from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY, POLICY_FILE_NAME
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails Hooks')
@@ -58,6 +62,13 @@ def save_hooks_file(hooks_path: Path, hooks_config: dict) -> bool:
         return False
 
 
+_CYCODE_COMMAND_MARKERS = ('cycode ai-guardrails', 'cycode auth')
+
+
+def _is_cycode_command(command: str) -> bool:
+    return any(marker in command for marker in _CYCODE_COMMAND_MARKERS)
+
+
 def is_cycode_hook_entry(entry: dict) -> bool:
     """Check if a hook entry is from cycode-cli.
 
@@ -68,7 +79,7 @@ def is_cycode_hook_entry(entry: dict) -> bool:
     """
     # Check Cursor format (flat command)
     command = entry.get('command', '')
-    if CYCODE_SCAN_PROMPT_COMMAND in command:
+    if _is_cycode_command(command):
         return True
 
     # Check Claude Code format (nested hooks array)
@@ -76,14 +87,60 @@ def is_cycode_hook_entry(entry: dict) -> bool:
     for hook in hooks:
         if isinstance(hook, dict):
             hook_command = hook.get('command', '')
-            if CYCODE_SCAN_PROMPT_COMMAND in hook_command:
+            if _is_cycode_command(hook_command):
                 return True
 
     return False
 
 
+def _load_policy(policy_path: Path) -> dict:
+    """Load existing policy file merged with defaults, or return defaults if not found."""
+    if not policy_path.exists():
+        return copy.deepcopy(DEFAULT_POLICY)
+    try:
+        existing = yaml.safe_load(policy_path.read_text(encoding='utf-8')) or {}
+    except Exception:
+        existing = {}
+    return {**copy.deepcopy(DEFAULT_POLICY), **existing}
+
+
+def create_policy_file(
+    scope: str, mode: PolicyMode, repo_path: Optional[Path] = None
+) -> tuple[bool, str]:
+    """Create or update the ai-guardrails.yaml policy file.
+
+    If the file already exists, only the mode field is updated.
+    If it doesn't exist, a new file is created from the default policy.
+
+    Args:
+        scope: 'user' for user-level, 'repo' for repository-level
+        mode: The policy mode to set
+        repo_path: Repository path (required if scope is 'repo')
+
+    Returns:
+        Tuple of (success, message)
+    """
+    config_dir = repo_path / '.cycode' if scope == 'repo' and repo_path else Path.home() / '.cycode'
+    policy_path = config_dir / POLICY_FILE_NAME
+
+    policy = _load_policy(policy_path)
+
+    policy['mode'] = mode.value
+
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        policy_path.write_text(yaml.dump(policy, default_flow_style=False, sort_keys=False), encoding='utf-8')
+        return True, f'AI guardrails policy ({mode.value} mode) set: {policy_path}'
+    except Exception as e:
+        logger.error('Failed to create policy file', exc_info=e)
+        return False, f'Failed to create policy file: {policy_path}'
+
+
 def install_hooks(
-    scope: str = 'user', repo_path: Optional[Path] = None, ide: AIIDEType = DEFAULT_IDE
+    scope: str = 'user',
+    repo_path: Optional[Path] = None,
+    ide: AIIDEType = DEFAULT_IDE,
+    report_mode: bool = False,
 ) -> tuple[bool, str]:
     """
     Install Cycode AI guardrails hooks.
@@ -92,6 +149,7 @@ def install_hooks(
         scope: 'user' for user-level hooks, 'repo' for repository-level hooks
         repo_path: Repository path (required if scope is 'repo')
         ide: The AI IDE type (default: Cursor)
+        report_mode: If True, install hooks in async mode (non-blocking)
 
     Returns:
         Tuple of (success, message)
@@ -104,7 +162,7 @@ def install_hooks(
     existing.setdefault('hooks', {})
 
     # Get IDE-specific hooks configuration
-    hooks_config = get_hooks_config(ide)
+    hooks_config = get_hooks_config(ide, async_mode=report_mode)
 
     # Add/update Cycode hooks
     for event, entries in hooks_config['hooks'].items():
