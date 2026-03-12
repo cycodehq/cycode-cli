@@ -25,6 +25,13 @@ class PolicyMode(str, Enum):
     WARN = 'warn'
 
 
+class InstallMode(str, Enum):
+    """Installation mode for ai-guardrails install command."""
+
+    REPORT = 'report'
+    BLOCK = 'block'
+
+
 class IDEConfig(NamedTuple):
     """Configuration for an AI IDE."""
 
@@ -76,12 +83,15 @@ DEFAULT_IDE = AIIDEType.CURSOR
 
 # Command used in hooks
 CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
+CYCODE_AUTH_CHECK_COMMAND = "if cycode status 2>&1 | grep -q 'Is authenticated: False'; then cycode auth 2>&1; fi"
 
 
-def _get_cursor_hooks_config() -> dict:
+def _get_cursor_hooks_config(async_mode: bool = False) -> dict:
     """Get Cursor-specific hooks configuration."""
     config = IDE_CONFIGS[AIIDEType.CURSOR]
-    hooks = {event: [{'command': CYCODE_SCAN_PROMPT_COMMAND}] for event in config.hook_events}
+    command = f'{CYCODE_SCAN_PROMPT_COMMAND} &' if async_mode else CYCODE_SCAN_PROMPT_COMMAND
+    hooks = {event: [{'command': command}] for event in config.hook_events}
+    hooks['sessionStart'] = [{'command': CYCODE_AUTH_CHECK_COMMAND}]
 
     return {
         'version': 1,
@@ -89,7 +99,7 @@ def _get_cursor_hooks_config() -> dict:
     }
 
 
-def _get_claude_code_hooks_config() -> dict:
+def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
     """Get Claude Code-specific hooks configuration.
 
     Claude Code uses a different hook format with nested structure:
@@ -98,36 +108,48 @@ def _get_claude_code_hooks_config() -> dict:
     """
     command = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
 
+    hook_entry = {'type': 'command', 'command': command}
+    if async_mode:
+        hook_entry['async'] = True
+        hook_entry['timeout'] = 20
+
     return {
         'hooks': {
+            'SessionStart': [
+                {
+                    'matcher': '',
+                    'hooks': [{'type': 'command', 'command': CYCODE_AUTH_CHECK_COMMAND}],
+                }
+            ],
             'UserPromptSubmit': [
                 {
-                    'hooks': [{'type': 'command', 'command': command}],
+                    'hooks': [hook_entry.copy()],
                 }
             ],
             'PreToolUse': [
                 {
                     'matcher': 'Read',
-                    'hooks': [{'type': 'command', 'command': command}],
+                    'hooks': [hook_entry.copy()],
                 },
                 {
                     'matcher': 'mcp__.*',
-                    'hooks': [{'type': 'command', 'command': command}],
+                    'hooks': [hook_entry.copy()],
                 },
             ],
         },
     }
 
 
-def get_hooks_config(ide: AIIDEType) -> dict:
+def get_hooks_config(ide: AIIDEType, async_mode: bool = False) -> dict:
     """Get the hooks configuration for a specific IDE.
 
     Args:
         ide: The AI IDE type
+        async_mode: If True, hooks run asynchronously (non-blocking)
 
     Returns:
         Dict with hooks configuration for the specified IDE
     """
     if ide == AIIDEType.CLAUDE_CODE:
-        return _get_claude_code_hooks_config()
-    return _get_cursor_hooks_config()
+        return _get_claude_code_hooks_config(async_mode=async_mode)
+    return _get_cursor_hooks_config(async_mode=async_mode)
