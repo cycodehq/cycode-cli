@@ -1,5 +1,6 @@
 import typer
 
+from cycode.cli.apps.ai_guardrails.ensure_auth_command import ensure_auth_command
 from cycode.cli.apps.ai_guardrails.install_command import install_command
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
 from cycode.cli.apps.ai_guardrails.status_command import status_command
@@ -17,3 +18,6 @@ app.command(
     name='scan',
     short_help='Scan content from AI IDE hooks for secrets (reads JSON from stdin).',
 )(scan_command)
+app.command(hidden=True, name='ensure-auth', short_help='Ensure authentication, triggering auth if needed.')(
+    ensure_auth_command
+)

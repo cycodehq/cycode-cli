@@ -83,7 +83,7 @@ DEFAULT_IDE = AIIDEType.CURSOR
 
 # Command used in hooks
 CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
-CYCODE_AUTH_CHECK_COMMAND = "if cycode status 2>&1 | grep -q 'Is authenticated: False'; then cycode auth 2>&1; fi"
+CYCODE_ENSURE_AUTH_COMMAND = 'cycode ai-guardrails ensure-auth'
 
 
 def _get_cursor_hooks_config(async_mode: bool = False) -> dict:
@@ -91,7 +91,7 @@ def _get_cursor_hooks_config(async_mode: bool = False) -> dict:
     config = IDE_CONFIGS[AIIDEType.CURSOR]
     command = f'{CYCODE_SCAN_PROMPT_COMMAND} &' if async_mode else CYCODE_SCAN_PROMPT_COMMAND
     hooks = {event: [{'command': command}] for event in config.hook_events}
-    hooks['sessionStart'] = [{'command': CYCODE_AUTH_CHECK_COMMAND}]
+    hooks['sessionStart'] = [{'command': CYCODE_ENSURE_AUTH_COMMAND}]
 
     return {
         'version': 1,
@@ -118,7 +118,7 @@ def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
             'SessionStart': [
                 {
                     'matcher': '',
-                    'hooks': [{'type': 'command', 'command': CYCODE_AUTH_CHECK_COMMAND}],
+                    'hooks': [{'type': 'command', 'command': CYCODE_ENSURE_AUTH_COMMAND}],
                 }
             ],
             'UserPromptSubmit': [

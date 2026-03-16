@@ -6,7 +6,7 @@ import yaml
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 from cycode.cli.apps.ai_guardrails.consts import (
-    CYCODE_AUTH_CHECK_COMMAND,
+    CYCODE_ENSURE_AUTH_COMMAND,
     CYCODE_SCAN_PROMPT_COMMAND,
     AIIDEType,
     PolicyMode,
@@ -93,7 +93,7 @@ def test_get_hooks_config_cursor_session_start() -> None:
     assert 'sessionStart' in config['hooks']
     entries = config['hooks']['sessionStart']
     assert len(entries) == 1
-    assert entries[0]['command'] == CYCODE_AUTH_CHECK_COMMAND
+    assert entries[0]['command'] == CYCODE_ENSURE_AUTH_COMMAND
 
 
 def test_get_hooks_config_claude_code_sync() -> None:
@@ -123,7 +123,7 @@ def test_get_hooks_config_claude_code_session_start() -> None:
     assert 'SessionStart' in config['hooks']
     entries = config['hooks']['SessionStart']
     assert len(entries) == 1
-    assert entries[0]['hooks'][0]['command'] == CYCODE_AUTH_CHECK_COMMAND
+    assert entries[0]['hooks'][0]['command'] == CYCODE_ENSURE_AUTH_COMMAND
 
 
 def test_create_policy_file_warn(fs: FakeFilesystem) -> None:

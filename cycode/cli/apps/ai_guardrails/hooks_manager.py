@@ -62,7 +62,7 @@ def save_hooks_file(hooks_path: Path, hooks_config: dict) -> bool:
         return False
 
 
-_CYCODE_COMMAND_MARKERS = ('cycode ai-guardrails', 'cycode auth')
+_CYCODE_COMMAND_MARKERS = ('cycode ai-guardrails',)
 
 
 def _is_cycode_command(command: str) -> bool:
