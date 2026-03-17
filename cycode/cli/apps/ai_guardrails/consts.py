@@ -117,7 +117,7 @@ def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
         'hooks': {
             'SessionStart': [
                 {
-                    'matcher': '',
+                    'matcher': 'startup',
                     'hooks': [{'type': 'command', 'command': CYCODE_ENSURE_AUTH_COMMAND}],
                 }
             ],
