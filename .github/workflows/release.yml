@@ -45,7 +45,7 @@ jobs:
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
         with:
           version: 2.2.1
 
@@ -73,4 +73,4 @@ jobs:
         run: poetry build
 
       - name: Publish a Python distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@106e0b0b7c337fa67ed433972f777c6357f78598 # v1.13.0
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
