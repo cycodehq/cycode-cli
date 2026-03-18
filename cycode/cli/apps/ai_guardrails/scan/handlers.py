@@ -345,12 +345,10 @@ def _scan_path_for_secrets(ctx: typer.Context, file_path: str, policy: dict) -> 
     if not file_path or not os.path.exists(file_path):
         return None, None
 
-    with open(file_path, encoding='utf-8', errors='replace') as f:
-        content = f.read()
-
-    # Truncate content based on policy max_bytes
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
-    content = truncate_utf8(content, max_bytes)
+
+    with open(file_path, encoding='utf-8', errors='replace') as f:
+        content = f.read(max_bytes)
 
     # Get timeout from policy
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)

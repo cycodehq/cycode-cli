@@ -6,6 +6,7 @@ Currently supports:
 """
 
 import platform
+from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from typing import NamedTuple
@@ -23,6 +24,13 @@ class PolicyMode(str, Enum):
 
     BLOCK = 'block'
     WARN = 'warn'
+
+
+class InstallMode(str, Enum):
+    """Installation mode for ai-guardrails install command."""
+
+    REPORT = 'report'
+    BLOCK = 'block'
 
 
 class IDEConfig(NamedTuple):
@@ -76,12 +84,15 @@ DEFAULT_IDE = AIIDEType.CURSOR
 
 # Command used in hooks
 CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
+CYCODE_ENSURE_AUTH_COMMAND = 'cycode ai-guardrails ensure-auth'
 
 
-def _get_cursor_hooks_config() -> dict:
+def _get_cursor_hooks_config(async_mode: bool = False) -> dict:
     """Get Cursor-specific hooks configuration."""
     config = IDE_CONFIGS[AIIDEType.CURSOR]
-    hooks = {event: [{'command': CYCODE_SCAN_PROMPT_COMMAND}] for event in config.hook_events}
+    command = f'{CYCODE_SCAN_PROMPT_COMMAND} &' if async_mode else CYCODE_SCAN_PROMPT_COMMAND
+    hooks = {event: [{'command': command}] for event in config.hook_events}
+    hooks['sessionStart'] = [{'command': CYCODE_ENSURE_AUTH_COMMAND}]
 
     return {
         'version': 1,
@@ -89,7 +100,7 @@ def _get_cursor_hooks_config() -> dict:
     }
 
 
-def _get_claude_code_hooks_config() -> dict:
+def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
     """Get Claude Code-specific hooks configuration.
 
     Claude Code uses a different hook format with nested structure:
@@ -98,36 +109,48 @@ def _get_claude_code_hooks_config() -> dict:
     """
     command = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
 
+    hook_entry = {'type': 'command', 'command': command}
+    if async_mode:
+        hook_entry['async'] = True
+        hook_entry['timeout'] = 20
+
     return {
         'hooks': {
+            'SessionStart': [
+                {
+                    'matcher': 'startup',
+                    'hooks': [{'type': 'command', 'command': CYCODE_ENSURE_AUTH_COMMAND}],
+                }
+            ],
             'UserPromptSubmit': [
                 {
-                    'hooks': [{'type': 'command', 'command': command}],
+                    'hooks': [deepcopy(hook_entry)],
                 }
             ],
             'PreToolUse': [
                 {
                     'matcher': 'Read',
-                    'hooks': [{'type': 'command', 'command': command}],
+                    'hooks': [deepcopy(hook_entry)],
                 },
                 {
                     'matcher': 'mcp__.*',
-                    'hooks': [{'type': 'command', 'command': command}],
+                    'hooks': [deepcopy(hook_entry)],
                 },
             ],
         },
     }
 
 
-def get_hooks_config(ide: AIIDEType) -> dict:
+def get_hooks_config(ide: AIIDEType, async_mode: bool = False) -> dict:
     """Get the hooks configuration for a specific IDE.
 
     Args:
         ide: The AI IDE type
+        async_mode: If True, hooks run asynchronously (non-blocking)
 
     Returns:
         Dict with hooks configuration for the specified IDE
     """
     if ide == AIIDEType.CLAUDE_CODE:
-        return _get_claude_code_hooks_config()
-    return _get_cursor_hooks_config()
+        return _get_claude_code_hooks_config(async_mode=async_mode)
+    return _get_cursor_hooks_config(async_mode=async_mode)

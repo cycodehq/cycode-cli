@@ -29,6 +29,7 @@ def test_from_cursor_payload_prompt_event() -> None:
     assert unified.ide_provider == 'cursor'
     assert unified.ide_version == '0.42.0'
     assert unified.prompt == 'Test prompt'
+    assert type(unified.ide_provider) is str
 
 
 def test_from_cursor_payload_file_read_event() -> None:
@@ -153,6 +154,7 @@ def test_from_claude_code_payload_prompt_event() -> None:
     assert unified.conversation_id == 'session-123'
     assert unified.ide_provider == 'claude-code'
     assert unified.prompt == 'Test prompt for Claude Code'
+    assert type(unified.ide_provider) is str
 
 
 def test_from_claude_code_payload_file_read_event() -> None:
