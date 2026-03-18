@@ -6,6 +6,7 @@ Currently supports:
 """
 
 import platform
+from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from typing import NamedTuple
@@ -123,17 +124,17 @@ def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
             ],
             'UserPromptSubmit': [
                 {
-                    'hooks': [hook_entry.copy()],
+                    'hooks': [deepcopy(hook_entry)],
                 }
             ],
             'PreToolUse': [
                 {
                     'matcher': 'Read',
-                    'hooks': [hook_entry.copy()],
+                    'hooks': [deepcopy(hook_entry)],
                 },
                 {
                     'matcher': 'mcp__.*',
-                    'hooks': [hook_entry.copy()],
+                    'hooks': [deepcopy(hook_entry)],
                 },
             ],
         },
