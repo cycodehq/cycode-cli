@@ -2,6 +2,7 @@ import platform
 from typing import TYPE_CHECKING
 
 from cycode import __version__
+from cycode.cli.apps.activation_manager import should_report_cli_activation, report_cli_activation
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.status.models import CliStatus, CliSupportedModulesStatus
 from cycode.cli.consts import PROGRAM_NAME
@@ -22,7 +23,11 @@ def get_cli_status(ctx: 'Context') -> CliStatus:
     supported_modules_status = CliSupportedModulesStatus()
     if is_authenticated:
         try:
+            plugin_app_name = ctx.obj.get('plugin_app_name')
+            plugin_app_version = ctx.obj.get('plugin_app_version')
             client = get_scan_cycode_client(ctx)
+            if should_report_cli_activation(plugin_app_name, plugin_app_version):
+                report_cli_activation(client.scan_cycode_client, plugin_app_name, plugin_app_version)
             supported_modules_preferences = client.get_supported_modules_preferences()
 
             supported_modules_status.secret_scanning = supported_modules_preferences.secret_scanning

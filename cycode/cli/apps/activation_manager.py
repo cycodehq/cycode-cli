@@ -13,7 +13,21 @@ logger = get_logger('Activation Manager')
 _CLI_CLIENT_NAME = 'cli'
 
 
-def try_report_activation(
+def _get_client_and_version(
+    plugin_app_name: Optional[str], plugin_app_version: Optional[str]
+) -> tuple[str, str]:
+    return plugin_app_name or _CLI_CLIENT_NAME, plugin_app_version or __version__
+
+
+def should_report_cli_activation(
+    plugin_app_name: Optional[str] = None,
+    plugin_app_version: Optional[str] = None,
+) -> bool:
+    client, version = _get_client_and_version(plugin_app_name, plugin_app_version)
+    return configuration_manager.get_last_reported_activation_version(client) != version
+
+
+def report_cli_activation(
     cycode_client: 'CycodeClientBase',
     plugin_app_name: Optional[str] = None,
     plugin_app_version: Optional[str] = None,
@@ -23,8 +37,7 @@ def try_report_activation(
     Failures are swallowed — activation tracking is non-critical.
     """
     try:
-        client = plugin_app_name or _CLI_CLIENT_NAME
-        version = plugin_app_version or __version__
+        client, version = _get_client_and_version(plugin_app_name, plugin_app_version)
 
         if configuration_manager.get_last_reported_activation_version(client) == version:
             return
