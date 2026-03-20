@@ -1,6 +1,6 @@
 import typer
 
-from cycode.cli.apps.activation_manager import should_report_cli_activation, report_cli_activation
+from cycode.cli.apps.activation_manager import report_cli_activation, should_report_cli_activation
 from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.handle_auth_errors import handle_auth_exception
 from cycode.cli.logger import logger

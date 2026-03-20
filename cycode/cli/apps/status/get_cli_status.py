@@ -2,7 +2,7 @@ import platform
 from typing import TYPE_CHECKING
 
 from cycode import __version__
-from cycode.cli.apps.activation_manager import should_report_cli_activation, report_cli_activation
+from cycode.cli.apps.activation_manager import report_cli_activation, should_report_cli_activation
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.status.models import CliStatus, CliSupportedModulesStatus
 from cycode.cli.consts import PROGRAM_NAME

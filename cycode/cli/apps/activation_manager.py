@@ -13,9 +13,7 @@ logger = get_logger('Activation Manager')
 _CLI_CLIENT_NAME = 'cli'
 
 
-def _get_client_and_version(
-    plugin_app_name: Optional[str], plugin_app_version: Optional[str]
-) -> tuple[str, str]:
+def _get_client_and_version(plugin_app_name: Optional[str], plugin_app_version: Optional[str]) -> tuple[str, str]:
     return plugin_app_name or _CLI_CLIENT_NAME, plugin_app_version or __version__
 
 
