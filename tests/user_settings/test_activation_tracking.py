@@ -5,7 +5,7 @@ import pytest
 from cycode.cli.user_settings.config_file_manager import ConfigFileManager
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_manager(tmp_path: Path) -> ConfigFileManager:
     return ConfigFileManager(tmp_path)
 
