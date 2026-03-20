@@ -18,6 +18,7 @@ class ConfigFileManager(BaseFileManager):
     SCAN_SECTION_NAME: str = 'scan'
 
     INSTALLATION_ID_FIELD_NAME: str = 'installation_id'
+    LAST_REPORTED_ACTIVATION_VERSIONS_FIELD_NAME: str = 'last_reported_activation_versions'
     API_URL_FIELD_NAME: str = 'cycode_api_url'
     APP_URL_FIELD_NAME: str = 'cycode_app_url'
     VERBOSE_FIELD_NAME: str = 'verbose'
@@ -66,6 +67,16 @@ class ConfigFileManager(BaseFileManager):
 
     def update_installation_id(self, installation_id: str) -> None:
         update_data = {self.ENVIRONMENT_SECTION_NAME: {self.INSTALLATION_ID_FIELD_NAME: installation_id}}
+        self.write_content_to_file(update_data)
+
+    def get_last_reported_activation_versions(self) -> dict[str, str]:
+        value = self._get_value_from_environment_section(self.LAST_REPORTED_ACTIVATION_VERSIONS_FIELD_NAME)
+        return value if isinstance(value, dict) else {}
+
+    def update_last_reported_activation_version(self, client: str, version: str) -> None:
+        versions = self.get_last_reported_activation_versions()
+        versions[client] = version
+        update_data = {self.ENVIRONMENT_SECTION_NAME: {self.LAST_REPORTED_ACTIVATION_VERSIONS_FIELD_NAME: versions}}
         self.write_content_to_file(update_data)
 
     def add_exclusion(self, scan_type: str, exclusion_type: str, new_exclusion: str) -> None:

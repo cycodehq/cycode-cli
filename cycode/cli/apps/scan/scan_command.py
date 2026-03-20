@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 import click
 import typer
 
+from cycode.cli.apps.activation_manager import try_report_activation
 from cycode.cli.apps.sca_options import (
     GradleAllSubProjectsOption,
     MavenSettingsFileOption,
@@ -139,6 +140,10 @@ def scan_command(
 
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
+
+    plugin_app_name = ctx.obj.get('plugin_app_name')
+    plugin_app_version = ctx.obj.get('plugin_app_version')
+    try_report_activation(scan_client.scan_cycode_client, plugin_app_name, plugin_app_version)
 
     # Get remote URL from current working directory
     remote_url = _try_get_git_remote_url(os.getcwd())
