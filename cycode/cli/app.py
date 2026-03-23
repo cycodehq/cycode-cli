@@ -166,6 +166,8 @@ def app_callback(
     if user_agent:
         user_agent_option = UserAgentOptionScheme().loads(user_agent)
         CycodeClientBase.enrich_user_agent(user_agent_option.user_agent_suffix)
+        ctx.obj['plugin_app_name'] = user_agent_option.app_name
+        ctx.obj['plugin_app_version'] = user_agent_option.app_version
 
     if not no_update_notifier:
         ctx.call_on_close(lambda: check_latest_version_on_close(ctx))

@@ -94,6 +94,12 @@ class ConfigurationManager:
 
         return installation_id
 
+    def get_last_reported_activation_version(self, client: str) -> Optional[str]:
+        return self.global_config_file_manager.get_last_reported_activation_versions().get(client)
+
+    def update_last_reported_activation_version(self, client: str, version: str) -> None:
+        self.global_config_file_manager.update_last_reported_activation_version(client, version)
+
     def get_config_file_manager(self, scope: Optional[str] = None) -> ConfigFileManager:
         if scope == 'local':
             return self.local_config_file_manager
