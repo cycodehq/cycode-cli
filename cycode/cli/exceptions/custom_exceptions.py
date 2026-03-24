@@ -64,6 +64,15 @@ class ZipTooLargeError(CycodeError):
         return f'The size of zip to scan is too large, size limit: {self.size_limit}'
 
 
+class FileCollectionError(CycodeError):
+    def __init__(self, error_message: str) -> None:
+        self.error_message = error_message
+        super().__init__(self.error_message)
+
+    def __str__(self) -> str:
+        return self.error_message
+
+
 class AuthProcessError(CycodeError):
     def __init__(self, error_message: str) -> None:
         self.error_message = error_message

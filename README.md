@@ -30,6 +30,7 @@ This guide walks you through both installation and usage.
            4. [Package Vulnerabilities](#package-vulnerabilities-option)
            5. [License Compliance](#license-compliance-option)
            6. [Lock Restore](#lock-restore-option)
+           7. [Stop on Error](#stop-on-error-option)
         2. [Repository Scan](#repository-scan)
             1. [Branch Option](#branch-option)
         3. [Path Scan](#path-scan)
@@ -620,6 +621,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                                     |
 | `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                                  |
 | `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                |
+| `--stop-on-error`                                          | Abort the scan if any file collection or dependency restore failure occurs, instead of skipping the failed file and continuing.   |
 | `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from                                                         |
 | `--maven-settings-file`                                    | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when scanning for dependencies |
 | `--help`                                                   | Show options for given command.                                                                                                  |
@@ -725,6 +727,18 @@ If a lockfile already exists alongside the manifest, Cycode reads it directly wi
 ```text
 addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")
 ```
+
+#### Stop on Error Option
+
+By default, Cycode continues scanning even if a file cannot be read (e.g. due to a permission error) or a dependency lockfile cannot be generated during an SCA scan. The failed item is skipped with a warning and the scan proceeds with the remaining files.
+
+Use `--stop-on-error` to change this behaviour: the scan aborts immediately on the first such failure and reports the error.
+
+```bash
+cycode scan -t sca --stop-on-error path ~/home/git/codebase
+```
+
+This is useful in CI pipelines where a silent failure would produce an incomplete scan result. When `--stop-on-error` is triggered you can either fix the underlying issue or, for SCA restore failures specifically, add `--no-restore` to skip lockfile generation and scan direct dependencies only.
 
 ### Repository Scan
 

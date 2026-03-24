@@ -2,6 +2,7 @@ import os
 from collections.abc import Generator
 from typing import TYPE_CHECKING
 
+from cycode.cli.exceptions.custom_exceptions import FileCollectionError
 from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.files_collector.iac.tf_content_generator import (
     generate_tf_content_from_tfplan,
@@ -109,6 +110,7 @@ def get_relevant_documents(
     *,
     is_git_diff: bool = False,
     is_cycodeignore_allowed: bool = True,
+    stop_on_error: bool = False,
 ) -> list[Document]:
     relevant_files = _get_relevant_files(
         progress_bar, progress_bar_section, scan_type, paths, is_cycodeignore_allowed=is_cycodeignore_allowed
@@ -119,6 +121,10 @@ def get_relevant_documents(
         progress_bar.update(progress_bar_section)
 
         content = get_file_content(file)
+        if content is None:
+            if stop_on_error:
+                raise FileCollectionError(f'Failed to read file: {file}')
+            continue
         if not content:
             continue
 
