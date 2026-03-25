@@ -384,11 +384,21 @@ The MCP server provides the following tools that AI systems can use:
 
 | Tool Name            | Description                                                                                 |
 |----------------------|---------------------------------------------------------------------------------------------|
-| `cycode_secret_scan` | Scan files for hardcoded secrets                                                            |
-| `cycode_sca_scan`    | Scan files for Software Composition Analysis (SCA) - vulnerabilities and license issues     |
-| `cycode_iac_scan`    | Scan files for Infrastructure as Code (IaC) misconfigurations                               |
-| `cycode_sast_scan`   | Scan files for Static Application Security Testing (SAST) - code quality and security flaws |
+| `cycode_secret_scan` | Scan for hardcoded secrets                                                                  |
+| `cycode_sca_scan`    | Scan for Software Composition Analysis (SCA) - vulnerabilities and license issues           |
+| `cycode_iac_scan`    | Scan for Infrastructure as Code (IaC) misconfigurations                                     |
+| `cycode_sast_scan`   | Scan for Static Application Security Testing (SAST) - code quality and security flaws       |
 | `cycode_status`      | Get Cycode CLI version, authentication status, and configuration information                |
+
+Each scan tool accepts two mutually exclusive input modes:
+
+- **`paths`** *(preferred)* — one or more file or directory paths that exist on disk. Directories are scanned recursively. The Cycode engine handles file discovery and filtering, just as `cycode scan -t <type> path ./src` does from the CLI.
+- **`files`** *(fallback)* — a dictionary mapping file paths to their full content as strings. Use this only when the files are not available on disk (e.g. in-memory edits not yet saved).
+
+> [!TIP]
+> Use `paths` whenever possible. Passing large files (like `package-lock.json`) as inline content can exceed token limits and slow down the AI client. With `paths`, the Cycode engine reads files directly from disk.
+
+All scan tools return a JSON object that includes a `"summary"` field with a human-readable violation count (e.g. `"Cycode found 3 violations: 1 CRITICAL, 2 HIGH."`) in addition to the full `"detections"` array.
 
 ### Usage Examples
 
@@ -546,6 +556,26 @@ cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 
 > [!NOTE]
 > The MCP server requires proper Cycode CLI authentication to function. Make sure you have authenticated using `cycode auth` or configured your credentials before starting the MCP server.
+
+### Pre-authorizing Tools for Subagents (Claude Code)
+
+When Claude Code delegates work to background subagents (e.g. to run scans in parallel), those subagents cannot display interactive permission prompts. If the Cycode tools have not been pre-approved, scans will fail silently in subagent contexts.
+
+To pre-authorize the Cycode MCP tools so they work in all contexts including subagents, add them to the `allowedTools` list in your Claude Code settings (`~/.claude/settings.json`):
+
+```json
+{
+  "allowedTools": [
+    "mcp__cycode__cycode_secret_scan",
+    "mcp__cycode__cycode_sca_scan",
+    "mcp__cycode__cycode_iac_scan",
+    "mcp__cycode__cycode_sast_scan",
+    "mcp__cycode__cycode_status"
+  ]
+}
+```
+
+Once added, Claude Code will not prompt for approval when these tools are called, and they will work correctly inside subagents.
 
 ### Troubleshooting MCP
 

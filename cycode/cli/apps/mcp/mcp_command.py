@@ -6,7 +6,7 @@ import shutil
 import sys
 import tempfile
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 import typer
 from pathvalidate import sanitize_filepath
@@ -28,7 +28,25 @@ _logger = get_logger('Cycode MCP')
 
 _DEFAULT_RUN_COMMAND_TIMEOUT = 10 * 60
 
-_FILES_TOOL_FIELD = Field(description='Files to scan, mapping file paths to their content')
+_FILES_TOOL_FIELD = Field(
+    default=None,
+    description=(
+        'Files to scan, mapping file paths to their content. '
+        'Provide either this or "paths". '
+        'Note: for large codebases, prefer "paths" to avoid token overhead.'
+    ),
+)
+_PATHS_TOOL_FIELD = Field(
+    default=None,
+    description=(
+        'Paths to scan — file paths or directory paths that exist on disk. '
+        'Directories are scanned recursively. '
+        'Provide either this or "files". '
+        'Preferred over "files" when the files already exist on disk.'
+    ),
+)
+
+_SEVERITY_ORDER = ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW')
 
 
 def _is_debug_mode() -> bool:
@@ -163,9 +181,9 @@ class _TempFilesManager:
             shutil.rmtree(self.temp_base_dir, ignore_errors=True)
 
 
-async def _run_cycode_scan(scan_type: ScanTypeOption, temp_files: list[str]) -> dict[str, Any]:
+async def _run_cycode_scan(scan_type: ScanTypeOption, paths: list[str]) -> dict[str, Any]:
     """Run cycode scan command and return the result."""
-    return await _run_cycode_command(*['scan', '-t', str(scan_type), 'path', *temp_files])
+    return await _run_cycode_command(*['scan', '-t', str(scan_type), 'path', *paths])
 
 
 async def _run_cycode_status() -> dict[str, Any]:
@@ -173,38 +191,89 @@ async def _run_cycode_status() -> dict[str, Any]:
     return await _run_cycode_command('status')
 
 
-async def _cycode_scan_tool(scan_type: ScanTypeOption, files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
+def _build_scan_summary(result: dict[str, Any]) -> str:
+    """Build a human-readable summary line from a scan result dict.
+
+    Args:
+        result: Parsed JSON scan result from the CLI.
+
+    Returns:
+        A one-line summary string describing what was found.
+    """
+    detections = result.get('detections', [])
+    errors = result.get('errors', [])
+
+    if not detections:
+        if errors:
+            return f'Scan completed with {len(errors)} error(s) and no violations found.'
+        return 'No violations found.'
+
+    total = len(detections)
+    severity_counts: dict[str, int] = {}
+    for d in detections:
+        sev = (d.get('severity') or 'UNKNOWN').upper()
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+    parts = [f'{severity_counts[s]} {s}' for s in _SEVERITY_ORDER if s in severity_counts]
+    other_keys = [k for k in severity_counts if k not in _SEVERITY_ORDER]
+    parts += [f'{severity_counts[k]} {k}' for k in other_keys]
+
+    label = 'violation' if total == 1 else 'violations'
+    return f'Cycode found {total} {label}: {", ".join(parts)}.'
+
+
+async def _cycode_scan_tool(
+    scan_type: ScanTypeOption,
+    files: Optional[dict[str, str]] = None,
+    paths: Optional[list[str]] = None,
+) -> str:
     _tool_call_id = _gen_random_id()
     _logger.info('Scan tool called, %s', {'scan_type': scan_type, 'call_id': _tool_call_id})
 
-    if not files:
-        _logger.error('No files provided for scan')
-        return json.dumps({'error': 'No files provided'})
+    if not files and not paths:
+        _logger.error('No files or paths provided for scan')
+        return json.dumps(
+            {'error': 'No files or paths provided. Pass file contents via "files" or disk paths via "paths".'}
+        )
 
     try:
-        with _TempFilesManager(files, _tool_call_id) as temp_files:
-            original_count = len(files)
-            processed_count = len(temp_files)
-
-            if processed_count < original_count:
-                _logger.warning(
-                    'Some files were rejected during sanitization, %s',
-                    {
-                        'scan_type': scan_type,
-                        'original_count': original_count,
-                        'processed_count': processed_count,
-                        'call_id': _tool_call_id,
-                    },
-                )
+        if paths:
+            missing = [p for p in paths if not os.path.exists(p)]
+            if missing:
+                return json.dumps({'error': f'Paths not found on disk: {missing}'}, indent=2)
 
             _logger.info(
-                'Running Cycode scan, %s',
-                {'scan_type': scan_type, 'files_count': processed_count, 'call_id': _tool_call_id},
+                'Running Cycode scan (path-based), %s',
+                {'scan_type': scan_type, 'paths': paths, 'call_id': _tool_call_id},
             )
-            result = await _run_cycode_scan(scan_type, temp_files)
+            result = await _run_cycode_scan(scan_type, paths)
+        else:
+            with _TempFilesManager(files, _tool_call_id) as temp_files:
+                original_count = len(files)
+                processed_count = len(temp_files)
 
-            _logger.info('Scan completed, %s', {'scan_type': scan_type, 'call_id': _tool_call_id})
-            return json.dumps(result, indent=2)
+                if processed_count < original_count:
+                    _logger.warning(
+                        'Some files were rejected during sanitization, %s',
+                        {
+                            'scan_type': scan_type,
+                            'original_count': original_count,
+                            'processed_count': processed_count,
+                            'call_id': _tool_call_id,
+                        },
+                    )
+
+                _logger.info(
+                    'Running Cycode scan (files-based), %s',
+                    {'scan_type': scan_type, 'files_count': processed_count, 'call_id': _tool_call_id},
+                )
+                result = await _run_cycode_scan(scan_type, temp_files)
+
+        if 'error' not in result:
+            result['summary'] = _build_scan_summary(result)
+
+        _logger.info('Scan completed, %s', {'scan_type': scan_type, 'call_id': _tool_call_id})
+        return json.dumps(result, indent=2)
     except ValueError as e:
         _logger.error('Invalid input files, %s', {'scan_type': scan_type, 'call_id': _tool_call_id, 'error': str(e)})
         return json.dumps({'error': f'Invalid input files: {e!s}'}, indent=2)
@@ -213,8 +282,11 @@ async def _cycode_scan_tool(scan_type: ScanTypeOption, files: dict[str, str] = _
         return json.dumps({'error': f'Scan failed: {e!s}'}, indent=2)
 
 
-async def cycode_secret_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
-    """Scan files for hardcoded secrets.
+async def cycode_secret_scan(
+    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
+    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+) -> str:
+    """Scan for hardcoded secrets.
 
     Use this tool when you need to:
       - scan code for hardcoded secrets, API keys, passwords, tokens
@@ -222,16 +294,20 @@ async def cycode_secret_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
       - detect potential security vulnerabilities from secret exposure
 
     Args:
-        files: Dictionary mapping file paths to their content
+        paths: File or directory paths on disk to scan (preferred). Directories are scanned recursively.
+        files: Dictionary mapping file paths to their content (fallback when files are not on disk).
 
     Returns:
-        JSON string containing scan results and any secrets found
+        JSON string with a "summary" field (human-readable violation count) plus full scan results.
     """
-    return await _cycode_scan_tool(ScanTypeOption.SECRET, files)
+    return await _cycode_scan_tool(ScanTypeOption.SECRET, files=files, paths=paths)
 
 
-async def cycode_sca_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
-    """Scan files for Software Composition Analysis (SCA) - vulnerabilities and license issues.
+async def cycode_sca_scan(
+    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
+    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+) -> str:
+    """Scan for Software Composition Analysis (SCA) - vulnerabilities and license issues.
 
     Use this tool when you need to:
       - scan dependencies for known security vulnerabilities
@@ -242,19 +318,24 @@ async def cycode_sca_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
 
     Important:
         You must also include lock files (like package-lock.json, Pipfile.lock, etc.) to get accurate results.
-        You must provide manifest and lock files together.
+        When using "paths", pass the directory containing both manifest and lock files.
+        When using "files", provide both manifest and lock files together.
 
     Args:
-        files: Dictionary mapping file paths to their content
+        paths: File or directory paths on disk to scan (preferred). Directories are scanned recursively.
+        files: Dictionary mapping file paths to their content (fallback when files are not on disk).
 
     Returns:
-        JSON string containing scan results, vulnerabilities, and license issues found
+        JSON string with a "summary" field (human-readable violation count) plus full scan results.
     """
-    return await _cycode_scan_tool(ScanTypeOption.SCA, files)
+    return await _cycode_scan_tool(ScanTypeOption.SCA, files=files, paths=paths)
 
 
-async def cycode_iac_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
-    """Scan files for Infrastructure as Code (IaC) misconfigurations.
+async def cycode_iac_scan(
+    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
+    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+) -> str:
+    """Scan for Infrastructure as Code (IaC) misconfigurations.
 
     Use this tool when you need to:
       - scan Terraform, CloudFormation, Kubernetes YAML files
@@ -264,16 +345,20 @@ async def cycode_iac_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
       - review Docker files for security issues
 
     Args:
-        files: Dictionary mapping file paths to their content
+        paths: File or directory paths on disk to scan (preferred). Directories are scanned recursively.
+        files: Dictionary mapping file paths to their content (fallback when files are not on disk).
 
     Returns:
-        JSON string containing scan results and any misconfigurations found
+        JSON string with a "summary" field (human-readable violation count) plus full scan results.
     """
-    return await _cycode_scan_tool(ScanTypeOption.IAC, files)
+    return await _cycode_scan_tool(ScanTypeOption.IAC, files=files, paths=paths)
 
 
-async def cycode_sast_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
-    """Scan files for Static Application Security Testing (SAST) - code quality and security flaws.
+async def cycode_sast_scan(
+    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
+    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+) -> str:
+    """Scan for Static Application Security Testing (SAST) - code quality and security flaws.
 
     Use this tool when you need to:
       - scan source code for security vulnerabilities
@@ -283,12 +368,13 @@ async def cycode_sast_scan(files: dict[str, str] = _FILES_TOOL_FIELD) -> str:
       - find SQL injection, XSS, and other application security issues
 
     Args:
-        files: Dictionary mapping file paths to their content
+        paths: File or directory paths on disk to scan (preferred). Directories are scanned recursively.
+        files: Dictionary mapping file paths to their content (fallback when files are not on disk).
 
     Returns:
-        JSON string containing scan results and any security flaws found
+        JSON string with a "summary" field (human-readable violation count) plus full scan results.
     """
-    return await _cycode_scan_tool(ScanTypeOption.SAST, files)
+    return await _cycode_scan_tool(ScanTypeOption.SAST, files=files, paths=paths)
 
 
 async def cycode_status() -> str:
