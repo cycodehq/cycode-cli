@@ -9,6 +9,7 @@ import pytest
 if sys.version_info < (3, 10):
     pytest.skip('MCP requires Python 3.10+', allow_module_level=True)
 
+import cycode.cli.apps.mcp.mcp_command as mcp_module
 from cycode.cli.apps.mcp.mcp_command import (
     _build_scan_summary,
     _sanitize_file_path,
@@ -325,7 +326,7 @@ async def test_cycode_scan_tool_paths_valid_invokes_scan() -> None:
 
     with (
         tempfile.TemporaryDirectory() as tmpdir,
-        patch('cycode.cli.apps.mcp.mcp_command._run_cycode_scan', return_value=scan_result) as mock_scan,
+        patch.object(mcp_module, '_run_cycode_scan', return_value=scan_result) as mock_scan,
     ):
         result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=[tmpdir])
 
@@ -352,7 +353,7 @@ async def test_cycode_scan_tool_summary_included_on_success() -> None:
 
     with (
         tempfile.TemporaryDirectory() as tmpdir,
-        patch('cycode.cli.apps.mcp.mcp_command._run_cycode_scan', return_value=scan_result),
+        patch.object(mcp_module, '_run_cycode_scan', return_value=scan_result),
     ):
         result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=[tmpdir])
 
@@ -372,7 +373,7 @@ async def test_cycode_scan_tool_no_summary_on_error() -> None:
 
     with (
         tempfile.TemporaryDirectory() as tmpdir,
-        patch('cycode.cli.apps.mcp.mcp_command._run_cycode_scan', return_value=error_result),
+        patch.object(mcp_module, '_run_cycode_scan', return_value=error_result),
     ):
         result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=[tmpdir])
 
