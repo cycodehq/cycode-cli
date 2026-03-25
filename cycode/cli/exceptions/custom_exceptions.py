@@ -55,6 +55,14 @@ class HttpUnauthorizedError(RequestHttpError):
         return f'HTTP unauthorized error occurred during the request. Message: {self.error_message}'
 
 
+class HttpRequestTimeoutError(RequestHttpError):
+    def __init__(self, error_message: str, response: Response) -> None:
+        super().__init__(408, error_message, response)
+
+    def __str__(self) -> str:
+        return f'HTTP request timeout error occurred during the request. Message: {self.error_message}'
+
+
 class ZipTooLargeError(CycodeError):
     def __init__(self, size_limit: int) -> None:
         self.size_limit = size_limit
@@ -92,6 +100,12 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
         soft_fail=True,
         code='timeout_error',
         message='The request timed out. Please try again by executing the `cycode scan` command',
+    ),
+    HttpRequestTimeoutError: CliError(
+        soft_fail=True,
+        code='request_timeout_error',
+        message='The scan upload timed out. This may be due to a slow connection. '
+        'Please try again by executing the `cycode scan` command',
     ),
     HttpUnauthorizedError: CliError(
         soft_fail=True,

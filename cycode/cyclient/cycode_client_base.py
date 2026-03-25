@@ -9,6 +9,7 @@ from requests.adapters import HTTPAdapter
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 
 from cycode.cli.exceptions.custom_exceptions import (
+    HttpRequestTimeoutError,
     HttpUnauthorizedError,
     RequestConnectionError,
     RequestError,
@@ -184,5 +185,8 @@ class CycodeClientBase:
     def _get_http_exception(e: exceptions.HTTPError) -> RequestError:
         if e.response.status_code == 401:
             return HttpUnauthorizedError(e.response.text, e.response)
+
+        if e.response.status_code == 408:
+            return HttpRequestTimeoutError(e.response.text, e.response)
 
         return RequestHttpError(e.response.status_code, e.response.text, e.response)
