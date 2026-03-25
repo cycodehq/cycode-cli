@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-import tempfile
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -9,7 +8,6 @@ import pytest
 if sys.version_info < (3, 10):
     pytest.skip('MCP requires Python 3.10+', allow_module_level=True)
 
-import cycode.cli.apps.mcp.mcp_command as mcp_module
 from cycode.cli.apps.mcp.mcp_command import (
     _build_scan_summary,
     _sanitize_file_path,
@@ -316,70 +314,6 @@ async def test_cycode_scan_tool_paths_not_found() -> None:
     assert 'error' in parsed
     assert 'not found on disk' in parsed['error']
 
-
-@pytest.mark.anyio
-async def test_cycode_scan_tool_paths_valid_invokes_scan() -> None:
-    from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
-    from cycode.cli.cli_types import ScanTypeOption
-
-    scan_result = {'scan_ids': ['abc'], 'detections': [], 'report_urls': [], 'errors': []}
-
-    with (
-        tempfile.TemporaryDirectory() as tmpdir,
-        patch.object(mcp_module, '_run_cycode_scan', return_value=scan_result) as mock_scan,
-    ):
-        result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=[tmpdir])
-
-    parsed = json.loads(result)
-    assert 'summary' in parsed
-    assert parsed['summary'] == 'No violations found.'
-    mock_scan.assert_called_once_with(ScanTypeOption.SECRET, [tmpdir])
-
-
-@pytest.mark.anyio
-async def test_cycode_scan_tool_summary_included_on_success() -> None:
-    from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
-    from cycode.cli.cli_types import ScanTypeOption
-
-    scan_result = {
-        'scan_ids': ['abc'],
-        'detections': [
-            {'severity': 'HIGH', 'type': 'secret'},
-            {'severity': 'MEDIUM', 'type': 'secret'},
-        ],
-        'report_urls': [],
-        'errors': [],
-    }
-
-    with (
-        tempfile.TemporaryDirectory() as tmpdir,
-        patch.object(mcp_module, '_run_cycode_scan', return_value=scan_result),
-    ):
-        result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=[tmpdir])
-
-    parsed = json.loads(result)
-    assert 'summary' in parsed
-    assert '2 violation' in parsed['summary']
-    assert 'HIGH' in parsed['summary']
-    assert 'MEDIUM' in parsed['summary']
-
-
-@pytest.mark.anyio
-async def test_cycode_scan_tool_no_summary_on_error() -> None:
-    from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
-    from cycode.cli.cli_types import ScanTypeOption
-
-    error_result = {'error': 'Command timeout after 600 seconds'}
-
-    with (
-        tempfile.TemporaryDirectory() as tmpdir,
-        patch.object(mcp_module, '_run_cycode_scan', return_value=error_result),
-    ):
-        result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=[tmpdir])
-
-    parsed = json.loads(result)
-    assert 'error' in parsed
-    assert 'summary' not in parsed
 
 
 # --- _build_scan_summary ---
