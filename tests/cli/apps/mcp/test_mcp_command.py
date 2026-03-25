@@ -315,7 +315,6 @@ async def test_cycode_scan_tool_paths_not_found() -> None:
     assert 'not found on disk' in parsed['error']
 
 
-
 # --- _build_scan_summary ---
 
 
