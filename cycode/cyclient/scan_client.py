@@ -149,7 +149,7 @@ class ScanClient:
         all_files = {key: (None, value) for key, value in fields.items()}
         all_files['file'] = ('multiple_files_scan.zip', zip_file.read(), 'application/octet-stream')
 
-        prepared = requests.Request('POST', 'http://dummy', files=all_files).prepare()
+        prepared = requests.Request('POST', 'https://dummy', files=all_files).prepare()
         tracker = _UploadProgressTracker(prepared.body, on_upload_progress)
 
         try:

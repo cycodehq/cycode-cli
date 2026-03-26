@@ -150,7 +150,7 @@ class CycodeClientBase:
 
         # Encode the multipart body once up front so we can reuse the same bytes across retries.
         # A dummy URL is used because requests.Request requires one, but only the encoded body matters here.
-        prepared = requests.Request('POST', 'http://dummy', data=form_fields, files=files).prepare()
+        prepared = requests.Request('POST', 'https://dummy', data=form_fields, files=files).prepare()
 
         return self._send_multipart(
             url=url,
