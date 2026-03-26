@@ -58,6 +58,7 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
             scan_type,
             paths,
             is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
+            stop_on_error=ctx.obj.get('stop_on_error', False),
         )
 
         # Add entrypoint.cycode file at root path to mark the scan root (only for single path that is a directory)

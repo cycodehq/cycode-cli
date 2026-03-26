@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 import typer
 
 from cycode.cli import consts
+from cycode.cli.exceptions.custom_exceptions import FileCollectionError
 from cycode.cli.files_collector.repository_documents import get_file_content_from_commit_path
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.files_collector.sca.go.restore_go_dependencies import RestoreGoDependencies
@@ -116,6 +117,10 @@ def _try_restore_dependencies(
             'Error occurred while trying to generate dependencies tree, %s',
             {'filename': document.path, 'handler': type(restore_dependencies).__name__},
         )
+        if ctx.obj.get('stop_on_error', False):
+            raise FileCollectionError(
+                f'Failed to generate dependencies tree for {document.path} using {type(restore_dependencies).__name__}'
+            )
         return None
 
     if restore_dependencies_document.content is None:

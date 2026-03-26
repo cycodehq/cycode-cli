@@ -26,6 +26,12 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
             'Please try ignoring irrelevant paths using the `cycode ignore --by-path` command '
             'and execute the scan again',
         ),
+        custom_exceptions.FileCollectionError: CliError(
+            soft_fail=False,
+            code='file_collection_error',
+            message='File collection failed. '
+            'Use --no-restore to skip dependency restoration, or fix the underlying issue.',
+        ),
         custom_exceptions.TfplanKeyError: CliError(
             soft_fail=True,
             code='key_error',
