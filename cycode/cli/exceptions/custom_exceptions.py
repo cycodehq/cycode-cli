@@ -55,6 +55,11 @@ class HttpUnauthorizedError(RequestHttpError):
         return f'HTTP unauthorized error occurred during the request. Message: {self.error_message}'
 
 
+class SlowUploadConnectionError(CycodeError):
+    def __str__(self) -> str:
+        return 'Upload was interrupted mid-transfer, indicating a slow or unstable network connection.'
+
+
 class ZipTooLargeError(CycodeError):
     def __init__(self, size_limit: int) -> None:
         self.size_limit = size_limit
@@ -101,6 +106,12 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
         soft_fail=True,
         code='timeout_error',
         message='The request timed out. Please try again by executing the `cycode scan` command',
+    ),
+    SlowUploadConnectionError: CliError(
+        soft_fail=True,
+        code='slow_upload_error',
+        message='The scan upload was interrupted. This is likely due to a slow or unstable network connection. '
+        'Please try again by executing the `cycode scan` command',
     ),
     HttpUnauthorizedError: CliError(
         soft_fail=True,
