@@ -92,7 +92,7 @@ def _should_retry_exception(exception: BaseException) -> bool:
     return is_request_error or is_server_error
 
 
-class _UploadProgressTracker:
+class UploadProgressTracker:
     """File-like wrapper that tracks bytes read during upload and fires a progress callback."""
 
     def __init__(self, data: bytes, callback: Optional[Callable[[int, int], None]]) -> None:
@@ -176,7 +176,7 @@ class CycodeClientBase:
         hide_response_content_log: bool,
     ) -> Response:
         # Wrap the body in a fresh tracker each attempt so bytes_read starts from zero.
-        tracker = _UploadProgressTracker(body, on_upload_progress)
+        tracker = UploadProgressTracker(body, on_upload_progress)
         headers = self.get_request_headers({'Content-Type': content_type})
         try:
             response = _get_request_function()(

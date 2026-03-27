@@ -15,7 +15,7 @@ from cycode.cli.exceptions.custom_exceptions import (
 )
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cyclient import models
-from cycode.cyclient.cycode_client_base import CycodeClientBase, _UploadProgressTracker
+from cycode.cyclient.cycode_client_base import CycodeClientBase, UploadProgressTracker
 from cycode.cyclient.logger import logger
 
 if TYPE_CHECKING:
@@ -150,7 +150,7 @@ class ScanClient:
         all_files['file'] = ('multiple_files_scan.zip', zip_file.read(), 'application/octet-stream')
 
         prepared = requests.Request('POST', 'https://dummy', files=all_files).prepare()
-        tracker = _UploadProgressTracker(prepared.body, on_upload_progress)
+        tracker = UploadProgressTracker(prepared.body, on_upload_progress)
 
         try:
             # We are not using Cycode client, as we are calling aws S3.
