@@ -1,6 +1,7 @@
 import os
 import platform
 import ssl
+from io import BytesIO
 from typing import TYPE_CHECKING, Callable, ClassVar, Optional
 
 import requests
@@ -15,6 +16,7 @@ from cycode.cli.exceptions.custom_exceptions import (
     RequestHttpError,
     RequestSslError,
     RequestTimeoutError,
+    SlowUploadConnectionError,
 )
 from cycode.cyclient import config
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
@@ -90,6 +92,23 @@ def _should_retry_exception(exception: BaseException) -> bool:
     return is_request_error or is_server_error
 
 
+class UploadProgressTracker:
+    """File-like wrapper that tracks bytes read during upload and fires a progress callback."""
+
+    def __init__(self, data: bytes, callback: Optional[Callable[[int, int], None]]) -> None:
+        self._io = BytesIO(data)
+        self._callback = callback
+        self.bytes_read = 0
+        self.len = len(data)
+
+    def read(self, size: int = -1) -> bytes:
+        chunk = self._io.read(size)
+        self.bytes_read += len(chunk)
+        if self._callback and chunk:
+            self._callback(self.bytes_read, self.len)
+        return chunk
+
+
 class CycodeClientBase:
     MANDATORY_HEADERS: ClassVar[dict[str, str]] = {
         'User-Agent': get_cli_user_agent(),
@@ -116,6 +135,72 @@ class CycodeClientBase:
 
     def get(self, url_path: str, headers: Optional[dict] = None, **kwargs) -> Response:
         return self._execute(method='get', endpoint=url_path, headers=headers, **kwargs)
+
+    def post_multipart(
+        self,
+        url_path: str,
+        form_fields: dict,
+        files: dict,
+        on_upload_progress: Optional[Callable[[int, int], None]] = None,
+        hide_response_content_log: bool = False,
+    ) -> Response:
+        """POST a multipart form body with optional upload progress tracking and retry."""
+        url = self.build_full_url(self.api_url, url_path)
+        logger.debug('Executing request, %s', {'method': 'POST', 'url': url})
+
+        # Encode the multipart body once up front so we can reuse the same bytes across retries.
+        # A dummy URL is used because requests.Request requires one, but only the encoded body matters here.
+        prepared = requests.Request('POST', 'https://dummy', data=form_fields, files=files).prepare()
+
+        return self._send_multipart(
+            url=url,
+            body=prepared.body,
+            content_type=prepared.headers['Content-Type'],
+            on_upload_progress=on_upload_progress,
+            hide_response_content_log=hide_response_content_log,
+        )
+
+    @retry(
+        retry=retry_if_exception(_should_retry_exception),
+        stop=_RETRY_STOP_STRATEGY,
+        wait=_RETRY_WAIT_STRATEGY,
+        reraise=True,
+        before_sleep=_retry_before_sleep,
+    )
+    def _send_multipart(
+        self,
+        url: str,
+        body: bytes,
+        content_type: str,
+        on_upload_progress: Optional[Callable[[int, int], None]],
+        hide_response_content_log: bool,
+    ) -> Response:
+        # Wrap the body in a fresh tracker each attempt so bytes_read starts from zero.
+        tracker = UploadProgressTracker(body, on_upload_progress)
+        headers = self.get_request_headers({'Content-Type': content_type})
+        try:
+            response = _get_request_function()(
+                method='post', url=url, data=tracker, headers=headers, timeout=self.timeout
+            )
+
+            content = 'HIDDEN' if hide_response_content_log else response.text
+            logger.debug(
+                'Receiving response, %s',
+                {'status_code': response.status_code, 'url': url, 'content': content},
+            )
+
+            response.raise_for_status()
+            return response
+        except (exceptions.ChunkedEncodingError, exceptions.ConnectionError) as e:
+            # A connection drop before the full body was sent indicates a slow/unstable network.
+            if tracker.bytes_read < tracker.len:
+                raise SlowUploadConnectionError from e
+            # Full body was sent — map to our types so _should_retry_exception handles retry logic.
+            if isinstance(e, exceptions.ConnectionError):
+                raise RequestConnectionError from e
+            raise
+        except Exception as e:
+            self._handle_exception(e)
 
     @retry(
         retry=retry_if_exception(_should_retry_exception),

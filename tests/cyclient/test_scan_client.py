@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 import requests
 import responses
+from pytest_mock import MockerFixture
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from cycode.cli.cli_types import ScanTypeOption
@@ -12,6 +13,7 @@ from cycode.cli.exceptions.custom_exceptions import (
     HttpUnauthorizedError,
     RequestConnectionError,
     RequestTimeoutError,
+    SlowUploadConnectionError,
 )
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.models import Document
@@ -168,3 +170,28 @@ def test_get_scan_details(
     scan_details_response = scan_client.get_scan_details(scan_type, str(scan_id))
     assert scan_details_response.id == str(scan_id)
     assert scan_details_response.scan_status == 'Completed'
+
+
+@pytest.mark.parametrize('scan_type', list(ScanTypeOption))
+def test_zipped_file_scan_async_slow_upload_error(
+    scan_type: ScanTypeOption, scan_client: ScanClient, mocker: MockerFixture
+) -> None:
+    """Test that a connection failure mid-transfer raises SlowUploadConnectionError."""
+    zip_file = get_test_zip_file(scan_type)
+
+    def _partial_upload_then_fail(**kwargs) -> None:
+        # Read only a small portion of the body to simulate a partial upload
+        data = kwargs.get('data')
+        if data is not None:
+            data.read(10)
+        raise requests.exceptions.ChunkedEncodingError('Connection broken mid-transfer')
+
+    mocker.patch('cycode.cyclient.cycode_client_base._get_request_function', return_value=_partial_upload_then_fail)
+    mocker.patch.object(
+        scan_client.scan_cycode_client,
+        'get_request_headers',
+        return_value={'Authorization': 'Bearer test'},
+    )
+
+    with pytest.raises(SlowUploadConnectionError):
+        scan_client.zipped_file_scan_async(zip_file=zip_file, scan_type=scan_type, scan_parameters={})

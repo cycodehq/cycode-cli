@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Callable, Optional, Union
 from uuid import UUID
 
 import requests
@@ -8,10 +8,14 @@ from requests import Response
 
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
-from cycode.cli.exceptions.custom_exceptions import CycodeError, RequestHttpError
+from cycode.cli.exceptions.custom_exceptions import (
+    CycodeError,
+    RequestHttpError,
+    SlowUploadConnectionError,
+)
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cyclient import models
-from cycode.cyclient.cycode_client_base import CycodeClientBase
+from cycode.cyclient.cycode_client_base import CycodeClientBase, UploadProgressTracker
 from cycode.cyclient.logger import logger
 
 if TYPE_CHECKING:
@@ -114,18 +118,18 @@ class ScanClient:
         scan_parameters: dict,
         is_git_diff: bool = False,
         is_commit_range: bool = False,
+        on_upload_progress: Optional[Callable[[int, int], None]] = None,
     ) -> models.ScanInitializationResponse:
-        files = {'file': ('multiple_files_scan.zip', zip_file.read())}
-
-        response = self.scan_cycode_client.post(
+        response = self.scan_cycode_client.post_multipart(
             url_path=self.get_zipped_file_scan_async_url_path(scan_type),
-            data={
+            form_fields={
                 'is_git_diff': is_git_diff,
                 'scan_parameters': json.dumps(scan_parameters),
                 'is_commit_range': is_commit_range,
                 'compression_manifest': self._create_compression_manifest_string(zip_file),
             },
-            files=files,
+            files={'file': ('multiple_files_scan.zip', zip_file.read(), 'application/octet-stream')},
+            on_upload_progress=on_upload_progress,
         )
         return models.ScanInitializationResponseSchema().load(response.json())
 
@@ -135,12 +139,32 @@ class ScanClient:
         response = self.scan_cycode_client.get(url_path=url_path, hide_response_content_log=self._hide_response_log)
         return models.UploadLinkResponseSchema().load(response.json())
 
-    def upload_to_presigned_post(self, url: str, fields: dict[str, str], zip_file: 'InMemoryZip') -> None:
-        multipart = {key: (None, value) for key, value in fields.items()}
-        multipart['file'] = (None, zip_file.read())
-        # We are not using Cycode client, as we are calling aws S3.
-        response = requests.post(url, files=multipart, timeout=self.scan_cycode_client.timeout)
-        response.raise_for_status()
+    def upload_to_presigned_post(
+        self,
+        url: str,
+        fields: dict[str, str],
+        zip_file: 'InMemoryZip',
+        on_upload_progress: Optional[Callable[[int, int], None]] = None,
+    ) -> None:
+        all_files = {key: (None, value) for key, value in fields.items()}
+        all_files['file'] = ('multiple_files_scan.zip', zip_file.read(), 'application/octet-stream')
+
+        prepared = requests.Request('POST', 'https://dummy', files=all_files).prepare()
+        tracker = UploadProgressTracker(prepared.body, on_upload_progress)
+
+        try:
+            # We are not using Cycode client, as we are calling aws S3.
+            response = requests.post(
+                url,
+                data=tracker,
+                headers={'Content-Type': prepared.headers['Content-Type']},
+                timeout=self.scan_cycode_client.timeout,
+            )
+            response.raise_for_status()
+        except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError) as e:
+            if tracker.bytes_read < tracker.len:
+                raise SlowUploadConnectionError from e
+            raise
 
     def scan_repository_from_upload_id(
         self,
