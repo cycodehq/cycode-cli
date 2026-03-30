@@ -17,6 +17,7 @@ import click
 import typer
 
 from cycode.cli.apps.ai_guardrails.consts import AIIDEType
+from cycode.cli.apps.ai_guardrails.scan.claude_config import get_mcp_servers, load_claude_config
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
@@ -113,6 +114,16 @@ def scan_command(
 
     try:
         _initialize_clients(ctx)
+
+        if tool == AIIDEType.CLAUDE_CODE:
+            try:
+                claude_config = load_claude_config()
+                if claude_config:
+                    mcp_servers = get_mcp_servers(claude_config)
+                    ai_security_client = ctx.obj['ai_security_client']
+                    ai_security_client.report_mcp_servers(mcp_servers)
+            except Exception as e:
+                logger.debug('Failed to report MCP servers from Claude config', exc_info=e)
 
         handler = get_handler_for_event(event_name)
         if handler is None:

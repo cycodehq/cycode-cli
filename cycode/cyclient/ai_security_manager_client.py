@@ -17,6 +17,7 @@ class AISecurityManagerClient:
 
     _CONVERSATIONS_PATH = 'v4/ai-security/interactions/conversations'
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
+    _MCP_SERVERS_PATH = 'v4/ai-security/mcp-servers'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -53,6 +54,22 @@ class AISecurityManagerClient:
             # Don't fail the hook if tracking fails (non-auth errors)
 
         return conversation_id
+
+    def report_mcp_servers(self, mcp_servers: list[dict]) -> None:
+        """Report MCP servers discovered from IDE config.
+
+        Posts the list of MCP server configurations to the backend.
+        Failures are logged but do not block the hook flow.
+        """
+        if not mcp_servers:
+            return
+
+        body = {'mcp_servers': mcp_servers}
+
+        try:
+            self.client.post(self._build_endpoint_path(self._MCP_SERVERS_PATH), body=body)
+        except Exception as e:
+            logger.debug('Failed to report MCP servers', exc_info=e)
 
     def create_event(
         self,
