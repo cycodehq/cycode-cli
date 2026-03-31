@@ -322,6 +322,60 @@ def test_from_claude_code_payload_gets_latest_user_uuid(mocker: MockerFixture) -
     assert unified.generation_id == 'latest-user-uuid'
 
 
+# Claude Code email extraction tests
+
+
+def test_from_claude_code_payload_extracts_email_from_config(mocker: MockerFixture) -> None:
+    """Test that ide_user_email is populated from ~/.claude.json."""
+    mocker.patch(
+        'cycode.cli.apps.ai_guardrails.scan.payload.load_claude_config',
+        return_value={'oauthAccount': {'emailAddress': 'user@example.com'}},
+    )
+
+    claude_payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-123',
+        'prompt': 'test',
+    }
+
+    unified = AIHookPayload.from_claude_code_payload(claude_payload)
+    assert unified.ide_user_email == 'user@example.com'
+
+
+def test_from_claude_code_payload_email_none_when_config_missing(mocker: MockerFixture) -> None:
+    """Test that ide_user_email is None when ~/.claude.json is missing."""
+    mocker.patch(
+        'cycode.cli.apps.ai_guardrails.scan.payload.load_claude_config',
+        return_value=None,
+    )
+
+    claude_payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-123',
+        'prompt': 'test',
+    }
+
+    unified = AIHookPayload.from_claude_code_payload(claude_payload)
+    assert unified.ide_user_email is None
+
+
+def test_from_claude_code_payload_email_none_when_no_oauth(mocker: MockerFixture) -> None:
+    """Test that ide_user_email is None when oauthAccount is missing from config."""
+    mocker.patch(
+        'cycode.cli.apps.ai_guardrails.scan.payload.load_claude_config',
+        return_value={'someOtherKey': 'value'},
+    )
+
+    claude_payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-123',
+        'prompt': 'test',
+    }
+
+    unified = AIHookPayload.from_claude_code_payload(claude_payload)
+    assert unified.ide_user_email is None
+
+
 # IDE detection tests
 
 
