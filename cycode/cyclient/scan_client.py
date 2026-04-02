@@ -170,6 +170,7 @@ class ScanClient:
         self,
         scan_type: str,
         upload_id: str,
+        zip_file: InMemoryZip,
         scan_parameters: dict,
         is_git_diff: bool = False,
         is_commit_range: bool = False,
@@ -183,6 +184,7 @@ class ScanClient:
                 'is_git_diff': is_git_diff,
                 'is_commit_range': is_commit_range,
                 'scan_parameters': json.dumps(scan_parameters),
+                'compression_manifest': self._create_compression_manifest_string(zip_file),
             },
         )
         return models.ScanInitializationResponseSchema().load(response.json())
@@ -230,6 +232,7 @@ class ScanClient:
         scan_type: str,
         from_commit_upload_id: str,
         to_commit_upload_id: str,
+        from_commit_zip_file: InMemoryZip,
         scan_parameters: dict,
         is_git_diff: bool = False,
     ) -> models.ScanInitializationResponse:
@@ -242,6 +245,7 @@ class ScanClient:
                 'to_commit_upload_id': to_commit_upload_id,
                 'is_git_diff': is_git_diff,
                 'scan_parameters': json.dumps(scan_parameters),
+                'compression_manifest': self._create_compression_manifest_string(from_commit_zip_file),
             },
         )
         return models.ScanInitializationResponseSchema().load(response.json())
