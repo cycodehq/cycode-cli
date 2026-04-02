@@ -313,7 +313,7 @@ def _perform_scan_v4_async(
     logger.debug('Uploaded zip to presigned URL')
 
     scan_async_result = cycode_client.scan_repository_from_upload_id(
-        scan_type, upload_link.upload_id, scan_parameters, is_git_diff, is_commit_range
+        scan_type, upload_link.upload_id, zipped_documents, scan_parameters, is_git_diff, is_commit_range
     )
     logger.debug(
         'Presigned upload scan request triggered, %s',
