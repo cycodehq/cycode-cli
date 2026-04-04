@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Run Cimon
         if: matrix.os == 'ubuntu-22.04'
-        uses: cycodelabs/cimon-action@1c3e30d508634b3f4a60b02843126c9f93944d80 # v0.9.4
+        uses: cycodelabs/cimon-action@f99ad5557cb80964bc2b2e76a47bf4b5ba6e323b # v0.10.0
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
           secret: ${{ secrets.CIMON_SECRET }}
