@@ -286,13 +286,13 @@ def test_handle_before_read_file_sensitive_path_warn_mode_scans_content(
     assert result['permission'] == 'ask'
     assert '.env' in result['user_message']
 
-    # Two events: sensitive path warn + content scan result (no secrets, but still warned due to path)
+    # Two events: sensitive path warn + content scan result (allowed, no secrets found)
     assert mock_ctx.obj['ai_security_client'].create_event.call_count == 2
     first_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[0]
     assert first_event.args[2] == AIHookOutcome.WARNED
     assert first_event.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
     second_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[1]
-    assert second_event.args[2] == AIHookOutcome.WARNED
+    assert second_event.args[2] == AIHookOutcome.ALLOWED
     assert second_event.kwargs['block_reason'] is None
 
 
