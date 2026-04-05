@@ -116,7 +116,8 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
 
     try:
         # Check path-based denylist first
-        if is_denied_path(file_path, policy):
+        is_sensitive_path = is_denied_path(file_path, policy)
+        if is_sensitive_path:
             block_reason = BlockReason.SENSITIVE_PATH
             if mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
@@ -125,13 +126,21 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
                     user_message,
                     'This file path is classified as sensitive; do not read/send it to the model.',
                 )
-            # Warn mode - ask user for permission
+            # Warn mode - if content scan is enabled, emit a separate event for the
+            # sensitive path so the finally block can independently track the scan result.
+            # If content scan is disabled, a single event (from finally) is enough.
             outcome = AIHookOutcome.WARNED
-            user_message = f'Cycode flagged {file_path} as sensitive. Allow reading?'
-            return response_builder.ask_permission(
-                user_message,
-                'This file path is classified as sensitive; proceed with caution.',
-            )
+            if get_policy_value(file_read_config, 'scan_content', default=True):
+                ai_client.create_event(
+                    payload,
+                    AiHookEventType.FILE_READ,
+                    outcome,
+                    block_reason=BlockReason.SENSITIVE_PATH,
+                    file_path=payload.file_path,
+                )
+                # Reset for the content scan result tracked by the finally block
+                block_reason = None
+                outcome = AIHookOutcome.ALLOWED
 
         # Scan file content if enabled
         if get_policy_value(file_read_config, 'scan_content', default=True):
@@ -152,7 +161,14 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
                     user_message,
                     'Possible secrets detected; proceed with caution.',
                 )
-            return response_builder.allow_permission()
+
+        # If path was sensitive but content scan found no secrets (or scan disabled), still warn
+        if is_sensitive_path:
+            user_message = f'Cycode flagged {file_path} as sensitive. Allow reading?'
+            return response_builder.ask_permission(
+                user_message,
+                'This file path is classified as sensitive; proceed with caution.',
+            )
 
         return response_builder.allow_permission()
     except Exception as e:
@@ -342,7 +358,7 @@ def _scan_path_for_secrets(ctx: typer.Context, file_path: str, policy: dict) -> 
     Returns tuple of (violation_summary, scan_id) if secrets found, (None, scan_id) if clean.
     Raises exception on error or timeout.
     """
-    if not file_path or not os.path.exists(file_path):
+    if not file_path or not os.path.isfile(file_path):
         return None, None
 
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
