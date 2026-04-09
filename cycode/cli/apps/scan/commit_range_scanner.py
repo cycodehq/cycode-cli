@@ -113,7 +113,7 @@ def _perform_commit_range_scan_v4_async(
     logger.debug('Uploaded to-commit zip')
 
     scan_async_result = cycode_client.commit_range_scan_from_upload_ids(
-        scan_type, from_upload_link.upload_id, to_upload_link.upload_id, scan_parameters
+        scan_type, from_upload_link.upload_id, to_upload_link.upload_id, from_commit_zipped_documents, scan_parameters
     )
     logger.debug('V4 commit range scan request triggered, %s', {'scan_id': scan_async_result.scan_id})
 

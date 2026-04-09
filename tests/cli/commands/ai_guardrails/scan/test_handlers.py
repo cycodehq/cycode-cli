@@ -263,6 +263,109 @@ def test_handle_before_read_file_scan_disabled(
     mock_scan.assert_not_called()
 
 
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_path_for_secrets')
+def test_handle_before_read_file_sensitive_path_warn_mode_scans_content(
+    mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    """Test that sensitive path in warn mode still scans file content and emits two events."""
+    mock_is_denied.return_value = True
+    mock_scan.return_value = (None, 'scan-id-123')
+    default_policy['mode'] = 'warn'
+    payload = AIHookPayload(
+        event_name='file_read',
+        ide_provider='cursor',
+        file_path='/path/to/.env',
+    )
+
+    result = handle_before_read_file(mock_ctx, payload, default_policy)
+
+    # Content was scanned even though path is sensitive
+    mock_scan.assert_called_once()
+    # Still warns about sensitive path since no secrets found
+    assert result['permission'] == 'ask'
+    assert '.env' in result['user_message']
+
+    # Two events: sensitive path warn + content scan result (allowed, no secrets found)
+    assert mock_ctx.obj['ai_security_client'].create_event.call_count == 2
+    first_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[0]
+    assert first_event.args[2] == AIHookOutcome.WARNED
+    assert first_event.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
+    second_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[1]
+    assert second_event.args[2] == AIHookOutcome.ALLOWED
+    assert second_event.kwargs['block_reason'] is None
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_path_for_secrets')
+def test_handle_before_read_file_sensitive_path_warn_mode_with_secrets(
+    mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    """Test that sensitive path in warn mode reports secrets and emits two events."""
+    mock_is_denied.return_value = True
+    mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-456')
+    default_policy['mode'] = 'warn'
+    payload = AIHookPayload(
+        event_name='file_read',
+        ide_provider='cursor',
+        file_path='/path/to/.env',
+    )
+
+    result = handle_before_read_file(mock_ctx, payload, default_policy)
+
+    mock_scan.assert_called_once()
+    assert result['permission'] == 'ask'
+    assert 'Found 1 secret: API key' in result['user_message']
+
+    # Two events: sensitive path warn + secrets warn
+    assert mock_ctx.obj['ai_security_client'].create_event.call_count == 2
+    first_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[0]
+    assert first_event.args[2] == AIHookOutcome.WARNED
+    assert first_event.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
+    second_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[1]
+    assert second_event.args[2] == AIHookOutcome.WARNED
+    assert second_event.kwargs['block_reason'] == BlockReason.SECRETS_IN_FILE
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_path_for_secrets')
+def test_handle_before_read_file_sensitive_path_scan_disabled_warns(
+    mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    """Test that sensitive path in warn mode with scan disabled emits a single event."""
+    mock_is_denied.return_value = True
+    default_policy['mode'] = 'warn'
+    default_policy['file_read']['scan_content'] = False
+    payload = AIHookPayload(
+        event_name='file_read',
+        ide_provider='cursor',
+        file_path='/path/to/.env',
+    )
+
+    result = handle_before_read_file(mock_ctx, payload, default_policy)
+
+    mock_scan.assert_not_called()
+    assert result['permission'] == 'ask'
+    assert '.env' in result['user_message']
+
+    # Single event: sensitive path warn (no separate scan event when scan is disabled)
+    mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
+    call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
+    assert call_args.args[2] == AIHookOutcome.WARNED
+    assert call_args.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
+
+
+def test_scan_path_for_secrets_directory(mock_ctx: MagicMock, default_policy: dict[str, Any], fs: Any) -> None:
+    """Test that _scan_path_for_secrets returns (None, None) for directories."""
+    from cycode.cli.apps.ai_guardrails.scan.handlers import _scan_path_for_secrets
+
+    fs.create_dir('/path/to/some_directory')
+
+    result = _scan_path_for_secrets(mock_ctx, '/path/to/some_directory', default_policy)
+
+    assert result == (None, None)
+
+
 # Tests for handle_before_mcp_execution
 
 

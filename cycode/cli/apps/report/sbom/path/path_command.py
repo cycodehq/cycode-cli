@@ -10,6 +10,7 @@ from cycode.cli.apps.sca_options import (
     GradleAllSubProjectsOption,
     MavenSettingsFileOption,
     NoRestoreOption,
+    StopOnErrorOption,
     apply_sca_restore_options_to_context,
 )
 from cycode.cli.exceptions.handle_report_sbom_errors import handle_report_exception
@@ -30,8 +31,9 @@ def path_command(
     no_restore: NoRestoreOption = False,
     gradle_all_sub_projects: GradleAllSubProjectsOption = False,
     maven_settings_file: MavenSettingsFileOption = None,
+    stop_on_error: StopOnErrorOption = False,
 ) -> None:
-    apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file)
+    apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file, stop_on_error)
 
     client = get_report_cycode_client(ctx)
     report_parameters = ctx.obj['report_parameters']
@@ -51,6 +53,7 @@ def path_command(
             consts.SCA_SCAN_TYPE,
             (str(path),),
             is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
+            stop_on_error=stop_on_error,
         )
         # TODO(MarshalX): combine perform_pre_scan_documents_actions with get_relevant_document.
         #  unhardcode usage of context in perform_pre_scan_documents_actions

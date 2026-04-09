@@ -30,6 +30,7 @@ This guide walks you through both installation and usage.
            4. [Package Vulnerabilities](#package-vulnerabilities-option)
            5. [License Compliance](#license-compliance-option)
            6. [Lock Restore](#lock-restore-option)
+           7. [Stop on Error](#stop-on-error-option)
         2. [Repository Scan](#repository-scan)
             1. [Branch Option](#branch-option)
         3. [Path Scan](#path-scan)
@@ -384,11 +385,21 @@ The MCP server provides the following tools that AI systems can use:
 
 | Tool Name            | Description                                                                                 |
 |----------------------|---------------------------------------------------------------------------------------------|
-| `cycode_secret_scan` | Scan files for hardcoded secrets                                                            |
-| `cycode_sca_scan`    | Scan files for Software Composition Analysis (SCA) - vulnerabilities and license issues     |
-| `cycode_iac_scan`    | Scan files for Infrastructure as Code (IaC) misconfigurations                               |
-| `cycode_sast_scan`   | Scan files for Static Application Security Testing (SAST) - code quality and security flaws |
+| `cycode_secret_scan` | Scan for hardcoded secrets                                                                  |
+| `cycode_sca_scan`    | Scan for Software Composition Analysis (SCA) - vulnerabilities and license issues           |
+| `cycode_iac_scan`    | Scan for Infrastructure as Code (IaC) misconfigurations                                     |
+| `cycode_sast_scan`   | Scan for Static Application Security Testing (SAST) - code quality and security flaws       |
 | `cycode_status`      | Get Cycode CLI version, authentication status, and configuration information                |
+
+Each scan tool accepts two mutually exclusive input modes:
+
+- **`paths`** *(preferred)* — one or more file or directory paths that exist on disk. Directories are scanned recursively. The Cycode engine handles file discovery and filtering, just as `cycode scan -t <type> path ./src` does from the CLI.
+- **`files`** *(fallback)* — a dictionary mapping file paths to their full content as strings. Use this only when the files are not available on disk (e.g. in-memory edits not yet saved).
+
+> [!TIP]
+> Use `paths` whenever possible. Passing large files (like `package-lock.json`) as inline content can exceed token limits and slow down the AI client. With `paths`, the Cycode engine reads files directly from disk.
+
+All scan tools return a JSON object that includes a `"summary"` field with a human-readable violation count (e.g. `"Cycode found 3 violations: 1 CRITICAL, 2 HIGH."`) in addition to the full `"detections"` array.
 
 ### Usage Examples
 
@@ -547,6 +558,26 @@ cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 > [!NOTE]
 > The MCP server requires proper Cycode CLI authentication to function. Make sure you have authenticated using `cycode auth` or configured your credentials before starting the MCP server.
 
+### Pre-authorizing Tools for Subagents (Claude Code)
+
+When Claude Code delegates work to background subagents (e.g. to run scans in parallel), those subagents cannot display interactive permission prompts. If the Cycode tools have not been pre-approved, scans will fail silently in subagent contexts.
+
+To pre-authorize the Cycode MCP tools so they work in all contexts including subagents, add them to the `allowedTools` list in your Claude Code settings (`~/.claude/settings.json`):
+
+```json
+{
+  "allowedTools": [
+    "mcp__cycode__cycode_secret_scan",
+    "mcp__cycode__cycode_sca_scan",
+    "mcp__cycode__cycode_iac_scan",
+    "mcp__cycode__cycode_sast_scan",
+    "mcp__cycode__cycode_status"
+  ]
+}
+```
+
+Once added, Claude Code will not prompt for approval when these tools are called, and they will work correctly inside subagents.
+
 ### Troubleshooting MCP
 
 If you encounter issues with the MCP server, you can enable debug logging to get more detailed information about what's happening. There are two ways to enable debug logging:
@@ -590,6 +621,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                                     |
 | `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                                  |
 | `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                |
+| `--stop-on-error`                                          | Abort the scan if any file collection or dependency restore failure occurs, instead of skipping the failed file and continuing.   |
 | `--gradle-all-sub-projects`                                | Run gradle restore command for all sub projects. This should be run from                                                         |
 | `--maven-settings-file`                                    | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when scanning for dependencies |
 | `--help`                                                   | Show options for given command.                                                                                                  |
@@ -695,6 +727,18 @@ If a lockfile already exists alongside the manifest, Cycode reads it directly wi
 ```text
 addSbtPlugin("software.purpledragon" % "sbt-dependency-lock" % "1.5.1")
 ```
+
+#### Stop on Error Option
+
+By default, Cycode continues scanning even if a file cannot be read (e.g. due to a permission error) or a dependency lockfile cannot be generated during an SCA scan. The failed item is skipped with a warning and the scan proceeds with the remaining files.
+
+Use `--stop-on-error` to change this behaviour: the scan aborts immediately on the first such failure and reports the error.
+
+```bash
+cycode scan -t sca --stop-on-error path ~/home/git/codebase
+```
+
+This is useful in CI pipelines where a silent failure would produce an incomplete scan result. When `--stop-on-error` is triggered you can either fix the underlying issue or, for SCA restore failures specifically, add `--no-restore` to skip lockfile generation and scan direct dependencies only.
 
 ### Repository Scan
 

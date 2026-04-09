@@ -47,6 +47,36 @@ start_scan_time = time.time()
 logger = get_logger('Code Scanner')
 
 
+class _UploadProgressAggregator:
+    """Aggregates upload progress across parallel batch uploads for display in the progress bar."""
+
+    def __init__(self, progress_bar: 'BaseProgressBar') -> None:
+        self._progress_bar = progress_bar
+        self._slots: list[list[int]] = []
+
+    def create_callback(self) -> Callable[[int, int], None]:
+        """Create a progress callback for one batch upload. Each batch gets its own slot."""
+        slot = [0, 0]
+        self._slots.append(slot)
+
+        def on_upload_progress(bytes_read: int, total_bytes: int) -> None:
+            slot[0] = bytes_read
+            slot[1] = total_bytes
+
+            # Sum across all batch slots to show combined progress
+            total_read = sum(s[0] for s in self._slots)
+            total_size = sum(s[1] for s in self._slots)
+
+            if total_read >= total_size:
+                self._progress_bar.update_right_side_label(None)
+            else:
+                mb_read = total_read / (1024 * 1024)
+                mb_total = total_size / (1024 * 1024)
+                self._progress_bar.update_right_side_label(f'Uploading {mb_read:.1f} / {mb_total:.1f} MB')
+
+        return on_upload_progress
+
+
 def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
     scan_type = ctx.obj['scan_type']
     progress_bar = ctx.obj['progress_bar']
@@ -58,6 +88,7 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
             scan_type,
             paths,
             is_cycodeignore_allowed=is_cycodeignore_allowed_by_scan_config(ctx),
+            stop_on_error=ctx.obj.get('stop_on_error', False),
         )
 
         # Add entrypoint.cycode file at root path to mark the scan root (only for single path that is a directory)
@@ -120,6 +151,9 @@ def _get_scan_documents_thread_func(
     severity_threshold = ctx.obj['severity_threshold']
     sync_option = ctx.obj['sync']
     command_scan_type = ctx.info_name
+    progress_bar = ctx.obj['progress_bar']
+
+    aggregator = _UploadProgressAggregator(progress_bar)
 
     def _scan_batch_thread_func(batch: list[Document]) -> tuple[str, CliError, LocalScanResult]:
         local_scan_result = error = error_message = None
@@ -142,6 +176,7 @@ def _get_scan_documents_thread_func(
                 is_commit_range,
                 scan_parameters,
                 should_use_sync_flow,
+                on_upload_progress=aggregator.create_callback(),
             )
 
             enrich_scan_result_with_data_from_detection_rules(cycode_client, scan_result)
@@ -267,15 +302,18 @@ def _perform_scan_v4_async(
     scan_parameters: dict,
     is_git_diff: bool,
     is_commit_range: bool,
+    on_upload_progress: Optional[Callable] = None,
 ) -> ZippedFileScanResult:
     upload_link = cycode_client.get_upload_link(scan_type)
     logger.debug('Got upload link, %s', {'upload_id': upload_link.upload_id})
 
-    cycode_client.upload_to_presigned_post(upload_link.url, upload_link.presigned_post_fields, zipped_documents)
+    cycode_client.upload_to_presigned_post(
+        upload_link.url, upload_link.presigned_post_fields, zipped_documents, on_upload_progress
+    )
     logger.debug('Uploaded zip to presigned URL')
 
     scan_async_result = cycode_client.scan_repository_from_upload_id(
-        scan_type, upload_link.upload_id, scan_parameters, is_git_diff, is_commit_range
+        scan_type, upload_link.upload_id, zipped_documents, scan_parameters, is_git_diff, is_commit_range
     )
     logger.debug(
         'Presigned upload scan request triggered, %s',
@@ -291,9 +329,14 @@ def _perform_scan_async(
     scan_type: str,
     scan_parameters: dict,
     is_commit_range: bool,
+    on_upload_progress: Optional[Callable] = None,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(
-        zipped_documents, scan_type, scan_parameters, is_commit_range=is_commit_range
+        zipped_documents,
+        scan_type,
+        scan_parameters,
+        is_commit_range=is_commit_range,
+        on_upload_progress=on_upload_progress,
     )
     logger.debug('Async scan request has been triggered successfully, %s', {'scan_id': scan_async_result.scan_id})
 
@@ -325,6 +368,7 @@ def _perform_scan(
     is_commit_range: bool,
     scan_parameters: dict,
     should_use_sync_flow: bool = False,
+    on_upload_progress: Optional[Callable] = None,
 ) -> ZippedFileScanResult:
     if should_use_sync_flow:
         # it does not support commit range scans; should_use_sync_flow handles it
@@ -333,12 +377,20 @@ def _perform_scan(
     if should_use_presigned_upload(scan_type):
         try:
             return _perform_scan_v4_async(
-                cycode_client, zipped_documents, scan_type, scan_parameters, is_git_diff, is_commit_range
+                cycode_client,
+                zipped_documents,
+                scan_type,
+                scan_parameters,
+                is_git_diff,
+                is_commit_range,
+                on_upload_progress,
             )
         except requests.exceptions.RequestException:
             logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
 
-    return _perform_scan_async(cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range)
+    return _perform_scan_async(
+        cycode_client, zipped_documents, scan_type, scan_parameters, is_commit_range, on_upload_progress
+    )
 
 
 def poll_scan_results(

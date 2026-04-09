@@ -41,6 +41,13 @@ def scan_command(
     soft_fail: Annotated[
         bool, typer.Option('--soft-fail', help='Run the scan without failing; always return a non-error status code.')
     ] = False,
+    stop_on_error: Annotated[
+        bool,
+        typer.Option(
+            '--stop-on-error',
+            help='When specified, stops the scan if any file collection or restore failure occurs.',
+        ),
+    ] = False,
     severity_threshold: Annotated[
         SeverityOption,
         typer.Option(
@@ -131,6 +138,7 @@ def scan_command(
 
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
+    ctx.obj['stop_on_error'] = stop_on_error
     ctx.obj['scan_type'] = scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold

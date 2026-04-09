@@ -9,6 +9,7 @@ if sys.version_info < (3, 10):
     pytest.skip('MCP requires Python 3.10+', allow_module_level=True)
 
 from cycode.cli.apps.mcp.mcp_command import (
+    _build_scan_summary,
     _sanitize_file_path,
     _TempFilesManager,
 )
@@ -272,14 +273,25 @@ async def test_run_cycode_command_timeout() -> None:
 
 
 @pytest.mark.anyio
+async def test_cycode_scan_tool_no_files_no_paths() -> None:
+    from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
+    from cycode.cli.cli_types import ScanTypeOption
+
+    result = await _cycode_scan_tool(ScanTypeOption.SECRET)
+    parsed = json.loads(result)
+    assert 'error' in parsed
+    assert 'No files or paths provided' in parsed['error']
+
+
+@pytest.mark.anyio
 async def test_cycode_scan_tool_no_files() -> None:
     from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
     from cycode.cli.cli_types import ScanTypeOption
 
-    result = await _cycode_scan_tool(ScanTypeOption.SECRET, {})
+    result = await _cycode_scan_tool(ScanTypeOption.SECRET, files={})
     parsed = json.loads(result)
     assert 'error' in parsed
-    assert 'No files provided' in parsed['error']
+    assert 'No files or paths provided' in parsed['error']
 
 
 @pytest.mark.anyio
@@ -287,9 +299,81 @@ async def test_cycode_scan_tool_invalid_files() -> None:
     from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
     from cycode.cli.cli_types import ScanTypeOption
 
-    result = await _cycode_scan_tool(ScanTypeOption.SECRET, {'': 'content'})
+    result = await _cycode_scan_tool(ScanTypeOption.SECRET, files={'': 'content'})
     parsed = json.loads(result)
     assert 'error' in parsed
+
+
+@pytest.mark.anyio
+async def test_cycode_scan_tool_paths_not_found() -> None:
+    from cycode.cli.apps.mcp.mcp_command import _cycode_scan_tool
+    from cycode.cli.cli_types import ScanTypeOption
+
+    result = await _cycode_scan_tool(ScanTypeOption.SECRET, paths=['/nonexistent/path/that/does/not/exist'])
+    parsed = json.loads(result)
+    assert 'error' in parsed
+    assert 'not found on disk' in parsed['error']
+
+
+# --- _build_scan_summary ---
+
+
+def test_build_scan_summary_no_detections() -> None:
+    result = _build_scan_summary({'scan_ids': [], 'detections': [], 'report_urls': [], 'errors': []})
+    assert result == 'No violations found.'
+
+
+def test_build_scan_summary_no_detections_with_errors() -> None:
+    result = _build_scan_summary({'detections': [], 'errors': [{'code': 'E001', 'message': 'oops'}]})
+    assert '1 error' in result
+    assert 'no violations' in result.lower()
+
+
+def test_build_scan_summary_single_violation() -> None:
+    result = _build_scan_summary({'detections': [{'severity': 'HIGH'}], 'errors': []})
+    assert '1 violation' in result
+    assert 'HIGH' in result
+
+
+def test_build_scan_summary_multiple_severities() -> None:
+    detections = [
+        {'severity': 'CRITICAL'},
+        {'severity': 'HIGH'},
+        {'severity': 'HIGH'},
+        {'severity': 'MEDIUM'},
+    ]
+    result = _build_scan_summary({'detections': detections, 'errors': []})
+    assert '4 violations' in result
+    assert '1 CRITICAL' in result
+    assert '2 HIGH' in result
+    assert '1 MEDIUM' in result
+
+
+def test_build_scan_summary_severity_order() -> None:
+    """CRITICAL should appear before HIGH before MEDIUM before LOW."""
+    detections = [
+        {'severity': 'LOW'},
+        {'severity': 'CRITICAL'},
+        {'severity': 'MEDIUM'},
+        {'severity': 'HIGH'},
+    ]
+    result = _build_scan_summary({'detections': detections, 'errors': []})
+    critical_pos = result.index('CRITICAL')
+    high_pos = result.index('HIGH')
+    medium_pos = result.index('MEDIUM')
+    low_pos = result.index('LOW')
+    assert critical_pos < high_pos < medium_pos < low_pos
+
+
+def test_build_scan_summary_unknown_severity() -> None:
+    result = _build_scan_summary({'detections': [{'severity': None}], 'errors': []})
+    assert '1 violation' in result
+    assert 'UNKNOWN' in result
+
+
+def test_build_scan_summary_missing_detections_key() -> None:
+    result = _build_scan_summary({})
+    assert result == 'No violations found.'
 
 
 # --- _create_mcp_server ---

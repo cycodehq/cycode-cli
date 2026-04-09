@@ -35,13 +35,24 @@ MavenSettingsFileOption = Annotated[
     ),
 ]
 
+StopOnErrorOption = Annotated[
+    bool,
+    typer.Option(
+        '--stop-on-error',
+        help='When specified, stops the process if any file collection or restore failure occurs.',
+        rich_help_panel=_SCA_RICH_HELP_PANEL,
+    ),
+]
+
 
 def apply_sca_restore_options_to_context(
     ctx: typer.Context,
     no_restore: bool,
     gradle_all_sub_projects: bool,
     maven_settings_file: Optional[Path],
+    stop_on_error: bool = False,
 ) -> None:
     ctx.obj['no_restore'] = no_restore
     ctx.obj['gradle_all_sub_projects'] = gradle_all_sub_projects
     ctx.obj['maven_settings_file'] = maven_settings_file
+    ctx.obj['stop_on_error'] = stop_on_error
