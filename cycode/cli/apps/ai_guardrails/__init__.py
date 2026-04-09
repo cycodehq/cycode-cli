@@ -1,7 +1,7 @@
 import typer
 
-from cycode.cli.apps.ai_guardrails.ensure_auth_command import ensure_auth_command
 from cycode.cli.apps.ai_guardrails.install_command import install_command
+from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
 from cycode.cli.apps.ai_guardrails.status_command import status_command
 from cycode.cli.apps.ai_guardrails.uninstall_command import uninstall_command
@@ -18,6 +18,9 @@ app.command(
     name='scan',
     short_help='Scan content from AI IDE hooks for secrets (reads JSON from stdin).',
 )(scan_command)
-app.command(hidden=True, name='ensure-auth', short_help='Ensure authentication, triggering auth if needed.')(
-    ensure_auth_command
+app.command(hidden=True, name='session-start', short_help='Handle session start: auth, conversation, data flow.')(
+    session_start_command
+)
+app.command(hidden=True, name='ensure-auth', short_help='[Deprecated] Alias for session-start.')(
+    session_start_command
 )

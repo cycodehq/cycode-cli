@@ -42,7 +42,6 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     response_builder = get_response_builder(ide)
 
     prompt_config = get_policy_value(policy, 'prompt', default={})
-    ai_client.create_conversation(payload)
     if not get_policy_value(prompt_config, 'enabled', default=True):
         ai_client.create_event(payload, AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
         return response_builder.allow_prompt()
@@ -100,7 +99,6 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
     response_builder = get_response_builder(ide)
 
     file_read_config = get_policy_value(policy, 'file_read', default={})
-    ai_client.create_conversation(payload)
     if not get_policy_value(file_read_config, 'enabled', default=True):
         ai_client.create_event(payload, AiHookEventType.FILE_READ, AIHookOutcome.ALLOWED)
         return response_builder.allow_permission()
@@ -187,7 +185,6 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
     response_builder = get_response_builder(ide)
 
     mcp_config = get_policy_value(policy, 'mcp', default={})
-    ai_client.create_conversation(payload)
     if not get_policy_value(mcp_config, 'enabled', default=True):
         ai_client.create_event(payload, AiHookEventType.MCP_EXECUTION, AIHookOutcome.ALLOWED)
         return response_builder.allow_permission()
