@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from cycode.cli.apps.ai_guardrails.consts import AIIDEType
+from cycode.cli.apps.ai_guardrails.scan.claude_config import get_user_email, load_claude_config
 from cycode.cli.apps.ai_guardrails.scan.types import (
     CLAUDE_CODE_EVENT_MAPPING,
     CLAUDE_CODE_EVENT_NAMES,
@@ -207,11 +208,15 @@ class AIHookPayload:
         # Extract IDE version, model, and generation ID from transcript file
         ide_version, model, generation_id = _extract_from_claude_transcript(payload.get('transcript_path'))
 
+        # Extract user email from ~/.claude.json
+        claude_config = load_claude_config()
+        ide_user_email = get_user_email(claude_config) if claude_config else None
+
         return cls(
             event_name=canonical_event,
             conversation_id=payload.get('session_id'),
             generation_id=generation_id,
-            ide_user_email=None,  # Claude Code doesn't provide this in hook payload
+            ide_user_email=ide_user_email,
             model=model,
             ide_provider=AIIDEType.CLAUDE_CODE.value,
             ide_version=ide_version,

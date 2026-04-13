@@ -44,6 +44,10 @@ def pre_push_command(
         timeout = configuration_manager.get_pre_push_command_timeout(command_scan_type)
         with TimeoutAfter(timeout):
             push_update_details = parse_pre_push_input()
+            if not push_update_details:
+                logger.info('No pre-push input found, nothing to scan')
+                return
+
             commit_range = calculate_pre_push_commit_range(push_update_details)
             if not commit_range:
                 logger.info(

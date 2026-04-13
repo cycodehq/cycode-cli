@@ -228,7 +228,7 @@ def parse_pre_receive_input() -> str:
     return pre_receive_input.splitlines()[0]
 
 
-def parse_pre_push_input() -> str:
+def parse_pre_push_input() -> Optional[str]:
     """Parse input to pre-push hook details.
 
     Example input:
@@ -237,13 +237,11 @@ def parse_pre_push_input() -> str:
     refs/heads/main 9cf90954ef26e7c58284f8ebf7dcd0fcf711152a refs/heads/main 973a96d3e925b65941f7c47fa16129f1577d499f
     refs/heads/feature-branch 3378e52dcfa47fb11ce3a4a520bea5f85d5d0bf3 refs/heads/feature-branch 59564ef68745bca38c42fc57a7822efd519a6bd9
 
-    :return: First, push update details (input's first line)
+    :return: First push update details (input's first line), or None if no input was provided
     """  # noqa: E501
     pre_push_input = _read_hook_input_from_stdin()
     if not pre_push_input:
-        raise ValueError(
-            'Pre push input was not found. Make sure that you are using this command only in pre-push hook'
-        )
+        return None
 
     # each line represents a branch push request, handle the first one only
     return pre_push_input.splitlines()[0]
@@ -332,6 +330,15 @@ def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
     """
     local_ref, local_object_name, remote_ref, remote_object_name = push_update_details.split()
 
+    # Tag pushes don't contain file diffs that need scanning
+    if local_ref.startswith('refs/tags/') or remote_ref.startswith('refs/tags/'):
+        logger.info('Skipping scan for tag push: %s -> %s', local_ref, remote_ref)
+        return None
+
+    # If deleting a ref (local_object_name is all zeros), no need to scan
+    if local_object_name == consts.EMPTY_COMMIT_SHA:
+        return None
+
     if remote_object_name == consts.EMPTY_COMMIT_SHA:
         try:
             repo = git_proxy.get_repo(os.getcwd())
@@ -355,10 +362,6 @@ def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
         except Exception as e:
             logger.debug('Failed to get repo for pre-push commit range calculation: %s', exc_info=e)
             return consts.COMMIT_RANGE_ALL_COMMITS
-
-    # If deleting a branch (local_object_name is all zeros), no need to scan
-    if local_object_name == consts.EMPTY_COMMIT_SHA:
-        return None
 
     # For updates to existing branches, scan from remote to local
     return f'{remote_object_name}..{local_object_name}'

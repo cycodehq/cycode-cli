@@ -392,15 +392,15 @@ refs/heads/feature 1111111111111111 refs/heads/feature 2222222222222222"""
             result = parse_pre_push_input()
             assert result == pre_push_input
 
-    def test_parse_empty_input_raises_error(self) -> None:
-        """Test that empty input raises ValueError."""
-        with patch('sys.stdin', StringIO('')), pytest.raises(ValueError, match='Pre push input was not found'):
-            parse_pre_push_input()
+    def test_parse_empty_input_returns_none(self) -> None:
+        """Test that empty input returns None instead of raising."""
+        with patch('sys.stdin', StringIO('')):
+            assert parse_pre_push_input() is None
 
-    def test_parse_whitespace_only_input_raises_error(self) -> None:
-        """Test that whitespace-only input raises ValueError."""
-        with patch('sys.stdin', StringIO('   \n\t  ')), pytest.raises(ValueError, match='Pre push input was not found'):
-            parse_pre_push_input()
+    def test_parse_whitespace_only_input_returns_none(self) -> None:
+        """Test that whitespace-only input returns None instead of raising."""
+        with patch('sys.stdin', StringIO('   \n\t  ')):
+            assert parse_pre_push_input() is None
 
 
 class TestGetDefaultBranchesForMergeBase:
@@ -758,26 +758,23 @@ class TestCalculatePrePushCommitRange:
         result = calculate_pre_push_commit_range(push_details)
         assert result == '789xyz456abc..abc123def456'
 
-    def test_calculate_range_with_tags(self) -> None:
-        """Test calculating commit range when pushing tags."""
+    def test_calculate_range_with_new_tag_push_returns_none(self) -> None:
+        """Test that pushing a new tag returns None (no scanning needed)."""
         push_details = f'refs/tags/v1.0.0 1234567890abcdef refs/tags/v1.0.0 {consts.EMPTY_COMMIT_SHA}'
+        result = calculate_pre_push_commit_range(push_details)
+        assert result is None
 
-        with temporary_git_repository() as (temp_dir, repo):
-            # Create a commit
-            test_file = os.path.join(temp_dir, 'test.py')
-            with open(test_file, 'w') as f:
-                f.write("print('test')")
+    def test_calculate_range_with_tag_deletion_returns_none(self) -> None:
+        """Test that deleting a tag returns None (no scanning needed)."""
+        push_details = f'refs/tags/v1.0.0 {consts.EMPTY_COMMIT_SHA} refs/tags/v1.0.0 1234567890abcdef'
+        result = calculate_pre_push_commit_range(push_details)
+        assert result is None
 
-            repo.index.add(['test.py'])
-            commit = repo.index.commit('Test commit')
-
-            # Create tag
-            repo.create_tag('v1.0.0', commit)
-
-            with patch('os.getcwd', return_value=temp_dir):
-                result = calculate_pre_push_commit_range(push_details)
-                # For new tags, should try to find a merge base or fall back to --all
-                assert result in [f'{commit.hexsha}..{commit.hexsha}', '--all']
+    def test_calculate_range_with_tag_update_returns_none(self) -> None:
+        """Test that updating a tag returns None (no scanning needed)."""
+        push_details = 'refs/tags/v1.0.0 1234567890abcdef refs/tags/v1.0.0 0987654321fedcba'
+        result = calculate_pre_push_commit_range(push_details)
+        assert result is None
 
 
 class TestPrePushHookIntegration:
@@ -805,12 +802,15 @@ class TestPrePushHookIntegration:
                 # Test that we can calculate the commit range for each case
                 commit_range = calculate_pre_push_commit_range(parsed)
 
-                if consts.EMPTY_COMMIT_SHA in push_input:
-                    if push_input.startswith('refs/heads/') and push_input.split()[1] == consts.EMPTY_COMMIT_SHA:
+                if push_input.startswith('refs/tags/'):
+                    # Tag pushes - should return None (no scanning needed)
+                    assert commit_range is None
+                elif consts.EMPTY_COMMIT_SHA in push_input:
+                    if push_input.split()[1] == consts.EMPTY_COMMIT_SHA:
                         # Branch deletion - should return None
                         assert commit_range is None
                     else:
-                        # New branch/tag - should return a range or --all
+                        # New branch - should return a range or --all
                         assert commit_range is not None
                 else:
                     # Regular update - should return proper range
