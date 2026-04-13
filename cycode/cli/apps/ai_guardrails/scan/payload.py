@@ -123,7 +123,7 @@ class AIHookPayload:
     """Unified payload object that normalizes field names from different AI tools."""
 
     # Event identification
-    event_name: str  # Canonical event type (e.g., 'prompt', 'file_read', 'mcp_execution')
+    event_name: Optional[str] = None  # Canonical event type (e.g., 'prompt', 'file_read', 'mcp_execution')
     conversation_id: Optional[str] = None
     generation_id: Optional[str] = None
 

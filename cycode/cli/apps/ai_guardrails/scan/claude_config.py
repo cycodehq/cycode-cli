@@ -42,3 +42,11 @@ def get_user_email(config: dict) -> Optional[str]:
     Reads oauthAccount.emailAddress from the config dict.
     """
     return config.get('oauthAccount', {}).get('emailAddress')
+
+
+def get_mcp_servers(config: dict) -> Optional[dict]:
+    """Extract MCP servers from Claude config.
+
+    Reads mcpServers from the config dict.
+    """
+    return config.get('mcpServers')

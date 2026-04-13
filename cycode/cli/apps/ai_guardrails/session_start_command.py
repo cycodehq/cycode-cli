@@ -5,7 +5,8 @@ import typer
 
 from cycode.cli.apps.ai_guardrails.consts import AIIDEType
 from cycode.cli.apps.ai_guardrails.scan.claude_config import get_mcp_servers, get_user_email, load_claude_config
-from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload, _extract_from_claude_transcript
+from cycode.cli.apps.ai_guardrails.scan.cursor_config import load_cursor_config
+from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.utils import safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -19,28 +20,47 @@ logger = get_logger('AI Guardrails')
 def _build_session_payload(payload: dict, ide: str) -> AIHookPayload:
     """Build an AIHookPayload from a session-start stdin payload."""
     if ide == AIIDEType.CLAUDE_CODE:
-        ide_version, model, _ = _extract_from_claude_transcript(payload.get('transcript_path'))
         claude_config = load_claude_config()
         ide_user_email = get_user_email(claude_config) if claude_config else None
 
         return AIHookPayload(
-            event_name='session_start',
             conversation_id=payload.get('session_id'),
             ide_user_email=ide_user_email,
-            model=payload.get('model') or model,
+            model=payload.get('model'),
             ide_provider=AIIDEType.CLAUDE_CODE.value,
-            ide_version=ide_version,
+            ide_version=None,
         )
 
     # Cursor
     return AIHookPayload(
-        event_name='session_start',
         conversation_id=payload.get('conversation_id'),
         ide_user_email=payload.get('user_email'),
         model=payload.get('model'),
         ide_provider=AIIDEType.CURSOR.value,
         ide_version=payload.get('cursor_version'),
     )
+
+
+def _get_mcp_servers_for_ide(ide: str) -> dict:
+    """Return configured MCP servers for the given IDE, or empty dict."""
+    if ide == AIIDEType.CLAUDE_CODE:
+        config = load_claude_config()
+    elif ide == AIIDEType.CURSOR:
+        config = load_cursor_config()
+    else:
+        return {}
+    return get_mcp_servers(config) or {} if config else {}
+
+
+def _report_data_flow(ai_client, ide: str) -> None:
+    """Report IDE MCP servers to the AI security manager. Never raises."""
+    mcp_servers = _get_mcp_servers_for_ide(ide)
+    if not mcp_servers:
+        return
+    try:
+        ai_client.report_data_flow(mcp_servers)
+    except Exception as e:
+        logger.debug('Failed to report MCP servers', exc_info=e)
 
 
 def session_start_command(
@@ -94,13 +114,5 @@ def session_start_command(
     except Exception as e:
         logger.debug('Failed to create conversation during session start', exc_info=e)
 
-    # Step 5: Report data flow (MCP servers, Claude Code only)
-    if ide == AIIDEType.CLAUDE_CODE:
-        claude_config = load_claude_config()
-        if claude_config:
-            mcp_servers = get_mcp_servers(claude_config)
-            if mcp_servers:
-                try:
-                    ai_client.report_data_flow(mcp_servers)
-                except Exception as e:
-                    logger.debug('Failed to report MCP servers', exc_info=e)
+    # Step 5: Report data flow (MCP servers)
+    _report_data_flow(ai_client, ide)
