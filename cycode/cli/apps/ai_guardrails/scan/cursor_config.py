@@ -1,7 +1,7 @@
 """Reader for ~/.cursor/mcp.json configuration file.
 
 Extracts MCP server definitions from the Cursor global config file
-for use in AI guardrails data-flow reporting.
+for use in AI guardrails session-context reporting.
 """
 
 import json

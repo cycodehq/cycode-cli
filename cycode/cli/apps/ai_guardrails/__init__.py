@@ -18,7 +18,7 @@ app.command(
     name='scan',
     short_help='Scan content from AI IDE hooks for secrets (reads JSON from stdin).',
 )(scan_command)
-app.command(hidden=True, name='session-start', short_help='Handle session start: auth, conversation, data flow.')(
+app.command(hidden=True, name='session-start', short_help='Handle session start: auth, conversation, session context.')(
     session_start_command
 )
 app.command(hidden=True, name='ensure-auth', short_help='[Deprecated] Alias for session-start.')(

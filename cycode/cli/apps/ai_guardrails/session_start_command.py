@@ -6,7 +6,7 @@ import typer
 from cycode.cli.apps.ai_guardrails.consts import AIIDEType
 from cycode.cli.apps.ai_guardrails.scan.claude_config import get_mcp_servers, get_user_email, load_claude_config
 from cycode.cli.apps.ai_guardrails.scan.cursor_config import load_cursor_config
-from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload, _extract_from_claude_transcript
 from cycode.cli.apps.ai_guardrails.scan.utils import safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -22,13 +22,14 @@ def _build_session_payload(payload: dict, ide: str) -> AIHookPayload:
     if ide == AIIDEType.CLAUDE_CODE:
         claude_config = load_claude_config()
         ide_user_email = get_user_email(claude_config) if claude_config else None
+        ide_version, _, _ = _extract_from_claude_transcript(payload.get('transcript_path'))
 
         return AIHookPayload(
             conversation_id=payload.get('session_id'),
             ide_user_email=ide_user_email,
             model=payload.get('model'),
             ide_provider=AIIDEType.CLAUDE_CODE.value,
-            ide_version=None,
+            ide_version=ide_version,
         )
 
     # Cursor
@@ -52,15 +53,12 @@ def _get_mcp_servers_for_ide(ide: str) -> dict:
     return get_mcp_servers(config) or {} if config else {}
 
 
-def _report_data_flow(ai_client, ide: str) -> None:
+def _report_session_context(ai_client, ide: str) -> None:
     """Report IDE MCP servers to the AI security manager. Never raises."""
     mcp_servers = _get_mcp_servers_for_ide(ide)
     if not mcp_servers:
         return
-    try:
-        ai_client.report_data_flow(mcp_servers)
-    except Exception as e:
-        logger.debug('Failed to report MCP servers', exc_info=e)
+    ai_client.report_session_context(mcp_servers)
 
 
 def session_start_command(
@@ -74,7 +72,7 @@ def session_start_command(
         ),
     ] = AIIDEType.CURSOR.value,
 ) -> None:
-    """Handle session start: ensure auth, create conversation, report data flow."""
+    """Handle session start: ensure auth, create conversation, report session context."""
     # Step 1: Ensure authentication
     auth_info = get_authorization_info(ctx)
     if auth_info is None:
@@ -114,5 +112,5 @@ def session_start_command(
     except Exception as e:
         logger.debug('Failed to create conversation during session start', exc_info=e)
 
-    # Step 5: Report data flow (MCP servers)
-    _report_data_flow(ai_client, ide)
+    # Step 5: Report session context (MCP servers)
+    _report_session_context(ai_client, ide)

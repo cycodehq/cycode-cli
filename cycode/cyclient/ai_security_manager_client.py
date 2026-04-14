@@ -17,7 +17,7 @@ class AISecurityManagerClient:
 
     _CONVERSATIONS_PATH = 'v4/ai-security/interactions/conversations'
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
-    _DATA_FLOW_PATH = 'v4/ai-security/interactions/data-flow'
+    _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -90,14 +90,14 @@ class AISecurityManagerClient:
             logger.debug('Failed to create AI hook event', exc_info=e)
             # Don't fail the hook if tracking fails
 
-    def report_data_flow(self, mcp_servers: Optional[dict] = None) -> None:
-        """Report session data flow to the backend."""
+    def report_session_context(self, mcp_servers: Optional[dict] = None) -> None:
+        """Report session context to the backend."""
         body: dict = {
             'mcp_servers': mcp_servers,
         }
 
         try:
-            self.client.post(self._build_endpoint_path(self._DATA_FLOW_PATH), body=body)
+            self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
         except Exception as e:
-            logger.debug('Failed to report data flow', exc_info=e)
+            logger.debug('Failed to report session context', exc_info=e)
             # Don't fail the session if reporting fails
