@@ -13,6 +13,7 @@ from cycode.logger import get_logger
 logger = get_logger('AI Guardrails Claude Config')
 
 _CLAUDE_CONFIG_PATH = Path.home() / '.claude.json'
+_CLAUDE_SETTINGS_PATH = Path.home() / '.claude' / 'settings.json'
 
 
 def load_claude_config(config_path: Optional[Path] = None) -> Optional[dict]:
@@ -50,3 +51,32 @@ def get_mcp_servers(config: dict) -> Optional[dict]:
     Reads mcpServers from the config dict.
     """
     return config.get('mcpServers')
+
+
+def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]:
+    """Load and parse ~/.claude/settings.json.
+
+    Args:
+        settings_path: Override path for testing. Defaults to ~/.claude/settings.json.
+
+    Returns:
+        Parsed dict or None if file is missing or invalid.
+    """
+    path = settings_path or _CLAUDE_SETTINGS_PATH
+    if not path.exists():
+        logger.debug('Claude settings file not found', extra={'path': str(path)})
+        return None
+    try:
+        content = path.read_text(encoding='utf-8')
+        return json.loads(content)
+    except Exception as e:
+        logger.debug('Failed to load Claude settings file', exc_info=e)
+        return None
+
+
+def get_enabled_plugins(settings: dict) -> Optional[dict]:
+    """Extract enabled plugins from Claude settings.
+
+    Reads enabledPlugins from the settings dict.
+    """
+    return settings.get('enabledPlugins')

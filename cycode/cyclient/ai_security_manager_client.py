@@ -90,10 +90,15 @@ class AISecurityManagerClient:
             logger.debug('Failed to create AI hook event', exc_info=e)
             # Don't fail the hook if tracking fails
 
-    def report_session_context(self, mcp_servers: Optional[dict] = None) -> None:
+    def report_session_context(
+        self,
+        mcp_servers: Optional[dict] = None,
+        enabled_plugins: Optional[dict] = None,
+    ) -> None:
         """Report session context to the backend."""
         body: dict = {
             'mcp_servers': mcp_servers,
+            'enabled_plugins': enabled_plugins,
         }
 
         try:

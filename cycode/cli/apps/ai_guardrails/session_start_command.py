@@ -4,7 +4,13 @@ from typing import Annotated
 import typer
 
 from cycode.cli.apps.ai_guardrails.consts import AIIDEType
-from cycode.cli.apps.ai_guardrails.scan.claude_config import get_mcp_servers, get_user_email, load_claude_config
+from cycode.cli.apps.ai_guardrails.scan.claude_config import (
+    get_enabled_plugins,
+    get_mcp_servers,
+    get_user_email,
+    load_claude_config,
+    load_claude_settings,
+)
 from cycode.cli.apps.ai_guardrails.scan.cursor_config import load_cursor_config
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload, _extract_from_claude_transcript
 from cycode.cli.apps.ai_guardrails.scan.utils import safe_json_parse
@@ -53,12 +59,21 @@ def _get_mcp_servers_for_ide(ide: str) -> dict:
     return get_mcp_servers(config) or {} if config else {}
 
 
+def _get_enabled_plugins_for_ide(ide: str) -> dict:
+    """Return enabled plugins for the given IDE, or empty dict."""
+    if ide == AIIDEType.CLAUDE_CODE:
+        settings = load_claude_settings()
+        return get_enabled_plugins(settings) or {} if settings else {}
+    return {}
+
+
 def _report_session_context(ai_client, ide: str) -> None:
-    """Report IDE MCP servers to the AI security manager. Never raises."""
+    """Report IDE session context to the AI security manager. Never raises."""
     mcp_servers = _get_mcp_servers_for_ide(ide)
-    if not mcp_servers:
+    enabled_plugins = _get_enabled_plugins_for_ide(ide)
+    if not mcp_servers and not enabled_plugins:
         return
-    ai_client.report_session_context(mcp_servers)
+    ai_client.report_session_context(mcp_servers=mcp_servers, enabled_plugins=enabled_plugins)
 
 
 def session_start_command(

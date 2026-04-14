@@ -200,6 +200,7 @@ def test_conversation_creation_failure_non_blocking(
 # MCP server reporting tests
 
 
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_settings')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
@@ -207,6 +208,7 @@ def test_claude_code_reports_mcp_servers(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
     mock_load_config: MagicMock,
+    mock_load_settings: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
     """Claude Code should report MCP servers from ~/.claude.json."""
@@ -218,29 +220,36 @@ def test_claude_code_reports_mcp_servers(
         'filesystem': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-filesystem']},
     }
     mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'u@e.com'}, 'mcpServers': mcp_servers}
+    enabled_plugins = {'cycode-dev@cycode-marketplace': True}
+    mock_load_settings.return_value = {'enabledPlugins': enabled_plugins}
 
     payload = {'session_id': 'session-123'}
 
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='claude-code')
 
-    mock_ai_client.report_session_context.assert_called_once_with(mcp_servers)
+    mock_ai_client.report_session_context.assert_called_once_with(
+        mcp_servers=mcp_servers, enabled_plugins=enabled_plugins
+    )
 
 
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_settings')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
-def test_claude_code_no_mcp_servers_skips_report(
+def test_claude_code_no_mcp_servers_no_plugins_skips_report(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
     mock_load_config: MagicMock,
+    mock_load_settings: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
-    """When no mcpServers in config, report_session_context should not be called."""
+    """When no mcpServers and no plugins, report_session_context should not be called."""
     mock_get_auth.return_value = MagicMock()
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
     mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'u@e.com'}}
+    mock_load_settings.return_value = None
 
     payload = {'session_id': 'session-123'}
 
@@ -271,7 +280,7 @@ def test_cursor_reports_mcp_servers(
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='cursor')
 
-    mock_ai_client.report_session_context.assert_called_once_with(mcp_servers)
+    mock_ai_client.report_session_context.assert_called_once_with(mcp_servers=mcp_servers, enabled_plugins={})
 
 
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.load_cursor_config')
