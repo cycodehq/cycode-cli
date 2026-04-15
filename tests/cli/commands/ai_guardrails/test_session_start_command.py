@@ -211,7 +211,7 @@ def test_claude_code_reports_mcp_servers(
     mock_load_settings: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
-    """Claude Code should report MCP servers from ~/.claude.json."""
+    """Claude Code should report MCP servers from ~/.claude.json and enriched plugins."""
     mock_get_auth.return_value = MagicMock()
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
@@ -220,8 +220,8 @@ def test_claude_code_reports_mcp_servers(
         'filesystem': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-filesystem']},
     }
     mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'u@e.com'}, 'mcpServers': mcp_servers}
-    enabled_plugins = {'cycode-dev@cycode-marketplace': True}
-    mock_load_settings.return_value = {'enabledPlugins': enabled_plugins}
+    # Marketplace won't resolve (no extraKnownMarketplaces) so plugin gets {"enabled": True} only.
+    mock_load_settings.return_value = {'enabledPlugins': {'cycode-dev@cycode-marketplace': True}}
 
     payload = {'session_id': 'session-123'}
 
@@ -229,7 +229,68 @@ def test_claude_code_reports_mcp_servers(
         session_start_command(mock_ctx, ide='claude-code')
 
     mock_ai_client.report_session_context.assert_called_once_with(
-        mcp_servers=mcp_servers, enabled_plugins=enabled_plugins
+        mcp_servers=mcp_servers,
+        enabled_plugins={'cycode-dev@cycode-marketplace': {'enabled': True}},
+    )
+
+
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_settings')
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+def test_claude_code_merges_plugin_mcp_servers_and_metadata(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_load_config: MagicMock,
+    mock_load_settings: MagicMock,
+    mock_ctx: MagicMock,
+    tmp_path,
+) -> None:
+    """Plugin MCP servers from <path>/.mcp.json should merge into mcp_servers,
+    and plugin metadata from .claude-plugin/plugin.json should enrich enabled_plugins."""
+    mock_get_auth.return_value = MagicMock()
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+
+    # Set up a fake plugin directory on disk.
+    plugin_dir = tmp_path / 'ai-prompts'
+    plugin_dir.mkdir()
+    (plugin_dir / '.mcp.json').write_text(
+        json.dumps({'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}})
+    )
+    claude_plugin_dir = plugin_dir / '.claude-plugin'
+    claude_plugin_dir.mkdir()
+    (claude_plugin_dir / 'plugin.json').write_text(
+        json.dumps({'name': 'cycode-dev', 'version': '1.0.28', 'description': 'Shared skills'})
+    )
+
+    user_mcp_servers = {'gitlab': {'command': 'npx'}}
+    mock_load_config.return_value = {'mcpServers': user_mcp_servers}
+    mock_load_settings.return_value = {
+        'enabledPlugins': {'cycode-dev@cycode-marketplace': True},
+        'extraKnownMarketplaces': {
+            'cycode-marketplace': {'source': {'source': 'directory', 'path': str(plugin_dir)}}
+        },
+    }
+
+    payload = {'session_id': 'session-123'}
+
+    with patch('sys.stdin', new=StringIO(json.dumps(payload))):
+        session_start_command(mock_ctx, ide='claude-code')
+
+    mock_ai_client.report_session_context.assert_called_once_with(
+        mcp_servers={
+            'gitlab': {'command': 'npx'},
+            'aspire': {'command': 'aspire', 'args': ['mcp', 'start']},
+        },
+        enabled_plugins={
+            'cycode-dev@cycode-marketplace': {
+                'enabled': True,
+                'name': 'cycode-dev',
+                'version': '1.0.28',
+                'description': 'Shared skills',
+            }
+        },
     )
 
 

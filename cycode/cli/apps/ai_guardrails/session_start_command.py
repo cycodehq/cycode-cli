@@ -5,11 +5,11 @@ import typer
 
 from cycode.cli.apps.ai_guardrails.consts import AIIDEType
 from cycode.cli.apps.ai_guardrails.scan.claude_config import (
-    get_enabled_plugins,
     get_mcp_servers,
     get_user_email,
     load_claude_config,
     load_claude_settings,
+    resolve_plugins,
 )
 from cycode.cli.apps.ai_guardrails.scan.cursor_config import load_cursor_config
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload, _extract_from_claude_transcript
@@ -48,29 +48,42 @@ def _build_session_payload(payload: dict, ide: str) -> AIHookPayload:
     )
 
 
-def _get_mcp_servers_for_ide(ide: str) -> dict:
-    """Return configured MCP servers for the given IDE, or empty dict."""
-    if ide == AIIDEType.CLAUDE_CODE:
-        config = load_claude_config()
-    elif ide == AIIDEType.CURSOR:
-        config = load_cursor_config()
+def _get_claude_code_session_context() -> tuple[dict, dict]:
+    """Return (mcp_servers, enabled_plugins) for Claude Code.
+
+    Merges MCP servers from ~/.claude.json (user-configured) with those contributed
+    by enabled plugins. Plugin metadata (name, version, description) is included in
+    the enabled_plugins dict when resolvable.
+    """
+    config = load_claude_config()
+    mcp_servers = dict(get_mcp_servers(config) or {}) if config else {}
+
+    settings = load_claude_settings()
+    if settings:
+        plugin_mcp, enriched_plugins = resolve_plugins(settings)
+        mcp_servers.update(plugin_mcp)
     else:
-        return {}
-    return get_mcp_servers(config) or {} if config else {}
+        enriched_plugins = {}
+
+    return mcp_servers, enriched_plugins
 
 
-def _get_enabled_plugins_for_ide(ide: str) -> dict:
-    """Return enabled plugins for the given IDE, or empty dict."""
-    if ide == AIIDEType.CLAUDE_CODE:
-        settings = load_claude_settings()
-        return get_enabled_plugins(settings) or {} if settings else {}
-    return {}
+def _get_cursor_session_context() -> tuple[dict, dict]:
+    """Return (mcp_servers, enabled_plugins) for Cursor. Cursor has no plugin system."""
+    config = load_cursor_config()
+    mcp_servers = get_mcp_servers(config) or {} if config else {}
+    return mcp_servers, {}
 
 
 def _report_session_context(ai_client, ide: str) -> None:
     """Report IDE session context to the AI security manager. Never raises."""
-    mcp_servers = _get_mcp_servers_for_ide(ide)
-    enabled_plugins = _get_enabled_plugins_for_ide(ide)
+    if ide == AIIDEType.CLAUDE_CODE:
+        mcp_servers, enabled_plugins = _get_claude_code_session_context()
+    elif ide == AIIDEType.CURSOR:
+        mcp_servers, enabled_plugins = _get_cursor_session_context()
+    else:
+        return
+
     if not mcp_servers and not enabled_plugins:
         return
     ai_client.report_session_context(mcp_servers=mcp_servers, enabled_plugins=enabled_plugins)
