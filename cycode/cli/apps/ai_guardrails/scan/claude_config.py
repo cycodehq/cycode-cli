@@ -73,6 +73,7 @@ def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]
         logger.debug('Failed to load Claude settings file', exc_info=e)
         return None
 
+
 def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
     """
     Resolve filesystem path for a directory-type marketplace.

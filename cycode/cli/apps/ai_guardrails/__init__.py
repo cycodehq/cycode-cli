@@ -21,6 +21,4 @@ app.command(
 app.command(hidden=True, name='session-start', short_help='Handle session start: auth, conversation, session context.')(
     session_start_command
 )
-app.command(hidden=True, name='ensure-auth', short_help='[Deprecated] Alias for session-start.')(
-    session_start_command
-)
+app.command(hidden=True, name='ensure-auth', short_help='[Deprecated] Alias for session-start.')(session_start_command)

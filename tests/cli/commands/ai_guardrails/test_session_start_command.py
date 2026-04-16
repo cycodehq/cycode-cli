@@ -268,9 +268,7 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     mock_load_config.return_value = {'mcpServers': user_mcp_servers}
     mock_load_settings.return_value = {
         'enabledPlugins': {'cycode-dev@cycode-marketplace': True},
-        'extraKnownMarketplaces': {
-            'cycode-marketplace': {'source': {'source': 'directory', 'path': str(plugin_dir)}}
-        },
+        'extraKnownMarketplaces': {'cycode-marketplace': {'source': {'source': 'directory', 'path': str(plugin_dir)}}},
     }
 
     payload = {'session_id': 'session-123'}
@@ -365,7 +363,6 @@ def test_cursor_no_mcp_servers_skips_report(
         session_start_command(mock_ctx, ide='cursor')
 
     mock_ai_client.report_session_context.assert_not_called()
-
 
 
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.handle_auth_exception')
