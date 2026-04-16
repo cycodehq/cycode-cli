@@ -110,7 +110,7 @@ def test_invalid_json_stdin_skips_session_init(
 # Conversation creation tests
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command._extract_from_claude_transcript')
+@patch('cycode.cli.apps.ai_guardrails.session_start_command.extract_from_claude_transcript')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
 @patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')

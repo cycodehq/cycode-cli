@@ -71,7 +71,7 @@ def _extract_generation_id(entry: dict) -> Optional[str]:
     return None
 
 
-def _extract_from_claude_transcript(
+def extract_from_claude_transcript(
     transcript_path: str,
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Extract IDE version, model, and latest generation ID from Claude Code transcript file.
@@ -206,7 +206,7 @@ class AIHookPayload:
                 mcp_tool_name = parts[2]
 
         # Extract IDE version, model, and generation ID from transcript file
-        ide_version, model, generation_id = _extract_from_claude_transcript(payload.get('transcript_path'))
+        ide_version, model, generation_id = extract_from_claude_transcript(payload.get('transcript_path'))
 
         # Extract user email from ~/.claude.json
         claude_config = load_claude_config()

@@ -73,15 +73,6 @@ def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]
         logger.debug('Failed to load Claude settings file', exc_info=e)
         return None
 
-
-def get_enabled_plugins(settings: dict) -> Optional[dict]:
-    """Extract enabled plugins from Claude settings.
-
-    Reads enabledPlugins from the settings dict.
-    """
-    return settings.get('enabledPlugins')
-
-
 def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
     """
     Resolve filesystem path for a directory-type marketplace.

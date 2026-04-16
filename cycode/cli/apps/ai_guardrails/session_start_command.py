@@ -12,7 +12,7 @@ from cycode.cli.apps.ai_guardrails.scan.claude_config import (
     resolve_plugins,
 )
 from cycode.cli.apps.ai_guardrails.scan.cursor_config import load_cursor_config
-from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload, _extract_from_claude_transcript
+from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload, extract_from_claude_transcript
 from cycode.cli.apps.ai_guardrails.scan.utils import safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -28,7 +28,7 @@ def _build_session_payload(payload: dict, ide: str) -> AIHookPayload:
     if ide == AIIDEType.CLAUDE_CODE:
         claude_config = load_claude_config()
         ide_user_email = get_user_email(claude_config) if claude_config else None
-        ide_version, _, _ = _extract_from_claude_transcript(payload.get('transcript_path'))
+        ide_version, _, _ = extract_from_claude_transcript(payload.get('transcript_path'))
 
         return AIHookPayload(
             conversation_id=payload.get('session_id'),
@@ -71,22 +71,25 @@ def _get_claude_code_session_context() -> tuple[dict, dict]:
 def _get_cursor_session_context() -> tuple[dict, dict]:
     """Return (mcp_servers, enabled_plugins) for Cursor. Cursor has no plugin system."""
     config = load_cursor_config()
-    mcp_servers = get_mcp_servers(config) or {} if config else {}
+    mcp_servers = dict(get_mcp_servers(config) or {}) if config else {}
     return mcp_servers, {}
 
 
 def _report_session_context(ai_client, ide: str) -> None:
     """Report IDE session context to the AI security manager. Never raises."""
-    if ide == AIIDEType.CLAUDE_CODE:
-        mcp_servers, enabled_plugins = _get_claude_code_session_context()
-    elif ide == AIIDEType.CURSOR:
-        mcp_servers, enabled_plugins = _get_cursor_session_context()
-    else:
-        return
+    try:
+        if ide == AIIDEType.CLAUDE_CODE:
+            mcp_servers, enabled_plugins = _get_claude_code_session_context()
+        elif ide == AIIDEType.CURSOR:
+            mcp_servers, enabled_plugins = _get_cursor_session_context()
+        else:
+            return
 
-    if not mcp_servers and not enabled_plugins:
-        return
-    ai_client.report_session_context(mcp_servers=mcp_servers, enabled_plugins=enabled_plugins)
+        if not mcp_servers and not enabled_plugins:
+            return
+        ai_client.report_session_context(mcp_servers=mcp_servers, enabled_plugins=enabled_plugins)
+    except Exception as e:
+        logger.debug('Failed to report session context', exc_info=e)
 
 
 def session_start_command(
