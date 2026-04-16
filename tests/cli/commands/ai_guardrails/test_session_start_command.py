@@ -129,7 +129,7 @@ def test_claude_code_creates_conversation(
     mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'user@example.com'}}
     mock_extract.return_value = ('2.1.20', 'claude-opus', 'gen-abc')
 
-    transcript_path = '/fake/transcript.jsonl'  # noqa: S108
+    transcript_path = '/fake/transcript.jsonl'
     payload = {'session_id': 'session-123', 'model': 'claude-opus', 'transcript_path': transcript_path}
 
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
