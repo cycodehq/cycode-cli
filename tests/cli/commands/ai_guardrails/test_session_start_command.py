@@ -2,6 +2,7 @@
 
 import json
 from io import StringIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -121,19 +122,20 @@ def test_claude_code_creates_conversation(
     mock_extract: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
-    """Claude Code payload should create conversation with session_id, model, email, version."""
+    """Claude Code payload should create a conversation with session_id, model, email, version."""
     mock_get_auth.return_value = MagicMock()
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
     mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'user@example.com'}}
     mock_extract.return_value = ('2.1.20', 'claude-opus', 'gen-abc')
 
-    payload = {'session_id': 'session-123', 'model': 'claude-opus', 'transcript_path': '/tmp/t.jsonl'}
+    transcript_path = '/fake/transcript.jsonl'  # noqa: S108
+    payload = {'session_id': 'session-123', 'model': 'claude-opus', 'transcript_path': transcript_path}
 
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='claude-code')
 
-    mock_extract.assert_called_once_with('/tmp/t.jsonl')
+    mock_extract.assert_called_once_with(transcript_path)
     mock_ai_client.create_conversation.assert_called_once()
     call_payload = mock_ai_client.create_conversation.call_args[0][0]
     assert call_payload.conversation_id == 'session-123'
@@ -244,7 +246,7 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     mock_load_config: MagicMock,
     mock_load_settings: MagicMock,
     mock_ctx: MagicMock,
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     """Plugin MCP servers from <path>/.mcp.json should merge into mcp_servers,
     and plugin metadata from .claude-plugin/plugin.json should enrich enabled_plugins."""

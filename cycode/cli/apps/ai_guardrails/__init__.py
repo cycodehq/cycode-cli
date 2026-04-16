@@ -1,8 +1,8 @@
 import typer
 
 from cycode.cli.apps.ai_guardrails.install_command import install_command
-from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
+from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 from cycode.cli.apps.ai_guardrails.status_command import status_command
 from cycode.cli.apps.ai_guardrails.uninstall_command import uninstall_command
 

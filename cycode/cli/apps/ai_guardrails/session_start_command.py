@@ -1,5 +1,5 @@
 import sys
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
@@ -19,6 +19,9 @@ from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.handle_auth_errors import handle_auth_exception
 from cycode.cli.utils.get_api_client import get_ai_security_manager_client
 from cycode.logger import get_logger
+
+if TYPE_CHECKING:
+    from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
 
 logger = get_logger('AI Guardrails')
 
@@ -75,7 +78,7 @@ def _get_cursor_session_context() -> tuple[dict, dict]:
     return mcp_servers, {}
 
 
-def _report_session_context(ai_client, ide: str) -> None:
+def _report_session_context(ai_client: 'AISecurityManagerClient', ide: str) -> None:
     """Report IDE session context to the AI security manager. Never raises."""
     try:
         if ide == AIIDEType.CLAUDE_CODE:
