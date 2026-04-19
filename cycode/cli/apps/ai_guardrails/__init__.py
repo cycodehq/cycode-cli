@@ -1,24 +1,24 @@
 import typer
 
-from cycode.cli.apps.ai_guardrails.install_command import install_command
-from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
-from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
-from cycode.cli.apps.ai_guardrails.status_command import status_command
-from cycode.cli.apps.ai_guardrails.uninstall_command import uninstall_command
+from cycode.cli.apps.ai_guardrails.install_command import install_command as _install_command
+from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command as _scan_command
+from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command as _session_start_command
+from cycode.cli.apps.ai_guardrails.status_command import status_command as _status_command
+from cycode.cli.apps.ai_guardrails.uninstall_command import uninstall_command as _uninstall_command
 
 app = typer.Typer(name='ai-guardrails', no_args_is_help=True, hidden=True)
 
-app.command(hidden=True, name='install', short_help='Install AI guardrails hooks for supported IDEs.')(install_command)
+app.command(hidden=True, name='install', short_help='Install AI guardrails hooks for supported IDEs.')(_install_command)
 app.command(hidden=True, name='uninstall', short_help='Remove AI guardrails hooks from supported IDEs.')(
-    uninstall_command
+    _uninstall_command
 )
-app.command(hidden=True, name='status', short_help='Show AI guardrails hook installation status.')(status_command)
+app.command(hidden=True, name='status', short_help='Show AI guardrails hook installation status.')(_status_command)
 app.command(
     hidden=True,
     name='scan',
     short_help='Scan content from AI IDE hooks for secrets (reads JSON from stdin).',
-)(scan_command)
+)(_scan_command)
 app.command(hidden=True, name='session-start', short_help='Handle session start: auth, conversation, session context.')(
-    session_start_command
+    _session_start_command
 )
-app.command(hidden=True, name='ensure-auth', short_help='[Deprecated] Alias for session-start.')(session_start_command)
+app.command(hidden=True, name='ensure-auth', short_help='[Deprecated] Alias for session-start.')(_session_start_command)

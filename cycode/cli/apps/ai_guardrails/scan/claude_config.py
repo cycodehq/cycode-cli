@@ -149,7 +149,11 @@ def resolve_plugins(settings: dict) -> tuple[dict, dict]:
                 entry[field] = metadata[field]
 
         mcp_config = _load_plugin_json_file(plugin_path, '.mcp.json') or {}
+        plugin_server_names = []
         for server_name, server_cfg in (mcp_config.get('mcpServers') or {}).items():
             merged_mcp[server_name] = server_cfg
+            plugin_server_names.append(server_name)
+        if plugin_server_names:
+            entry['mcp_server_names'] = plugin_server_names
 
     return merged_mcp, enriched

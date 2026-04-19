@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from cycode.cli.apps.ai_guardrails import session_start_command as _session_start_mod
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 
 
@@ -22,7 +23,7 @@ def mock_ctx() -> MagicMock:
 # Auth tests
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_already_authenticated_skips_auth(mock_get_auth: MagicMock, mock_ctx: MagicMock) -> None:
     """When already authenticated, AuthManager should not be called."""
     mock_get_auth.return_value = MagicMock()
@@ -31,8 +32,8 @@ def test_already_authenticated_skips_auth(mock_get_auth: MagicMock, mock_ctx: Ma
         session_start_command(mock_ctx)
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.AuthManager')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'AuthManager')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_not_authenticated_triggers_auth(
     mock_get_auth: MagicMock, mock_auth_manager_cls: MagicMock, mock_ctx: MagicMock
 ) -> None:
@@ -45,9 +46,9 @@ def test_not_authenticated_triggers_auth(
     mock_auth_manager_cls.return_value.authenticate.assert_called_once()
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.handle_auth_exception')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.AuthManager')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'handle_auth_exception')
+@patch.object(_session_start_mod, 'AuthManager')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_auth_failure_handled_gracefully(
     mock_get_auth: MagicMock,
     mock_auth_manager_cls: MagicMock,
@@ -67,7 +68,7 @@ def test_auth_failure_handled_gracefully(
 # Stdin / payload tests
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_tty_stdin_auth_only(mock_get_auth: MagicMock, mock_ctx: MagicMock) -> None:
     """When stdin is a TTY (old hooks), only auth is performed."""
     mock_get_auth.return_value = MagicMock()
@@ -80,8 +81,8 @@ def test_tty_stdin_auth_only(mock_get_auth: MagicMock, mock_ctx: MagicMock) -> N
     mock_stdin.read.assert_not_called()
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_empty_stdin_skips_session_init(
     mock_get_auth: MagicMock, mock_get_client: MagicMock, mock_ctx: MagicMock
 ) -> None:
@@ -94,8 +95,8 @@ def test_empty_stdin_skips_session_init(
     mock_get_client.assert_not_called()
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_invalid_json_stdin_skips_session_init(
     mock_get_auth: MagicMock, mock_get_client: MagicMock, mock_ctx: MagicMock
 ) -> None:
@@ -111,10 +112,10 @@ def test_invalid_json_stdin_skips_session_init(
 # Conversation creation tests
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.extract_from_claude_transcript')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'extract_from_claude_transcript')
+@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_creates_conversation(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -145,8 +146,8 @@ def test_claude_code_creates_conversation(
     assert call_payload.ide_version == '2.1.20'
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_cursor_creates_conversation(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -175,9 +176,9 @@ def test_cursor_creates_conversation(
     assert call_payload.ide_provider == 'cursor'
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_conversation_creation_failure_non_blocking(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -202,10 +203,10 @@ def test_conversation_creation_failure_non_blocking(
 # MCP server reporting tests
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_settings')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'load_claude_settings')
+@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_reports_mcp_servers(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -236,10 +237,10 @@ def test_claude_code_reports_mcp_servers(
     )
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_settings')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'load_claude_settings')
+@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -289,15 +290,16 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
                 'name': 'cycode-dev',
                 'version': '1.0.28',
                 'description': 'Shared skills',
+                'mcp_server_names': ['aspire'],
             }
         },
     )
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_settings')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_claude_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'load_claude_settings')
+@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_no_mcp_servers_no_plugins_skips_report(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -320,9 +322,9 @@ def test_claude_code_no_mcp_servers_no_plugins_skips_report(
     mock_ai_client.report_session_context.assert_not_called()
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_cursor_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'load_cursor_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_cursor_reports_mcp_servers(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -344,9 +346,9 @@ def test_cursor_reports_mcp_servers(
     mock_ai_client.report_session_context.assert_called_once_with(mcp_servers=mcp_servers, enabled_plugins={})
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.load_cursor_config')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'load_cursor_config')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_cursor_no_mcp_servers_skips_report(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
@@ -367,10 +369,10 @@ def test_cursor_no_mcp_servers_skips_report(
     mock_ai_client.report_session_context.assert_not_called()
 
 
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.handle_auth_exception')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.AuthManager')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_ai_security_manager_client')
-@patch('cycode.cli.apps.ai_guardrails.session_start_command.get_authorization_info')
+@patch.object(_session_start_mod, 'handle_auth_exception')
+@patch.object(_session_start_mod, 'AuthManager')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
 def test_unauthenticated_skips_session_init(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
