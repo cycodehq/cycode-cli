@@ -2,6 +2,7 @@ import logging
 import sys
 from typing import Annotated, Optional
 
+import click
 import typer
 from typer import rich_utils
 from typer._completion_classes import completion_init
@@ -10,6 +11,7 @@ from typer.completion import install_callback, show_callback
 
 from cycode import __version__
 from cycode.cli.apps import ai_guardrails, ai_remediation, auth, configure, ignore, report, report_import, scan, status
+from cycode.cli.apps.api import get_platform_group
 
 if sys.version_info >= (3, 10):
     from cycode.cli.apps import mcp
@@ -55,6 +57,27 @@ app.add_typer(scan.app)
 app.add_typer(status.app)
 if sys.version_info >= (3, 10):
     app.add_typer(mcp.app)
+
+# Register the `platform` command group (dynamically built from the OpenAPI spec).
+# The group itself is constructed cheaply at import time; the spec is only fetched
+# when the user actually invokes `cycode platform ...`. Unrelated commands like
+# `cycode scan` and `cycode status` never trigger a spec fetch.
+#
+# Typer doesn't support adding native Click groups directly, so we monkey-patch
+# typer.main.get_group to inject our `platform` group into the resolved Click group.
+# The `app_typer is app` guard ensures we only modify our own app.
+_platform_group = get_platform_group()
+_original_get_group = typer.main.get_group
+
+
+def _get_group_with_platform(app_typer: typer.Typer) -> click.Group:
+    group = _original_get_group(app_typer)
+    if app_typer is app and _platform_group.name not in group.commands:
+        group.add_command(_platform_group, _platform_group.name)
+    return group
+
+
+typer.main.get_group = _get_group_with_platform
 
 
 def check_latest_version_on_close(ctx: typer.Context) -> None:

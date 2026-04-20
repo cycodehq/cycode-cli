@@ -21,7 +21,11 @@ This guide walks you through both installation and usage.
     2. [Available Options](#available-options)
     3. [MCP Tools](#mcp-tools)
     4. [Usage Examples](#usage-examples)
-5. [Scan Command](#scan-command)
+5. [Platform Command](#platform-command-beta)
+    1. [Discovering Commands](#discovering-commands)
+    2. [Examples](#platform-examples)
+    3. [Notes & Limitations](#platform-notes--limitations)
+6. [Scan Command](#scan-command)
     1. [Running a Scan](#running-a-scan)
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
@@ -603,6 +607,64 @@ This information can be helpful when:
 - Understanding why certain tools aren't working
 - Identifying authentication problems
 - Debugging transport-specific issues
+
+
+# Platform Command \[BETA\]
+
+> [!WARNING]
+> The `platform` command is in **beta**. Commands, arguments, and output formats are generated dynamically from the Cycode API spec and may change between releases without notice. Do not rely on them in production automation yet.
+
+The `cycode platform` command exposes the Cycode platform's read APIs as CLI commands. It groups endpoints by resource (e.g. `projects`, `violations`, `workflows`) and turns each endpoint's parameters into typed CLI arguments and `--option` flags.
+
+```bash
+cycode platform projects list --page-size 50
+cycode platform violations count
+cycode platform workflows view <workflow-id>
+```
+
+The OpenAPI spec is fetched from the Cycode API on first use and cached at `~/.cycode/openapi-spec.json` for 24 hours. Unrelated commands (`cycode scan`, `cycode status`, etc.) do not trigger a fetch.
+
+> [!NOTE]
+> You must be authenticated (`cycode auth` or `CYCODE_CLIENT_ID` / `CYCODE_CLIENT_SECRET` environment variables) for `cycode platform` to discover and run commands. Other Cycode CLI commands work without authentication.
+
+## Discovering Commands
+
+Because commands are generated from the spec, the source of truth for what's available is `--help`:
+
+```bash
+cycode platform --help                  # list all resource groups
+cycode platform projects --help         # list actions on a resource
+cycode platform projects list --help    # list options/arguments for an action
+```
+
+## Platform Examples
+
+```bash
+# List projects with pagination
+cycode platform projects list --page-size 25
+
+# View a single project by ID
+cycode platform projects view <project-id>
+
+# Count violations across the tenant
+cycode platform violations count
+
+# Filter using query parameters (see `--help` for what each endpoint supports)
+cycode platform violations list --severity CRITICAL
+```
+
+All output is JSON by default — pipe it through `jq` for ad-hoc filtering:
+
+```bash
+cycode platform projects list --page-size 100 | jq '.items[].name'
+```
+
+## Platform Notes & Limitations
+
+- **Read-only today.** Only `GET` endpoints are exposed in this beta.
+- **Spec-driven.** Adding a new endpoint to the API surfaces it automatically the next time the cache is refreshed.
+- **No bundled spec.** The first `cycode platform` invocation after install (or after the 24h cache expires) performs a network fetch. On slow connections this first call may take a few seconds; subsequent calls are near-instant until the cache expires.
+- **Override the cache TTL** with `CYCODE_SPEC_CACHE_TTL=<seconds>`.
 
 
 # Scan Command
