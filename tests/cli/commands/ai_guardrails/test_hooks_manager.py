@@ -6,8 +6,8 @@ import yaml
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 from cycode.cli.apps.ai_guardrails.consts import (
-    CYCODE_ENSURE_AUTH_COMMAND,
     CYCODE_SCAN_PROMPT_COMMAND,
+    CYCODE_SESSION_START_COMMAND,
     AIIDEType,
     PolicyMode,
     get_hooks_config,
@@ -88,12 +88,13 @@ def test_get_hooks_config_cursor_async() -> None:
 
 
 def test_get_hooks_config_cursor_session_start() -> None:
-    """Test Cursor hooks config includes sessionStart auth check."""
+    """Test Cursor hooks config includes sessionStart with --ide flag."""
     config = get_hooks_config(AIIDEType.CURSOR)
     assert 'sessionStart' in config['hooks']
     entries = config['hooks']['sessionStart']
     assert len(entries) == 1
-    assert entries[0]['command'] == CYCODE_ENSURE_AUTH_COMMAND
+    assert CYCODE_SESSION_START_COMMAND in entries[0]['command']
+    assert '--ide cursor' in entries[0]['command']
 
 
 def test_get_hooks_config_claude_code_sync() -> None:
@@ -118,12 +119,13 @@ def test_get_hooks_config_claude_code_async() -> None:
 
 
 def test_get_hooks_config_claude_code_session_start() -> None:
-    """Test Claude Code hooks config includes SessionStart auth check."""
+    """Test Claude Code hooks config includes SessionStart with --ide flag."""
     config = get_hooks_config(AIIDEType.CLAUDE_CODE)
     assert 'SessionStart' in config['hooks']
     entries = config['hooks']['SessionStart']
     assert len(entries) == 1
-    assert entries[0]['hooks'][0]['command'] == CYCODE_ENSURE_AUTH_COMMAND
+    assert CYCODE_SESSION_START_COMMAND in entries[0]['hooks'][0]['command']
+    assert '--ide claude-code' in entries[0]['hooks'][0]['command']
 
 
 def test_create_policy_file_warn(fs: FakeFilesystem) -> None:
