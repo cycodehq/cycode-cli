@@ -110,10 +110,20 @@ class ClaudeCodeResponseBuilder(IDEResponseBuilder):
         return {'decision': 'block', 'reason': user_message}
 
 
+class CodexResponseBuilder(ClaudeCodeResponseBuilder):
+    """Response builder for Codex CLI hooks.
+
+    Codex accepts the same hook response shapes as Claude Code
+    (decision/reason for prompts, hookSpecificOutput.permissionDecision for
+    PreToolUse), so we reuse the Claude Code builder verbatim.
+    """
+
+
 # Registry of response builders by IDE type
 _RESPONSE_BUILDERS: dict[str, IDEResponseBuilder] = {
     AIIDEType.CURSOR: CursorResponseBuilder(),
     AIIDEType.CLAUDE_CODE: ClaudeCodeResponseBuilder(),
+    AIIDEType.CODEX: CodexResponseBuilder(),
 }
 
 

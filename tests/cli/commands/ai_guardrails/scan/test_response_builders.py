@@ -4,6 +4,7 @@ import pytest
 
 from cycode.cli.apps.ai_guardrails.scan.response_builders import (
     ClaudeCodeResponseBuilder,
+    CodexResponseBuilder,
     CursorResponseBuilder,
     IDEResponseBuilder,
     get_response_builder,
@@ -145,4 +146,55 @@ def test_get_response_builder_claude_code() -> None:
     builder = get_response_builder('claude-code')
 
     assert isinstance(builder, ClaudeCodeResponseBuilder)
+    assert isinstance(builder, IDEResponseBuilder)
+
+
+# Codex response builder tests (shapes match Claude Code)
+
+
+def test_codex_response_builder_allow_permission() -> None:
+    builder = CodexResponseBuilder()
+    assert builder.allow_permission() == {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'permissionDecision': 'allow',
+        }
+    }
+
+
+def test_codex_response_builder_deny_permission() -> None:
+    builder = CodexResponseBuilder()
+    assert builder.deny_permission('User message', 'Agent message') == {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'permissionDecision': 'deny',
+            'permissionDecisionReason': 'User message',
+        }
+    }
+
+
+def test_codex_response_builder_ask_permission() -> None:
+    builder = CodexResponseBuilder()
+    assert builder.ask_permission('Warning', 'Agent warning') == {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'permissionDecision': 'ask',
+            'permissionDecisionReason': 'Warning',
+        }
+    }
+
+
+def test_codex_response_builder_allow_prompt() -> None:
+    builder = CodexResponseBuilder()
+    assert builder.allow_prompt() == {}
+
+
+def test_codex_response_builder_deny_prompt() -> None:
+    builder = CodexResponseBuilder()
+    assert builder.deny_prompt('Secrets detected') == {'decision': 'block', 'reason': 'Secrets detected'}
+
+
+def test_get_response_builder_codex() -> None:
+    builder = get_response_builder('codex')
+    assert isinstance(builder, CodexResponseBuilder)
     assert isinstance(builder, IDEResponseBuilder)

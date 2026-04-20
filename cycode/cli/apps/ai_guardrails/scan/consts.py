@@ -45,4 +45,9 @@ DEFAULT_POLICY = {
         'action': 'block',
         'scan_arguments': True,
     },
+    'command_exec': {
+        'enabled': True,
+        'action': 'block',
+        'scan_arguments': True,
+    },
 }
