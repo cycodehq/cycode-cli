@@ -42,6 +42,7 @@ class AISecurityManagerClient:
             'model': payload.model,
             'ide_provider': payload.ide_provider,
             'ide_version': payload.ide_version,
+            'source': payload.source,
         }
 
         try:
