@@ -118,7 +118,6 @@ def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
         'hooks': {
             'SessionStart': [
                 {
-                    'matcher': 'startup|resume|clear|compact',
                     'hooks': [{'type': 'command', 'command': f'{CYCODE_SESSION_START_COMMAND} --ide claude-code'}],
                 }
             ],
