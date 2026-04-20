@@ -17,6 +17,7 @@ class AISecurityManagerClient:
 
     _CONVERSATIONS_PATH = 'v4/ai-security/interactions/conversations'
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
+    _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -88,3 +89,20 @@ class AISecurityManagerClient:
         except Exception as e:
             logger.debug('Failed to create AI hook event', exc_info=e)
             # Don't fail the hook if tracking fails
+
+    def report_session_context(
+        self,
+        mcp_servers: Optional[dict] = None,
+        enabled_plugins: Optional[dict] = None,
+    ) -> None:
+        """Report session context to the backend."""
+        body: dict = {
+            'mcp_servers': mcp_servers,
+            'enabled_plugins': enabled_plugins,
+        }
+
+        try:
+            self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
+        except Exception as e:
+            logger.debug('Failed to report session context', exc_info=e)
+            # Don't fail the session if reporting fails

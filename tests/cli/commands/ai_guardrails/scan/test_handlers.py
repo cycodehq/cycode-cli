@@ -68,6 +68,7 @@ def test_handle_before_submit_prompt_disabled(
 
     assert result == {'continue': True}
     mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
+    mock_ctx.obj['ai_security_client'].create_conversation.assert_not_called()
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
@@ -81,6 +82,7 @@ def test_handle_before_submit_prompt_no_secrets(
 
     assert result == {'continue': True}
     mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
+    mock_ctx.obj['ai_security_client'].create_conversation.assert_not_called()
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     # outcome is arg[2], scan_id and block_reason are kwargs
     assert call_args.args[2] == AIHookOutcome.ALLOWED

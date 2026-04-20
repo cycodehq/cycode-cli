@@ -73,7 +73,7 @@ def _extract_generation_id(entry: dict) -> Optional[str]:
     return None
 
 
-def _extract_from_claude_transcript(
+def extract_from_claude_transcript(
     transcript_path: str,
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Extract IDE version, model, and latest generation ID from Claude Code transcript file.
@@ -125,7 +125,7 @@ class AIHookPayload:
     """Unified payload object that normalizes field names from different AI tools."""
 
     # Event identification
-    event_name: str  # Canonical event type (e.g., 'prompt', 'file_read', 'mcp_execution')
+    event_name: Optional[str] = None  # Canonical event type (e.g., 'prompt', 'file_read', 'mcp_execution')
     conversation_id: Optional[str] = None
     generation_id: Optional[str] = None
 
@@ -209,7 +209,7 @@ class AIHookPayload:
                 mcp_tool_name = parts[2]
 
         # Extract IDE version, model, and generation ID from transcript file
-        ide_version, model, generation_id = _extract_from_claude_transcript(payload.get('transcript_path'))
+        ide_version, model, generation_id = extract_from_claude_transcript(payload.get('transcript_path'))
 
         # Extract user email from ~/.claude.json
         claude_config = load_claude_config()
