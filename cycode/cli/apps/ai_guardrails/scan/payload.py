@@ -133,7 +133,6 @@ class AIHookPayload:
     ide_provider: str = None  # AIIDEType value (e.g., 'cursor', 'claude-code')
     ide_version: Optional[str] = None
 
-    # Session-start context (Claude Code SessionStart hook: startup|resume|clear|compact)
     source: Optional[str] = None
 
     # Event-specific data
