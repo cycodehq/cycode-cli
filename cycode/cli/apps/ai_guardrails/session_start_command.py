@@ -39,6 +39,7 @@ def _build_session_payload(payload: dict, ide: str) -> AIHookPayload:
             model=payload.get('model'),
             ide_provider=AIIDEType.CLAUDE_CODE.value,
             ide_version=ide_version,
+            source=payload.get('source'),
         )
 
     if ide == AIIDEType.CODEX:
