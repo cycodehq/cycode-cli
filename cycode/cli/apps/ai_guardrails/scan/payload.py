@@ -133,6 +133,8 @@ class AIHookPayload:
     ide_provider: str = None  # AIIDEType value (e.g., 'cursor', 'claude-code')
     ide_version: Optional[str] = None
 
+    source: Optional[str] = None
+
     # Event-specific data
     prompt: Optional[str] = None  # For prompt events
     file_path: Optional[str] = None  # For file_read events
