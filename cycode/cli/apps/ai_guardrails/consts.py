@@ -170,6 +170,7 @@ def _get_codex_hooks_config(async_mode: bool = False) -> dict:
     reads are not exposed to hooks.
     """
     command = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide {AIIDEType.CODEX.value}'
+    session_start_command = f'{CYCODE_SESSION_START_COMMAND} --ide {AIIDEType.CODEX.value}'
 
     hook_entry = {'type': 'command', 'command': command}
     if async_mode:
@@ -181,7 +182,7 @@ def _get_codex_hooks_config(async_mode: bool = False) -> dict:
             'SessionStart': [
                 {
                     'matcher': 'startup',
-                    'hooks': [{'type': 'command', 'command': CYCODE_ENSURE_AUTH_COMMAND}],
+                    'hooks': [{'type': 'command', 'command': session_start_command}],
                 }
             ],
             'UserPromptSubmit': [

@@ -151,12 +151,13 @@ def test_get_hooks_config_codex_async() -> None:
 
 
 def test_get_hooks_config_codex_session_start() -> None:
-    """Test Codex hooks config includes SessionStart auth check."""
+    """Test Codex hooks config includes SessionStart with --ide flag."""
     config = get_hooks_config(AIIDEType.CODEX)
     assert 'SessionStart' in config['hooks']
     entries = config['hooks']['SessionStart']
     assert len(entries) == 1
-    assert entries[0]['hooks'][0]['command'] == CYCODE_ENSURE_AUTH_COMMAND
+    assert CYCODE_SESSION_START_COMMAND in entries[0]['hooks'][0]['command']
+    assert '--ide codex' in entries[0]['hooks'][0]['command']
 
 
 def test_get_hooks_config_codex_pretooluse_bash_only() -> None:

@@ -269,7 +269,6 @@ def handle_before_command_exec(ctx: typer.Context, payload: AIHookPayload, polic
     response_builder = get_response_builder(ide)
 
     command_config = get_policy_value(policy, 'command_exec', default={})
-    ai_client.create_conversation(payload)
     if not get_policy_value(command_config, 'enabled', default=True):
         ai_client.create_event(payload, AiHookEventType.COMMAND_EXEC, AIHookOutcome.ALLOWED)
         return response_builder.allow_permission()

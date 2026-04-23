@@ -41,6 +41,15 @@ def _build_session_payload(payload: dict, ide: str) -> AIHookPayload:
             ide_version=ide_version,
         )
 
+    if ide == AIIDEType.CODEX:
+        return AIHookPayload(
+            conversation_id=payload.get('session_id'),
+            generation_id=payload.get('turn_id'),
+            model=payload.get('model'),
+            ide_provider=AIIDEType.CODEX.value,
+            ide_version=payload.get('codex_version'),
+        )
+
     # Cursor
     return AIHookPayload(
         conversation_id=payload.get('conversation_id'),
