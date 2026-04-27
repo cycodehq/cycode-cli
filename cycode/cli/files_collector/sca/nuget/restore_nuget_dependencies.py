@@ -15,7 +15,7 @@ class RestoreNugetDependencies(BaseRestoreDependencies):
         return any(document.path.endswith(ext) for ext in NUGET_PROJECT_FILE_EXTENSIONS)
 
     def get_commands(self, manifest_file_path: str) -> list[list[str]]:
-        return [['dotnet', 'restore', manifest_file_path, '--use-lock-file', '--verbosity', 'quiet']]
+        return [['dotnet', 'restore', manifest_file_path, '--use-lock-file', '--verbosity', 'quiet', '--ignore-failed-sources']]
 
     def get_lock_file_name(self) -> str:
         return NUGET_LOCK_FILE_NAME
