@@ -17,6 +17,7 @@ from cycode.cli.cli_types import ExportTypeOption, ScanTypeOption, ScaScanTypeOp
 from cycode.cli.consts import (
     ISSUE_DETECTED_STATUS_CODE,
     NO_ISSUES_STATUS_CODE,
+    SCAN_ERROR_STATUS_CODE,
 )
 from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.utils import scan_utils
@@ -187,7 +188,9 @@ def scan_command_result_callback(ctx: click.Context, *_, **__) -> None:
         raise typer.Exit(0)
 
     exit_code = NO_ISSUES_STATUS_CODE
-    if scan_utils.is_scan_failed(ctx):
+    if ctx.obj.get('did_fail') and ctx.obj.get('stop_on_error'):
+        exit_code = SCAN_ERROR_STATUS_CODE
+    elif scan_utils.is_scan_failed(ctx):
         exit_code = ISSUE_DETECTED_STATUS_CODE
 
     raise typer.Exit(exit_code)
