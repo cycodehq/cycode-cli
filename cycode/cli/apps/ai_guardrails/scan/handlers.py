@@ -256,6 +256,72 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         )
 
 
+def handle_before_command_exec(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> dict:
+    """
+    Handle PreToolUse:Bash (CommandExec) hook.
+
+    Scans the shell command the agent is about to run for secrets before
+    execution. Returns deny_permission to block, ask_permission to warn,
+    allow_permission to allow.
+    """
+    ai_client = ctx.obj['ai_security_client']
+    ide = payload.ide_provider
+    response_builder = get_response_builder(ide)
+
+    command_config = get_policy_value(policy, 'command_exec', default={})
+    if not get_policy_value(command_config, 'enabled', default=True):
+        ai_client.create_event(payload, AiHookEventType.COMMAND_EXEC, AIHookOutcome.ALLOWED)
+        return response_builder.allow_permission()
+
+    mode = get_policy_value(policy, 'mode', default=PolicyMode.BLOCK)
+    command = payload.command or ''
+    max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
+    timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
+    clipped = truncate_utf8(command, max_bytes)
+    action = get_policy_value(command_config, 'action', default=PolicyMode.BLOCK)
+
+    scan_id = None
+    block_reason = None
+    outcome = AIHookOutcome.ALLOWED
+    error_message = None
+
+    try:
+        if get_policy_value(command_config, 'scan_arguments', default=True):
+            violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
+            if violation_summary:
+                block_reason = BlockReason.SECRETS_IN_COMMAND
+                if mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK:
+                    outcome = AIHookOutcome.BLOCKED
+                    user_message = f'Cycode blocked shell command execution. {violation_summary}'
+                    return response_builder.deny_permission(
+                        user_message,
+                        'Do not embed secrets in shell commands. Use environment variables or secret references.',
+                    )
+                outcome = AIHookOutcome.WARNED
+                return response_builder.ask_permission(
+                    f'{violation_summary} in shell command. Allow execution?',
+                    'Possible secrets detected in command; proceed with caution.',
+                )
+
+        return response_builder.allow_permission()
+    except Exception as e:
+        outcome = (
+            AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
+        )
+        block_reason = BlockReason.SCAN_FAILURE
+        error_message = str(e)
+        raise e
+    finally:
+        ai_client.create_event(
+            payload,
+            AiHookEventType.COMMAND_EXEC,
+            outcome,
+            scan_id=scan_id,
+            block_reason=block_reason,
+            error_message=error_message,
+        )
+
+
 def get_handler_for_event(event_type: str) -> Optional[Callable[[typer.Context, AIHookPayload, dict], dict]]:
     """Get the appropriate handler function for a canonical event type.
 
@@ -269,6 +335,7 @@ def get_handler_for_event(event_type: str) -> Optional[Callable[[typer.Context, 
         AiHookEventType.PROMPT.value: handle_before_submit_prompt,
         AiHookEventType.FILE_READ.value: handle_before_read_file,
         AiHookEventType.MCP_EXECUTION.value: handle_before_mcp_execution,
+        AiHookEventType.COMMAND_EXEC.value: handle_before_command_exec,
     }
     return handlers.get(event_type)
 

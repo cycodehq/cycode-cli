@@ -3,6 +3,7 @@
 Currently supports:
 - Cursor
 - Claude Code
+- Codex
 """
 
 import platform
@@ -17,6 +18,7 @@ class AIIDEType(str, Enum):
 
     CURSOR = 'cursor'
     CLAUDE_CODE = 'claude-code'
+    CODEX = 'codex'
 
 
 class PolicyMode(str, Enum):
@@ -61,6 +63,14 @@ def _get_claude_code_hooks_dir() -> Path:
     return Path.home() / '.claude'
 
 
+def _get_codex_hooks_dir() -> Path:
+    """Get Codex hooks directory.
+
+    Codex uses ~/.codex on all platforms.
+    """
+    return Path.home() / '.codex'
+
+
 # IDE-specific configurations
 IDE_CONFIGS: dict[AIIDEType, IDEConfig] = {
     AIIDEType.CURSOR: IDEConfig(
@@ -76,6 +86,13 @@ IDE_CONFIGS: dict[AIIDEType, IDEConfig] = {
         repo_hooks_subdir='.claude',
         hooks_file_name='settings.json',
         hook_events=['UserPromptSubmit', 'PreToolUse:Read', 'PreToolUse:mcp'],
+    ),
+    AIIDEType.CODEX: IDEConfig(
+        name='Codex',
+        hooks_dir=_get_codex_hooks_dir(),
+        repo_hooks_subdir='.codex',
+        hooks_file_name='hooks.json',
+        hook_events=['UserPromptSubmit', 'PreToolUse:Bash'],
     ),
 }
 
@@ -140,6 +157,48 @@ def _get_claude_code_hooks_config(async_mode: bool = False) -> dict:
     }
 
 
+def _get_codex_hooks_config(async_mode: bool = False) -> dict:
+    """Get Codex-specific hooks configuration.
+
+    Codex uses the same nested hook-entry format as Claude Code:
+    - events are keyed by name
+    - each entry has an optional 'matcher' (regex on tool name / start source)
+      and a 'hooks' array with {type, command, ...}
+
+    Codex only supports intercepting Bash for PreToolUse today; MCP and file
+    reads are not exposed to hooks.
+    """
+    command = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide {AIIDEType.CODEX.value}'
+    session_start_command = f'{CYCODE_SESSION_START_COMMAND} --ide {AIIDEType.CODEX.value}'
+
+    hook_entry = {'type': 'command', 'command': command}
+    if async_mode:
+        hook_entry['async'] = True
+        hook_entry['timeout'] = 20
+
+    return {
+        'hooks': {
+            'SessionStart': [
+                {
+                    'matcher': 'startup',
+                    'hooks': [{'type': 'command', 'command': session_start_command}],
+                }
+            ],
+            'UserPromptSubmit': [
+                {
+                    'hooks': [deepcopy(hook_entry)],
+                }
+            ],
+            'PreToolUse': [
+                {
+                    'matcher': 'Bash',
+                    'hooks': [deepcopy(hook_entry)],
+                },
+            ],
+        },
+    }
+
+
 def get_hooks_config(ide: AIIDEType, async_mode: bool = False) -> dict:
     """Get the hooks configuration for a specific IDE.
 
@@ -152,4 +211,6 @@ def get_hooks_config(ide: AIIDEType, async_mode: bool = False) -> dict:
     """
     if ide == AIIDEType.CLAUDE_CODE:
         return _get_claude_code_hooks_config(async_mode=async_mode)
+    if ide == AIIDEType.CODEX:
+        return _get_codex_hooks_config(async_mode=async_mode)
     return _get_cursor_hooks_config(async_mode=async_mode)

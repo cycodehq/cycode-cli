@@ -11,6 +11,8 @@ from cycode.cli.apps.ai_guardrails.scan.claude_config import get_user_email, loa
 from cycode.cli.apps.ai_guardrails.scan.types import (
     CLAUDE_CODE_EVENT_MAPPING,
     CLAUDE_CODE_EVENT_NAMES,
+    CODEX_EVENT_MAPPING,
+    CODEX_EVENT_NAMES,
     CURSOR_EVENT_MAPPING,
     CURSOR_EVENT_NAMES,
     AiHookEventType,
@@ -141,6 +143,7 @@ class AIHookPayload:
     mcp_server_name: Optional[str] = None  # For mcp_execution events
     mcp_tool_name: Optional[str] = None  # For mcp_execution events
     mcp_arguments: Optional[dict] = None  # For mcp_execution events
+    command: Optional[str] = None  # For command_exec events (e.g., Codex PreToolUse:Bash)
 
     @classmethod
     def from_cursor_payload(cls, payload: dict) -> 'AIHookPayload':
@@ -229,6 +232,44 @@ class AIHookPayload:
             mcp_arguments=mcp_arguments,
         )
 
+    @classmethod
+    def from_codex_payload(cls, payload: dict) -> 'AIHookPayload':
+        """Create AIHookPayload from Codex CLI payload.
+
+        Codex payload shape (per https://developers.openai.com/codex/hooks):
+        - hook_event_name: 'UserPromptSubmit' | 'PreToolUse' | 'PostToolUse' | 'SessionStart' | 'Stop'
+        - session_id, turn_id, cwd, model delivered at top level
+        - For UserPromptSubmit: prompt field
+        - For PreToolUse: tool_name (currently only 'Bash') and tool_input.command
+        """
+        hook_event_name = payload.get('hook_event_name', '')
+        tool_name = payload.get('tool_name', '')
+        tool_input = payload.get('tool_input')
+
+        if hook_event_name == 'UserPromptSubmit':
+            canonical_event = AiHookEventType.PROMPT
+        elif hook_event_name == 'PreToolUse' and tool_name == 'Bash':
+            canonical_event = AiHookEventType.COMMAND_EXEC
+        else:
+            # Unknown or unsupported event combination; fall back to raw event name
+            canonical_event = CODEX_EVENT_MAPPING.get(hook_event_name, hook_event_name)
+
+        command = None
+        if tool_name == 'Bash' and isinstance(tool_input, dict):
+            command = tool_input.get('command')
+
+        return cls(
+            event_name=canonical_event,
+            conversation_id=payload.get('session_id'),
+            generation_id=payload.get('turn_id'),
+            ide_user_email=None,
+            model=payload.get('model'),
+            ide_provider=AIIDEType.CODEX.value,
+            ide_version=payload.get('codex_version'),
+            prompt=payload.get('prompt', ''),
+            command=command,
+        )
+
     @staticmethod
     def is_payload_for_ide(payload: dict, ide: str) -> bool:
         """Check if the payload's event name matches the expected IDE.
@@ -250,6 +291,8 @@ class AIHookPayload:
             return hook_event_name in CLAUDE_CODE_EVENT_NAMES
         if ide == AIIDEType.CURSOR:
             return hook_event_name in CURSOR_EVENT_NAMES
+        if ide == AIIDEType.CODEX:
+            return hook_event_name in CODEX_EVENT_NAMES
 
         # Unknown IDE, allow processing
         return True
@@ -272,4 +315,6 @@ class AIHookPayload:
             return cls.from_cursor_payload(payload)
         if tool == AIIDEType.CLAUDE_CODE:
             return cls.from_claude_code_payload(payload)
+        if tool == AIIDEType.CODEX:
+            return cls.from_codex_payload(payload)
         raise ValueError(f'Unsupported IDE/tool: {tool}')

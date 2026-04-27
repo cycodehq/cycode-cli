@@ -7,6 +7,7 @@ import pytest
 import typer
 
 from cycode.cli.apps.ai_guardrails.scan.handlers import (
+    handle_before_command_exec,
     handle_before_mcp_execution,
     handle_before_read_file,
     handle_before_submit_prompt,
@@ -467,3 +468,95 @@ def test_handle_before_mcp_execution_scan_disabled(
 
     assert result == {'permission': 'allow'}
     mock_scan.assert_not_called()
+
+
+# Tests for handle_before_command_exec (Codex PreToolUse:Bash)
+
+
+@pytest.fixture
+def codex_policy() -> dict[str, Any]:
+    return {
+        'mode': 'block',
+        'fail_open': True,
+        'secrets': {'max_bytes': 200000, 'timeout_ms': 30000},
+        'command_exec': {'enabled': True, 'action': 'block', 'scan_arguments': True},
+    }
+
+
+def _codex_command_payload(command: str = 'ls -la') -> AIHookPayload:
+    return AIHookPayload(
+        event_name='CommandExec',
+        ide_provider='codex',
+        command=command,
+    )
+
+
+def test_handle_before_command_exec_disabled(mock_ctx: MagicMock, codex_policy: dict[str, Any]) -> None:
+    """Disabled command_exec allows without scanning."""
+    codex_policy['command_exec']['enabled'] = False
+    result = handle_before_command_exec(mock_ctx, _codex_command_payload(), codex_policy)
+
+    assert result == {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'allow'}}
+    mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+def test_handle_before_command_exec_no_secrets(
+    mock_scan: MagicMock, mock_ctx: MagicMock, codex_policy: dict[str, Any]
+) -> None:
+    """Clean command is allowed."""
+    mock_scan.return_value = (None, 'scan-ok')
+    result = handle_before_command_exec(mock_ctx, _codex_command_payload(), codex_policy)
+
+    assert result['hookSpecificOutput']['permissionDecision'] == 'allow'
+    call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
+    assert call_args.args[2] == AIHookOutcome.ALLOWED
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+def test_handle_before_command_exec_with_secrets_blocked(
+    mock_scan: MagicMock, mock_ctx: MagicMock, codex_policy: dict[str, Any]
+) -> None:
+    """Command with secrets is blocked in block mode."""
+    mock_scan.return_value = ('Found 1 secret: AWS key', 'scan-blocked')
+    result = handle_before_command_exec(
+        mock_ctx,
+        _codex_command_payload('curl -H "Authorization: Bearer AKIA..."'),
+        codex_policy,
+    )
+
+    assert result['hookSpecificOutput']['permissionDecision'] == 'deny'
+    assert 'Found 1 secret' in result['hookSpecificOutput']['permissionDecisionReason']
+    call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
+    assert call_args.args[2] == AIHookOutcome.BLOCKED
+    assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_COMMAND
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+def test_handle_before_command_exec_with_secrets_warned(
+    mock_scan: MagicMock, mock_ctx: MagicMock, codex_policy: dict[str, Any]
+) -> None:
+    """Command with secrets in warn mode returns ask."""
+    codex_policy['command_exec']['action'] = 'warn'
+    mock_scan.return_value = ('Found 1 secret: token', 'scan-warn')
+    result = handle_before_command_exec(mock_ctx, _codex_command_payload(), codex_policy)
+
+    assert result['hookSpecificOutput']['permissionDecision'] == 'ask'
+    call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
+    assert call_args.args[2] == AIHookOutcome.WARNED
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+def test_handle_before_command_exec_scan_failure_fail_open(
+    mock_scan: MagicMock, mock_ctx: MagicMock, codex_policy: dict[str, Any]
+) -> None:
+    """Scan failure with fail_open=True records ALLOWED outcome."""
+    mock_scan.side_effect = RuntimeError('boom')
+    codex_policy['fail_open'] = True
+
+    with pytest.raises(RuntimeError):
+        handle_before_command_exec(mock_ctx, _codex_command_payload(), codex_policy)
+
+    call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
+    assert call_args.args[2] == AIHookOutcome.ALLOWED
+    assert call_args.kwargs['block_reason'] == BlockReason.SCAN_FAILURE

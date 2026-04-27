@@ -22,6 +22,7 @@ class AiHookEventType(StrEnum):
     PROMPT = 'Prompt'
     FILE_READ = 'FileRead'
     MCP_EXECUTION = 'McpExecution'
+    COMMAND_EXEC = 'CommandExec'
 
 
 # IDE-specific event name mappings to canonical types
@@ -38,9 +39,16 @@ CLAUDE_CODE_EVENT_MAPPING = {
     'PreToolUse': None,  # Requires tool_name inspection to determine actual type
 }
 
+# Codex event mapping - PreToolUse currently only fires for Bash (maps to CommandExec)
+CODEX_EVENT_MAPPING = {
+    'UserPromptSubmit': AiHookEventType.PROMPT,
+    'PreToolUse': None,  # Requires tool_name inspection (Bash -> CommandExec)
+}
+
 # Set of known event names per IDE (for IDE detection)
 CURSOR_EVENT_NAMES = set(CURSOR_EVENT_MAPPING.keys())
 CLAUDE_CODE_EVENT_NAMES = set(CLAUDE_CODE_EVENT_MAPPING.keys())
+CODEX_EVENT_NAMES = set(CODEX_EVENT_MAPPING.keys())
 
 
 class AIHookOutcome(StrEnum):
@@ -61,5 +69,6 @@ class BlockReason(StrEnum):
     SECRETS_IN_PROMPT = 'secrets_in_prompt'
     SECRETS_IN_FILE = 'secrets_in_file'
     SECRETS_IN_MCP_ARGS = 'secrets_in_mcp_args'
+    SECRETS_IN_COMMAND = 'secrets_in_command'
     SENSITIVE_PATH = 'sensitive_path'
     SCAN_FAILURE = 'scan_failure'

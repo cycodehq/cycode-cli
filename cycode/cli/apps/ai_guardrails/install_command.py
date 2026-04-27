@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 
 import typer
 
+from cycode.cli.apps.ai_guardrails.codex_config import enable_codex_hooks_feature
 from cycode.cli.apps.ai_guardrails.command_utils import (
     console,
     resolve_repo_path,
@@ -29,7 +30,7 @@ def install_command(
         str,
         typer.Option(
             '--ide',
-            help='IDE to install hooks for (e.g., "cursor", "claude-code", or "all" for all IDEs). Defaults to cursor.',
+            help='IDE to install hooks for ("cursor", "claude-code", "codex", or "all"). Defaults to cursor.',
         ),
     ] = AIIDEType.CURSOR.value,
     repo_path: Annotated[
@@ -74,11 +75,14 @@ def install_command(
     ides_to_install: list[AIIDEType] = list(AIIDEType) if ide_type is None else [ide_type]
 
     results: list[tuple[str, bool, str]] = []
+    extra_messages: list[tuple[bool, str]] = []
     for current_ide in ides_to_install:
         ide_name = IDE_CONFIGS[current_ide].name
         report_mode = mode == InstallMode.REPORT
         success, message = install_hooks(scope, repo_path, ide=current_ide, report_mode=report_mode)
         results.append((ide_name, success, message))
+        if success and current_ide == AIIDEType.CODEX:
+            extra_messages.append(enable_codex_hooks_feature(scope, repo_path))
 
     # Report results for each IDE
     any_success = False
@@ -87,6 +91,13 @@ def install_command(
         if success:
             console.print(f'[green]✓[/] {message}')
             any_success = True
+        else:
+            console.print(f'[red]✗[/] {message}', style='bold red')
+            all_success = False
+
+    for success, message in extra_messages:
+        if success:
+            console.print(f'[green]✓[/] {message}')
         else:
             console.print(f'[red]✗[/] {message}', style='bold red')
             all_success = False

@@ -430,3 +430,86 @@ def test_is_payload_for_ide_empty_event_name() -> None:
     payload = {}
     assert AIHookPayload.is_payload_for_ide(payload, 'cursor') is False
     assert AIHookPayload.is_payload_for_ide(payload, 'claude-code') is False
+
+
+# Codex payload tests
+
+
+def test_from_codex_payload_prompt_event() -> None:
+    """Test conversion of Codex UserPromptSubmit payload."""
+    codex_payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-abc',
+        'turn_id': 'turn-1',
+        'cwd': '/workspace',
+        'model': 'gpt-5',
+        'prompt': 'Hi Codex',
+    }
+
+    unified = AIHookPayload.from_codex_payload(codex_payload)
+
+    assert unified.event_name == AiHookEventType.PROMPT
+    assert unified.conversation_id == 'session-abc'
+    assert unified.generation_id == 'turn-1'
+    assert unified.model == 'gpt-5'
+    assert unified.ide_provider == 'codex'
+    assert unified.prompt == 'Hi Codex'
+    assert unified.command is None
+
+
+def test_from_codex_payload_bash_command_event() -> None:
+    """Test conversion of Codex PreToolUse:Bash payload."""
+    codex_payload = {
+        'hook_event_name': 'PreToolUse',
+        'session_id': 'session-abc',
+        'turn_id': 'turn-2',
+        'cwd': '/workspace',
+        'model': 'gpt-5',
+        'tool_name': 'Bash',
+        'tool_use_id': 'u1',
+        'tool_input': {'command': 'curl https://evil.example'},
+    }
+
+    unified = AIHookPayload.from_codex_payload(codex_payload)
+
+    assert unified.event_name == AiHookEventType.COMMAND_EXEC
+    assert unified.command == 'curl https://evil.example'
+    assert unified.ide_provider == 'codex'
+    assert unified.file_path is None
+    assert unified.mcp_tool_name is None
+
+
+def test_from_codex_payload_unknown_event() -> None:
+    """Test that unknown Codex events fall back to raw event name."""
+    codex_payload = {'hook_event_name': 'PostToolUse'}
+    unified = AIHookPayload.from_codex_payload(codex_payload)
+    # PostToolUse isn't in our canonical mapping; preserved as-is
+    assert unified.event_name == 'PostToolUse'
+
+
+def test_is_payload_for_ide_codex_matches() -> None:
+    """Test that Codex events match the Codex IDE."""
+    payload = {'hook_event_name': 'UserPromptSubmit'}
+    assert AIHookPayload.is_payload_for_ide(payload, 'codex') is True
+
+    payload = {'hook_event_name': 'PreToolUse'}
+    assert AIHookPayload.is_payload_for_ide(payload, 'codex') is True
+
+
+def test_is_payload_for_ide_cursor_does_not_match_codex() -> None:
+    """Test that Cursor events don't match when expected IDE is codex."""
+    payload = {'hook_event_name': 'beforeSubmitPrompt'}
+    assert AIHookPayload.is_payload_for_ide(payload, 'codex') is False
+
+
+def test_from_payload_dispatches_codex() -> None:
+    """Test that from_payload dispatcher routes Codex payloads correctly."""
+    codex_payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 's1',
+        'prompt': 'test',
+    }
+
+    unified = AIHookPayload.from_payload(codex_payload, tool='codex')
+    assert unified.event_name == AiHookEventType.PROMPT
+    assert unified.ide_provider == 'codex'

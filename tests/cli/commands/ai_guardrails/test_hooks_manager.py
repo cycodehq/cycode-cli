@@ -128,6 +128,46 @@ def test_get_hooks_config_claude_code_session_start() -> None:
     assert '--ide claude-code' in entries[0]['hooks'][0]['command']
 
 
+def test_get_hooks_config_codex_sync() -> None:
+    """Test Codex hooks config in default (sync) mode."""
+    config = get_hooks_config(AIIDEType.CODEX)
+    scan_events = {k: v for k, v in config['hooks'].items() if k != 'SessionStart'}
+    for event_entries in scan_events.values():
+        for event_entry in event_entries:
+            for hook in event_entry['hooks']:
+                assert 'async' not in hook
+                assert 'timeout' not in hook
+                assert '--ide codex' in hook['command']
+
+
+def test_get_hooks_config_codex_async() -> None:
+    """Test Codex hooks config in async mode adds async and timeout."""
+    config = get_hooks_config(AIIDEType.CODEX, async_mode=True)
+    scan_events = {k: v for k, v in config['hooks'].items() if k != 'SessionStart'}
+    for event_entries in scan_events.values():
+        for event_entry in event_entries:
+            for hook in event_entry['hooks']:
+                assert hook['async'] is True
+
+
+def test_get_hooks_config_codex_session_start() -> None:
+    """Test Codex hooks config includes SessionStart with --ide flag."""
+    config = get_hooks_config(AIIDEType.CODEX)
+    assert 'SessionStart' in config['hooks']
+    entries = config['hooks']['SessionStart']
+    assert len(entries) == 1
+    assert CYCODE_SESSION_START_COMMAND in entries[0]['hooks'][0]['command']
+    assert '--ide codex' in entries[0]['hooks'][0]['command']
+
+
+def test_get_hooks_config_codex_pretooluse_bash_only() -> None:
+    """Test that Codex PreToolUse is scoped to Bash only."""
+    config = get_hooks_config(AIIDEType.CODEX)
+    pretooluse_entries = config['hooks']['PreToolUse']
+    assert len(pretooluse_entries) == 1
+    assert pretooluse_entries[0]['matcher'] == 'Bash'
+
+
 def test_create_policy_file_warn(fs: FakeFilesystem) -> None:
     """Test creating warn-mode policy file."""
     fs.create_dir(Path.home())
