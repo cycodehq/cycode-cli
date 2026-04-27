@@ -20,9 +20,8 @@ def _make_ctx(**obj_overrides: object) -> click.Context:
 
 
 def _invoke_result_callback(ctx: click.Context) -> int:
-    with pytest.raises(typer.Exit) as exc_info:
-        with ctx:
-            scan_command_result_callback()
+    with pytest.raises(typer.Exit) as exc_info, ctx:
+        scan_command_result_callback()
     return exc_info.value.exit_code
 
 
@@ -47,4 +46,7 @@ class TestScanCommandResultCallback:
         assert _invoke_result_callback(_make_ctx(soft_fail=True, issue_detected=True)) == NO_ISSUES_STATUS_CODE
 
     def test_soft_fail_overrides_stop_on_error(self) -> None:
-        assert _invoke_result_callback(_make_ctx(soft_fail=True, did_fail=True, stop_on_error=True)) == NO_ISSUES_STATUS_CODE
+        assert (
+            _invoke_result_callback(_make_ctx(soft_fail=True, did_fail=True, stop_on_error=True))
+            == NO_ISSUES_STATUS_CODE
+        )
