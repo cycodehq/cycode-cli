@@ -802,6 +802,14 @@ cycode scan -t sca --stop-on-error path ~/home/git/codebase
 
 This is useful in CI pipelines where a silent failure would produce an incomplete scan result. When `--stop-on-error` is triggered you can either fix the underlying issue or, for SCA restore failures specifically, add `--no-restore` to skip lockfile generation and scan direct dependencies only.
 
+When `--stop-on-error` is used, the CLI distinguishes between scan errors and policy violations via exit codes:
+
+| Exit code | Meaning |
+|-----------|---------|
+| `0` | Scan completed with no violations |
+| `1` | Scan completed and violations were found |
+| `2` | Scan aborted due to an error (only when `--stop-on-error` is set) |
+
 ### Repository Scan
 
 A repository scan examines an entire local repository for any exposed secrets or insecure misconfigurations. This more holistic scan type looks at everything: the current state of your repository and its commit history. It will look not only for secrets that are currently exposed within the repository but previously deleted secrets as well.
