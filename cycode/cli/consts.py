@@ -91,6 +91,7 @@ SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (  # keep in lowercase
     'build.scala',
     'build.sbt.lock',
     'pyproject.toml',
+    'uv.lock',
     'poetry.lock',
     'pipfile',
     'pipfile.lock',
@@ -124,6 +125,7 @@ SCA_EXCLUDED_FOLDER_IN_PATH = (
     '.build',
     '.dart_tool',
     '.pub',
+    '.uv',
 )
 
 PROJECT_FILES_BY_ECOSYSTEM_MAP = {
@@ -145,6 +147,7 @@ PROJECT_FILES_BY_ECOSYSTEM_MAP = {
     'nuget': ['packages.config', 'project.assets.json', 'packages.lock.json', 'nuget.config'],
     'ruby_gems': ['Gemfile', 'Gemfile.lock'],
     'sbt': ['build.sbt', 'build.scala', 'build.sbt.lock'],
+    'pypi_uv': ['pyproject.toml', 'uv.lock'],
     'pypi_poetry': ['pyproject.toml', 'poetry.lock'],
     'pypi_pipenv': ['Pipfile', 'Pipfile.lock'],
     'pypi_requirements': ['requirements.txt'],
