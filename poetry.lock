@@ -904,13 +904,14 @@ files = [
 
 [[package]]
 name = "patch-ng"
-version = "1.19.0"
+version = "1.19.1"
 description = "Library to parse and apply unified diffs."
 optional = false
 python-versions = ">=3.6"
 groups = ["main"]
 files = [
-    {file = "patch-ng-1.19.0.tar.gz", hash = "sha256:27484792f4ac1c15fe2f3e4cecf74bb9833d33b75c715b71d199f7e1e7d1f786"},
+    {file = "patch_ng-1.19.1-py3-none-any.whl", hash = "sha256:d45fd47b3f74b48c3e336690341876bb26244a077a06f5f7e6e47c19c15c1ca4"},
+    {file = "patch_ng-1.19.1.tar.gz", hash = "sha256:036a3cc00134ec53f37e92333958ee75e117f2e62a5ec2b85c7122e5e815c29e"},
 ]
 
 [[package]]
@@ -2042,4 +2043,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9"
-content-hash = "d9569b59b94a3333764ae66390d168630ca1c5988e7793167d15634ca9c502e2"
+content-hash = "d7ee7c54dc438b7147239eaf16bdb8b10ecefa234436561f4145d2932906fef6"
