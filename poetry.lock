@@ -533,14 +533,14 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "dunamai"
-version = "1.26.0"
+version = "1.26.1"
 description = "Dynamic version generation"
 optional = false
 python-versions = ">=3.5"
 groups = ["executable"]
 files = [
-    {file = "dunamai-1.26.0-py3-none-any.whl", hash = "sha256:f584edf0fda0d308cce0961f807bc90a8fe3d9ff4d62f94e72eca7b43f0ed5f6"},
-    {file = "dunamai-1.26.0.tar.gz", hash = "sha256:5396ac43aa20ed059040034e9f9798c7464cf4334c6fc3da3732e29273a2f97d"},
+    {file = "dunamai-1.26.1-py3-none-any.whl", hash = "sha256:2727d939c5b4257cb01ea404372803b477f5176e5a347c43beaf89cd5072e853"},
+    {file = "dunamai-1.26.1.tar.gz", hash = "sha256:3b46007bd65b00b4824ead0a1aee365fd22d0ec2b9c219497d4fd48f52860c8b"},
 ]
 
 [package.dependencies]
@@ -2042,4 +2042,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9"
-content-hash = "d9569b59b94a3333764ae66390d168630ca1c5988e7793167d15634ca9c502e2"
+content-hash = "0387ea61eee96d7c3ec19f33ae30e5ffd0a9a0e5b19f2b50c6b335a380b46514"
