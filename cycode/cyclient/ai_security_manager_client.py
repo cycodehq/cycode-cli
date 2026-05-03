@@ -95,11 +95,13 @@ class AISecurityManagerClient:
         self,
         mcp_servers: Optional[dict] = None,
         enabled_plugins: Optional[dict] = None,
+        user_email: Optional[str] = None,
     ) -> None:
         """Report session context to the backend."""
         body: dict = {
             'mcp_servers': mcp_servers,
             'enabled_plugins': enabled_plugins,
+            'user_email': user_email,
         }
 
         try:
