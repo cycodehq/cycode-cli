@@ -79,9 +79,7 @@ def _get_cursor_session_context() -> tuple[dict, dict]:
     return mcp_servers, {}
 
 
-def _report_session_context(
-    ai_client: 'AISecurityManagerClient', ide: str, user_email: Optional[str]
-) -> None:
+def _report_session_context(ai_client: 'AISecurityManagerClient', ide: str, user_email: Optional[str]) -> None:
     """Report IDE session context to the AI security manager. Never raises."""
     try:
         if ide == AIIDEType.CLAUDE_CODE:
