@@ -1,5 +1,5 @@
 import sys
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import typer
 
@@ -79,7 +79,7 @@ def _get_cursor_session_context() -> tuple[dict, dict]:
     return mcp_servers, {}
 
 
-def _report_session_context(ai_client: 'AISecurityManagerClient', ide: str) -> None:
+def _report_session_context(ai_client: 'AISecurityManagerClient', ide: str, user_email: Optional[str]) -> None:
     """Report IDE session context to the AI security manager. Never raises."""
     try:
         if ide == AIIDEType.CLAUDE_CODE:
@@ -91,7 +91,11 @@ def _report_session_context(ai_client: 'AISecurityManagerClient', ide: str) -> N
 
         if not mcp_servers and not enabled_plugins:
             return
-        ai_client.report_session_context(mcp_servers=mcp_servers, enabled_plugins=enabled_plugins)
+        ai_client.report_session_context(
+            mcp_servers=mcp_servers,
+            enabled_plugins=enabled_plugins,
+            user_email=user_email,
+        )
     except Exception as e:
         logger.debug('Failed to report session context', exc_info=e)
 
@@ -148,4 +152,4 @@ def session_start_command(
         logger.debug('Failed to create conversation during session start', exc_info=e)
 
     # Step 5: Report session context (MCP servers)
-    _report_session_context(ai_client, ide)
+    _report_session_context(ai_client, ide, session_payload.ide_user_email)

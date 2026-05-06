@@ -222,7 +222,7 @@ def test_claude_code_reports_mcp_servers(
         'gitlab': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-gitlab']},
         'filesystem': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-filesystem']},
     }
-    mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'u@e.com'}, 'mcpServers': mcp_servers}
+    mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'test@test.com'}, 'mcpServers': mcp_servers}
     # Marketplace won't resolve (no extraKnownMarketplaces) so plugin gets {"enabled": True} only.
     mock_load_settings.return_value = {'enabledPlugins': {'cycode-dev@cycode-marketplace': True}}
 
@@ -234,6 +234,7 @@ def test_claude_code_reports_mcp_servers(
     mock_ai_client.report_session_context.assert_called_once_with(
         mcp_servers=mcp_servers,
         enabled_plugins={'cycode-dev@cycode-marketplace': {'enabled': True}},
+        user_email='test@test.com',
     )
 
 
@@ -293,6 +294,7 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
                 'mcp_server_names': ['aspire'],
             }
         },
+        user_email=None,
     )
 
 
@@ -311,7 +313,7 @@ def test_claude_code_no_mcp_servers_no_plugins_skips_report(
     mock_get_auth.return_value = MagicMock()
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'u@e.com'}}
+    mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'test@test.com'}}
     mock_load_settings.return_value = None
 
     payload = {'session_id': 'session-123'}
@@ -343,7 +345,9 @@ def test_cursor_reports_mcp_servers(
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='cursor')
 
-    mock_ai_client.report_session_context.assert_called_once_with(mcp_servers=mcp_servers, enabled_plugins={})
+    mock_ai_client.report_session_context.assert_called_once_with(
+        mcp_servers=mcp_servers, enabled_plugins={}, user_email=None
+    )
 
 
 @patch.object(_session_start_mod, 'load_cursor_config')
