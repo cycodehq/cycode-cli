@@ -31,14 +31,14 @@ _SECRET_RICH_HELP_PANEL = 'Secret options'
 def scan_command(
     ctx: typer.Context,
     scan_type: Annotated[
-        ScanTypeOption,
+        list[ScanTypeOption],
         typer.Option(
             '--scan-type',
             '-t',
             help='Specify the type of scan you wish to execute.',
             case_sensitive=False,
         ),
-    ] = ScanTypeOption.SECRET,
+    ] = (ScanTypeOption.SECRET,),
     soft_fail: Annotated[
         bool, typer.Option('--soft-fail', help='Run the scan without failing; always return a non-error status code.')
     ] = False,
@@ -126,6 +126,16 @@ def scan_command(
     * `cycode scan commit-history <PATH>`: Scan the commit history of a local Git repository.
 
     """
+    if len(scan_type) > 1:
+        raise typer.BadParameter(
+            f'Only one scan type can be specified per command. '
+            f'Got: {", ".join(str(t) for t in scan_type)}. '
+            f'Run a separate command for each scan type.',
+            param_hint='-t/--scan-type',
+        )
+
+    resolved_scan_type = scan_type[0]
+
     if export_file and export_type is None:
         raise typer.BadParameter(
             'Export type must be specified when --export-file is provided.',
@@ -140,7 +150,7 @@ def scan_command(
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
     ctx.obj['stop_on_error'] = stop_on_error
-    ctx.obj['scan_type'] = scan_type
+    ctx.obj['scan_type'] = resolved_scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
@@ -158,9 +168,9 @@ def scan_command(
     # Get remote URL from current working directory
     remote_url = _try_get_git_remote_url(os.getcwd())
 
-    remote_scan_config = scan_client.get_scan_configuration_safe(scan_type, remote_url)
+    remote_scan_config = scan_client.get_scan_configuration_safe(resolved_scan_type, remote_url)
     if remote_scan_config:
-        excluder.apply_scan_config(str(scan_type), remote_scan_config)
+        excluder.apply_scan_config(str(resolved_scan_type), remote_scan_config)
 
     ctx.obj['scan_config'] = remote_scan_config
 
