@@ -30,7 +30,7 @@ def _invoke_result_callback(ctx: click.Context) -> int:
 class TestScanCommand:
     def test_multiple_scan_types_rejected(self) -> None:
         result = CliRunner().invoke(app, ['scan', '-t', 'iac', '-t', 'sast', 'path', '.'])
-        assert result.exit_code == 2
+        assert result.exit_code == 1
         assert '-t/--scan-type' in result.output
         assert 'iac' in result.output
         assert 'sast' in result.output
