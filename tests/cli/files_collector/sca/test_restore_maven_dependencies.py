@@ -28,12 +28,14 @@ class TestHasDependencyGraph:
         assert _has_dependency_graph(content) is False
 
     def test_returns_true_when_at_least_one_dependency_has_depends_on(self) -> None:
-        content = json.dumps({
-            'dependencies': [
-                {'ref': 'pkg:maven/com.example/root@1.0', 'dependsOn': ['pkg:maven/io.netty/netty-all@4.1.0']},
-                {'ref': 'pkg:maven/io.netty/netty-all@4.1.0', 'dependsOn': []},
-            ]
-        })
+        content = json.dumps(
+            {
+                'dependencies': [
+                    {'ref': 'pkg:maven/com.example/root@1.0', 'dependsOn': ['pkg:maven/io.netty/netty-all@4.1.0']},
+                    {'ref': 'pkg:maven/io.netty/netty-all@4.1.0', 'dependsOn': []},
+                ]
+            }
+        )
         assert _has_dependency_graph(content) is True
 
     def test_returns_false_when_content_is_invalid_json(self) -> None:
@@ -74,11 +76,13 @@ class TestRestoreMavenDependenciesFallback:
         document.content = 'some content'
 
         bom_doc = MagicMock(spec=Document)
-        bom_doc.content = json.dumps({
-            'dependencies': [
-                {'ref': 'pkg:maven/com.example/root@1.0', 'dependsOn': ['pkg:maven/io.netty/netty@4.1.0']}
-            ]
-        })
+        bom_doc.content = json.dumps(
+            {
+                'dependencies': [
+                    {'ref': 'pkg:maven/com.example/root@1.0', 'dependsOn': ['pkg:maven/io.netty/netty@4.1.0']}
+                ]
+            }
+        )
 
         with (
             patch.object(instance, 'get_manifest_file_path', return_value='/project/pom.xml'),
