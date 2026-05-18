@@ -351,7 +351,7 @@ The following are the options and commands available with the Cycode CLI applica
 | [report](#report-command)                 | Generate report. You will need to specify which report type to perform as SBOM.                                                              |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
-# MCP Command \[EXPERIMENT\]
+# MCP Command \[EXPERIMENTAL\]
 
 > [!WARNING]
 > The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
