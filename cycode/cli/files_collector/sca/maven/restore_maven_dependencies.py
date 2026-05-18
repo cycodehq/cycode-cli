@@ -1,3 +1,4 @@
+import json
 from os import path
 from pathlib import Path
 from typing import Optional
@@ -18,6 +19,16 @@ logger = get_logger('Maven Restore Dependencies')
 BUILD_MAVEN_FILE_NAME = 'pom.xml'
 MAVEN_CYCLONE_DEP_TREE_FILE_NAME = 'bom.json'
 MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
+
+
+def _has_dependency_graph(bom_content: Optional[str]) -> bool:
+    try:
+        if not bom_content:
+            return False
+        bom = json.loads(bom_content)
+        return any(dep.get('dependsOn') for dep in bom.get('dependencies', []))
+    except Exception:
+        return False
 
 
 class RestoreMavenDependencies(BaseRestoreDependencies):
@@ -46,8 +57,14 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
         if document.content is None:
             return self.restore_from_secondary_command(document, manifest_file_path)
 
-        # super() reads the content and cleans up any generated file; no re-read needed
-        return super().try_restore_dependencies(document)
+        restore_dependencies_document = super().try_restore_dependencies(document)
+        if restore_dependencies_document is None:
+            return None
+
+        if not _has_dependency_graph(restore_dependencies_document.content):
+            return self.restore_from_secondary_command(document, manifest_file_path)
+
+        return restore_dependencies_document
 
     def restore_from_secondary_command(self, document: Document, manifest_file_path: str) -> Optional[Document]:
         restore_content = execute_commands(
