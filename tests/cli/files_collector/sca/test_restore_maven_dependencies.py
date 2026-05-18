@@ -19,7 +19,7 @@ class TestHasDependencyGraph:
         content = json.dumps({'components': [{'name': 'foo'}]})
         assert _has_dependency_graph(content) is False
 
-    def test_returns_false_when_all_dependencies_have_empty_dependsOn(self) -> None:
+    def test_returns_false_when_all_dependencies_have_empty_depends_on(self) -> None:
         content = json.dumps({'dependencies': [{'ref': 'pkg:maven/foo/bar@1.0', 'dependsOn': []}]})
         assert _has_dependency_graph(content) is False
 
@@ -27,7 +27,7 @@ class TestHasDependencyGraph:
         content = json.dumps({'dependencies': []})
         assert _has_dependency_graph(content) is False
 
-    def test_returns_true_when_at_least_one_dependency_has_dependsOn(self) -> None:
+    def test_returns_true_when_at_least_one_dependency_has_depends_on(self) -> None:
         content = json.dumps({
             'dependencies': [
                 {'ref': 'pkg:maven/com.example/root@1.0', 'dependsOn': ['pkg:maven/io.netty/netty-all@4.1.0']},
