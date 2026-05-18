@@ -62,7 +62,9 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
             return None
 
         if not _has_dependency_graph(restore_dependencies_document.content):
-            return self.restore_from_secondary_command(document, manifest_file_path)
+            fallback = self.restore_from_secondary_command(document, manifest_file_path)
+            if fallback is not None and fallback.content is not None:
+                return fallback
 
         return restore_dependencies_document
 

@@ -56,6 +56,7 @@ class TestRestoreMavenDependenciesFallback:
         bom_doc = MagicMock(spec=Document)
         bom_doc.content = json.dumps({'dependencies': []})
         fallback_doc = MagicMock(spec=Document)
+        fallback_doc.content = '[INFO] com.example:root:jar:1.0\n+- io.netty:netty-all:jar:4.1.0'
 
         with (
             patch.object(instance, 'get_manifest_file_path', return_value='/project/pom.xml'),
