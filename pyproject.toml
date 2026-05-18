@@ -43,7 +43,7 @@ requests = ">=2.32.4,<3.0"
 urllib3 = ">=2.4.0,<3.0.0"
 pyjwt = ">=2.8.0,<3.0"
 rich = ">=13.9.4, <14"
-patch-ng = "1.19.0"
+patch-ng = "1.19.1"
 typer = "^0.15.3"
 tenacity = ">=9.0.0,<9.1.0"
 mcp = { version = ">=1.9.3,<2.0.0", markers = "python_version >= '3.10'" }
