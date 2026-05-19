@@ -21,6 +21,7 @@ This guide walks you through both installation and usage.
     2. [Available Options](#available-options)
     3. [MCP Tools](#mcp-tools)
     4. [Usage Examples](#usage-examples)
+    5. [Advanced Configuration](#advanced-configuration)
 5. [Platform Command](#platform-command-beta)
     1. [Discovering Commands](#discovering-commands)
     2. [Examples](#platform-examples)
@@ -559,6 +560,7 @@ cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 }
 ```
 
+### Advanced Configuration 
 ##### Custom Certificates and Timeouts (Proxy Environments)
 
 If your organization uses a corporate proxy or a custom CA bundle for HTTPS inspection, you need to tell Cycode CLI (and the underlying Python TLS stack) where to find the trusted certificate bundle. You can also increase the MCP tool call timeout if scans are being cut short.
