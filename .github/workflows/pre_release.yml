@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Run Cimon
-        uses: cycodelabs/cimon-action@f99ad5557cb80964bc2b2e76a47bf4b5ba6e323b # v0.10.0
+        uses: cycodelabs/cimon-action@3ca67e875f34772093aa3bf3c185a711720bf5d9 # v0.10.1
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
           secret: ${{ secrets.CIMON_SECRET }}
@@ -39,7 +39,7 @@ jobs:
 
       - name: Load cached Poetry setup
         id: cached-poetry
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.local
           key: poetry-ubuntu-1  # increment to reset cache

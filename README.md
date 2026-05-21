@@ -21,6 +21,7 @@ This guide walks you through both installation and usage.
     2. [Available Options](#available-options)
     3. [MCP Tools](#mcp-tools)
     4. [Usage Examples](#usage-examples)
+    5. [Advanced Configuration](#advanced-configuration)
 5. [Platform Command](#platform-command-beta)
     1. [Discovering Commands](#discovering-commands)
     2. [Examples](#platform-examples)
@@ -559,6 +560,38 @@ cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 }
 ```
 
+### Advanced Configuration 
+##### Custom Certificates and Timeouts (Proxy Environments)
+
+If your organization uses a corporate proxy or a custom CA bundle for HTTPS inspection, you need to tell Cycode CLI (and the underlying Python TLS stack) where to find the trusted certificate bundle. You can also increase the MCP tool call timeout if scans are being cut short.
+
+| Environment Variable | Description |
+|----------------------|-------------|
+| `REQUESTS_CA_BUNDLE` | Path to a custom CA bundle file (`.pem` or `.crt`). Used by the `requests` library for all HTTPS calls made by Cycode CLI. |
+| `SSL_CERT_FILE`      | Path to a custom CA bundle file. Used by Python's low-level `ssl` module. Set this alongside `REQUESTS_CA_BUNDLE` for full coverage. |
+| `MCP_TOOL_TIMEOUT`   | Timeout (in seconds) that MCP clients such as Claude and GitHub Copilot wait for a tool call to complete. Increase this if long-running scans are being cut off before they finish. |
+
+> [!TIP]
+> Set both `REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` to the same CA bundle path. `REQUESTS_CA_BUNDLE` covers the HTTP layer; `SSL_CERT_FILE` covers the lower-level TLS layer. Using only one may still cause certificate errors in some environments.
+
+Example `mcp.json` configuration with custom certificates and a longer timeout:
+
+```json
+{
+  "mcpServers": {
+    "cycode": {
+      "command": "cycode",
+      "args": ["mcp"],
+      "env": {
+        "REQUESTS_CA_BUNDLE": "/path/to/your/corporate-ca-bundle.pem",
+        "SSL_CERT_FILE": "/path/to/your/corporate-ca-bundle.pem",
+        "MCP_TOOL_TIMEOUT": "1800"
+      }
+    }
+  }
+}
+```
+
 > [!NOTE]
 > The MCP server requires proper Cycode CLI authentication to function. Make sure you have authenticated using `cycode auth` or configured your credentials before starting the MCP server.
 
@@ -607,6 +640,8 @@ This information can be helpful when:
 - Understanding why certain tools aren't working
 - Identifying authentication problems
 - Debugging transport-specific issues
+
+### MCP Configuration
 
 
 # Platform Command \[BETA\]
