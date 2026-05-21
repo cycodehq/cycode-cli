@@ -33,9 +33,7 @@ def _single_value_callback(ctx: typer.Context, param: typer.CallbackParam, value
         values_str = ', '.join(str(v) for v in value)
         param_hint = '/'.join(sorted(param.opts, key=len))
         err = typer.BadParameter(
-            f'Only one value can be specified per command. '
-            f'Got: {values_str}. '
-            f'Run a separate command for each value.',
+            f'Only one value can be specified per command. Got: {values_str}. Run a separate command for each value.',
             ctx=ctx,
             param_hint=param_hint,
         )
