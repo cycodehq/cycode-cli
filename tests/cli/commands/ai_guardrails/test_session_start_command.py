@@ -9,6 +9,8 @@ import pytest
 import typer
 
 from cycode.cli.apps.ai_guardrails import session_start_command as _session_start_mod
+from cycode.cli.apps.ai_guardrails.ides import claude_code as _claude_mod
+from cycode.cli.apps.ai_guardrails.ides import cursor as _cursor_mod
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 
 
@@ -112,8 +114,8 @@ def test_invalid_json_stdin_skips_session_init(
 # Conversation creation tests
 
 
-@patch.object(_session_start_mod, 'extract_from_claude_transcript')
-@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_claude_mod, 'extract_from_claude_transcript')
+@patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_creates_conversation(
@@ -176,7 +178,7 @@ def test_cursor_creates_conversation(
     assert call_payload.ide_provider == 'cursor'
 
 
-@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_conversation_creation_failure_non_blocking(
@@ -203,8 +205,8 @@ def test_conversation_creation_failure_non_blocking(
 # MCP server reporting tests
 
 
-@patch.object(_session_start_mod, 'load_claude_settings')
-@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_claude_mod, 'load_claude_settings')
+@patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_reports_mcp_servers(
@@ -238,8 +240,8 @@ def test_claude_code_reports_mcp_servers(
     )
 
 
-@patch.object(_session_start_mod, 'load_claude_settings')
-@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_claude_mod, 'load_claude_settings')
+@patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_merges_plugin_mcp_servers_and_metadata(
@@ -298,8 +300,8 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     )
 
 
-@patch.object(_session_start_mod, 'load_claude_settings')
-@patch.object(_session_start_mod, 'load_claude_config')
+@patch.object(_claude_mod, 'load_claude_settings')
+@patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_claude_code_no_mcp_servers_no_plugins_skips_report(
@@ -324,7 +326,7 @@ def test_claude_code_no_mcp_servers_no_plugins_skips_report(
     mock_ai_client.report_session_context.assert_not_called()
 
 
-@patch.object(_session_start_mod, 'load_cursor_config')
+@patch.object(_cursor_mod, '_load_cursor_mcp_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_cursor_reports_mcp_servers(
@@ -350,7 +352,7 @@ def test_cursor_reports_mcp_servers(
     )
 
 
-@patch.object(_session_start_mod, 'load_cursor_config')
+@patch.object(_cursor_mod, '_load_cursor_mcp_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
 def test_cursor_no_mcp_servers_skips_report(

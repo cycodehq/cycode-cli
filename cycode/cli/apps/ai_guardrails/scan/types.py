@@ -1,4 +1,9 @@
-"""Type definitions for AI guardrails."""
+"""Canonical event types and outcome enums for AI guardrails.
+
+Per-IDE event-name mappings live on the IDE class (in
+`cycode/cli/apps/ai_guardrails/ides/`); only the IDE-agnostic enums are kept
+here.
+"""
 
 import sys
 
@@ -13,34 +18,11 @@ else:
 
 
 class AiHookEventType(StrEnum):
-    """Canonical event types for AI guardrails.
-
-    These are IDE-agnostic event types. Each IDE's specific event names
-    are mapped to these canonical types using the mapping dictionaries below.
-    """
+    """Canonical, IDE-agnostic hook event types."""
 
     PROMPT = 'Prompt'
     FILE_READ = 'FileRead'
     MCP_EXECUTION = 'McpExecution'
-
-
-# IDE-specific event name mappings to canonical types
-CURSOR_EVENT_MAPPING = {
-    'beforeSubmitPrompt': AiHookEventType.PROMPT,
-    'beforeReadFile': AiHookEventType.FILE_READ,
-    'beforeMCPExecution': AiHookEventType.MCP_EXECUTION,
-}
-
-# Claude Code event mapping - note that PreToolUse requires tool_name inspection
-# to determine the actual event type (file read vs MCP execution)
-CLAUDE_CODE_EVENT_MAPPING = {
-    'UserPromptSubmit': AiHookEventType.PROMPT,
-    'PreToolUse': None,  # Requires tool_name inspection to determine actual type
-}
-
-# Set of known event names per IDE (for IDE detection)
-CURSOR_EVENT_NAMES = set(CURSOR_EVENT_MAPPING.keys())
-CLAUDE_CODE_EVENT_NAMES = set(CLAUDE_CODE_EVENT_MAPPING.keys())
 
 
 class AIHookOutcome(StrEnum):
@@ -52,11 +34,7 @@ class AIHookOutcome(StrEnum):
 
 
 class BlockReason(StrEnum):
-    """Reason why an AI hook event was blocked.
-
-    These are categorical reasons sent to the backend for tracking/analytics,
-    separate from the detailed user-facing messages.
-    """
+    """Categorical reason for blocking (sent to backend for tracking)."""
 
     SECRETS_IN_PROMPT = 'secrets_in_prompt'
     SECRETS_IN_FILE = 'secrets_in_file'
