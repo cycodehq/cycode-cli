@@ -28,7 +28,7 @@ _SCA_RICH_HELP_PANEL = 'SCA options'
 _SECRET_RICH_HELP_PANEL = 'Secret options'
 
 
-def _single_value_callback(ctx: typer.Context, param: typer.CallbackParam, value: tuple) -> Any:
+def _single_value_callback(ctx: typer.Context, param: typer.CallbackParam, value: list) -> list:
     if len(value) > 1:
         values_str = ', '.join(str(v) for v in value)
         param_hint = '/'.join(sorted(param.opts, key=len))
@@ -39,7 +39,7 @@ def _single_value_callback(ctx: typer.Context, param: typer.CallbackParam, value
         )
         err.exit_code = 1
         raise err
-    return value[0]
+    return value
 
 
 def scan_command(
@@ -151,6 +151,9 @@ def scan_command(
             'Export file must be specified when --export-type is provided.',
             param_hint='--export-file',
         )
+
+    # _single_value_callback validated exactly one value was provided; unwrap from list
+    scan_type = scan_type[0]
 
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
