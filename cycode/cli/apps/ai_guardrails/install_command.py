@@ -5,14 +5,10 @@ from typing import Annotated, Optional
 
 import typer
 
-from cycode.cli.apps.ai_guardrails.command_utils import (
-    console,
-    resolve_repo_path,
-    validate_and_parse_ide,
-    validate_scope,
-)
-from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS, AIIDEType, InstallMode, PolicyMode
+from cycode.cli.apps.ai_guardrails.command_utils import console, resolve_repo_path, validate_scope
+from cycode.cli.apps.ai_guardrails.consts import InstallMode, PolicyMode
 from cycode.cli.apps.ai_guardrails.hooks_manager import create_policy_file, install_hooks
+from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, IDES, resolve_ides
 
 
 def install_command(
@@ -29,9 +25,9 @@ def install_command(
         str,
         typer.Option(
             '--ide',
-            help='IDE to install hooks for (e.g., "cursor", "claude-code", or "all" for all IDEs). Defaults to cursor.',
+            help=f'IDE to install hooks for ({", ".join(IDES)}, or "all" for every supported IDE).',
         ),
-    ] = AIIDEType.CURSOR.value,
+    ] = DEFAULT_IDE_NAME,
     repo_path: Annotated[
         Optional[Path],
         typer.Option(
@@ -55,35 +51,30 @@ def install_command(
 ) -> None:
     """Install AI guardrails hooks for supported IDEs.
 
-    This command configures the specified IDE to use Cycode for scanning prompts, file reads,
-    and MCP tool calls for secrets before they are sent to AI models.
+    Configures the specified IDE to use Cycode for scanning prompts, file reads,
+    and MCP tool calls for secrets before they reach the AI model.
 
     Examples:
         cycode ai-guardrails install                    # Install in report mode (default)
         cycode ai-guardrails install --mode block       # Install in block mode
         cycode ai-guardrails install --scope repo       # Install for current repo only
-        cycode ai-guardrails install --ide cursor       # Install for Cursor IDE
-        cycode ai-guardrails install --ide all          # Install for all supported IDEs
-        cycode ai-guardrails install --scope repo --repo-path /path/to/repo
+        cycode ai-guardrails install --ide claude-code  # Install for a specific IDE
+        cycode ai-guardrails install --ide all          # Install for every supported IDE
     """
-    # Validate inputs
     validate_scope(scope)
     repo_path = resolve_repo_path(scope, repo_path)
-    ide_type = validate_and_parse_ide(ide)
+    ides_to_install = resolve_ides(ide)
 
-    ides_to_install: list[AIIDEType] = list(AIIDEType) if ide_type is None else [ide_type]
+    report_mode = mode == InstallMode.REPORT
 
     results: list[tuple[str, bool, str]] = []
     for current_ide in ides_to_install:
-        ide_name = IDE_CONFIGS[current_ide].name
-        report_mode = mode == InstallMode.REPORT
-        success, message = install_hooks(scope, repo_path, ide=current_ide, report_mode=report_mode)
-        results.append((ide_name, success, message))
+        success, message = install_hooks(current_ide, scope, repo_path, report_mode=report_mode)
+        results.append((current_ide.display_name, success, message))
 
-    # Report results for each IDE
     any_success = False
     all_success = True
-    for _ide_name, success, message in results:
+    for _name, success, message in results:
         if success:
             console.print(f'[green]✓[/] {message}')
             any_success = True

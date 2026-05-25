@@ -5,14 +5,9 @@ from typing import Annotated, Optional
 
 import typer
 
-from cycode.cli.apps.ai_guardrails.command_utils import (
-    console,
-    resolve_repo_path,
-    validate_and_parse_ide,
-    validate_scope,
-)
-from cycode.cli.apps.ai_guardrails.consts import IDE_CONFIGS, AIIDEType
+from cycode.cli.apps.ai_guardrails.command_utils import console, resolve_repo_path, validate_scope
 from cycode.cli.apps.ai_guardrails.hooks_manager import uninstall_hooks
+from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, IDES, resolve_ides
 
 
 def uninstall_command(
@@ -29,9 +24,9 @@ def uninstall_command(
         str,
         typer.Option(
             '--ide',
-            help='IDE to uninstall hooks from (e.g., "cursor", "claude-code", "all"). Defaults to cursor.',
+            help=f'IDE to uninstall hooks from ({", ".join(IDES)}, or "all").',
         ),
-    ] = AIIDEType.CURSOR.value,
+    ] = DEFAULT_IDE_NAME,
     repo_path: Annotated[
         Optional[Path],
         typer.Option(
@@ -46,32 +41,27 @@ def uninstall_command(
 ) -> None:
     """Remove AI guardrails hooks from supported IDEs.
 
-    This command removes Cycode hooks from the IDE's hooks configuration.
-    Other hooks (if any) will be preserved.
+    Removes Cycode hooks from the IDE's hooks configuration. Other hooks
+    (if any) are preserved.
 
     Examples:
         cycode ai-guardrails uninstall                    # Remove user-level hooks
         cycode ai-guardrails uninstall --scope repo       # Remove repo-level hooks
-        cycode ai-guardrails uninstall --ide cursor       # Uninstall from Cursor IDE
-        cycode ai-guardrails uninstall --ide all          # Uninstall from all supported IDEs
+        cycode ai-guardrails uninstall --ide claude-code  # Uninstall from a specific IDE
+        cycode ai-guardrails uninstall --ide all          # Uninstall from every supported IDE
     """
-    # Validate inputs
     validate_scope(scope)
     repo_path = resolve_repo_path(scope, repo_path)
-    ide_type = validate_and_parse_ide(ide)
-
-    ides_to_uninstall: list[AIIDEType] = list(AIIDEType) if ide_type is None else [ide_type]
+    ides_to_uninstall = resolve_ides(ide)
 
     results: list[tuple[str, bool, str]] = []
     for current_ide in ides_to_uninstall:
-        ide_name = IDE_CONFIGS[current_ide].name
-        success, message = uninstall_hooks(scope, repo_path, ide=current_ide)
-        results.append((ide_name, success, message))
+        success, message = uninstall_hooks(current_ide, scope, repo_path)
+        results.append((current_ide.display_name, success, message))
 
-    # Report results for each IDE
     any_success = False
     all_success = True
-    for _ide_name, success, message in results:
+    for _name, success, message in results:
         if success:
             console.print(f'[green]✓[/] {message}')
             any_success = True

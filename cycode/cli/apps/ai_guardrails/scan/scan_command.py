@@ -1,26 +1,22 @@
-"""
-Scan command for AI guardrails.
+"""Scan command for AI guardrails IDE hooks.
 
-This command handles AI IDE hooks by reading JSON from stdin and outputting
-a JSON response to stdout. It scans prompts, file reads, and MCP tool calls
-for secrets before they are sent to AI models.
+Reads a JSON payload from stdin, routes it through the IDE-specific parser and
+the shared event handlers, then writes an IDE-specific JSON response to stdout.
 
-Supports multiple IDEs with different hook event types. The specific hook events
-supported depend on the IDE being used (e.g., Cursor supports beforeSubmitPrompt,
-beforeReadFile, beforeMCPExecution).
+The handlers in ``handlers.py`` are agent-agnostic (they return
+``HookDecision``); ``IDE.build_hook_response`` is the per-IDE translation step.
 """
 
 import sys
-from typing import Annotated
+from typing import Annotated, Optional, Union
 
 import click
 import typer
 
-from cycode.cli.apps.ai_guardrails.consts import AIIDEType
+from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, get_ide
+from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event
-from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
-from cycode.cli.apps.ai_guardrails.scan.response_builders import get_response_builder
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.apps.ai_guardrails.scan.utils import output_json, safe_json_parse
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
@@ -31,7 +27,7 @@ logger = get_logger('AI Guardrails')
 
 
 def _get_auth_error_message(error: Exception) -> str:
-    """Get user-friendly message for authentication errors."""
+    """User-friendly message for authentication errors."""
     if isinstance(error, click.ClickException):
         # Missing credentials
         return f'{error.message} Please run `cycode auth` to set up your credentials.'
@@ -45,6 +41,23 @@ def _get_auth_error_message(error: Exception) -> str:
 
     # Fallback
     return 'Authentication failed. Please run `cycode auth` to set up your credentials.'
+
+
+def _deny_for_event(
+    event_name: Optional[Union[str, AiHookEventType]],
+    user_message: str,
+    agent_message: Optional[str] = None,
+) -> HookDecision:
+    """Build a deny decision matched to ``event_name``'s response shape.
+
+    PROMPT events use the prompt-block shape (no agent_message). For anything
+    else — including unknown event names — fall back to FILE_READ since
+    FILE_READ and MCP_EXECUTION share the same response shape on both IDEs.
+    """
+    if event_name == AiHookEventType.PROMPT:
+        return HookDecision.deny(AiHookEventType.PROMPT, user_message)
+    target = event_name if isinstance(event_name, AiHookEventType) else AiHookEventType.FILE_READ
+    return HookDecision.deny(target, user_message, agent_message)
 
 
 def _initialize_clients(ctx: typer.Context) -> None:
@@ -69,44 +82,36 @@ def scan_command(
             help='IDE that sent the payload (e.g., "cursor"). Defaults to cursor.',
             hidden=True,
         ),
-    ] = AIIDEType.CURSOR.value,
+    ] = DEFAULT_IDE_NAME,
 ) -> None:
     """Scan content from AI IDE hooks for secrets.
 
-    This command reads a JSON payload from stdin containing hook event data
-    and outputs a JSON response to stdout indicating whether to allow or block the action.
-
-    The hook event type is determined from the event field in the payload (field name
-    varies by IDE). Each IDE may support different hook events for scanning prompts,
-    file access, and tool executions.
-
-    Example usage (from IDE hooks configuration):
-        { "command": "cycode ai-guardrails scan" }
+    Reads a JSON payload from stdin and outputs a JSON response to stdout
+    indicating whether to allow or block the action.
     """
+    ide_integration = get_ide(ide)
+
     stdin_data = sys.stdin.read().strip()
     payload = safe_json_parse(stdin_data)
 
-    tool = ide.lower()
-    response_builder = get_response_builder(tool)
-
     if not payload:
         logger.debug('Empty or invalid JSON payload received')
-        output_json(response_builder.allow_prompt())
+        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
         return
 
-    # Check if the payload matches the expected IDE - prevents double-processing
-    # when Cursor reads Claude Code hooks from ~/.claude/settings.json
-    if not AIHookPayload.is_payload_for_ide(payload, tool):
+    # Prevent cross-IDE processing (e.g. Cursor reading Claude Code hooks
+    # from ~/.claude/settings.json).
+    if not ide_integration.matches_payload(payload):
         logger.debug(
             'Payload event does not match expected IDE, skipping',
-            extra={'hook_event_name': payload.get('hook_event_name'), 'expected_ide': tool},
+            extra={'hook_event_name': payload.get('hook_event_name'), 'expected_ide': ide_integration.name},
         )
-        output_json(response_builder.allow_prompt())
+        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
         return
 
-    unified_payload = AIHookPayload.from_payload(payload, tool=tool)
+    unified_payload = ide_integration.parse_hook_payload(payload)
     event_name = unified_payload.event_name
-    logger.debug('Processing AI guardrails hook', extra={'event_name': event_name, 'tool': tool})
+    logger.debug('Processing AI guardrails hook', extra={'event_name': event_name, 'ide': ide_integration.name})
 
     workspace_roots = payload.get('workspace_roots', ['.'])
     policy = load_policy(workspace_roots[0])
@@ -117,26 +122,33 @@ def scan_command(
         handler = get_handler_for_event(event_name)
         if handler is None:
             logger.debug('Unknown hook event, allowing by default', extra={'event_name': event_name})
-            output_json(response_builder.allow_prompt())
+            output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
             return
 
-        response = handler(ctx, unified_payload, policy)
-        logger.debug('Hook handler completed', extra={'event_name': event_name, 'response': response})
-        output_json(response)
+        decision = handler(ctx, unified_payload, policy)
+        logger.debug('Hook handler completed', extra={'event_name': event_name, 'action': decision.action.value})
+        output_json(ide_integration.build_hook_response(decision))
 
     except (click.ClickException, HttpUnauthorizedError) as e:
-        error_message = _get_auth_error_message(e)
-        if event_name == AiHookEventType.PROMPT:
-            output_json(response_builder.deny_prompt(error_message))
-            return
-        output_json(response_builder.deny_permission(error_message, 'Authentication required'))
+        output_json(
+            ide_integration.build_hook_response(
+                _deny_for_event(event_name, _get_auth_error_message(e), 'Authentication required')
+            )
+        )
 
     except Exception as e:
         logger.error('Hook handler failed', exc_info=e)
         if policy.get('fail_open', True):
-            output_json(response_builder.allow_prompt())
+            output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
             return
-        if event_name == AiHookEventType.PROMPT:
-            output_json(response_builder.deny_prompt('Cycode guardrails error - blocking due to fail-closed policy'))
-            return
-        output_json(response_builder.deny_permission('Cycode guardrails error', 'Blocking due to fail-closed policy'))
+        output_json(
+            ide_integration.build_hook_response(
+                _deny_for_event(
+                    event_name,
+                    'Cycode guardrails error - blocking due to fail-closed policy'
+                    if event_name == AiHookEventType.PROMPT
+                    else 'Cycode guardrails error',
+                    'Blocking due to fail-closed policy',
+                )
+            )
+        )

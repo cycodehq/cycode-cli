@@ -9,7 +9,9 @@ from pytest_mock import MockerFixture
 from typer.testing import CliRunner
 
 from cycode.cli.apps.ai_guardrails import app as ai_guardrails_app
+from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
+from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 
 @pytest.fixture
@@ -129,7 +131,7 @@ class TestMatchingIdeProcessesPayload:
         mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
 
         mock_scan_command_deps['load_policy'].return_value = {'fail_open': True}
-        mock_handler = MagicMock(return_value={'decision': 'allow'})
+        mock_handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mock_scan_command_deps['get_handler'].return_value = mock_handler
 
         scan_command(mock_ctx, ide='claude-code')
@@ -146,15 +148,15 @@ class TestDefaultIdeParameterViaCli:
     def test_scan_command_default_ide_via_cli(self, mocker: MockerFixture) -> None:
         """Test scan_command works with default --ide when invoked via CLI.
 
-        This test catches issues where Typer converts enum defaults to strings
-        incorrectly (e.g., AIIDEType.CURSOR becomes 'AIIDEType.CURSOR' instead of 'cursor').
+        Catches regressions where the default value would no longer match a
+        registered IDE name (e.g. after renaming `DEFAULT_IDE_NAME`).
         """
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
         mocker.patch(
             'cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy',
             return_value={'fail_open': True},
         )
-        mock_handler = MagicMock(return_value={'continue': True})
+        mock_handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mocker.patch(
             'cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event',
             return_value=mock_handler,
