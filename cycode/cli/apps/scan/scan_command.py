@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Optional
 
 import click
 import typer
