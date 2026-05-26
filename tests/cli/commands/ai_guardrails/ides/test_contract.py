@@ -61,7 +61,7 @@ def test_render_hooks_config_has_hooks_key(ide: IDE) -> None:
 
 
 def test_render_hooks_config_async_changes_output(ide: IDE) -> None:
-    """async_mode must influence the rendered output (e.g. & suffix, async flag)."""
+    """async_mode must influence the rendered output."""
     assert ide.render_hooks_config(async_mode=False) != ide.render_hooks_config(async_mode=True)
 
 

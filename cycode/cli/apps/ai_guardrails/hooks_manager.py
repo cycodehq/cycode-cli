@@ -28,7 +28,7 @@ def _is_cycode_command(command: str) -> bool:
 
 
 def is_cycode_hook_entry(entry: dict) -> bool:
-    """Detect Cycode hook entries in both Cursor (flat) and Claude Code (nested) shapes."""
+    """True if any hook inside ``entry`` is owned by Cycode."""
     command = entry.get('command', '')
     if _is_cycode_command(command):
         return True
@@ -38,6 +38,31 @@ def is_cycode_hook_entry(entry: dict) -> bool:
             return True
 
     return False
+
+
+def _strip_cycode_from_entry(entry: dict) -> Optional[dict]:
+    """Remove Cycode hooks from ``entry`` and return the remainder.
+
+    Returns ``None`` when nothing useful remains (Cursor-flat Cycode entry, or
+    every nested hook was Cycode). Non-Cycode hooks co-located in the same
+    entry are preserved.
+    """
+    # Cursor format: the entry itself IS a single hook command.
+    if 'command' in entry and 'hooks' not in entry:
+        return None if _is_cycode_command(entry.get('command', '')) else entry
+
+    # Claude Code / Codex format: nested `hooks` list inside the entry.
+    nested = entry.get('hooks')
+    if isinstance(nested, list):
+        kept = [h for h in nested if not (isinstance(h, dict) and _is_cycode_command(h.get('command', '')))]
+        if not kept:
+            return None
+        if len(kept) == len(nested):
+            return entry  # nothing Cycode-shaped inside; preserve identity
+        return {**entry, 'hooks': kept}
+
+    # Entry has neither shape we recognize — leave it alone defensively.
+    return entry
 
 
 def _load_hooks_file(hooks_path: Path) -> Optional[dict]:
@@ -108,17 +133,62 @@ def install_hooks(
 
     for event, entries in rendered['hooks'].items():
         existing['hooks'].setdefault(event, [])
-
-        # Remove any existing Cycode entries for this event
-        existing['hooks'][event] = [e for e in existing['hooks'][event] if not is_cycode_hook_entry(e)]
-
-        # Add new Cycode entries
+        existing['hooks'][event] = [
+            stripped for e in existing['hooks'][event] if (stripped := _strip_cycode_from_entry(e)) is not None
+        ]
         for entry in entries:
             existing['hooks'][event].append(entry)
 
-    if _save_hooks_file(hooks_path, existing):
-        return True, f'AI guardrails hooks installed: {hooks_path}'
-    return False, f'Failed to install hooks to {hooks_path}'
+    if not _save_hooks_file(hooks_path, existing):
+        return False, f'Failed to install hooks to {hooks_path}'
+
+    message = f'AI guardrails hooks installed: {hooks_path}'
+
+    # IDE-specific extras (e.g. Codex enables a TOML feature flag).
+    extra_ok, extra_message = ide.post_install(scope, repo_path)
+    if not extra_ok:
+        return False, extra_message
+    if extra_message:
+        message = f'{message}\n  {extra_message}'
+
+    return True, message
+
+
+def _strip_cycode_entries(existing: dict) -> bool:
+    """Mutate ``existing`` to drop Cycode hooks (surgically). Return True if anything changed."""
+    modified = False
+    for event in list(existing.get('hooks', {}).keys()):
+        before = existing['hooks'][event]
+        after: list = []
+        for e in before:
+            stripped = _strip_cycode_from_entry(e)
+            if stripped is None:
+                modified = True
+                continue
+            if stripped is not e:
+                modified = True
+            after.append(stripped)
+        if not after:
+            del existing['hooks'][event]
+        else:
+            existing['hooks'][event] = after
+    return modified
+
+
+def _persist_uninstall(hooks_path: Path, existing: dict, modified: bool) -> tuple[bool, str]:
+    """Apply the uninstall result to disk and return ``(success, message)``."""
+    if not modified:
+        return True, 'No Cycode hooks found to remove'
+    if not existing.get('hooks'):
+        try:
+            hooks_path.unlink()
+        except Exception as e:
+            logger.debug('Failed to delete hooks file', exc_info=e)
+            return False, f'Failed to remove hooks file: {hooks_path}'
+        return True, f'Removed hooks file: {hooks_path}'
+    if not _save_hooks_file(hooks_path, existing):
+        return False, f'Failed to update hooks file: {hooks_path}'
+    return True, f'Cycode hooks removed from: {hooks_path}'
 
 
 def uninstall_hooks(ide: IDE, scope: str = 'user', repo_path: Optional[Path] = None) -> tuple[bool, str]:
@@ -129,29 +199,17 @@ def uninstall_hooks(ide: IDE, scope: str = 'user', repo_path: Optional[Path] = N
     if existing is None:
         return True, f'No hooks file found at {hooks_path}'
 
-    modified = False
-    for event in list(existing.get('hooks', {}).keys()):
-        original_count = len(existing['hooks'][event])
-        existing['hooks'][event] = [e for e in existing['hooks'][event] if not is_cycode_hook_entry(e)]
-        if len(existing['hooks'][event]) != original_count:
-            modified = True
-        if not existing['hooks'][event]:
-            del existing['hooks'][event]
+    modified = _strip_cycode_entries(existing)
+    file_ok, message = _persist_uninstall(hooks_path, existing, modified)
+    if not file_ok:
+        return False, message
 
-    if not modified:
-        return True, 'No Cycode hooks found to remove'
-
-    if not existing.get('hooks'):
-        try:
-            hooks_path.unlink()
-            return True, f'Removed hooks file: {hooks_path}'
-        except Exception as e:
-            logger.debug('Failed to delete hooks file', exc_info=e)
-            return False, f'Failed to remove hooks file: {hooks_path}'
-
-    if _save_hooks_file(hooks_path, existing):
-        return True, f'Cycode hooks removed from: {hooks_path}'
-    return False, f'Failed to update hooks file: {hooks_path}'
+    extra_ok, extra_message = ide.post_uninstall(scope, repo_path)
+    if not extra_ok:
+        return False, extra_message
+    if extra_message:
+        message = f'{message}\n  {extra_message}'
+    return True, message
 
 
 def get_hooks_status(ide: IDE, scope: str = 'user', repo_path: Optional[Path] = None) -> dict:

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
+from cycode.cli.apps.ai_guardrails.ides._plugin_utils import load_plugin_json, walk_enabled_plugins
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -171,69 +172,47 @@ def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
     return path if path.is_dir() else None
 
 
-def _load_plugin_json_file(plugin_path: Path, relative_path: str) -> Optional[dict]:
-    """Load and parse a JSON file inside a plugin directory.
+def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
+    """Read one Claude Code plugin's manifest + MCP servers.
 
-    Returns None if the file is missing, unreadable, or has invalid JSON.
+    Claude hardcodes the MCP file at ``<plugin_dir>/.mcp.json`` and always
+    wraps it as ``{"mcpServers": {...}}``.
     """
-    target = plugin_path / relative_path
-    if not target.exists():
-        return None
-    try:
-        return json.loads(target.read_text(encoding='utf-8'))
-    except Exception as e:
-        logger.debug('Failed to load plugin file', extra={'path': str(target)}, exc_info=e)
-        return None
+    manifest = load_plugin_json(plugin_dir / '.claude-plugin' / 'plugin.json') or {}
+    entry: dict = {}
+    for field in ('name', 'version', 'description'):
+        if field in manifest:
+            entry[field] = manifest[field]
+
+    mcp_config = load_plugin_json(plugin_dir / '.mcp.json') or {}
+    servers: dict = mcp_config.get('mcpServers') or {}
+    if servers:
+        entry['mcp_server_names'] = list(servers.keys())
+    return entry, servers
 
 
 def resolve_plugins(settings: dict) -> tuple[dict, dict]:
-    """Resolve enabled plugins to their MCP servers and metadata.
+    """Walk Claude Code's ``enabledPlugins`` via the shared plugin walker.
 
-    Walks ``enabledPlugins`` from claude settings, resolves each plugin's
-    marketplace directory via ``extraKnownMarketplaces``, and reads:
-      - ``<path>/.mcp.json`` for MCP servers (merged into a flat dict)
-      - ``<path>/.claude-plugin/plugin.json`` for metadata (name, version, description)
-
-    Returns ``(merged_mcp_servers, enriched_plugins)``.
+    Each enabled plugin's marketplace is resolved through
+    ``extraKnownMarketplaces`` to a directory; the rest of the work
+    (manifest + ``.mcp.json``) is the shared ``_read_claude_plugin``.
     """
     enabled = settings.get('enabledPlugins') or {}
     marketplaces = settings.get('extraKnownMarketplaces') or {}
-    merged_mcp: dict = {}
-    enriched: dict = {}
 
-    for plugin_key, is_enabled in enabled.items():
-        if not is_enabled:
-            continue
-
-        entry: dict = {'enabled': True}
-        enriched[plugin_key] = entry
-
-        if '@' not in plugin_key:
-            continue
-
-        _plugin_name, marketplace_name = plugin_key.split('@', 1)
+    def _locate(_plugin_name: str, marketplace_name: str) -> Optional[Path]:
         marketplace = marketplaces.get(marketplace_name)
         if not marketplace:
-            continue
+            return None
+        return _resolve_marketplace_path(marketplace)
 
-        plugin_path = _resolve_marketplace_path(marketplace)
-        if plugin_path is None:
-            continue
-
-        metadata = _load_plugin_json_file(plugin_path, '.claude-plugin/plugin.json') or {}
-        for field in ('name', 'version', 'description'):
-            if field in metadata:
-                entry[field] = metadata[field]
-
-        mcp_config = _load_plugin_json_file(plugin_path, '.mcp.json') or {}
-        plugin_server_names = []
-        for server_name, server_cfg in (mcp_config.get('mcpServers') or {}).items():
-            merged_mcp[server_name] = server_cfg
-            plugin_server_names.append(server_name)
-        if plugin_server_names:
-            entry['mcp_server_names'] = plugin_server_names
-
-    return merged_mcp, enriched
+    return walk_enabled_plugins(
+        plugin_entries=enabled,
+        is_enabled=bool,
+        locate_dir=_locate,
+        read_plugin=_read_claude_plugin,
+    )
 
 
 # --- IDE integration ----------------------------------------------------------
@@ -260,6 +239,7 @@ class ClaudeCode(IDE):
             'hooks': {
                 'SessionStart': [
                     {
+                        'matcher': 'startup|clear',
                         'hooks': [{'type': 'command', 'command': _SESSION_START_COMMAND}],
                     }
                 ],
