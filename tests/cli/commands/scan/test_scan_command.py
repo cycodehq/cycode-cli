@@ -1,9 +1,17 @@
+import re
+
 import click
 import pytest
 import typer
+from typer.testing import CliRunner
 
+from cycode.cli.app import app
 from cycode.cli.apps.scan.scan_command import scan_command_result_callback
 from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, SCAN_ERROR_STATUS_CODE
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r'\x1b\[[0-9;]*[mGKHF]', '', text)
 
 
 def _make_ctx(**obj_overrides: object) -> click.Context:
@@ -23,6 +31,21 @@ def _invoke_result_callback(ctx: click.Context) -> int:
     with pytest.raises(typer.Exit) as exc_info, ctx:
         scan_command_result_callback()
     return exc_info.value.exit_code
+
+
+class TestScanCommand:
+    def test_multiple_scan_types_rejected(self) -> None:
+        result = CliRunner().invoke(app, ['scan', '-t', 'iac', '-t', 'sast', 'path', '.'])
+        assert result.exit_code == 1
+        output = _strip_ansi(result.output)
+        assert '-t/--scan-type' in output
+        assert 'iac' in output
+        assert 'sast' in output
+
+    def test_single_scan_type_accepted(self) -> None:
+        result = CliRunner().invoke(app, ['scan', '-t', 'iac', '--help'])
+        assert result.exit_code == 0
+        assert 'Error' not in result.output
 
 
 class TestScanCommandResultCallback:

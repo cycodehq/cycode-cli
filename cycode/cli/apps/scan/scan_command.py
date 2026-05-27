@@ -28,17 +28,32 @@ _SCA_RICH_HELP_PANEL = 'SCA options'
 _SECRET_RICH_HELP_PANEL = 'Secret options'
 
 
+def _single_value_callback(ctx: typer.Context, param: typer.CallbackParam, value: list) -> list:
+    if len(value) > 1:
+        values_str = ', '.join(str(v) for v in value)
+        param_hint = '/'.join(sorted(param.opts, key=len))
+        err = typer.BadParameter(
+            f'Only one value can be specified per command. Got: {values_str}. Run a separate command for each value.',
+            ctx=ctx,
+            param_hint=param_hint,
+        )
+        err.exit_code = 1
+        raise err
+    return value
+
+
 def scan_command(
     ctx: typer.Context,
     scan_type: Annotated[
-        ScanTypeOption,
+        list[ScanTypeOption],
         typer.Option(
             '--scan-type',
             '-t',
             help='Specify the type of scan you wish to execute.',
             case_sensitive=False,
+            callback=_single_value_callback,
         ),
-    ] = ScanTypeOption.SECRET,
+    ] = (ScanTypeOption.SECRET,),
     soft_fail: Annotated[
         bool, typer.Option('--soft-fail', help='Run the scan without failing; always return a non-error status code.')
     ] = False,
@@ -136,6 +151,9 @@ def scan_command(
             'Export file must be specified when --export-type is provided.',
             param_hint='--export-file',
         )
+
+    # _single_value_callback validated exactly one value was provided; unwrap from list
+    scan_type = scan_type[0]
 
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
