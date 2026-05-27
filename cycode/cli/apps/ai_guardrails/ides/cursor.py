@@ -43,7 +43,7 @@ def _load_cursor_mcp_config(config_path: Optional[Path] = None) -> Optional[dict
     """Load and parse `~/.cursor/mcp.json`. Returns None if missing/invalid."""
     path = config_path or (Path.home() / '.cursor' / _MCP_CONFIG_FILENAME)
     if not path.exists():
-        logger.debug('Cursor MCP config file not found', extra={'path': str(path)})
+        logger.debug('Cursor MCP config file not found, %s', {'path': str(path)})
         return None
     try:
         return json.loads(path.read_text(encoding='utf-8'))

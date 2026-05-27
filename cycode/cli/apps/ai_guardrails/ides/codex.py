@@ -59,13 +59,13 @@ def _load_codex_config(config_path: Optional[Path] = None) -> Optional[dict]:
     """Load and parse Codex's ``config.toml``. Returns None on missing/invalid."""
     path = config_path or (_codex_home() / _CONFIG_TOML_NAME)
     if not path.exists():
-        logger.debug('Codex config file not found', extra={'path': str(path)})
+        logger.debug('Codex config file not found, %s', {'path': str(path)})
         return None
     try:
         with path.open('rb') as f:
             return tomllib.load(f)
     except Exception as e:
-        logger.debug('Failed to load Codex config file', exc_info=e)
+        logger.debug('Failed to load Codex config file, %s', {'path': str(path)}, exc_info=e)
         return None
 
 
@@ -78,12 +78,12 @@ def _email_from_auth(auth_path: Optional[Path] = None) -> Optional[str]:
     """
     path = auth_path or (_codex_home() / _AUTH_JSON_NAME)
     if not path.exists():
-        logger.debug('Codex auth file not found', extra={'path': str(path)})
+        logger.debug('Codex auth file not found, %s', {'path': str(path)})
         return None
     try:
         auth = json.loads(path.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError) as e:
-        logger.debug('Failed to load Codex auth file', exc_info=e)
+        logger.debug('Failed to load Codex auth file, %s', {'path': str(path)}, exc_info=e)
         return None
 
     token = (auth.get('tokens') or {}).get('id_token')
@@ -162,7 +162,7 @@ def _enable_codex_hooks_feature(scope: str, repo_path: Optional[Path] = None) ->
             with config_path.open('rb') as f:
                 config = tomllib.load(f)
         except Exception as e:
-            logger.error('Failed to parse Codex config.toml', exc_info=e)
+            logger.error('Failed to parse Codex config.toml, %s', {'path': str(config_path)}, exc_info=e)
             return False, f'Failed to parse existing Codex config at {config_path}'
 
     features = config.get('features')
@@ -177,7 +177,7 @@ def _enable_codex_hooks_feature(scope: str, repo_path: Optional[Path] = None) ->
             tomli_w.dump(config, f)
         return True, f'Enabled hooks feature in {config_path}'
     except Exception as e:
-        logger.error('Failed to write Codex config.toml', exc_info=e)
+        logger.error('Failed to write Codex config.toml, %s', {'path': str(config_path)}, exc_info=e)
         return False, f'Failed to write Codex config at {config_path}'
 
 

@@ -22,7 +22,7 @@ def load_plugin_json(path: Path) -> Optional[dict]:
     try:
         return json.loads(path.read_text(encoding='utf-8'))
     except Exception as e:
-        logger.debug('Failed to load plugin file', extra={'path': str(path)}, exc_info=e)
+        logger.debug('Failed to load plugin file, %s', {'path': str(path)}, exc_info=e)
         return None
 
 
