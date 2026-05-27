@@ -5,6 +5,14 @@ import jwt
 _JWT_PAYLOAD_POSSIBLE_USER_ID_FIELD_NAMES = ('userId', 'internalId', 'token-user-id')
 
 
+def decode_jwt_unverified(token: str) -> Optional[dict]:
+    """Return JWT claims without signature verification, or None if the token is unreadable."""
+    try:
+        return jwt.decode(token, options={'verify_signature': False})
+    except jwt.PyJWTError:
+        return None
+
+
 def get_user_and_tenant_ids_from_access_token(access_token: str) -> tuple[Optional[str], Optional[str]]:
     payload = jwt.decode(access_token, options={'verify_signature': False})
 

@@ -1,17 +1,27 @@
 """Tests for AI guardrails hooks manager and per-IDE hooks rendering."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 from pyfakefs.fake_filesystem import FakeFilesystem
+
+if TYPE_CHECKING:
+    import pytest
 
 from cycode.cli.apps.ai_guardrails.consts import (
     CYCODE_SCAN_PROMPT_COMMAND,
     CYCODE_SESSION_START_COMMAND,
     PolicyMode,
 )
-from cycode.cli.apps.ai_guardrails.hooks_manager import create_policy_file, is_cycode_hook_entry
+from cycode.cli.apps.ai_guardrails.hooks_manager import (
+    create_policy_file,
+    install_hooks,
+    is_cycode_hook_entry,
+    uninstall_hooks,
+)
 from cycode.cli.apps.ai_guardrails.ides.claude_code import ClaudeCode
+from cycode.cli.apps.ai_guardrails.ides.codex import Codex
 from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor
 
 
@@ -101,11 +111,11 @@ def test_claude_code_render_hooks_async() -> None:
 
 
 def test_claude_code_render_hooks_session_start() -> None:
-    """Claude Code SessionStart carries the --ide flag explicitly."""
+    """Claude Code SessionStart fires on startup and /clear."""
     config = ClaudeCode().render_hooks_config()
-    assert 'SessionStart' in config['hooks']
     entries = config['hooks']['SessionStart']
     assert len(entries) == 1
+    assert entries[0]['matcher'] == 'startup|clear'
     assert CYCODE_SESSION_START_COMMAND in entries[0]['hooks'][0]['command']
     assert '--ide claude-code' in entries[0]['hooks'][0]['command']
 
@@ -151,6 +161,101 @@ def test_create_policy_file_updates_existing(fs: FakeFilesystem) -> None:
     policy = yaml.safe_load(policy_path.read_text())
     assert policy['mode'] == 'block'
     assert policy['custom_field'] == 'keep_me'
+
+
+def test_install_preserves_user_hook_colocated_with_cycode(
+    fs: FakeFilesystem, monkeypatch: 'pytest.MonkeyPatch'
+) -> None:
+    """install must not clobber a user-authored hook that shares
+    an entry with a Cycode hook. The filter is hook-level, not entry-level.
+    """
+    import json
+
+    repo = Path('/repo')
+    fs.create_dir(repo)
+    hooks_path = repo / '.codex' / 'hooks.json'
+    fs.create_file(
+        hooks_path,
+        contents=json.dumps(
+            {
+                'version': 1,
+                'hooks': {
+                    'SessionStart': [
+                        {
+                            'matcher': 'startup|clear',
+                            'hooks': [
+                                {'type': 'command', 'command': '/usr/local/bin/user-debug.sh SessionStart'},
+                                {'type': 'command', 'command': 'cycode ai-guardrails session-start --ide codex'},
+                            ],
+                        }
+                    ],
+                    # Unrelated event with no Cycode hooks at all — must be untouched.
+                    'PostToolUse': [{'hooks': [{'type': 'command', 'command': '/usr/local/bin/user-postlog.sh'}]}],
+                },
+            }
+        ),
+    )
+
+    # Codex's post_install touches ~/.codex/config.toml (user scope) — keep that off
+    # the filesystem under test by pinning CODEX_HOME inside the fake FS.
+    monkeypatch.setenv('CODEX_HOME', '/codex-home')
+    fs.create_dir('/codex-home')
+
+    success, _ = install_hooks(Codex(), scope='repo', repo_path=repo)
+    assert success is True
+
+    saved = json.loads(hooks_path.read_text())
+    session_start = saved['hooks']['SessionStart']
+    # The pre-existing entry should still exist with the user hook preserved,
+    # and a separate fresh Cycode entry should have been appended.
+    user_hook_cmd = '/usr/local/bin/user-debug.sh SessionStart'
+    remaining_user_hooks = [
+        h for entry in session_start for h in entry.get('hooks', []) if h.get('command') == user_hook_cmd
+    ]
+    assert remaining_user_hooks, 'user hook was clobbered by install'
+
+    # Unrelated event untouched.
+    assert saved['hooks']['PostToolUse'][0]['hooks'][0]['command'] == '/usr/local/bin/user-postlog.sh'
+
+
+def test_uninstall_preserves_user_hook_colocated_with_cycode(
+    fs: FakeFilesystem, monkeypatch: 'pytest.MonkeyPatch'
+) -> None:
+    """uninstall must strip only the Cycode hook from a mixed entry."""
+    import json
+
+    repo = Path('/repo')
+    fs.create_dir(repo)
+    hooks_path = repo / '.codex' / 'hooks.json'
+    fs.create_file(
+        hooks_path,
+        contents=json.dumps(
+            {
+                'version': 1,
+                'hooks': {
+                    'UserPromptSubmit': [
+                        {
+                            'hooks': [
+                                {'type': 'command', 'command': '/usr/local/bin/user-debug.sh UserPromptSubmit'},
+                                {'type': 'command', 'command': 'cycode ai-guardrails scan --ide codex'},
+                            ]
+                        }
+                    ]
+                },
+            }
+        ),
+    )
+    monkeypatch.setenv('CODEX_HOME', '/codex-home')
+    fs.create_dir('/codex-home')
+
+    success, _ = uninstall_hooks(Codex(), scope='repo', repo_path=repo)
+    assert success is True
+
+    saved = json.loads(hooks_path.read_text())
+    hooks = saved['hooks']['UserPromptSubmit'][0]['hooks']
+    commands = [h['command'] for h in hooks]
+    assert '/usr/local/bin/user-debug.sh UserPromptSubmit' in commands
+    assert not any('cycode ai-guardrails' in c for c in commands)
 
 
 def test_create_policy_file_repo_scope(fs: FakeFilesystem) -> None:

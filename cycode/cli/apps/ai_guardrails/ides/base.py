@@ -108,6 +108,26 @@ class IDE(ABC):
         ``hooks_manager`` can treat them uniformly.
         """
 
+    def post_install(self, scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+        """Run IDE-specific actions after the hooks file is written.
+
+        Default: no-op success. Override to perform extra setup that doesn't
+        belong in the hooks file itself — e.g. Codex enables a
+        ``[features] codex_hooks = true`` flag in its TOML config.
+
+        Returns ``(success, message)``. If ``success`` is False, the overall
+        install is considered failed.
+        """
+        return True, ''
+
+    def post_uninstall(self, scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+        """Run IDE-specific cleanup after the hooks file is removed.
+
+        Default: no-op success. Override to undo whatever ``post_install``
+        wrote outside the hooks file.
+        """
+        return True, ''
+
     # --- runtime scan ---
 
     @abstractmethod

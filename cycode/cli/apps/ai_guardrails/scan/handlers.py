@@ -10,6 +10,7 @@ touching any handler in this module.
 
 import json
 import os
+from dataclasses import dataclass
 from multiprocessing.pool import ThreadPool
 from multiprocessing.pool import TimeoutError as PoolTimeoutError
 from typing import Callable, Optional
@@ -178,23 +179,44 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
         )
 
 
-def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
-    """Scan MCP tool arguments for secrets before execution."""
+@dataclass(frozen=True)
+class _ArgScanFeature:
+    """Configuration for a "scan some text and decide" event.
+
+    MCP execution and command exec share identical scan-and-decide logic;
+    only the policy key, event type, and user-facing messages differ.
+    """
+
+    policy_key: str  # 'mcp' or 'command_exec'
+    scan_key: str  # 'scan_arguments' or 'scan_command'
+    event_type: AiHookEventType
+    block_reason: BlockReason
+    deny_message: Callable[[str], str]
+    deny_agent_message: str
+    ask_message: Callable[[str], str]
+    ask_agent_message: str
+
+
+def _handle_arg_scan(
+    ctx: typer.Context,
+    payload: AIHookPayload,
+    policy: dict,
+    feature: _ArgScanFeature,
+    scan_text: str,
+) -> HookDecision:
+    """Shared scan + decision flow for MCP_EXECUTION and COMMAND_EXEC events."""
     ai_client = ctx.obj['ai_security_client']
 
-    mcp_config = get_policy_value(policy, 'mcp', default={})
-    if not get_policy_value(mcp_config, 'enabled', default=True):
-        ai_client.create_event(payload, AiHookEventType.MCP_EXECUTION, AIHookOutcome.ALLOWED)
-        return HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+    feature_config = get_policy_value(policy, feature.policy_key, default={})
+    if not get_policy_value(feature_config, 'enabled', default=True):
+        ai_client.create_event(payload, feature.event_type, AIHookOutcome.ALLOWED)
+        return HookDecision.allow(feature.event_type)
 
     mode = get_policy_value(policy, 'mode', default=PolicyMode.BLOCK)
-    tool = payload.mcp_tool_name or 'unknown'
-    args = payload.mcp_arguments or {}
-    args_text = args if isinstance(args, str) else json.dumps(args)
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
-    clipped = truncate_utf8(args_text, max_bytes)
-    action = get_policy_value(mcp_config, 'action', default=PolicyMode.BLOCK)
+    clipped = truncate_utf8(scan_text, max_bytes)
+    action = get_policy_value(feature_config, 'action', default=PolicyMode.BLOCK)
 
     scan_id = None
     block_reason = None
@@ -202,26 +224,25 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
     error_message = None
 
     try:
-        if get_policy_value(mcp_config, 'scan_arguments', default=True):
+        if get_policy_value(feature_config, feature.scan_key, default=True):
             violation_summary, scan_id = _scan_text_for_secrets(ctx, clipped, timeout_ms)
             if violation_summary:
-                block_reason = BlockReason.SECRETS_IN_MCP_ARGS
+                block_reason = feature.block_reason
                 if mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK:
                     outcome = AIHookOutcome.BLOCKED
-                    user_message = f'Cycode blocked MCP tool call "{tool}". {violation_summary}'
                     return HookDecision.deny(
-                        AiHookEventType.MCP_EXECUTION,
-                        user_message,
-                        'Do not pass secrets to tools. Use secret references (name/id) instead.',
+                        feature.event_type,
+                        feature.deny_message(violation_summary),
+                        feature.deny_agent_message,
                     )
                 outcome = AIHookOutcome.WARNED
                 return HookDecision.ask(
-                    AiHookEventType.MCP_EXECUTION,
-                    f'{violation_summary} in MCP tool call "{tool}". Allow execution?',
-                    'Possible secrets detected in tool arguments; proceed with caution.',
+                    feature.event_type,
+                    feature.ask_message(violation_summary),
+                    feature.ask_agent_message,
                 )
 
-        return HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+        return HookDecision.allow(feature.event_type)
     except Exception as e:
         outcome = (
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
@@ -232,12 +253,35 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
     finally:
         ai_client.create_event(
             payload,
-            AiHookEventType.MCP_EXECUTION,
+            feature.event_type,
             outcome,
             scan_id=scan_id,
             block_reason=block_reason,
             error_message=error_message,
         )
+
+
+def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
+    """Scan MCP tool arguments for secrets before execution."""
+    tool = payload.mcp_tool_name or 'unknown'
+    args = payload.mcp_arguments or {}
+    args_text = args if isinstance(args, str) else json.dumps(args)
+    return _handle_arg_scan(
+        ctx,
+        payload,
+        policy,
+        _ArgScanFeature(
+            policy_key='mcp',
+            scan_key='scan_arguments',
+            event_type=AiHookEventType.MCP_EXECUTION,
+            block_reason=BlockReason.SECRETS_IN_MCP_ARGS,
+            deny_message=lambda v: f'Cycode blocked MCP tool call "{tool}". {v}',
+            deny_agent_message='Do not pass secrets to tools. Use secret references (name/id) instead.',
+            ask_message=lambda v: f'{v} in MCP tool call "{tool}". Allow execution?',
+            ask_agent_message='Possible secrets detected in tool arguments; proceed with caution.',
+        ),
+        scan_text=args_text,
+    )
 
 
 def get_handler_for_event(event_type: str) -> Optional[HandlerFn]:
