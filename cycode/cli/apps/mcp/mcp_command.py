@@ -243,7 +243,7 @@ async def _cycode_scan_tool(
 
     try:
         if paths:
-            missing = [p for p in paths if not anyio.Path(p).exists()]
+            missing = [p for p in paths if not await anyio.Path(p).exists()]
             if missing:
                 return json.dumps({'error': f'Paths not found on disk: {missing}'}, indent=2)
 
