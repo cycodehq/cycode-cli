@@ -65,8 +65,8 @@ def _get_current_executable() -> str:
 
     return 'cycode'
 
-
-async def _run_cycode_command(*args: str) -> dict[str, Any]:
+# ruff: disable[ASYNC109]
+async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TIMEOUT) -> dict[str, Any]:
     """Run a cycode command asynchronously and return the parsed result.
 
     Args:
@@ -79,7 +79,6 @@ async def _run_cycode_command(*args: str) -> dict[str, Any]:
     verbose = ['-v'] if _is_debug_mode() else []
     cmd_args = [_get_current_executable(), *verbose, '-o', 'json', *list(args)]
     _logger.debug('Running Cycode CLI command: %s', ' '.join(cmd_args))
-    timeout = _DEFAULT_RUN_COMMAND_TIMEOUT
 
     try:
         process = await asyncio.create_subprocess_exec(
@@ -109,7 +108,7 @@ async def _run_cycode_command(*args: str) -> dict[str, Any]:
         return {'error': f'Command timeout after {timeout} seconds'}
     except Exception as e:
         return {'error': f'Failed to run command: {e!s}'}
-
+# ruff: enable[ASYNC109]
 
 def _sanitize_file_path(file_path: str) -> str:
     """Sanitize file path to prevent path traversal and other security issues.
