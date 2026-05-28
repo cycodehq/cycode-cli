@@ -313,7 +313,7 @@ jobs:
 
       - name: Upload files to release
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-        uses: svenstaro/upload-release-action@b98a3b12e86552593f3e4e577ca8a62aa2f3f22b # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         with:
           file: dist/*
           tag: ${{ env.LATEST_TAG }}
