@@ -65,6 +65,7 @@ def _get_current_executable() -> str:
 
     return 'cycode'
 
+
 # ruff: disable[ASYNC109]
 async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TIMEOUT) -> dict[str, Any]:
     """Run a cycode command asynchronously and return the parsed result.
@@ -108,7 +109,10 @@ async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TI
         return {'error': f'Command timeout after {timeout} seconds'}
     except Exception as e:
         return {'error': f'Failed to run command: {e!s}'}
+
+
 # ruff: enable[ASYNC109]
+
 
 def _sanitize_file_path(file_path: str) -> str:
     """Sanitize file path to prevent path traversal and other security issues.
