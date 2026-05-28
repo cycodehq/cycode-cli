@@ -51,6 +51,7 @@ pydantic = ">=2.11.5,<3.0.0"
 pathvalidate = ">=3.3.1,<4.0.0"
 tomli-w = ">=1.0.0,<2.0.0"
 tomli = {version = ">=2.0.0,<3.0.0", python = "<3.11"}
+anyio = ">=4.0.0, <4.13.0"
 
 [tool.poetry.group.test.dependencies]
 mock = ">=4.0.3,<4.1.0"
@@ -65,7 +66,7 @@ pyinstaller = {version=">=6.0.0,<7.0.0", python=">=3.9,<3.15"}
 dunamai = ">=1.26.1,<1.27.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.11.7"
+ruff = "0.15.14"
 
 [tool.pytest.ini_options]
 log_cli = true
