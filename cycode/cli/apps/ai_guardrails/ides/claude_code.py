@@ -188,6 +188,7 @@ def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     servers: dict = mcp_config.get('mcpServers') or {}
     if servers:
         entry['mcp_server_names'] = list(servers.keys())
+        entry['mcp_config_file'] = json.dumps(mcp_config)
     return entry, servers
 
 

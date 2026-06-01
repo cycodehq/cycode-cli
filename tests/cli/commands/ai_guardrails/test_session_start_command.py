@@ -282,6 +282,7 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='claude-code')
 
+    plugin_mcp = {'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}}
     mock_ai_client.report_session_context.assert_called_once_with(
         mcp_servers={
             'gitlab': {'command': 'npx'},
@@ -294,6 +295,7 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
                 'version': '1.0.28',
                 'description': 'Shared skills',
                 'mcp_server_names': ['aspire'],
+                'mcp_config_file': json.dumps(plugin_mcp),
             }
         },
         user_email=None,

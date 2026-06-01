@@ -135,6 +135,7 @@ def _read_codex_plugin(plugin_dir: Path) -> tuple[dict, dict]:
         servers = {}
     if servers:
         entry['mcp_server_names'] = list(servers.keys())
+        entry['mcp_config_file'] = json.dumps(mcp_doc)
     return entry, servers
 
 
