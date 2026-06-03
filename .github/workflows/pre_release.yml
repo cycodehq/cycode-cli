@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Run Cimon
-        uses: cycodelabs/cimon-action@3ca67e875f34772093aa3bf3c185a711720bf5d9 # v0.10.1
+        uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941 # v1.0.1
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
           secret: ${{ secrets.CIMON_SECRET }}
