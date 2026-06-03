@@ -8,6 +8,7 @@ import tempfile
 import uuid
 from typing import Annotated, Any, Optional
 
+import anyio
 import typer
 from pathvalidate import sanitize_filepath
 from pydantic import Field
@@ -65,6 +66,7 @@ def _get_current_executable() -> str:
     return 'cycode'
 
 
+# ruff: disable[ASYNC109]
 async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TIMEOUT) -> dict[str, Any]:
     """Run a cycode command asynchronously and return the parsed result.
 
@@ -107,6 +109,9 @@ async def _run_cycode_command(*args: str, timeout: int = _DEFAULT_RUN_COMMAND_TI
         return {'error': f'Command timeout after {timeout} seconds'}
     except Exception as e:
         return {'error': f'Failed to run command: {e!s}'}
+
+
+# ruff: enable[ASYNC109]
 
 
 def _sanitize_file_path(file_path: str) -> str:
@@ -238,7 +243,7 @@ async def _cycode_scan_tool(
 
     try:
         if paths:
-            missing = [p for p in paths if not os.path.exists(p)]
+            missing = [p for p in paths if not await anyio.Path(p).exists()]
             if missing:
                 return json.dumps({'error': f'Paths not found on disk: {missing}'}, indent=2)
 

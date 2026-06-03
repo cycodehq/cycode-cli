@@ -67,7 +67,7 @@ class TestGetSafeHeadReferenceForDiff:
 
     def test_returns_empty_tree_hash_when_repository_has_no_commits(self) -> None:
         """Test that an empty tree hash is returned when the repository has no commits."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, repo):
             result = get_safe_head_reference_for_diff(repo)
             expected_empty_tree_hash = consts.GIT_EMPTY_TREE_OBJECT
             assert result == expected_empty_tree_hash
@@ -343,7 +343,7 @@ class TestGetDiffFilePath:
 
     def test_diff_with_no_paths(self) -> None:
         """Test behavior when the diff has neither a_path nor b_path."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, repo):
 
             class MockDiff:
                 def __init__(self) -> None:
@@ -409,7 +409,7 @@ class TestGetDefaultBranchesForMergeBase:
     def test_environment_variable_override(self) -> None:
         """Test that the environment variable takes precedence."""
         with (
-            temporary_git_repository() as (temp_dir, repo),
+            temporary_git_repository() as (_temp_dir, repo),
             patch.dict(os.environ, {consts.CYCODE_DEFAULT_BRANCH_ENV_VAR_NAME: 'custom-main'}),
         ):
             branches = _get_default_branches_for_merge_base(repo)
@@ -418,7 +418,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_git_symbolic_ref_success(self) -> None:
         """Test getting default branch via git symbolic-ref."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             # Create a mock repo with a git interface that returns origin/main
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/main'
@@ -429,7 +429,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_git_symbolic_ref_with_master(self) -> None:
         """Test getting default branch via git symbolic-ref when it's master."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             # Create a mock repo with a git interface that returns origin/master
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/master'
@@ -440,7 +440,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_git_remote_show_fallback(self) -> None:
         """Test fallback to git remote show when symbolic-ref fails."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             # Create a mock repo where symbolic-ref fails but the remote show succeeds
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.side_effect = Exception('symbolic-ref failed')
@@ -459,7 +459,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_both_git_methods_fail_fallback_to_hardcoded(self) -> None:
         """Test fallback to hardcoded branches when both Git methods fail."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             # Create a mock repo where both Git methods fail
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.side_effect = Exception('symbolic-ref failed')
@@ -474,7 +474,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_no_duplicates_in_branch_list(self) -> None:
         """Test that duplicate branches are not added to the list."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             # Create a mock repo that returns main (which is also in fallback list)
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/main'
@@ -486,7 +486,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_env_var_plus_git_detection(self) -> None:
         """Test combination of environment variable and git detection."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.return_value = 'refs/remotes/origin/develop'
 
@@ -500,7 +500,7 @@ class TestGetDefaultBranchesForMergeBase:
 
     def test_malformed_symbolic_ref_response(self) -> None:
         """Test handling of malformed symbolic-ref response."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (_temp_dir, _repo):
             # Create a mock repo that returns a malformed response
             mock_repo = Mock()
             mock_repo.git.symbolic_ref.return_value = 'malformed-response'
@@ -845,7 +845,7 @@ class TestParseCommitRange:
     def test_two_dot_linear_history(self) -> None:
         """For 'A..C', expect (A,C) in linear history."""
         with temporary_git_repository() as (temp_dir, repo):
-            a, b, c = self._make_linear_history(repo, temp_dir)
+            a, _b, c = self._make_linear_history(repo, temp_dir)
 
             parsed_from, parsed_to, separator = parse_commit_range(f'{a}..{c}', temp_dir)
             assert (parsed_from, parsed_to, separator) == (a, c, '..')
@@ -853,7 +853,7 @@ class TestParseCommitRange:
     def test_three_dot_linear_history(self) -> None:
         """For 'A...C' in linear history, expect (A,C)."""
         with temporary_git_repository() as (temp_dir, repo):
-            a, b, c = self._make_linear_history(repo, temp_dir)
+            a, _b, c = self._make_linear_history(repo, temp_dir)
 
             parsed_from, parsed_to, separator = parse_commit_range(f'{a}...{c}', temp_dir)
             assert (parsed_from, parsed_to, separator) == (a, c, '...')
@@ -861,7 +861,7 @@ class TestParseCommitRange:
     def test_open_right_linear_history(self) -> None:
         """For 'A..', expect (A,HEAD=C)."""
         with temporary_git_repository() as (temp_dir, repo):
-            a, b, c = self._make_linear_history(repo, temp_dir)
+            a, _b, c = self._make_linear_history(repo, temp_dir)
 
             parsed_from, parsed_to, separator = parse_commit_range(f'{a}..', temp_dir)
             assert (parsed_from, parsed_to, separator) == (a, c, '..')
@@ -869,7 +869,7 @@ class TestParseCommitRange:
     def test_open_left_linear_history(self) -> None:
         """For '..C' where HEAD==C, expect (HEAD=C,C)."""
         with temporary_git_repository() as (temp_dir, repo):
-            a, b, c = self._make_linear_history(repo, temp_dir)
+            _a, _b, c = self._make_linear_history(repo, temp_dir)
 
             parsed_from, parsed_to, separator = parse_commit_range(f'..{c}', temp_dir)
             assert (parsed_from, parsed_to, separator) == (c, c, '..')
@@ -877,7 +877,7 @@ class TestParseCommitRange:
     def test_single_commit_spec(self) -> None:
         """For 'A', expect (A,HEAD=C)."""
         with temporary_git_repository() as (temp_dir, repo):
-            a, b, c = self._make_linear_history(repo, temp_dir)
+            a, _b, c = self._make_linear_history(repo, temp_dir)
 
             parsed_from, parsed_to, separator = parse_commit_range(a, temp_dir)
             assert (parsed_from, parsed_to, separator) == (a, c, '..')
@@ -935,7 +935,7 @@ class TestParseCommitRange:
 
     def test_parse_all_with_empty_repository_returns_none(self) -> None:
         """Test that '--all' returns None when repository has no commits."""
-        with temporary_git_repository() as (temp_dir, repo):
+        with temporary_git_repository() as (temp_dir, _repo):
             # Empty repository with no commits
             parsed_from, parsed_to, separator = parse_commit_range('--all', temp_dir)
             # Should return None, None, None when HEAD doesn't exist
