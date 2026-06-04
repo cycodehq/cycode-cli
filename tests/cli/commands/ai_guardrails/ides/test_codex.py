@@ -146,10 +146,11 @@ def test_settings_path_honors_codex_home_env(fs: FakeFilesystem, monkeypatch: py
 # --- hooks config rendering --------------------------------------------------
 
 
-def test_render_hooks_session_start_matcher_includes_clear() -> None:
-    """SessionStart must fire on /clear too (conversation_id rotates)."""
+def test_render_hooks_session_start_matches_all_sources() -> None:
+    """SessionStart must fire on every source (a forked session reports 'resume',
+    so no matcher is set -> match-all)."""
     rendered = Codex().render_hooks_config()
-    assert rendered['hooks']['SessionStart'][0]['matcher'] == 'startup|clear'
+    assert 'matcher' not in rendered['hooks']['SessionStart'][0]
     assert '--ide codex' in rendered['hooks']['SessionStart'][0]['hooks'][0]['command']
 
 
