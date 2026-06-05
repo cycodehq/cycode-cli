@@ -5,6 +5,7 @@ from uuid import UUID
 
 import requests
 from requests import Response
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 
 from cycode.cli import consts
 from cycode.cli.config import configuration_manager
@@ -166,6 +167,12 @@ class ScanClient:
                 raise SlowUploadConnectionError from e
             raise
 
+    @retry(
+        retry=retry_if_exception(lambda e: isinstance(e, RequestHttpError) and e.status_code == 404),
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, min=1, max=5),
+        reraise=True,
+    )
     def scan_repository_from_upload_id(
         self,
         scan_type: str,
