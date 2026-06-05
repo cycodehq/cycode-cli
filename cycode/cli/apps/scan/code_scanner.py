@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 import requests
 import typer
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 
 from cycode.cli import consts
 from cycode.cli.apps.scan.aggregation_report import try_set_aggregation_report_url_if_needed
@@ -22,6 +23,7 @@ from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
+from cycode.cli.exceptions.custom_exceptions import RequestHttpError
 from cycode.cli.models import CliError, Document, LocalScanResult
 from cycode.cli.utils.path_utils import get_absolute_path, get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
@@ -32,7 +34,7 @@ from cycode.cli.utils.scan_utils import (
     set_issue_detected_by_scan_results,
     should_use_presigned_upload,
 )
-from cycode.cyclient.models import ZippedFileScanResult
+from cycode.cyclient.models import ScanInitializationResponse, ZippedFileScanResult
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
@@ -295,6 +297,26 @@ def scan_documents(
     print_local_scan_results(ctx, local_scan_results, errors)
 
 
+@retry(
+    retry=retry_if_exception(lambda e: isinstance(e, RequestHttpError) and e.status_code == 404),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=1, min=1, max=5),
+    reraise=True,
+)
+def _notify_scan_from_upload_id(
+    cycode_client: 'ScanClient',
+    scan_type: str,
+    upload_id: str,
+    zipped_documents: 'InMemoryZip',
+    scan_parameters: dict,
+    is_git_diff: bool,
+    is_commit_range: bool,
+) -> 'ScanInitializationResponse':
+    return cycode_client.scan_repository_from_upload_id(
+        scan_type, upload_id, zipped_documents, scan_parameters, is_git_diff, is_commit_range
+    )
+
+
 def _perform_scan_v4_async(
     cycode_client: 'ScanClient',
     zipped_documents: 'InMemoryZip',
@@ -312,8 +334,8 @@ def _perform_scan_v4_async(
     )
     logger.debug('Uploaded zip to presigned URL')
 
-    scan_async_result = cycode_client.scan_repository_from_upload_id(
-        scan_type, upload_link.upload_id, zipped_documents, scan_parameters, is_git_diff, is_commit_range
+    scan_async_result = _notify_scan_from_upload_id(
+        cycode_client, scan_type, upload_link.upload_id, zipped_documents, scan_parameters, is_git_diff, is_commit_range
     )
     logger.debug(
         'Presigned upload scan request triggered, %s',
