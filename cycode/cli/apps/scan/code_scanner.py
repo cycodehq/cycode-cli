@@ -19,11 +19,11 @@ from cycode.cli.apps.scan.scan_result import (
 )
 from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions import custom_exceptions
+from cycode.cli.exceptions.custom_exceptions import RequestHttpError
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
-from cycode.cli.exceptions.custom_exceptions import RequestHttpError
 from cycode.cli.models import CliError, Document, LocalScanResult
 from cycode.cli.utils.path_utils import get_absolute_path, get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
