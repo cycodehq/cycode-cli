@@ -167,6 +167,8 @@ class ScanClient:
                 raise SlowUploadConnectionError from e
             raise
 
+    # Ideally this retry would live in _execute (CycodeClientBase) so all callers benefit,
+    # but that requires making the retry predicate configurable per-call — a larger refactor.
     @retry(
         retry=retry_if_exception(lambda e: isinstance(e, RequestHttpError) and e.status_code == 404),
         stop=stop_after_attempt(3),
