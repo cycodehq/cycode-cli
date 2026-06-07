@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Run Cimon
         if: matrix.os == 'ubuntu-22.04'
-        uses: cycodelabs/cimon-action@3ca67e875f34772093aa3bf3c185a711720bf5d9 # v0.10.1
+        uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941 # v1.0.1
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
           secret: ${{ secrets.CIMON_SECRET }}
@@ -265,7 +265,7 @@ jobs:
         run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli)" >> $GITHUB_ENV
 
       - name: Upload files as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: dist
@@ -313,7 +313,7 @@ jobs:
 
       - name: Upload files to release
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-        uses: svenstaro/upload-release-action@b98a3b12e86552593f3e4e577ca8a62aa2f3f22b # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         with:
           file: dist/*
           tag: ${{ env.LATEST_TAG }}

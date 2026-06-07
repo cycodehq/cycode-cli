@@ -111,11 +111,12 @@ def test_claude_code_render_hooks_async() -> None:
 
 
 def test_claude_code_render_hooks_session_start() -> None:
-    """Claude Code SessionStart fires on startup and /clear."""
+    """Claude Code SessionStart fires on every source (a forked session reports
+    'resume', so the matcher is empty -> match-all)."""
     config = ClaudeCode().render_hooks_config()
     entries = config['hooks']['SessionStart']
     assert len(entries) == 1
-    assert entries[0]['matcher'] == 'startup|clear'
+    assert 'matcher' not in entries[0]
     assert CYCODE_SESSION_START_COMMAND in entries[0]['hooks'][0]['command']
     assert '--ide claude-code' in entries[0]['hooks'][0]['command']
 

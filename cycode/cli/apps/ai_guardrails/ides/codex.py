@@ -202,7 +202,6 @@ class Codex(IDE):
             'hooks': {
                 'SessionStart': [
                     {
-                        'matcher': 'startup|clear',
                         'hooks': [{'type': 'command', 'command': _SESSION_START_COMMAND}],
                     }
                 ],
