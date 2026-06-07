@@ -1,3 +1,4 @@
+import functools
 import os
 import platform
 import ssl
@@ -39,16 +40,29 @@ class SystemStorageSslContext(HTTPAdapter):
         conn.ca_certs = None
 
 
-def _get_request_function() -> Callable:
-    if os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE'):
-        return requests.request
-
-    if platform.system() != 'Windows':
-        return requests.request
-
+@functools.cache
+def _get_session() -> requests.Session:
+    """Process-wide Session so TCP+TLS connections are reused across all API calls."""
     session = requests.Session()
-    session.mount('https://', SystemStorageSslContext())
-    return session.request
+    # On Windows without an explicit CA bundle env var, fall back to the system
+    # trust store via a custom SSL context.
+    if platform.system() == 'Windows' and not (
+        os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE')
+    ):
+        session.mount('https://', SystemStorageSslContext())
+    return session
+
+
+def _get_request_function() -> Callable:
+    return _get_session().request
+
+
+def _log_response(response: Response, url: str, hide_response_content_log: bool) -> None:
+    content = 'HIDDEN' if hide_response_content_log else response.text
+    logger.debug(
+        'Receiving response, %s',
+        {'status_code': response.status_code, 'url': url, 'content': content},
+    )
 
 
 _REQUEST_ERRORS_TO_RETRY = (
@@ -182,12 +196,7 @@ class CycodeClientBase:
             response = _get_request_function()(
                 method='post', url=url, data=tracker, headers=headers, timeout=self.timeout
             )
-
-            content = 'HIDDEN' if hide_response_content_log else response.text
-            logger.debug(
-                'Receiving response, %s',
-                {'status_code': response.status_code, 'url': url, 'content': content},
-            )
+            _log_response(response, url, hide_response_content_log)
 
             response.raise_for_status()
             return response
@@ -231,14 +240,8 @@ class CycodeClientBase:
 
         try:
             headers = self.get_request_headers(headers, without_auth=without_auth)
-            request = _get_request_function()
-            response = request(method=method, url=url, timeout=timeout, headers=headers, **kwargs)
-
-            content = 'HIDDEN' if hide_response_content_log else response.text
-            logger.debug(
-                'Receiving response, %s',
-                {'status_code': response.status_code, 'url': url, 'content': content},
-            )
+            response = _get_request_function()(method=method, url=url, timeout=timeout, headers=headers, **kwargs)
+            _log_response(response, url, hide_response_content_log)
 
             response.raise_for_status()
             return response

@@ -21,9 +21,26 @@ CLI_VERSION = _dunamai.get_version('cycode', first_choice=_dunamai.Version.from_
 with open(_INIT_FILE_PATH, 'w', encoding='UTF-8') as file:
     file.write(prev_content.replace(VERSION_PLACEHOLDER, CLI_VERSION))
 
+# Top-level subapp modules are loaded lazily via importlib.import_module() in
+# cycode/cli/app.py to keep startup fast on hot paths (e.g. ai-guardrails scan).
+# PyInstaller's static analyzer can't see those imports, so list them explicitly.
+_hiddenimports = [
+    'cycode.cli.apps.ai_guardrails',
+    'cycode.cli.apps.ai_remediation',
+    'cycode.cli.apps.auth',
+    'cycode.cli.apps.configure',
+    'cycode.cli.apps.ignore',
+    'cycode.cli.apps.report',
+    'cycode.cli.apps.report_import',
+    'cycode.cli.apps.scan',
+    'cycode.cli.apps.status',
+    'cycode.cli.apps.mcp',
+]
+
 a = Analysis(
     scripts=['cycode/cli/main.py'],
     excludes=['tests', 'setuptools', 'pkg_resources'],
+    hiddenimports=_hiddenimports,
 )
 
 exe_args = [PYZ(a.pure), a.scripts, a.binaries, a.datas]

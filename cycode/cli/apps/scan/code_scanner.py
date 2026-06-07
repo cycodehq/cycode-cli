@@ -204,18 +204,21 @@ def _get_scan_documents_thread_func(
                 'zip_file_size': zip_file_size,
             },
         )
-        report_scan_status(
-            cycode_client,
-            scan_type,
-            scan_id,
-            scan_completed,
-            relevant_detections_count,
-            detections_count,
-            len(batch),
-            zip_file_size,
-            command_scan_type,
-            error_message,
-        )
+        # Sync flows already received the full result inline; only async flows
+        # need a separate status report to signal polling completion.
+        if not should_use_sync_flow:
+            report_scan_status(
+                cycode_client,
+                scan_type,
+                scan_id,
+                scan_completed,
+                relevant_detections_count,
+                detections_count,
+                len(batch),
+                zip_file_size,
+                command_scan_type,
+                error_message,
+            )
 
         return scan_id, error, local_scan_result
 
