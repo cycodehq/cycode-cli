@@ -1,3 +1,4 @@
+import importlib
 import logging
 import sys
 from typing import Annotated, Optional
@@ -10,12 +11,7 @@ from typer._completion_shared import Shells
 from typer.completion import install_callback, show_callback
 
 from cycode import __version__
-from cycode.cli.apps import ai_guardrails, ai_remediation, auth, configure, ignore, report, report_import, scan, status
 from cycode.cli.apps.api import get_platform_group
-
-if sys.version_info >= (3, 10):
-    from cycode.cli.apps import mcp
-
 from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.consts import CLI_CONTEXT_SETTINGS
 from cycode.cli.printers import ConsolePrinter
@@ -46,17 +42,88 @@ app = typer.Typer(
     add_completion=False,  # we add it manually to control the rich help panel
 )
 
-app.add_typer(ai_guardrails.app)
-app.add_typer(ai_remediation.app)
-app.add_typer(auth.app)
-app.add_typer(configure.app)
-app.add_typer(ignore.app)
-app.add_typer(report.app)
-app.add_typer(report_import.app)
-app.add_typer(scan.app)
-app.add_typer(status.app)
+# Top-level subcommand → module providing its Typer app. Peeking at sys.argv
+# lets us import only the invoked subapp on the hot path (e.g.
+# `cycode ai-guardrails scan`), skipping ~300ms of unrelated imports.
+_SUBAPP_MODULES: dict[str, str] = {
+    'ai-guardrails': 'cycode.cli.apps.ai_guardrails',
+    'ai-remediation': 'cycode.cli.apps.ai_remediation',
+    'auth': 'cycode.cli.apps.auth',
+    'configure': 'cycode.cli.apps.configure',
+    'ignore': 'cycode.cli.apps.ignore',
+    'report': 'cycode.cli.apps.report',
+    'import': 'cycode.cli.apps.report_import',
+    'scan': 'cycode.cli.apps.scan',
+    'status': 'cycode.cli.apps.status',
+}
 if sys.version_info >= (3, 10):
-    app.add_typer(mcp.app)
+    _SUBAPP_MODULES['mcp'] = 'cycode.cli.apps.mcp'
+
+# Aliases: alternate spellings that resolve to a primary subcommand key.
+_SUBAPP_ALIASES: dict[str, str] = {
+    'ai_remediation': 'ai-remediation',  # backward-compat underscore form
+    'version': 'status',
+}
+
+# Root-level options that consume a following value; argv-peek must skip past
+# both the option and its value when scanning for the first positional arg.
+_ROOT_OPTS_WITH_VALUE = frozenset(
+    {
+        '--output',
+        '-o',
+        '--user-agent',
+        '--client-secret',
+        '--client-id',
+        '--id-token',
+        '--show-completion',
+    }
+)
+
+
+def _detect_invocation() -> tuple[Optional[str], Optional[str]]:
+    """Return (top-level-subapp, second-level-subcommand) parsed from sys.argv.
+
+    Both values may be None: when no positional arg matches a known subapp,
+    or when the user only provided a top-level subcommand.
+    """
+    positionals = []
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in _ROOT_OPTS_WITH_VALUE:
+            i += 2
+        elif arg.startswith('-'):
+            # Any flag form: short, long, --key=value, or '--' marker. Skip the token only.
+            i += 1
+        else:
+            positionals.append(arg)
+            if len(positionals) >= 2:
+                break
+            i += 1
+    subapp = positionals[0] if positionals else None
+    subapp = _SUBAPP_ALIASES.get(subapp, subapp)
+    if subapp not in _SUBAPP_MODULES:
+        return None, None
+    subcommand = positionals[1] if len(positionals) >= 2 else None
+    return subapp, subcommand
+
+
+# Computed once at import; reused by lazy registration and the version-checker skip.
+_INVOKED_SUBAPP, _INVOKED_SUBCOMMAND = _detect_invocation()
+
+
+def _register_subapps(only: Optional[str]) -> None:
+    if only is not None:
+        app.add_typer(importlib.import_module(_SUBAPP_MODULES[only]).app)
+        return
+    # Cold path (--help, completion, unknown subcommand): load all modules so
+    # root help lists everything. Deduplicate since aliases share modules.
+    for module_path in dict.fromkeys(_SUBAPP_MODULES.values()):
+        app.add_typer(importlib.import_module(module_path).app)
+
+
+_register_subapps(_INVOKED_SUBAPP)
 
 # Register the `platform` command group (dynamically built from the OpenAPI spec).
 # The group itself is constructed cheaply at import time; the spec is only fetched
@@ -81,6 +148,12 @@ typer.main.get_group = _get_group_with_platform
 
 
 def check_latest_version_on_close(ctx: typer.Context) -> None:
+    # Skip on `cycode ai-guardrails scan` — it emits JSON to stdout, so an
+    # upgrade notice would corrupt the response. Human-driven sibling commands
+    # (install, uninstall, status, session-start) still get the notice.
+    if (_INVOKED_SUBAPP, _INVOKED_SUBCOMMAND) == ('ai-guardrails', 'scan'):
+        return
+
     output = ctx.obj.get('output')
     # don't print anything if the output is JSON
     if output == OutputTypeOption.JSON:

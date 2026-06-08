@@ -24,19 +24,10 @@ class BaseTokenAuthClient(CycodeClient, ABC):
         self.client_id = client_id
 
         self._credentials_manager = CredentialsManager()
-        # load cached access token
-        access_token, expires_in, creator = self._credentials_manager.get_access_token()
-
-        self._access_token = self._expires_in = None
-        expected_creator = self._create_jwt_creator()
-        if creator == expected_creator:
-            # we must be sure that cached access token is created using the same client id and client secret.
-            # because client id and client secret could be passed via command, via env vars or via config file.
-            # we must not use cached access token if client id or client secret was changed.
-            self._access_token = access_token
-            self._expires_in = arrow.get(expires_in) if expires_in else None
-
+        self._access_token = None
+        self._expires_in = None
         self._lock = Lock()
+        self._load_token_from_disk()
 
     def get_access_token(self) -> str:
         with self._lock:
@@ -51,8 +42,30 @@ class BaseTokenAuthClient(CycodeClient, ABC):
             self._credentials_manager.update_access_token(None, None, None)
 
     def refresh_access_token_if_needed(self) -> None:
-        if self._access_token is None or self._expires_in is None or arrow.utcnow() >= self._expires_in:
-            self.refresh_access_token()
+        if self._has_valid_token():
+            return
+        # Re-check disk before doing the network refresh: another client instance
+        # in this process may have already refreshed and persisted a fresh token.
+        self._load_token_from_disk()
+        if self._has_valid_token():
+            return
+        self.refresh_access_token()
+
+    def _has_valid_token(self) -> bool:
+        return self._access_token is not None and self._expires_in is not None and arrow.utcnow() < self._expires_in
+
+    def _load_token_from_disk(self) -> None:
+        access_token, expires_in, creator = self._credentials_manager.get_access_token()
+        expected_creator = self._create_jwt_creator()
+        # We must be sure that cached access token is created using the same client id and client secret.
+        # Because client id and client secret could be passed via command, via env vars or via config file.
+        # We must not use cached access token if client id or client secret was changed.
+        if creator == expected_creator and access_token:
+            self._access_token = access_token
+            self._expires_in = arrow.get(expires_in) if expires_in else None
+        else:
+            self._access_token = None
+            self._expires_in = None
 
     def refresh_access_token(self) -> None:
         auth_response = self._request_new_access_token()
