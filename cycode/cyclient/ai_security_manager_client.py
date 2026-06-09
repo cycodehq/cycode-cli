@@ -93,15 +93,21 @@ class AISecurityManagerClient:
 
     def report_session_context(
         self,
-        mcp_servers: Optional[dict] = None,
+        hostname: Optional[str] = None,
+        platform: Optional[str] = None,
+        logged_in_user: Optional[str] = None,
+        global_config_file: Optional[dict] = None,
         enabled_plugins: Optional[dict] = None,
         user_email: Optional[str] = None,
     ) -> None:
         """Report session context to the backend."""
         body: dict = {
-            'mcp_servers': mcp_servers,
-            'enabled_plugins': enabled_plugins,
+            'hostname': hostname,
+            'platform': platform,
+            'logged_in_user': logged_in_user,
             'user_email': user_email,
+            'global_config_file': global_config_file,
+            'enabled_plugins': enabled_plugins,
         }
 
         try:

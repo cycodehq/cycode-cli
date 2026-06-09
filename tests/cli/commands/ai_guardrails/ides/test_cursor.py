@@ -133,22 +133,23 @@ def test_session_payload_carries_cursor_fields() -> None:
     assert session.ide_provider == 'cursor'
 
 
-def test_session_context_loads_mcp_servers(tmp_path: Path) -> None:
-    """Cursor reads MCP servers from ~/.cursor/mcp.json."""
+def test_session_context_loads_mcp_servers() -> None:
+    """Cursor wraps ~/.cursor/mcp.json into a global_config_file."""
     mcp_servers = {'github': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github']}}
-    config_path = tmp_path / 'mcp.json'
-    config_path.write_text(json.dumps({'mcpServers': mcp_servers}))
 
     with patch('cycode.cli.apps.ai_guardrails.ides.cursor._load_cursor_mcp_config') as load:
         load.return_value = {'mcpServers': mcp_servers}
-        servers, plugins = Cursor().get_session_context()
+        global_config_file, plugins = Cursor().get_session_context()
 
-    assert servers == mcp_servers
+    assert global_config_file == {
+        'path': str(Path.home() / '.cursor' / 'mcp.json'),
+        'content': json.dumps({'mcpServers': mcp_servers}),
+    }
     assert plugins == {}
 
 
 def test_session_context_no_config_returns_empty() -> None:
     with patch('cycode.cli.apps.ai_guardrails.ides.cursor._load_cursor_mcp_config', return_value=None):
-        servers, plugins = Cursor().get_session_context()
-    assert servers == {}
+        global_config_file, plugins = Cursor().get_session_context()
+    assert global_config_file is None
     assert plugins == {}

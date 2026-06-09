@@ -230,6 +230,7 @@ def test_read_claude_plugin_includes_mcp_config_file(tmp_path: Path) -> None:
 
     assert 'mcp_config_file' in entry
     assert json.loads(entry['mcp_config_file']) == mcp_content
+    assert entry['mcp_config_file_path'] == str(tmp_path / '.mcp.json')
     assert servers == mcp_content['mcpServers']
 
 
@@ -257,8 +258,8 @@ def test_session_context_no_config() -> None:
         patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_config', return_value=None),
         patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings', return_value=None),
     ):
-        servers, plugins = ClaudeCode().get_session_context()
-    assert servers == {}
+        global_config_file, plugins = ClaudeCode().get_session_context()
+    assert global_config_file is None
     assert plugins == {}
 
 

@@ -14,7 +14,11 @@ else:  # pragma: no cover - py<3.11 fallback
     import tomli as tomllib
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
-from cycode.cli.apps.ai_guardrails.ides._plugin_utils import load_plugin_json, walk_enabled_plugins
+from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
+    build_global_config_file,
+    load_plugin_json,
+    walk_enabled_plugins,
+)
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -129,12 +133,14 @@ def _read_codex_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     mcp_ref = manifest.get('mcpServers')
     if not mcp_ref:
         return entry, {}
-    mcp_doc = load_plugin_json(plugin_dir / mcp_ref) or {}
+    mcp_config_path = plugin_dir / mcp_ref
+    mcp_doc = load_plugin_json(mcp_config_path) or {}
     servers = mcp_doc.get('mcpServers', mcp_doc)
     if not isinstance(servers, dict):
         servers = {}
     if servers:
         entry['mcp_server_names'] = list(servers.keys())
+        entry['mcp_config_file_path'] = str(mcp_config_path)
         entry['mcp_config_file'] = json.dumps(mcp_doc)
     return entry, servers
 
@@ -298,13 +304,14 @@ class Codex(IDE):
     def get_user_email(self) -> Optional[str]:
         return _email_from_auth()
 
-    def get_session_context(self) -> tuple[dict, dict]:
+    def get_session_context(self) -> tuple[Optional[dict], dict]:
         config = _load_codex_config()
         if not config:
-            return {}, {}
-        # Codex stores MCP servers under `[mcp_servers.<name>]`. Plugin-contributed
-        # servers (via `[plugins."<plugin>@<marketplace>"]`) merge on top.
-        mcp_servers: dict = dict(config.get('mcp_servers') or {})
-        plugin_mcp, enriched_plugins = _resolve_codex_plugins(config)
-        mcp_servers.update(plugin_mcp)
-        return mcp_servers, enriched_plugins
+            return None, {}
+        # Codex stores MCP servers under `[mcp_servers.<name>]`; the global config
+        # file becomes its own session-context file. Plugins (via
+        # `[plugins."<plugin>@<marketplace>"]`) carry their own config files.
+        config_path = _codex_home() / _CONFIG_TOML_NAME
+        global_config_file = build_global_config_file(config_path, config.get('mcp_servers'))
+        _, enriched_plugins = _resolve_codex_plugins(config)
+        return global_config_file, enriched_plugins

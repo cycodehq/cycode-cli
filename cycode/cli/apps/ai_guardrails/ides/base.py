@@ -167,10 +167,16 @@ class IDE(ABC):
         """
         return None
 
-    def get_session_context(self) -> tuple[dict, dict]:
-        """Return ``(mcp_servers, enabled_plugins)`` for session-context reporting.
+    def get_session_context(self) -> tuple[Optional[dict], dict]:
+        """Return ``(global_config_file, enabled_plugins)`` for session-context reporting.
 
-        Default: empty dicts (no plugin system, no discoverable MCP config).
+        ``global_config_file`` is the IDE's global (non-plugin) MCP config as
+        ``{"path": <full path>, "content": <normalized {"mcpServers": ...} JSON>}``,
+        or ``None`` when there is no global MCP config. ``enabled_plugins`` maps each
+        enabled plugin key to its metadata (including its own ``mcp_config_file``
+        content and ``mcp_config_file_path``).
+
+        Default: ``(None, {})`` (no plugin system, no discoverable MCP config).
         Override to surface MCP/plugin inventory.
         """
-        return {}, {}
+        return None, {}
