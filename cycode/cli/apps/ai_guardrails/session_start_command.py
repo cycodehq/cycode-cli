@@ -1,6 +1,6 @@
 """Handle AI guardrails session start: auth, conversation creation, session context."""
 
-import getpass
+import os
 import platform
 import socket
 import sys
@@ -26,7 +26,7 @@ logger = get_logger('AI Guardrails')
 def _get_logged_in_user() -> Optional[str]:
     """Best-effort OS account name (whoami). None if it can't be resolved."""
     try:
-        return getpass.getuser()
+        return os.getlogin()
     except Exception:
         return None
 

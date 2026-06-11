@@ -198,7 +198,7 @@ def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     return entry, servers
 
 
-def resolve_plugins(settings: dict) -> tuple[dict, dict]:
+def resolve_plugins(settings: dict) -> dict:
     """Walk Claude Code's ``enabledPlugins`` via the shared plugin walker.
 
     Each enabled plugin's marketplace is resolved through
@@ -366,9 +366,6 @@ class ClaudeCode(IDE):
         global_config_file = build_global_config_file(_CLAUDE_CONFIG_PATH, get_mcp_servers(config)) if config else None
 
         settings = load_claude_settings()
-        if settings:
-            _, enriched_plugins = resolve_plugins(settings)
-        else:
-            enriched_plugins = {}
+        enriched_plugins = resolve_plugins(settings) if settings else {}
 
         return global_config_file, enriched_plugins

@@ -44,8 +44,8 @@ def walk_enabled_plugins(
     is_enabled: Callable[[Any], bool],
     locate_dir: Callable[[str, str], Optional[Path]],
     read_plugin: Callable[[Path], tuple[dict, dict]],
-) -> tuple[dict, dict]:
-    """Iterate enabled plugins; merge their MCP servers and metadata.
+) -> dict:
+    """Iterate enabled plugins and build their inventory metadata.
 
     Args:
         plugin_entries: ``{<plugin>@<marketplace>: settings}`` map from the IDE config.
@@ -55,13 +55,13 @@ def walk_enabled_plugins(
             filesystem path or None if it can't be resolved.
         read_plugin: given the plugin path, returns ``(entry_fields, servers)``:
             ``entry_fields`` are extra metadata to attach to the inventory entry
-            (name/version/description/...), ``servers`` are MCP servers contributed.
+            (name/version/description/...); ``servers`` are the plugin's MCP
+            servers, which ``read_plugin`` uses to derive that metadata.
 
-    Returns ``(merged_mcp_servers, enriched_plugins)``. Plugin keys without
-    ``@`` (or that fail to resolve to a directory) still appear in the
-    inventory with just ``{'enabled': True}`` so we don't silently drop them.
+    Returns ``enriched_plugins``. Plugin keys without ``@`` (or that fail to
+    resolve to a directory) still appear in the inventory with just
+    ``{'enabled': True}`` so we don't silently drop them.
     """
-    merged_mcp: dict = {}
     enriched: dict = {}
 
     for plugin_key, settings in plugin_entries.items():
@@ -79,8 +79,7 @@ def walk_enabled_plugins(
         if plugin_dir is None:
             continue
 
-        plugin_fields, servers = read_plugin(plugin_dir)
+        plugin_fields, _ = read_plugin(plugin_dir)
         entry.update(plugin_fields)
-        merged_mcp.update(servers)
 
-    return merged_mcp, enriched
+    return enriched

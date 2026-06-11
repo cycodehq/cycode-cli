@@ -145,7 +145,7 @@ def _read_codex_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     return entry, servers
 
 
-def _resolve_codex_plugins(config: dict) -> tuple[dict, dict]:
+def _resolve_codex_plugins(config: dict) -> dict:
     """Walk enabled ``[plugins."<plugin>@<marketplace>"]`` entries."""
     return walk_enabled_plugins(
         plugin_entries=config.get('plugins') or {},
@@ -311,7 +311,7 @@ class Codex(IDE):
         # Codex stores MCP servers under `[mcp_servers.<name>]`; the global config
         # file becomes its own session-context file. Plugins (via
         # `[plugins."<plugin>@<marketplace>"]`) carry their own config files.
-        config_path = _codex_home() / _CONFIG_TOML_NAME
+        config_path = _codex_config_toml_path('user')
         global_config_file = build_global_config_file(config_path, config.get('mcp_servers'))
-        _, enriched_plugins = _resolve_codex_plugins(config)
+        enriched_plugins = _resolve_codex_plugins(config)
         return global_config_file, enriched_plugins
