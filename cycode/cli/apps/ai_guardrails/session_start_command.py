@@ -1,5 +1,8 @@
 """Handle AI guardrails session start: auth, conversation creation, session context."""
 
+import os
+import platform
+import socket
 import sys
 from typing import TYPE_CHECKING, Annotated, Optional
 
@@ -20,14 +23,25 @@ if TYPE_CHECKING:
 logger = get_logger('AI Guardrails')
 
 
+def _get_logged_in_user() -> Optional[str]:
+    """Best-effort OS account name (whoami). None if it can't be resolved."""
+    try:
+        return os.getlogin()
+    except Exception:
+        return None
+
+
 def _report_session_context(ai_client: 'AISecurityManagerClient', ide: IDE, user_email: Optional[str]) -> None:
     """Report IDE session context to the AI security manager. Never raises."""
     try:
-        mcp_servers, enabled_plugins = ide.get_session_context()
-        if not mcp_servers and not enabled_plugins:
+        global_config_file, enabled_plugins = ide.get_session_context()
+        if not global_config_file and not enabled_plugins:
             return
         ai_client.report_session_context(
-            mcp_servers=mcp_servers,
+            hostname=socket.gethostname(),
+            platform=platform.system(),
+            logged_in_user=_get_logged_in_user(),
+            global_config_file=global_config_file,
             enabled_plugins=enabled_plugins,
             user_email=user_email,
         )

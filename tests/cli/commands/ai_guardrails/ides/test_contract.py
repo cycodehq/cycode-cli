@@ -105,9 +105,12 @@ def test_build_session_payload_tags_ide(ide: IDE) -> None:
 
 
 def test_get_session_context_returns_pair(ide: IDE) -> None:
-    """Session context must always be a ``(mcp_servers, plugins)`` 2-tuple of dicts."""
-    mcp_servers, plugins = ide.get_session_context()
-    assert isinstance(mcp_servers, dict)
+    """Session context must be a ``(global_config_file, plugins)`` pair.
+
+    ``global_config_file`` is ``None`` or a ``{"path", "content"}`` dict; ``plugins`` is a dict.
+    """
+    global_config_file, plugins = ide.get_session_context()
+    assert global_config_file is None or isinstance(global_config_file, dict)
     assert isinstance(plugins, dict)
 
 

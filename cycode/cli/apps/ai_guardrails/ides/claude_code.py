@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
-from cycode.cli.apps.ai_guardrails.ides._plugin_utils import load_plugin_json, walk_enabled_plugins
+from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
+    build_global_config_file,
+    load_plugin_json,
+    walk_enabled_plugins,
+)
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -184,14 +188,17 @@ def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
         if field in manifest:
             entry[field] = manifest[field]
 
-    mcp_config = load_plugin_json(plugin_dir / '.mcp.json') or {}
+    mcp_config_path = plugin_dir / '.mcp.json'
+    mcp_config = load_plugin_json(mcp_config_path) or {}
     servers: dict = mcp_config.get('mcpServers') or {}
     if servers:
         entry['mcp_server_names'] = list(servers.keys())
+        entry['mcp_config_file_path'] = str(mcp_config_path)
+        entry['mcp_config_file'] = json.dumps(mcp_config)
     return entry, servers
 
 
-def resolve_plugins(settings: dict) -> tuple[dict, dict]:
+def resolve_plugins(settings: dict) -> dict:
     """Walk Claude Code's ``enabledPlugins`` via the shared plugin walker.
 
     Each enabled plugin's marketplace is resolved through
@@ -354,15 +361,11 @@ class ClaudeCode(IDE):
         config = load_claude_config()
         return _email_from_config(config) if config else None
 
-    def get_session_context(self) -> tuple[dict, dict]:
+    def get_session_context(self) -> tuple[Optional[dict], dict]:
         config = load_claude_config()
-        mcp_servers: dict = dict(get_mcp_servers(config) or {}) if config else {}
+        global_config_file = build_global_config_file(_CLAUDE_CONFIG_PATH, get_mcp_servers(config)) if config else None
 
         settings = load_claude_settings()
-        if settings:
-            plugin_mcp, enriched_plugins = resolve_plugins(settings)
-            mcp_servers.update(plugin_mcp)
-        else:
-            enriched_plugins = {}
+        enriched_plugins = resolve_plugins(settings) if settings else {}
 
-        return mcp_servers, enriched_plugins
+        return global_config_file, enriched_plugins

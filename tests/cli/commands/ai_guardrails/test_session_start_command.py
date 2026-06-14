@@ -3,7 +3,7 @@
 import json
 from io import StringIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 import typer
@@ -234,7 +234,13 @@ def test_claude_code_reports_mcp_servers(
         session_start_command(mock_ctx, ide='claude-code')
 
     mock_ai_client.report_session_context.assert_called_once_with(
-        mcp_servers=mcp_servers,
+        hostname=ANY,
+        platform=ANY,
+        logged_in_user=ANY,
+        global_config_file={
+            'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
+            'content': json.dumps({'mcpServers': mcp_servers}),
+        },
         enabled_plugins={'cycode-dev@cycode-marketplace': {'enabled': True}},
         user_email='test@test.com',
     )
@@ -244,7 +250,7 @@ def test_claude_code_reports_mcp_servers(
 @patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
-def test_claude_code_merges_plugin_mcp_servers_and_metadata(
+def test_claude_code_reports_global_file_and_plugin_metadata(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
     mock_load_config: MagicMock,
@@ -252,8 +258,8 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     mock_ctx: MagicMock,
     tmp_path: Path,
 ) -> None:
-    """Plugin MCP servers from <path>/.mcp.json should merge into mcp_servers,
-    and plugin metadata from .claude-plugin/plugin.json should enrich enabled_plugins."""
+    """The global config file carries only the global MCP servers; the plugin's own
+    .mcp.json content + path + metadata enrich enabled_plugins (no merge into the global)."""
     mock_get_auth.return_value = MagicMock()
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
@@ -282,10 +288,14 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='claude-code')
 
+    plugin_mcp = {'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}}
     mock_ai_client.report_session_context.assert_called_once_with(
-        mcp_servers={
-            'gitlab': {'command': 'npx'},
-            'aspire': {'command': 'aspire', 'args': ['mcp', 'start']},
+        hostname=ANY,
+        platform=ANY,
+        logged_in_user=ANY,
+        global_config_file={
+            'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
+            'content': json.dumps({'mcpServers': user_mcp_servers}),
         },
         enabled_plugins={
             'cycode-dev@cycode-marketplace': {
@@ -294,6 +304,8 @@ def test_claude_code_merges_plugin_mcp_servers_and_metadata(
                 'version': '1.0.28',
                 'description': 'Shared skills',
                 'mcp_server_names': ['aspire'],
+                'mcp_config_file_path': str(plugin_dir / '.mcp.json'),
+                'mcp_config_file': json.dumps(plugin_mcp),
             }
         },
         user_email=None,
@@ -348,7 +360,15 @@ def test_cursor_reports_mcp_servers(
         session_start_command(mock_ctx, ide='cursor')
 
     mock_ai_client.report_session_context.assert_called_once_with(
-        mcp_servers=mcp_servers, enabled_plugins={}, user_email=None
+        hostname=ANY,
+        platform=ANY,
+        logged_in_user=ANY,
+        global_config_file={
+            'path': str(Path.home() / '.cursor' / 'mcp.json'),
+            'content': json.dumps({'mcpServers': mcp_servers}),
+        },
+        enabled_plugins={},
+        user_email=None,
     )
 
 

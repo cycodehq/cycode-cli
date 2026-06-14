@@ -8,7 +8,12 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockerFixture
 
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
-from cycode.cli.apps.ai_guardrails.ides.claude_code import ClaudeCode, _email_from_config, load_claude_config
+from cycode.cli.apps.ai_guardrails.ides.claude_code import (
+    ClaudeCode,
+    _email_from_config,
+    _read_claude_plugin,
+    load_claude_config,
+)
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 
@@ -214,6 +219,37 @@ def test_email_none_when_no_oauth(mocker: MockerFixture) -> None:
     assert unified.ide_user_email is None
 
 
+# _read_claude_plugin
+
+
+def test_read_claude_plugin_includes_mcp_config_file(tmp_path: Path) -> None:
+    mcp_content = {'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}}
+    (tmp_path / '.mcp.json').write_text(json.dumps(mcp_content))
+
+    entry, servers = _read_claude_plugin(tmp_path)
+
+    assert 'mcp_config_file' in entry
+    assert json.loads(entry['mcp_config_file']) == mcp_content
+    assert entry['mcp_config_file_path'] == str(tmp_path / '.mcp.json')
+    assert servers == mcp_content['mcpServers']
+
+
+def test_read_claude_plugin_no_mcp_config_file_when_no_servers(tmp_path: Path) -> None:
+    (tmp_path / '.mcp.json').write_text(json.dumps({'mcpServers': {}}))
+
+    entry, servers = _read_claude_plugin(tmp_path)
+
+    assert 'mcp_config_file' not in entry
+    assert servers == {}
+
+
+def test_read_claude_plugin_no_mcp_config_file_when_missing(tmp_path: Path) -> None:
+    entry, servers = _read_claude_plugin(tmp_path)
+
+    assert 'mcp_config_file' not in entry
+    assert servers == {}
+
+
 # Session context
 
 
@@ -222,8 +258,8 @@ def test_session_context_no_config() -> None:
         patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_config', return_value=None),
         patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings', return_value=None),
     ):
-        servers, plugins = ClaudeCode().get_session_context()
-    assert servers == {}
+        global_config_file, plugins = ClaudeCode().get_session_context()
+    assert global_config_file is None
     assert plugins == {}
 
 

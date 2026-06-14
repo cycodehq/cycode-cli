@@ -16,6 +16,7 @@ from cycode.cli.apps.ai_guardrails.ides.codex import (
     _email_from_auth,
     _enable_codex_hooks_feature,
     _load_codex_config,
+    _read_codex_plugin,
 )
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
@@ -324,13 +325,60 @@ def test_session_context_reads_mcp_servers() -> None:
         'cycode.cli.apps.ai_guardrails.ides.codex._load_codex_config',
         return_value={'mcp_servers': mcp},
     ):
-        servers, plugins = Codex().get_session_context()
-    assert servers == mcp
+        global_config_file, plugins = Codex().get_session_context()
+    assert global_config_file is not None
+    assert global_config_file['path'].endswith('config.toml')
+    assert global_config_file['content'] == json.dumps({'mcpServers': mcp})
     assert plugins == {}
 
 
 def test_session_context_no_config() -> None:
     with patch('cycode.cli.apps.ai_guardrails.ides.codex._load_codex_config', return_value=None):
-        servers, plugins = Codex().get_session_context()
-    assert servers == {}
+        global_config_file, plugins = Codex().get_session_context()
+    assert global_config_file is None
     assert plugins == {}
+
+
+def _write_codex_plugin(plugin_dir: Path, mcp_doc: dict) -> None:
+    """Lay out a Codex plugin: manifest referencing .mcp.json + the MCP file itself."""
+    (plugin_dir / '.codex-plugin').mkdir(parents=True, exist_ok=True)
+    (plugin_dir / '.codex-plugin' / 'plugin.json').write_text(json.dumps({'name': 'demo', 'mcpServers': '.mcp.json'}))
+    (plugin_dir / '.mcp.json').write_text(json.dumps(mcp_doc))
+
+
+def test_read_codex_plugin_includes_mcp_config_file(tmp_path: Path) -> None:
+    mcp_content = {'mcpServers': {'dummy-server': {'command': 'dummy-command', 'args': ['serve']}}}
+    _write_codex_plugin(tmp_path, mcp_content)
+
+    entry, servers = _read_codex_plugin(tmp_path)
+
+    assert json.loads(entry['mcp_config_file']) == mcp_content
+    assert entry['mcp_config_file_path'] == str(tmp_path / '.mcp.json')
+    assert servers == mcp_content['mcpServers']
+
+
+def test_read_codex_plugin_mcp_config_file_bare_map(tmp_path: Path) -> None:
+    # Codex MCP files may be a bare {name: cfg} map with no mcpServers wrapper.
+    mcp_content = {'dummy-server': {'command': 'dummy-command'}}
+    _write_codex_plugin(tmp_path, mcp_content)
+
+    entry, servers = _read_codex_plugin(tmp_path)
+
+    assert json.loads(entry['mcp_config_file']) == mcp_content
+    assert servers == mcp_content
+
+
+def test_read_codex_plugin_no_mcp_config_file_when_no_servers(tmp_path: Path) -> None:
+    _write_codex_plugin(tmp_path, {'mcpServers': {}})
+
+    entry, servers = _read_codex_plugin(tmp_path)
+
+    assert 'mcp_config_file' not in entry
+    assert servers == {}
+
+
+def test_read_codex_plugin_no_mcp_config_file_when_no_manifest(tmp_path: Path) -> None:
+    entry, servers = _read_codex_plugin(tmp_path)
+
+    assert 'mcp_config_file' not in entry
+    assert servers == {}

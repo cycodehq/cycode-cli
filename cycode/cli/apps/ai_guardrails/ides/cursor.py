@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
+from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_file
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -39,9 +40,14 @@ def _user_hooks_dir() -> Path:
     return Path.home() / '.config' / 'Cursor'
 
 
+def _cursor_mcp_config_path() -> Path:
+    """User-scope Cursor MCP config path (``~/.cursor/mcp.json``, all platforms)."""
+    return Path.home() / '.cursor' / _MCP_CONFIG_FILENAME
+
+
 def _load_cursor_mcp_config(config_path: Optional[Path] = None) -> Optional[dict]:
     """Load and parse `~/.cursor/mcp.json`. Returns None if missing/invalid."""
-    path = config_path or (Path.home() / '.cursor' / _MCP_CONFIG_FILENAME)
+    path = config_path or _cursor_mcp_config_path()
     if not path.exists():
         logger.debug('Cursor MCP config file not found, %s', {'path': str(path)})
         return None
@@ -113,7 +119,10 @@ class Cursor(IDE):
             ide_version=raw_payload.get('cursor_version'),
         )
 
-    def get_session_context(self) -> tuple[dict, dict]:
+    def get_session_context(self) -> tuple[Optional[dict], dict]:
         config = _load_cursor_mcp_config()
-        mcp_servers = dict((config or {}).get('mcpServers') or {}) if config else {}
-        return mcp_servers, {}
+        if not config:
+            return None, {}
+        config_path = _cursor_mcp_config_path()
+        global_config_file = build_global_config_file(config_path, config.get('mcpServers'))
+        return global_config_file, {}
