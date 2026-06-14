@@ -2,6 +2,7 @@ from typing import Optional
 
 import typer
 
+from cycode import _BOOT_WALL
 from cycode.cli.apps.scan.remote_url_resolver import get_remote_url_scan_parameter
 from cycode.cli.utils.scan_utils import generate_unique_scan_id
 from cycode.logger import get_logger
@@ -17,6 +18,7 @@ def _get_default_scan_parameters(ctx: typer.Context) -> dict:
         'license_compliance': ctx.obj.get('license-compliance'),
         'command_type': ctx.info_name.replace('-', '_'),  # save backward compatibility
         'aggregation_id': str(generate_unique_scan_id()),
+        'cli_start_time': _BOOT_WALL,
     }
 
 

@@ -189,6 +189,10 @@ def enrich_scan_result_with_data_from_detection_rules(
         for detection in detections_per_file.detections:
             detection_rule_ids.add(detection.detection_rule_id)
 
+    if not detection_rule_ids:
+        logger.debug('No detections to enrich, skipping detection_rules fetch')
+        return
+
     detection_rules = cycode_client.get_detection_rules(detection_rule_ids)
     detection_rules_by_id = {detection_rule.detection_rule_id: detection_rule for detection_rule in detection_rules}
 
