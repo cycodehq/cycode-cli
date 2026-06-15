@@ -63,7 +63,10 @@ class Excluder:
         }
         self._non_scannable_extensions: dict[str, tuple[str, ...]] = {
             consts.SECRET_SCAN_TYPE: consts.SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE,
+            consts.SAST_SCAN_TYPE: consts.SAST_SCAN_FILE_EXTENSIONS_TO_IGNORE,
         }
+        # Tracks scan types for which the SAST fallback log has already been emitted (log once, not per file)
+        self._logged_sast_fallback = False
 
     def apply_scan_config(self, scan_type: str, scan_config: 'models.ScanConfiguration') -> None:
         if scan_config.scannable_extensions:
@@ -86,6 +89,11 @@ class Excluder:
 
         non_scannable_extensions = self._non_scannable_extensions.get(scan_type)
         if non_scannable_extensions:
+            # For SAST, reaching the block-list means the server returned no scannable extensions
+            # (e.g. custom rules, or no remote config). Log once so this is diagnosable.
+            if scan_type == consts.SAST_SCAN_TYPE and not self._logged_sast_fallback:
+                self._logged_sast_fallback = True
+                logger.debug('No scannable extensions provided for SAST; falling back to the built-in ignore list')
             return not filename.endswith(non_scannable_extensions)
 
         return True
