@@ -53,6 +53,30 @@ SECRET_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
     '.iso',
 )
 
+# Fallback block-list used for SAST only when the server does not return scannable extensions
+# (e.g. when the customer has custom rules, any text file is scannable). These are non-source
+# data formats that can slip past binary detection (the EICAR test file and ClamAV signature
+# databases are plain ASCII) and may be quarantined by object-storage antivirus after upload.
+SAST_SCAN_FILE_EXTENSIONS_TO_IGNORE = (
+    '.bin',
+    '.cvd',
+    '.cld',
+    '.cud',
+    '.hdb',
+    '.hsb',
+    '.mdb',
+    '.msb',
+    '.ndb',
+    '.ndu',
+    '.ldb',
+    '.ldu',
+    '.idb',
+    '.fp',
+    '.sfp',
+    '.ign',
+    '.ign2',
+)
+
 SCA_CONFIGURATION_SCAN_SUPPORTED_FILES = (  # keep in lowercase
     'cargo.lock',
     'cargo.toml',
