@@ -1,3 +1,5 @@
+from typing import Optional
+
 from cycode.cli.apps.configure.consts import (
     CONFIGURATION_MANAGER,
     CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE,
@@ -14,11 +16,14 @@ def _are_credentials_exist_in_environment_variables() -> bool:
 
 
 def get_credentials_update_result_message() -> str:
-    success_message = CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE.format(filename=CREDENTIALS_MANAGER.get_filename())
-    if _are_credentials_exist_in_environment_variables():
-        return f'{success_message}. {CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE}'
+    return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE.format(filename=CREDENTIALS_MANAGER.get_filename())
 
-    return success_message
+
+def get_credentials_environment_variables_override_warning() -> Optional[str]:
+    if _are_credentials_exist_in_environment_variables():
+        return CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
+
+    return None
 
 
 def _are_urls_exist_in_environment_variables() -> bool:
@@ -28,10 +33,13 @@ def _are_urls_exist_in_environment_variables() -> bool:
 
 
 def get_urls_update_result_message() -> str:
-    success_message = URLS_UPDATED_SUCCESSFULLY_MESSAGE.format(
+    return URLS_UPDATED_SUCCESSFULLY_MESSAGE.format(
         filename=CONFIGURATION_MANAGER.global_config_file_manager.get_filename()
     )
-    if _are_urls_exist_in_environment_variables():
-        return f'{success_message}. {URLS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE}'
 
-    return success_message
+
+def get_urls_environment_variables_override_warning() -> Optional[str]:
+    if _are_urls_exist_in_environment_variables():
+        return URLS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
+
+    return None
