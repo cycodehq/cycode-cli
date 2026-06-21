@@ -1,7 +1,12 @@
 from typing import Optional
 
 from cycode.cli.apps.configure.consts import CONFIGURATION_MANAGER, CREDENTIALS_MANAGER
-from cycode.cli.apps.configure.messages import get_credentials_update_result_message, get_urls_update_result_message
+from cycode.cli.apps.configure.messages import (
+    get_credentials_environment_variables_override_warning,
+    get_credentials_update_result_message,
+    get_urls_environment_variables_override_warning,
+    get_urls_update_result_message,
+)
 from cycode.cli.apps.configure.prompts import (
     get_api_url_input,
     get_app_url_input,
@@ -73,3 +78,14 @@ def configure_command() -> None:
         console.print(get_urls_update_result_message())
     if credentials_updated or oidc_credentials_updated:
         console.print(get_credentials_update_result_message())
+
+    # Warn about environment variables that override the configured file values, regardless of whether anything was
+    # updated. The env vars take precedence on every subsequent call, so configuring the file alone has no effect while
+    # they are set.
+    urls_override_warning = get_urls_environment_variables_override_warning()
+    if urls_override_warning:
+        console.print(f'[yellow]Warning:[/] {urls_override_warning}')
+
+    credentials_override_warning = get_credentials_environment_variables_override_warning()
+    if credentials_override_warning:
+        console.print(f'[yellow]Warning:[/] {credentials_override_warning}')
