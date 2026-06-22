@@ -2,8 +2,10 @@ import os
 from os.path import normpath
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import scan_disk_files
+from cycode.cli.apps.scan.code_scanner import scan_disk_files, scan_documents
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
@@ -162,3 +164,51 @@ def test_entrypoint_cycode_not_added_for_single_file(
     assert len(entrypoint_docs) == 0
     # Verify only the original documents are present
     assert len(documents_passed) == len(mock_documents)
+
+
+@pytest.mark.parametrize(
+    ('scan_type', 'command_scan_type', 'sync_option', 'expect_presigned'),
+    [
+        # SAST keeps uploading directly to S3 via a presigned URL (regression guard for the new sync gate).
+        (consts.SAST_SCAN_TYPE, 'path', False, True),
+        # Async secret scans now upload as a single file directly to S3 via a presigned URL.
+        (consts.SECRET_SCAN_TYPE, 'path', False, True),
+        # A --sync secret scan must stay on the batched inline path and never build one giant zip.
+        (consts.SECRET_SCAN_TYPE, 'path', True, False),
+    ],
+)
+@patch('cycode.cli.apps.scan.code_scanner.print_local_scan_results')
+@patch('cycode.cli.apps.scan.code_scanner.set_issue_detected_by_scan_results')
+@patch('cycode.cli.apps.scan.code_scanner.try_set_aggregation_report_url_if_needed')
+@patch('cycode.cli.apps.scan.code_scanner.run_parallel_batched_scan')
+@patch('cycode.cli.apps.scan.code_scanner._run_presigned_upload_scan')
+def test_scan_documents_routes_upload_by_scan_type_and_sync(
+    mock_presigned_upload: Mock,
+    mock_batched_scan: Mock,
+    mock_aggregation: Mock,
+    mock_set_issue: Mock,
+    mock_print: Mock,
+    scan_type: str,
+    command_scan_type: str,
+    sync_option: bool,
+    expect_presigned: bool,
+) -> None:
+    mock_presigned_upload.return_value = ([], [])
+    mock_batched_scan.return_value = ([], [])
+
+    mock_ctx = MagicMock()
+    mock_ctx.info_name = command_scan_type
+    mock_ctx.obj = {
+        'scan_type': scan_type,
+        'progress_bar': MagicMock(),
+        'console_printer': MagicMock(),
+        'client': MagicMock(),
+        'severity_threshold': None,
+        'sync': sync_option,
+    }
+    documents = [Document('/repo/file.py', 'content', is_git_diff_format=False)]
+
+    scan_documents(mock_ctx, documents, {})
+
+    assert mock_presigned_upload.called is expect_presigned
+    assert mock_batched_scan.called is (not expect_presigned)
