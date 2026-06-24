@@ -12,7 +12,6 @@ logger = get_logger('HOST INFO')
 _SUBPROCESS_TIMEOUT_SEC = 5
 
 _PLATFORM_NAMES = {'Darwin': 'macOS', 'Windows': 'Windows', 'Linux': 'Linux'}
-_LINUX_SERIAL_PATH = '/sys/class/dmi/id/product_serial'
 
 
 def _run(command: list, timeout: int = _SUBPROCESS_TIMEOUT_SEC) -> Optional[str]:
@@ -102,8 +101,6 @@ def get_serial_number() -> Optional[str]:
             return _run(
                 ['powershell', '-NoProfile', '-Command', '(Get-CimInstance -ClassName Win32_BIOS).SerialNumber']
             )
-        if system == 'Linux':
-            return _read_text_file(_LINUX_SERIAL_PATH)
     except Exception as e:
         logger.debug('Failed to resolve serial number', exc_info=e)
     return None

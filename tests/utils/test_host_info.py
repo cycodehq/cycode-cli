@@ -37,15 +37,8 @@ def test_get_serial_number_windows_uses_command_output(mocker: MockerFixture) ->
     assert host_info.get_serial_number() == 'ABC123XYZ'
 
 
-def test_get_serial_number_linux_reads_dmi_file(mocker: MockerFixture) -> None:
+def test_get_serial_number_unsupported_platform_returns_none(mocker: MockerFixture) -> None:
     mocker.patch(f'{_MODULE}.platform.system', return_value='Linux')
-    mocker.patch('builtins.open', mocker.mock_open(read_data='SERIAL-LINUX-1\n'))
-    assert host_info.get_serial_number() == 'SERIAL-LINUX-1'
-
-
-def test_get_serial_number_linux_returns_none_when_unreadable(mocker: MockerFixture) -> None:
-    mocker.patch(f'{_MODULE}.platform.system', return_value='Linux')
-    mocker.patch('builtins.open', side_effect=PermissionError('not root'))
     assert host_info.get_serial_number() is None
 
 
