@@ -235,8 +235,10 @@ def test_claude_code_reports_mcp_servers(
 
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
-        platform=ANY,
-        logged_in_user=ANY,
+        platform_name=ANY,
+        os_version=ANY,
+        serial_number=ANY,
+        last_login_user=ANY,
         global_config_file={
             'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
             'content': json.dumps({'mcpServers': mcp_servers}),
@@ -291,8 +293,10 @@ def test_claude_code_reports_global_file_and_plugin_metadata(
     plugin_mcp = {'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}}
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
-        platform=ANY,
-        logged_in_user=ANY,
+        platform_name=ANY,
+        os_version=ANY,
+        serial_number=ANY,
+        last_login_user=ANY,
         global_config_file={
             'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
             'content': json.dumps({'mcpServers': user_mcp_servers}),
@@ -361,8 +365,10 @@ def test_cursor_reports_mcp_servers(
 
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
-        platform=ANY,
-        logged_in_user=ANY,
+        platform_name=ANY,
+        os_version=ANY,
+        serial_number=ANY,
+        last_login_user=ANY,
         global_config_file={
             'path': str(Path.home() / '.cursor' / 'mcp.json'),
             'content': json.dumps({'mcpServers': mcp_servers}),
