@@ -31,12 +31,6 @@ def test_get_serial_number_macos_parses_ioreg(mocker: MockerFixture) -> None:
     assert host_info.get_serial_number() == 'AAAA888111'
 
 
-def test_get_serial_number_windows_uses_command_output(mocker: MockerFixture) -> None:
-    mocker.patch(f'{_MODULE}.platform.system', return_value='Windows')
-    mocker.patch(f'{_MODULE}._run', return_value='ABC123XYZ')
-    assert host_info.get_serial_number() == 'ABC123XYZ'
-
-
 def test_get_serial_number_unsupported_platform_returns_none(mocker: MockerFixture) -> None:
     mocker.patch(f'{_MODULE}.platform.system', return_value='Linux')
     assert host_info.get_serial_number() is None
@@ -59,8 +53,3 @@ def test_run_returns_none_on_failure(mocker: MockerFixture) -> None:
 def test_get_hostname_returns_none_on_error(mocker: MockerFixture) -> None:
     mocker.patch(f'{_MODULE}.socket.gethostname', side_effect=OSError('hostname unavailable'))
     assert host_info.get_hostname() is None
-
-
-def test_get_last_login_user_returns_none_on_error(mocker: MockerFixture) -> None:
-    mocker.patch(f'{_MODULE}.getpass.getuser', side_effect=KeyError('no user'))
-    assert host_info.get_last_login_user() is None

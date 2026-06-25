@@ -98,9 +98,7 @@ def get_serial_number() -> Optional[str]:
         if system == 'Darwin':
             return _get_macos_serial_number()
         if system == 'Windows':
-            return _run(
-                ['powershell', '-NoProfile', '-Command', '(Get-CimInstance -ClassName Win32_BIOS).SerialNumber']
-            )
+            return _get_windows_serial_number()
     except Exception as e:
         logger.debug('Failed to resolve serial number', exc_info=e)
     return None
@@ -112,3 +110,13 @@ def _get_macos_serial_number() -> Optional[str]:
         return None
     match = re.search(r'"IOPlatformSerialNumber"\s*=\s*"([^"]+)"', output)
     return match.group(1) if match else None
+
+
+def _get_windows_serial_number() -> Optional[str]:
+    import wmi  # Windows-only dependency; imported lazily so other platforms never load it
+
+    bios_entries = wmi.WMI().Win32_BIOS()
+    if not bios_entries:
+        return None
+    serial = bios_entries[0].SerialNumber
+    return serial.strip() if serial else None
