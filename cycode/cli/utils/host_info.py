@@ -113,10 +113,15 @@ def _get_macos_serial_number() -> Optional[str]:
 
 
 def _get_windows_serial_number() -> Optional[str]:
-    import wmi  # Windows-only dependency; imported lazily so other platforms never load it
+    import pythoncom  # from pywin32
+    import win32com.client  # from pywin32
 
-    bios_entries = wmi.WMI().Win32_BIOS()
-    if not bios_entries:
-        return None
-    serial = bios_entries[0].SerialNumber
-    return serial.strip() if serial else None
+    pythoncom.CoInitialize()
+    try:
+        wmi_service = win32com.client.GetObject('winmgmts:')
+        for bios in wmi_service.InstancesOf('Win32_BIOS'):
+            serial = bios.SerialNumber
+            return serial.strip() if serial else None
+    finally:
+        pythoncom.CoUninitialize()
+    return None

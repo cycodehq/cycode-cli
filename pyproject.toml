@@ -52,8 +52,6 @@ pathvalidate = ">=3.3.1,<4.0.0"
 tomli-w = ">=1.0.0,<2.0.0"
 tomli = {version = ">=2.0.0,<3.0.0", python = "<3.11"}
 anyio = ">=4.0.0, <4.13.0"
-wmi = { version = "^1.5.1", markers = "sys_platform == 'win32'" }
-pywin32 = { version = "^308", markers = "sys_platform == 'win32'" }
 
 [tool.poetry.group.test.dependencies]
 mock = ">=4.0.3,<4.1.0"
