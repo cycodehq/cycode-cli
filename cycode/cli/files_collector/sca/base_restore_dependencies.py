@@ -18,13 +18,14 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 
 
 def parse_tool_version(raw_version: Optional[str]) -> Optional[tuple[int, ...]]:
-    """Parse a leading dotted numeric version (e.g. '1.2.3') into a tuple of ints.
+    """Parse a leading dotted numeric version (e.g. '1.2.3' or 'v20.1.0') into a tuple of ints.
 
-    Returns None when the input is empty or has no recognizable leading version.
+    Tolerates an optional leading 'v' (some tools print e.g. `v20.1.0`). Returns None when the
+    input is empty or has no recognizable leading version.
     """
     if not raw_version:
         return None
-    match = re.match(r'(\d+(?:\.\d+)*)', raw_version.strip())
+    match = re.match(r'v?(\d+(?:\.\d+)*)', raw_version.strip())
     if not match:
         return None
     return tuple(int(part) for part in match.group(1).split('.'))

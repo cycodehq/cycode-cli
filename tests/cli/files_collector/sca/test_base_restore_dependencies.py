@@ -176,6 +176,9 @@ class TestParseToolVersion:
     def test_parses_leading_version_with_suffix(self) -> None:
         assert parse_tool_version('1.2.3-canary.1') == (1, 2, 3)
 
+    def test_parses_leading_v_prefix(self) -> None:
+        assert parse_tool_version('v20.1.0') == (20, 1, 0)
+
     def test_none_input_returns_none(self) -> None:
         assert parse_tool_version(None) is None
 
