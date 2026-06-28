@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
@@ -14,6 +15,19 @@ logger = get_logger('SCA Restore')
 
 def build_dep_tree_path(path: str, generated_file_name: str) -> str:
     return join_paths(get_file_dir(path), generated_file_name)
+
+
+def parse_tool_version(raw_version: Optional[str]) -> Optional[tuple[int, ...]]:
+    """Parse a leading dotted numeric version (e.g. '1.2.3') into a tuple of ints.
+
+    Returns None when the input is empty or has no recognizable leading version.
+    """
+    if not raw_version:
+        return None
+    match = re.match(r'(\d+(?:\.\d+)*)', raw_version.strip())
+    if not match:
+        return None
+    return tuple(int(part) for part in match.group(1).split('.'))
 
 
 def execute_commands(
@@ -84,6 +98,9 @@ class BaseRestoreDependencies(ABC):
         )
 
         if not self.verify_restore_file_already_exist(restore_file_path):
+            if not self.is_supported_tool_version():
+                return None
+
             output = execute_commands(
                 commands=self.get_commands(manifest_file_path),
                 timeout=self.command_timeout,
@@ -156,6 +173,52 @@ class BaseRestoreDependencies(ABC):
     @staticmethod
     def verify_restore_file_already_exist(restore_file_path: str) -> bool:
         return Path(restore_file_path).is_file()
+
+    def get_version_command(self) -> Optional[list[str]]:
+        """Command that prints the package manager's version (e.g. ['bun', '--version']).
+
+        Override together with get_minimum_supported_version() to require a minimum tool
+        version before generating a lockfile. Defaults to None (no version check).
+        """
+        return None
+
+    def get_minimum_supported_version(self) -> Optional[tuple[int, ...]]:
+        """Minimum supported (major, minor, ...) version, or None for no requirement."""
+        return None
+
+    def is_supported_tool_version(self) -> bool:
+        """Verify the installed package manager meets get_minimum_supported_version().
+
+        Returns True when no minimum is declared (the default for all handlers), so existing
+        handlers are unaffected. Only runs the version command for handlers that opt in.
+        """
+        minimum_version = self.get_minimum_supported_version()
+        version_command = self.get_version_command()
+        if minimum_version is None or version_command is None:
+            return True
+
+        tool_name = version_command[0]
+        minimum_str = '.'.join(str(part) for part in minimum_version)
+
+        raw_version = shell(command=version_command, timeout=self.command_timeout, silent_exc_info=True)
+        version = parse_tool_version(raw_version)
+        if version is None:
+            logger.warning(
+                'Could not determine %s version; %s+ is required to restore dependencies, %s',
+                tool_name,
+                minimum_str,
+                {'raw_version': raw_version},
+            )
+            return False
+        if version < minimum_version:
+            logger.warning(
+                'Unsupported %s version; %s+ is required to restore dependencies, %s',
+                tool_name,
+                minimum_str,
+                {'detected_version': '.'.join(str(part) for part in version)},
+            )
+            return False
+        return True
 
     @abstractmethod
     def is_project(self, document: Document) -> bool:

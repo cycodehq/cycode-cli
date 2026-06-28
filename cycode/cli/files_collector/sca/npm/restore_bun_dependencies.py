@@ -1,5 +1,4 @@
 import json
-import re
 from pathlib import Path
 from typing import Optional
 
@@ -8,7 +7,6 @@ import typer
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content
-from cycode.cli.utils.shell_executor import shell
 from cycode.logger import get_logger
 
 logger = get_logger('Bun Restore Dependencies')
@@ -39,16 +37,6 @@ def _indicates_bun(package_json_content: Optional[str]) -> bool:
     return isinstance(engines, dict) and 'bun' in engines
 
 
-def _parse_bun_version(raw_version: Optional[str]) -> Optional[tuple[int, int]]:
-    """Parse the (major, minor) version from `bun --version` output (e.g. '1.2.3')."""
-    if not raw_version:
-        return None
-    match = re.match(r'(\d+)\.(\d+)', raw_version.strip())
-    if not match:
-        return None
-    return int(match.group(1)), int(match.group(2))
-
-
 class RestoreBunDependencies(BaseRestoreDependencies):
     def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(ctx, is_git_diff, command_timeout)
@@ -63,27 +51,6 @@ class RestoreBunDependencies(BaseRestoreDependencies):
 
         return _indicates_bun(document.content)
 
-    def _is_supported_bun_version(self) -> bool:
-        """Verify that the installed Bun is >=1.2, which is required to generate a text bun.lock."""
-        raw_version = shell(command=BUN_VERSION_COMMAND, timeout=self.command_timeout, silent_exc_info=True)
-        version = _parse_bun_version(raw_version)
-        minimum = '.'.join(str(part) for part in MINIMUM_BUN_VERSION)
-        if version is None:
-            logger.warning(
-                'Could not determine Bun version; Bun %s+ is required to restore Bun dependencies, %s',
-                minimum,
-                {'raw_version': raw_version},
-            )
-            return False
-        if version < MINIMUM_BUN_VERSION:
-            logger.warning(
-                'Unsupported Bun version; Bun %s+ is required to restore Bun dependencies, %s',
-                minimum,
-                {'detected_version': '.'.join(str(part) for part in version)},
-            )
-            return False
-        return True
-
     def try_restore_dependencies(self, document: Document) -> Optional[Document]:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / BUN_LOCK_FILE_NAME if manifest_dir else None
@@ -96,11 +63,9 @@ class RestoreBunDependencies(BaseRestoreDependencies):
             logger.debug('Using existing bun.lock, %s', {'path': str(lockfile_path)})
             return Document(relative_path, content, self.is_git_diff)
 
-        # Lockfile absent — must generate it via `bun install`. This requires Bun >=1.2,
-        # otherwise an older Bun would emit a binary bun.lockb that we cannot parse.
-        if not self._is_supported_bun_version():
-            return None
-
+        # Lockfile absent — generate it via `bun install`. The base class enforces the
+        # minimum Bun version (declared below) before running the command, otherwise an
+        # older Bun would emit a binary bun.lockb that we cannot parse.
         return super().try_restore_dependencies(document)
 
     def get_commands(self, manifest_file_path: str) -> list[list[str]]:
@@ -111,3 +76,9 @@ class RestoreBunDependencies(BaseRestoreDependencies):
 
     def get_lock_file_names(self) -> list[str]:
         return [BUN_LOCK_FILE_NAME]
+
+    def get_version_command(self) -> list[str]:
+        return BUN_VERSION_COMMAND
+
+    def get_minimum_supported_version(self) -> tuple[int, ...]:
+        return MINIMUM_BUN_VERSION
