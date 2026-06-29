@@ -31,7 +31,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         and both restores run. This is pre-existing behavior shared by pnpm/yarn/bun and is
         accepted for now (a real Bun/pnpm project ships a lockfile, so npm correctly skips).
         If this ever needs tightening, also skip here when package.json declares a non-npm
-        packageManager/engines signal. 
+        packageManager/engines signal.
         """
         if Path(document.path).name != NPM_MANIFEST_FILE_NAME:
             return False
