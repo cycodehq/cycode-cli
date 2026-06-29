@@ -1,2 +1,2 @@
 [solver]
-min-release-age = 7
+min-release-age = 7 # Requires Poetry >= 2.4.0; silently ignored by older versions
