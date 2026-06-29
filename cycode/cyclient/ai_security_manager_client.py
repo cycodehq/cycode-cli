@@ -94,8 +94,10 @@ class AISecurityManagerClient:
     def report_session_context(
         self,
         hostname: Optional[str] = None,
-        platform: Optional[str] = None,
-        logged_in_user: Optional[str] = None,
+        platform_name: Optional[str] = None,
+        os_version: Optional[str] = None,
+        serial_number: Optional[str] = None,
+        last_login_user: Optional[str] = None,
         global_config_file: Optional[dict] = None,
         enabled_plugins: Optional[dict] = None,
         user_email: Optional[str] = None,
@@ -103,8 +105,10 @@ class AISecurityManagerClient:
         """Report session context to the backend."""
         body: dict = {
             'hostname': hostname,
-            'platform': platform,
-            'logged_in_user': logged_in_user,
+            'platform_name': platform_name,
+            'os_version': os_version,
+            'serial_number': serial_number,
+            'last_login_user': last_login_user,
             'user_email': user_email,
             'global_config_file': global_config_file,
             'enabled_plugins': enabled_plugins,

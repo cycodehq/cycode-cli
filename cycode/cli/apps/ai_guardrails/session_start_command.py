@@ -1,8 +1,5 @@
 """Handle AI guardrails session start: auth, conversation creation, session context."""
 
-import os
-import platform
-import socket
 import sys
 from typing import TYPE_CHECKING, Annotated, Optional
 
@@ -15,20 +12,19 @@ from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.handle_auth_errors import handle_auth_exception
 from cycode.cli.utils.get_api_client import get_ai_security_manager_client
+from cycode.cli.utils.host_info import (
+    get_hostname,
+    get_last_login_user,
+    get_os_version,
+    get_platform_name,
+    get_serial_number,
+)
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
     from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
 
 logger = get_logger('AI Guardrails')
-
-
-def _get_logged_in_user() -> Optional[str]:
-    """Best-effort OS account name (whoami). None if it can't be resolved."""
-    try:
-        return os.getlogin()
-    except Exception:
-        return None
 
 
 def _report_session_context(ai_client: 'AISecurityManagerClient', ide: IDE, user_email: Optional[str]) -> None:
@@ -38,9 +34,11 @@ def _report_session_context(ai_client: 'AISecurityManagerClient', ide: IDE, user
         if not global_config_file and not enabled_plugins:
             return
         ai_client.report_session_context(
-            hostname=socket.gethostname(),
-            platform=platform.system(),
-            logged_in_user=_get_logged_in_user(),
+            hostname=get_hostname(),
+            platform_name=get_platform_name(),
+            os_version=get_os_version(),
+            serial_number=get_serial_number(),
+            last_login_user=get_last_login_user(),
             global_config_file=global_config_file,
             enabled_plugins=enabled_plugins,
             user_email=user_email,
