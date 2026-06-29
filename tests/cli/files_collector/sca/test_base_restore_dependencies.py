@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, parse_tool_version
+from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.models import Document
 
 _LOCK_FILE_NAME = 'generated.lock'
@@ -37,16 +37,6 @@ class _MinimalRestoreHandler(BaseRestoreDependencies):
         return [_LOCK_FILE_NAME]
 
 
-class _VersionedRestoreHandler(_MinimalRestoreHandler):
-    """Concrete subclass that opts in to the minimum-version gate."""
-
-    def get_version_command(self) -> list[str]:
-        return ['faketool', '--version']
-
-    def get_minimum_supported_version(self) -> tuple[int, ...]:
-        return (1, 2)
-
-
 @pytest.fixture
 def mock_ctx(tmp_path: Path) -> typer.Context:
     ctx = MagicMock(spec=typer.Context)
@@ -58,11 +48,6 @@ def mock_ctx(tmp_path: Path) -> typer.Context:
 @pytest.fixture
 def handler(mock_ctx: typer.Context) -> _MinimalRestoreHandler:
     return _MinimalRestoreHandler(mock_ctx, is_git_diff=False, command_timeout=30)
-
-
-@pytest.fixture
-def versioned_handler(mock_ctx: typer.Context) -> _VersionedRestoreHandler:
-    return _VersionedRestoreHandler(mock_ctx, is_git_diff=False, command_timeout=30)
 
 
 def _make_doc(tmp_path: Path) -> Document:
@@ -161,103 +146,3 @@ class TestCleanupGeneratedFile:
         assert not lock_path.exists()
         assert result is not None
         assert result.content == expected
-
-
-class TestParseToolVersion:
-    def test_parses_full_semver(self) -> None:
-        assert parse_tool_version('1.2.3') == (1, 2, 3)
-
-    def test_parses_major_minor(self) -> None:
-        assert parse_tool_version('1.2') == (1, 2)
-
-    def test_parses_with_surrounding_whitespace(self) -> None:
-        assert parse_tool_version(' 1.2.0\n') == (1, 2, 0)
-
-    def test_parses_leading_version_with_suffix(self) -> None:
-        assert parse_tool_version('1.2.3-canary.1') == (1, 2, 3)
-
-    def test_parses_leading_v_prefix(self) -> None:
-        assert parse_tool_version('v20.1.0') == (20, 1, 0)
-
-    def test_none_input_returns_none(self) -> None:
-        assert parse_tool_version(None) is None
-
-    def test_empty_input_returns_none(self) -> None:
-        assert parse_tool_version('') is None
-
-    def test_non_version_string_returns_none(self) -> None:
-        assert parse_tool_version('not-a-version') is None
-
-
-class TestVersionGateDefault:
-    """Handlers that do not opt in must never run a version check."""
-
-    def test_no_minimum_declared_is_supported(self, handler: _MinimalRestoreHandler) -> None:
-        with patch(f'{_BASE_MODULE}.shell') as mock_shell:
-            assert handler.is_supported_tool_version() is True
-            mock_shell.assert_not_called()
-
-    def test_restore_runs_without_version_check(self, handler: _MinimalRestoreHandler, tmp_path: Path) -> None:
-        doc = _make_doc(tmp_path)
-        lock_path = tmp_path / _LOCK_FILE_NAME
-        with (
-            patch(f'{_BASE_MODULE}.shell') as mock_shell,
-            patch(f'{_BASE_MODULE}.execute_commands', side_effect=_make_execute_side_effect(lock_path)),
-        ):
-            result = handler.try_restore_dependencies(doc)
-        assert result is not None
-        mock_shell.assert_not_called()
-
-
-class TestVersionGateOptIn:
-    def test_supported_version_passes(self, versioned_handler: _VersionedRestoreHandler) -> None:
-        with patch(f'{_BASE_MODULE}.shell', return_value='1.2.5'):
-            assert versioned_handler.is_supported_tool_version() is True
-
-    def test_equal_to_minimum_passes(self, versioned_handler: _VersionedRestoreHandler) -> None:
-        with patch(f'{_BASE_MODULE}.shell', return_value='1.2.0'):
-            assert versioned_handler.is_supported_tool_version() is True
-
-    def test_old_version_fails(self, versioned_handler: _VersionedRestoreHandler) -> None:
-        with patch(f'{_BASE_MODULE}.shell', return_value='1.1.38'):
-            assert versioned_handler.is_supported_tool_version() is False
-
-    def test_missing_tool_fails(self, versioned_handler: _VersionedRestoreHandler) -> None:
-        with patch(f'{_BASE_MODULE}.shell', return_value=None):
-            assert versioned_handler.is_supported_tool_version() is False
-
-    def test_old_version_skips_restore_without_running_command(
-        self, versioned_handler: _VersionedRestoreHandler, tmp_path: Path
-    ) -> None:
-        doc = _make_doc(tmp_path)
-        with (
-            patch(f'{_BASE_MODULE}.shell', return_value='1.1.38'),
-            patch(f'{_BASE_MODULE}.execute_commands') as mock_execute,
-        ):
-            result = versioned_handler.try_restore_dependencies(doc)
-        assert result is None
-        mock_execute.assert_not_called()
-
-    def test_supported_version_runs_restore(self, versioned_handler: _VersionedRestoreHandler, tmp_path: Path) -> None:
-        doc = _make_doc(tmp_path)
-        lock_path = tmp_path / _LOCK_FILE_NAME
-        with (
-            patch(f'{_BASE_MODULE}.shell', return_value='1.2.5'),
-            patch(f'{_BASE_MODULE}.execute_commands', side_effect=_make_execute_side_effect(lock_path)) as mock_execute,
-        ):
-            result = versioned_handler.try_restore_dependencies(doc)
-        assert result is not None
-        assert result.content == _LOCK_CONTENT
-        mock_execute.assert_called_once()
-
-    def test_preexisting_lockfile_skips_version_check(
-        self, versioned_handler: _VersionedRestoreHandler, tmp_path: Path
-    ) -> None:
-        doc = _make_doc(tmp_path)
-        lock_path = tmp_path / _LOCK_FILE_NAME
-        lock_path.write_text('pre-existing content')
-        with patch(f'{_BASE_MODULE}.shell') as mock_shell:
-            result = versioned_handler.try_restore_dependencies(doc)
-        assert result is not None
-        assert result.content == 'pre-existing content'
-        mock_shell.assert_not_called()

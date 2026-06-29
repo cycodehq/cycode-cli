@@ -7,13 +7,12 @@ import typer
 
 from cycode.cli.files_collector.sca.npm.restore_bun_dependencies import (
     BUN_LOCK_FILE_NAME,
-    MINIMUM_BUN_VERSION,
     RestoreBunDependencies,
+    _parse_bun_version,
 )
 from cycode.cli.models import Document
 
-# The minimum-version gate lives in the base class; patch shell/execute_commands there.
-_BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
+_BUN_MODULE = 'cycode.cli.files_collector.sca.npm.restore_bun_dependencies'
 
 
 @pytest.fixture
@@ -96,53 +95,70 @@ class TestTryRestoreDependencies:
         assert commands == [['bun', 'install', '--ignore-scripts']]
 
 
-class TestBunVersionRequirement:
-    """Bun declares the minimum version; the gate itself is exercised in the base-class tests."""
+_BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
 
-    def test_declares_version_command(self, restore_bun: RestoreBunDependencies) -> None:
-        assert restore_bun.get_version_command() == ['bun', '--version']
 
-    def test_declares_minimum_version(self, restore_bun: RestoreBunDependencies) -> None:
-        assert restore_bun.get_minimum_supported_version() == MINIMUM_BUN_VERSION == (1, 2)
+class TestParseBunVersion:
+    def test_parses_full_semver(self) -> None:
+        assert _parse_bun_version('1.2.3') == (1, 2)
+
+    def test_parses_with_surrounding_whitespace(self) -> None:
+        assert _parse_bun_version(' 1.2.0\n') == (1, 2)
+
+    def test_none_input_returns_none(self) -> None:
+        assert _parse_bun_version(None) is None
+
+    def test_non_version_string_returns_none(self) -> None:
+        assert _parse_bun_version('not-a-version') is None
+
+
+class TestBunVersionGate:
+    def test_supported_version_proceeds_to_restore(self, restore_bun: RestoreBunDependencies, tmp_path: Path) -> None:
+        content = '{"name": "test", "packageManager": "bun@1.2.0"}'
+        (tmp_path / 'package.json').write_text(content)
+        doc = Document(str(tmp_path / 'package.json'), content, absolute_path=str(tmp_path / 'package.json'))
+
+        with (
+            patch(f'{_BUN_MODULE}.shell', return_value='1.2.5'),
+            patch.object(
+                restore_bun.__class__.__bases__[0], 'try_restore_dependencies', return_value=None
+            ) as mock_super,
+        ):
+            restore_bun.try_restore_dependencies(doc)
+            mock_super.assert_called_once_with(doc)
 
     def test_old_version_skips_restore(self, restore_bun: RestoreBunDependencies, tmp_path: Path) -> None:
-        # No bun.lock on disk -> generate path -> base version gate rejects old Bun
         content = '{"name": "test", "packageManager": "bun@1.1.0"}'
         (tmp_path / 'package.json').write_text(content)
         doc = Document(str(tmp_path / 'package.json'), content, absolute_path=str(tmp_path / 'package.json'))
 
         with (
-            patch(f'{_BASE_MODULE}.shell', return_value='1.1.38'),
-            patch(f'{_BASE_MODULE}.execute_commands') as mock_execute,
+            patch(f'{_BUN_MODULE}.shell', return_value='1.1.38'),
+            patch.object(restore_bun.__class__.__bases__[0], 'try_restore_dependencies') as mock_super,
         ):
             result = restore_bun.try_restore_dependencies(doc)
-        assert result is None
-        mock_execute.assert_not_called()
+            assert result is None
+            mock_super.assert_not_called()
 
-    def test_supported_version_runs_bun_install(self, restore_bun: RestoreBunDependencies, tmp_path: Path) -> None:
+    def test_missing_bun_skips_restore(self, restore_bun: RestoreBunDependencies, tmp_path: Path) -> None:
         content = '{"name": "test", "packageManager": "bun@1.2.0"}'
         (tmp_path / 'package.json').write_text(content)
         doc = Document(str(tmp_path / 'package.json'), content, absolute_path=str(tmp_path / 'package.json'))
-        lock_path = tmp_path / BUN_LOCK_FILE_NAME
-
-        def side_effect(*_args: object, **_kwargs: object) -> str:
-            lock_path.write_text('{"lockfileVersion": 1}\n')
-            return 'output'
 
         with (
-            patch(f'{_BASE_MODULE}.shell', return_value='1.2.5'),
-            patch(f'{_BASE_MODULE}.execute_commands', side_effect=side_effect) as mock_execute,
+            patch(f'{_BUN_MODULE}.shell', return_value=None),
+            patch.object(restore_bun.__class__.__bases__[0], 'try_restore_dependencies') as mock_super,
         ):
             result = restore_bun.try_restore_dependencies(doc)
-        assert result is not None
-        mock_execute.assert_called_once()
+            assert result is None
+            mock_super.assert_not_called()
 
     def test_existing_lockfile_skips_version_check(self, restore_bun: RestoreBunDependencies, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "test"}')
         (tmp_path / 'bun.lock').write_text('{"lockfileVersion": 1}\n')
         doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
 
-        with patch(f'{_BASE_MODULE}.shell') as mock_shell:
+        with patch(f'{_BUN_MODULE}.shell') as mock_shell:
             result = restore_bun.try_restore_dependencies(doc)
             assert result is not None
             mock_shell.assert_not_called()
@@ -168,7 +184,7 @@ class TestCleanup:
             return 'output'
 
         with (
-            patch(f'{_BASE_MODULE}.shell', return_value='1.2.5'),
+            patch(f'{_BUN_MODULE}.shell', return_value='1.2.5'),
             patch(f'{_BASE_MODULE}.execute_commands', side_effect=side_effect),
         ):
             result = restore_bun.try_restore_dependencies(doc)
