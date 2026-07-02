@@ -49,6 +49,15 @@ class TestIsProject:
         doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
         assert restore_npm.is_project(doc) is False
 
+    def test_package_json_with_bun_lock_does_not_match(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """Bun projects are handled by RestoreBunDependencies — NPM should not claim them."""
+        (tmp_path / 'package.json').write_text('{"name": "test"}')
+        (tmp_path / 'bun.lock').write_text('{"lockfileVersion": 1}\n')
+        doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
+        assert restore_npm.is_project(doc) is False
+
     def test_tsconfig_json_does_not_match(self, restore_npm: RestoreNpmDependencies) -> None:
         doc = Document('tsconfig.json', '{}')
         assert restore_npm.is_project(doc) is False

@@ -10,6 +10,7 @@ from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestore
 from cycode.cli.files_collector.sca.go.restore_go_dependencies import RestoreGoDependencies
 from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import RestoreGradleDependencies
 from cycode.cli.files_collector.sca.maven.restore_maven_dependencies import RestoreMavenDependencies
+from cycode.cli.files_collector.sca.npm.restore_bun_dependencies import RestoreBunDependencies
 from cycode.cli.files_collector.sca.npm.restore_deno_dependencies import RestoreDenoDependencies
 from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import RestoreNpmDependencies
 from cycode.cli.files_collector.sca.npm.restore_pnpm_dependencies import RestorePnpmDependencies
@@ -157,8 +158,9 @@ def _get_restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRes
         RestoreNugetDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreYarnDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestorePnpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestoreBunDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreDenoDependencies(ctx, is_git_diff, build_dep_tree_timeout),
-        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be after Yarn & Pnpm for fallback
+        RestoreNpmDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be after Yarn, Pnpm & Bun for fallback
         RestoreRubyDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreUvDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be before Poetry for pyproject.toml
         RestorePoetryDependencies(ctx, is_git_diff, build_dep_tree_timeout),

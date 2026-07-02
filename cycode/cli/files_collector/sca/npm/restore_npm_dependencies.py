@@ -11,7 +11,7 @@ logger = get_logger('NPM Restore Dependencies')
 NPM_MANIFEST_FILE_NAME = 'package.json'
 NPM_LOCK_FILE_NAME = 'package-lock.json'
 # These lockfiles indicate another package manager owns the project — NPM should not run
-_ALTERNATIVE_LOCK_FILES = ('yarn.lock', 'pnpm-lock.yaml', 'deno.lock')
+_ALTERNATIVE_LOCK_FILES = ('yarn.lock', 'pnpm-lock.yaml', 'deno.lock', 'bun.lock')
 
 
 class RestoreNpmDependencies(BaseRestoreDependencies):
@@ -23,6 +23,15 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
 
         Yarn and pnpm projects are handled by their dedicated handlers, which run before
         this one in the handler list. This handler is the npm fallback.
+
+        NOTE: this guard only excludes a project when an alternative lockfile is *physically
+        present on disk*. It does not inspect the `packageManager`/`engines` signal in
+        package.json. So a project that declares e.g. `packageManager: "bun@..."` (or pnpm)
+        but has no lockfile yet is claimed by BOTH the dedicated handler and this npm fallback,
+        and both restores run. This is pre-existing behavior shared by pnpm/yarn/bun and is
+        accepted for now (a real Bun/pnpm project ships a lockfile, so npm correctly skips).
+        If this ever needs tightening, also skip here when package.json declares a non-npm
+        packageManager/engines signal.
         """
         if Path(document.path).name != NPM_MANIFEST_FILE_NAME:
             return False
