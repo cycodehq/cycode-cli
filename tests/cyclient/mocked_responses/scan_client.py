@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import responses
 
+from cycode.cli.utils.scan_utils import should_use_presigned_upload
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import MOCKED_RESPONSES_PATH
 
@@ -128,6 +129,38 @@ def get_scan_configuration_response(url: str) -> responses.Response:
     return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 
 
+_PRESIGNED_UPLOAD_URL = 'https://cycode-tests.s3.amazonaws.com/presigned-upload'
+
+
+def get_upload_link_url(scan_type: str, scan_client: ScanClient) -> str:
+    api_url = scan_client.scan_cycode_client.api_url
+    async_scan_type = scan_client.scan_config.get_async_scan_type(scan_type)
+    service_url = f'{scan_client.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/upload-link'
+    return f'{api_url}/{service_url}'
+
+
+def get_upload_link_response(url: str) -> responses.Response:
+    json_response = {'upload_id': str(uuid4()), 'url': _PRESIGNED_UPLOAD_URL, 'presigned_post_fields': {}}
+    return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
+
+
+def get_presigned_upload_response() -> responses.Response:
+    return responses.Response(method=responses.POST, url=_PRESIGNED_UPLOAD_URL, status=204)
+
+
+def get_scan_from_upload_id_url(scan_type: str, scan_client: ScanClient) -> str:
+    api_url = scan_client.scan_cycode_client.api_url
+    async_scan_type = scan_client.scan_config.get_async_scan_type(scan_type)
+    service_url = f'{scan_client.get_scan_service_v4_url_path(scan_type)}/{async_scan_type}/repository'
+    return f'{api_url}/{service_url}'
+
+
+def get_scan_from_upload_id_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
+    if not scan_id:
+        scan_id = uuid4()
+    return responses.Response(method=responses.POST, url=url, json={'scan_id': str(scan_id)}, status=200)
+
+
 def mock_remote_config_responses(responses_module: responses, scan_type: str, scan_client: ScanClient) -> None:
     responses_module.add(get_scan_configuration_response(get_scan_configuration_url(scan_type, scan_client)))
 
@@ -136,9 +169,18 @@ def mock_scan_async_responses(
     responses_module: responses, scan_type: str, scan_client: ScanClient, scan_id: UUID, zip_content_path: Path
 ) -> None:
     mock_remote_config_responses(responses_module, scan_type, scan_client)
-    responses_module.add(
-        get_zipped_file_scan_async_response(get_zipped_file_scan_async_url(scan_type, scan_client), scan_id)
-    )
+
+    if should_use_presigned_upload(scan_type):
+        responses_module.add(get_upload_link_response(get_upload_link_url(scan_type, scan_client)))
+        responses_module.add(get_presigned_upload_response())
+        responses_module.add(
+            get_scan_from_upload_id_response(get_scan_from_upload_id_url(scan_type, scan_client), scan_id)
+        )
+    else:
+        responses_module.add(
+            get_zipped_file_scan_async_response(get_zipped_file_scan_async_url(scan_type, scan_client), scan_id)
+        )
+
     responses_module.add(get_scan_details_response(get_scan_details_url(scan_type, scan_id, scan_client), scan_id))
     responses_module.add(get_detection_rules_response(get_detection_rules_url(scan_client)))
     responses_module.add(get_scan_detections_response(get_scan_detections_url(scan_client), scan_id, zip_content_path))

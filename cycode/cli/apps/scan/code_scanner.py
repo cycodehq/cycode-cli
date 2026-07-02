@@ -391,7 +391,11 @@ def _perform_scan(
                 is_commit_range,
                 on_upload_progress,
             )
-        except requests.exceptions.RequestException:
+        except (
+            requests.exceptions.RequestException,
+            custom_exceptions.RequestError,
+            custom_exceptions.SlowUploadConnectionError,
+        ):
             logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
 
     return _perform_scan_async(

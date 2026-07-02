@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import scan_disk_files, scan_documents
+from cycode.cli.apps.scan.code_scanner import _perform_scan, scan_disk_files, scan_documents
+from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
@@ -212,3 +213,27 @@ def test_scan_documents_routes_upload_by_scan_type_and_sync(
 
     assert mock_presigned_upload.called is expect_presigned
     assert mock_batched_scan.called is (not expect_presigned)
+
+
+@patch('cycode.cli.apps.scan.code_scanner._perform_scan_async')
+@patch('cycode.cli.apps.scan.code_scanner._perform_scan_v4_async')
+def test_perform_scan_falls_back_to_api_when_presigned_upload_raises_wrapped_error(
+    mock_v4_async: Mock, mock_async: Mock
+) -> None:
+    # RequestConnectionError is a CycodeError, not a requests.RequestException — the fallback must still catch it.
+    mock_v4_async.side_effect = custom_exceptions.RequestConnectionError
+    fallback_result = object()
+    mock_async.return_value = fallback_result
+
+    result = _perform_scan(
+        cycode_client=MagicMock(),
+        zipped_documents=MagicMock(),
+        scan_type=consts.SAST_SCAN_TYPE,
+        is_git_diff=False,
+        is_commit_range=False,
+        scan_parameters={},
+    )
+
+    assert result is fallback_result
+    mock_v4_async.assert_called_once()
+    mock_async.assert_called_once()
