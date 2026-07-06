@@ -66,7 +66,7 @@ pyinstaller = {version=">=6.20.0,<7.0.0", python=">=3.9,<3.15"}
 dunamai = ">=1.26.1,<1.27.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.15.15"
+ruff = "0.15.20"
 
 [tool.pytest.ini_options]
 log_cli = true
