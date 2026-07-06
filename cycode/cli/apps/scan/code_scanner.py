@@ -279,7 +279,10 @@ def scan_documents(
 
     scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
 
-    if should_use_presigned_upload(scan_type):
+    # Presigned single-file upload is async-only; a --sync scan must stay on the batched inline path
+    # so it never builds one oversized zip to POST synchronously.
+    should_use_sync_flow = _should_use_sync_flow(ctx.info_name, scan_type, ctx.obj['sync'])
+    if should_use_presigned_upload(scan_type) and not should_use_sync_flow:
         errors, local_scan_results = _run_presigned_upload_scan(
             scan_batch_thread_func, scan_type, documents_to_scan, progress_bar, printer
         )
@@ -388,7 +391,11 @@ def _perform_scan(
                 is_commit_range,
                 on_upload_progress,
             )
-        except requests.exceptions.RequestException:
+        except (
+            requests.exceptions.RequestException,
+            custom_exceptions.RequestError,
+            custom_exceptions.SlowUploadConnectionError,
+        ):
             logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
 
     return _perform_scan_async(

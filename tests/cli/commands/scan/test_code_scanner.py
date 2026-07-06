@@ -2,8 +2,11 @@ import os
 from os.path import normpath
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import scan_disk_files
+from cycode.cli.apps.scan.code_scanner import _perform_scan, scan_disk_files, scan_documents
+from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
@@ -162,3 +165,75 @@ def test_entrypoint_cycode_not_added_for_single_file(
     assert len(entrypoint_docs) == 0
     # Verify only the original documents are present
     assert len(documents_passed) == len(mock_documents)
+
+
+@pytest.mark.parametrize(
+    ('scan_type', 'command_scan_type', 'sync_option', 'expect_presigned'),
+    [
+        # SAST keeps uploading directly to S3 via a presigned URL (regression guard for the new sync gate).
+        (consts.SAST_SCAN_TYPE, 'path', False, True),
+        # Async secret scans now upload as a single file directly to S3 via a presigned URL.
+        (consts.SECRET_SCAN_TYPE, 'path', False, True),
+        # A --sync secret scan must stay on the batched inline path and never build one giant zip.
+        (consts.SECRET_SCAN_TYPE, 'path', True, False),
+    ],
+)
+@patch('cycode.cli.apps.scan.code_scanner.print_local_scan_results')
+@patch('cycode.cli.apps.scan.code_scanner.set_issue_detected_by_scan_results')
+@patch('cycode.cli.apps.scan.code_scanner.try_set_aggregation_report_url_if_needed')
+@patch('cycode.cli.apps.scan.code_scanner.run_parallel_batched_scan')
+@patch('cycode.cli.apps.scan.code_scanner._run_presigned_upload_scan')
+def test_scan_documents_routes_upload_by_scan_type_and_sync(
+    mock_presigned_upload: Mock,
+    mock_batched_scan: Mock,
+    mock_aggregation: Mock,
+    mock_set_issue: Mock,
+    mock_print: Mock,
+    scan_type: str,
+    command_scan_type: str,
+    sync_option: bool,
+    expect_presigned: bool,
+) -> None:
+    mock_presigned_upload.return_value = ([], [])
+    mock_batched_scan.return_value = ([], [])
+
+    mock_ctx = MagicMock()
+    mock_ctx.info_name = command_scan_type
+    mock_ctx.obj = {
+        'scan_type': scan_type,
+        'progress_bar': MagicMock(),
+        'console_printer': MagicMock(),
+        'client': MagicMock(),
+        'severity_threshold': None,
+        'sync': sync_option,
+    }
+    documents = [Document('/repo/file.py', 'content', is_git_diff_format=False)]
+
+    scan_documents(mock_ctx, documents, {})
+
+    assert mock_presigned_upload.called is expect_presigned
+    assert mock_batched_scan.called is (not expect_presigned)
+
+
+@patch('cycode.cli.apps.scan.code_scanner._perform_scan_async')
+@patch('cycode.cli.apps.scan.code_scanner._perform_scan_v4_async')
+def test_perform_scan_falls_back_to_api_when_presigned_upload_raises_wrapped_error(
+    mock_v4_async: Mock, mock_async: Mock
+) -> None:
+    # RequestConnectionError is a CycodeError, not a requests.RequestException — the fallback must still catch it.
+    mock_v4_async.side_effect = custom_exceptions.RequestConnectionError
+    fallback_result = object()
+    mock_async.return_value = fallback_result
+
+    result = _perform_scan(
+        cycode_client=MagicMock(),
+        zipped_documents=MagicMock(),
+        scan_type=consts.SAST_SCAN_TYPE,
+        is_git_diff=False,
+        is_commit_range=False,
+        scan_parameters={},
+    )
+
+    assert result is fallback_result
+    mock_v4_async.assert_called_once()
+    mock_async.assert_called_once()

@@ -19,6 +19,7 @@ from cycode.cli.apps.scan.scan_result import (
     print_local_scan_results,
 )
 from cycode.cli.config import configuration_manager
+from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.commit_range_documents import (
     collect_commit_range_diff_documents,
@@ -162,7 +163,11 @@ def _scan_commit_range_documents(
                         scan_parameters,
                         timeout,
                     )
-                except requests.exceptions.RequestException:
+                except (
+                    requests.exceptions.RequestException,
+                    custom_exceptions.RequestError,
+                    custom_exceptions.SlowUploadConnectionError,
+                ):
                     logger.warning('Direct upload to object storage failed. Falling back to upload via Cycode API. ')
                     scan_result = _perform_commit_range_scan_async(
                         cycode_client,
