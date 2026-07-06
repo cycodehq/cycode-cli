@@ -62,6 +62,7 @@ jobs:
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
       - name: Set up Python 3.13
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.13'
@@ -71,7 +72,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.local
-          key: poetry-${{ matrix.os }}-2  # increment to reset cache
+          key: poetry-${{ matrix.os }}-${{ steps.setup-python.outputs.python-version }}-2  # increment to reset cache
 
       - name: Setup Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
