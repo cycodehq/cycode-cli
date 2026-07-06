@@ -214,12 +214,13 @@ def test_get_machine_policy_path_per_os(monkeypatch: pytest.MonkeyPatch) -> None
         assert get_machine_policy_path() == Path('C:\\ProgramData') / 'Cycode' / 'ai-guardrails.yaml'
 
 
-@patch('pathlib.Path.home', return_value=Path('/home/testuser'))
+@patch('pathlib.Path.home')
 @patch('cycode.cli.apps.ai_guardrails.scan.policy.get_machine_policy_path')
 def test_load_policy_with_machine_config(
     mock_machine_path: MagicMock, mock_home: MagicMock, fs: FakeFilesystem
 ) -> None:
     """Test that the machine-wide config overrides defaults."""
+    mock_home.return_value = Path('/home/testuser')
     machine_path = Path('/machine/ai-guardrails.yaml')
     mock_machine_path.return_value = machine_path
     fs.create_file(str(machine_path), contents='mode: warn\n')
@@ -231,12 +232,13 @@ def test_load_policy_with_machine_config(
     assert policy['fail_open'] is True
 
 
-@patch('pathlib.Path.home', return_value=Path('/home/testuser'))
+@patch('pathlib.Path.home')
 @patch('cycode.cli.apps.ai_guardrails.scan.policy.get_machine_policy_path')
 def test_load_policy_precedence_defaults_machine_user_repo(
     mock_machine_path: MagicMock, mock_home: MagicMock, fs: FakeFilesystem
 ) -> None:
     """Test full precedence: defaults < machine < user < repo."""
+    mock_home.return_value = Path('/home/testuser')
     machine_path = Path('/machine/ai-guardrails.yaml')
     mock_machine_path.return_value = machine_path
     fs.create_file(str(machine_path), contents='mode: warn\nfail_open: false\n')
