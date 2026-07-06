@@ -3,17 +3,30 @@ Policy loading and configuration management for AI guardrails.
 
 Policies are loaded and merged in order (later overrides earlier):
 1. Built-in defaults (consts.DEFAULT_POLICY)
-2. User-level config (~/.cycode/ai-guardrails.yaml)
-3. Repo-level config (<workspace>/.cycode/ai-guardrails.yaml)
+2. Machine-wide config (admin/MDM-provisioned; see get_machine_policy_path)
+3. User-level config (~/.cycode/ai-guardrails.yaml)
+4. Repo-level config (<workspace>/.cycode/ai-guardrails.yaml)
 """
 
 import json
+import os
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
 from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY, POLICY_FILE_NAME
+
+
+def get_machine_policy_path() -> Path:
+    """Machine-wide (admin/MDM-provisioned) policy path, by platform."""
+    if sys.platform == 'darwin':
+        return Path('/Library/Application Support/Cycode') / POLICY_FILE_NAME
+    if sys.platform == 'win32':
+        program_data = os.environ.get('PROGRAMDATA', 'C:\\ProgramData')
+        return Path(program_data) / 'Cycode' / POLICY_FILE_NAME
+    return Path('/etc/cycode') / POLICY_FILE_NAME
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -61,13 +74,18 @@ def load_policy(workspace_root: Optional[str] = None) -> dict:
     """
     Load policy by merging configs in order of precedence.
 
-    Merge order: defaults <- user config <- repo config
+    Merge order: defaults <- machine <- user config <- repo config
 
     Args:
         workspace_root: Workspace root path for repo-level config lookup.
     """
     # Start with defaults
     policy = load_defaults()
+
+    # Merge machine-wide config (admin/MDM-provisioned) - overrides defaults, below user/repo.
+    machine_config = load_yaml_file(get_machine_policy_path())
+    if machine_config:
+        policy = deep_merge(policy, machine_config)
 
     # Merge user-level config (if exists)
     user_policy_path = Path.home() / '.cycode' / POLICY_FILE_NAME
