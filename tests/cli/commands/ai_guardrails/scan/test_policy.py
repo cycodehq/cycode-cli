@@ -4,10 +4,12 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 from cycode.cli.apps.ai_guardrails.scan.policy import (
     deep_merge,
+    get_machine_policy_path,
     get_policy_value,
     load_defaults,
     load_policy,
@@ -197,3 +199,54 @@ def test_load_policy_none_workspace_root(mock_load: MagicMock) -> None:
 
     # Should only load defaults (no repo config)
     assert 'mode' in policy
+
+
+def test_get_machine_policy_path_per_os(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the per-OS machine policy locations."""
+    with patch('sys.platform', 'darwin'):
+        assert get_machine_policy_path() == Path('/Library/Application Support/Cycode') / 'ai-guardrails.yaml'
+
+    with patch('sys.platform', 'linux'):
+        assert get_machine_policy_path() == Path('/etc/cycode') / 'ai-guardrails.yaml'
+
+    with patch('sys.platform', 'win32'):
+        monkeypatch.setenv('PROGRAMDATA', 'C:\\ProgramData')
+        assert get_machine_policy_path() == Path('C:\\ProgramData') / 'Cycode' / 'ai-guardrails.yaml'
+
+
+@patch('pathlib.Path.home')
+@patch('cycode.cli.apps.ai_guardrails.scan.policy.get_machine_policy_path')
+def test_load_policy_with_machine_config(
+    mock_machine_path: MagicMock, mock_home: MagicMock, fs: FakeFilesystem
+) -> None:
+    """Test that the machine-wide config overrides defaults."""
+    mock_home.return_value = Path('/home/testuser')
+    machine_path = Path('/machine/ai-guardrails.yaml')
+    mock_machine_path.return_value = machine_path
+    fs.create_file(str(machine_path), contents='mode: warn\n')
+
+    policy = load_policy()
+
+    # Machine config overrides the built-in default (block); other keys inherit from defaults.
+    assert policy['mode'] == 'warn'
+    assert policy['fail_open'] is True
+
+
+@patch('pathlib.Path.home')
+@patch('cycode.cli.apps.ai_guardrails.scan.policy.get_machine_policy_path')
+def test_load_policy_precedence_defaults_machine_user_repo(
+    mock_machine_path: MagicMock, mock_home: MagicMock, fs: FakeFilesystem
+) -> None:
+    """Test full precedence: defaults < machine < user < repo."""
+    mock_home.return_value = Path('/home/testuser')
+    machine_path = Path('/machine/ai-guardrails.yaml')
+    mock_machine_path.return_value = machine_path
+    fs.create_file(str(machine_path), contents='mode: warn\nfail_open: false\n')
+    fs.create_file('/home/testuser/.cycode/ai-guardrails.yaml', contents='fail_open: true\n')
+    fs.create_file('/fake/repo/.cycode/ai-guardrails.yaml', contents='mode: block\n')
+
+    policy = load_policy('/fake/repo')
+
+    # repo overrides machine's mode; user overrides machine's fail_open.
+    assert policy['mode'] == 'block'
+    assert policy['fail_open'] is True
