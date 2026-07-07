@@ -1,10 +1,41 @@
 """Tests for AI guardrails utility functions."""
 
+import io
+from unittest.mock import patch
+
 from cycode.cli.apps.ai_guardrails.scan.utils import (
     is_denied_path,
     matches_glob,
     normalize_path,
+    read_stdin_text,
+    safe_json_parse,
 )
+
+
+def test_read_stdin_text_decodes_bom_and_utf8() -> None:
+    """utf-8-sig byte decode strips the BOM Cursor sends on Windows and avoids ANSI mojibake."""
+    raw = '\ufeff{"prompt": "café"}'.encode()  # utf-8 with BOM, multi-byte non-ASCII content
+    fake_stdin = io.TextIOWrapper(io.BytesIO(raw), encoding='utf-8')
+
+    with patch('sys.stdin', fake_stdin):
+        text = read_stdin_text()
+
+    assert safe_json_parse(text)['prompt'] == 'café'
+
+
+def test_read_stdin_text_falls_back_without_buffer() -> None:
+    """Streams without .buffer (e.g. StringIO in tests) fall back to a text-mode read, BOM-stripped."""
+    with patch('sys.stdin', io.StringIO('{"a": 1}')):
+        assert read_stdin_text() == '{"a": 1}'
+
+    with patch('sys.stdin', io.StringIO('\ufeff{"a": 1}')):
+        assert read_stdin_text() == '{"a": 1}'
+
+
+def test_safe_json_parse_invalid_and_empty() -> None:
+    """Invalid JSON and empty inputs return an empty dict."""
+    assert safe_json_parse('not valid json {') == {}
+    assert safe_json_parse('') == {}
 
 
 def test_normalize_path_rejects_escape() -> None:
