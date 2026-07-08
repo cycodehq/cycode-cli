@@ -6,9 +6,26 @@ Includes JSON parsing, path matching, and text handling utilities.
 
 import json
 import os
+import sys
 from pathlib import Path
 
 from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
+
+
+def read_stdin_text() -> str:
+    """Read the hook payload from stdin as UTF-8 text.
+
+    Reads bytes and decodes with utf-8-sig: hook payloads are UTF-8 JSON, but on Windows
+    Python decodes piped stdin with the ANSI code page (mojibake for non-ASCII prompts),
+    and Cursor on Windows prefixes the payload with a UTF-8 BOM - the -sig codec strips it.
+    """
+    buffer = getattr(sys.stdin, 'buffer', None)
+    if buffer is not None:
+        return buffer.read().decode('utf-8-sig', errors='replace')
+    # No .buffer (tests mocking sys.stdin with StringIO, exotic streams) - text-mode fallback.
+    # lstrip the BOM here too: an already-decoded stream leaves it as U+FEFF, which json.loads
+    # rejects (and .strip() doesn't remove - it is not whitespace).
+    return sys.stdin.read().lstrip('\ufeff')
 
 
 def safe_json_parse(s: str) -> dict:

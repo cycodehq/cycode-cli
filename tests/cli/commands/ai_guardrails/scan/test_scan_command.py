@@ -141,6 +141,30 @@ class TestMatchingIdeProcessesPayload:
         mock_scan_command_deps['get_handler'].assert_called_once()
         mock_handler.assert_called_once()
 
+    def test_empty_workspace_roots_falls_back_to_cwd(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_scan_command_deps: dict[str, MagicMock],
+    ) -> None:
+        """Cursor sends workspace_roots=[] when no folder is open - must not crash."""
+        payload = {
+            'hook_event_name': 'beforeSubmitPrompt',
+            'conversation_id': 'conv-123',
+            'prompt': 'test',
+            'workspace_roots': [],
+        }
+        mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
+
+        mock_scan_command_deps['load_policy'].return_value = {'fail_open': True}
+        mock_handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mock_scan_command_deps['get_handler'].return_value = mock_handler
+
+        scan_command(mock_ctx, ide='cursor')
+
+        mock_scan_command_deps['load_policy'].assert_called_once_with('.')
+        mock_handler.assert_called_once()
+
 
 class TestDefaultIdeParameterViaCli:
     """Tests that verify default IDE parameter works correctly via CLI invocation."""

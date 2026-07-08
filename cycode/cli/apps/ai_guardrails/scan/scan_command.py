@@ -7,7 +7,6 @@ The handlers in ``handlers.py`` are agent-agnostic (they return
 ``HookDecision``); ``IDE.build_hook_response`` is the per-IDE translation step.
 """
 
-import sys
 from typing import Annotated, Optional, Union
 
 import click
@@ -18,7 +17,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event
 from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
-from cycode.cli.apps.ai_guardrails.scan.utils import output_json, safe_json_parse
+from cycode.cli.apps.ai_guardrails.scan.utils import output_json, read_stdin_text, safe_json_parse
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cli.utils.get_api_client import get_ai_security_manager_client, get_scan_cycode_client
 from cycode.logger import get_logger
@@ -91,7 +90,7 @@ def scan_command(
     """
     ide_integration = get_ide(ide)
 
-    stdin_data = sys.stdin.read().strip()
+    stdin_data = read_stdin_text().strip()
     payload = safe_json_parse(stdin_data)
 
     if not payload:
@@ -113,7 +112,8 @@ def scan_command(
     event_name = unified_payload.event_name
     logger.debug('Processing AI guardrails hook', extra={'event_name': event_name, 'ide': ide_integration.name})
 
-    workspace_roots = payload.get('workspace_roots', ['.'])
+    # `or` (not a .get default) - Cursor sends workspace_roots=[] when no folder is open.
+    workspace_roots = payload.get('workspace_roots') or ['.']
     policy = load_policy(workspace_roots[0])
 
     try:

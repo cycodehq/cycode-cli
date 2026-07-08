@@ -7,7 +7,7 @@ import typer
 
 from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, get_ide
 from cycode.cli.apps.ai_guardrails.ides.base import IDE
-from cycode.cli.apps.ai_guardrails.scan.utils import safe_json_parse
+from cycode.cli.apps.ai_guardrails.scan.utils import read_stdin_text, safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
 from cycode.cli.exceptions.handle_auth_errors import handle_auth_exception
@@ -78,7 +78,7 @@ def session_start_command(
         logger.debug('No stdin payload (TTY), skipping session initialization')
         return
 
-    stdin_data = sys.stdin.read().strip()
+    stdin_data = read_stdin_text().strip()
     payload = safe_json_parse(stdin_data)
     if not payload:
         logger.debug('Empty or invalid stdin payload, skipping session initialization')
