@@ -9,11 +9,15 @@ from cycode.cli.files_collector.sca.maven.restore_gradle_dependencies import (
     BUILD_GRADLE_DEP_TREE_FILE_NAME,
     BUILD_GRADLE_FILE_NAME,
     BUILD_GRADLE_KTS_FILE_NAME,
+    GRADLE_EXECUTABLE,
+    GRADLEW_BAT_FILE_NAME,
+    GRADLEW_FILE_NAME,
     RestoreGradleDependencies,
 )
 from cycode.cli.models import Document
 
 _BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
+_GRADLE_MODULE = 'cycode.cli.files_collector.sca.maven.restore_gradle_dependencies'
 
 
 @pytest.fixture
@@ -45,6 +49,60 @@ class TestIsProject:
     def test_settings_gradle_does_not_match(self, restore_gradle: RestoreGradleDependencies) -> None:
         doc = Document('settings.gradle', 'rootProject.name = "test"')
         assert restore_gradle.is_project(doc) is False
+
+
+class TestResolveGradleExecutable:
+    def test_falls_back_to_gradle_when_no_wrapper(self, restore_gradle: RestoreGradleDependencies) -> None:
+        assert restore_gradle.gradle_executable == GRADLE_EXECUTABLE
+
+    def test_prefers_gradlew_wrapper_on_posix(self, mock_ctx: typer.Context, tmp_path: Path) -> None:
+        wrapper = tmp_path / GRADLEW_FILE_NAME
+        wrapper.write_text('#!/bin/sh\n')
+        with patch(f'{_GRADLE_MODULE}.platform.system', return_value='Linux'):
+            restore = RestoreGradleDependencies(mock_ctx, is_git_diff=False, command_timeout=30)
+        assert restore.gradle_executable == str(wrapper)
+
+    def test_prefers_gradlew_bat_on_windows(self, mock_ctx: typer.Context, tmp_path: Path) -> None:
+        wrapper = tmp_path / GRADLEW_BAT_FILE_NAME
+        wrapper.write_text('@echo off\n')
+        with patch(f'{_GRADLE_MODULE}.platform.system', return_value='Windows'):
+            restore = RestoreGradleDependencies(mock_ctx, is_git_diff=False, command_timeout=30)
+        assert restore.gradle_executable == str(wrapper)
+
+    def test_posix_ignores_bat_wrapper(self, mock_ctx: typer.Context, tmp_path: Path) -> None:
+        (tmp_path / GRADLEW_BAT_FILE_NAME).write_text('@echo off\n')
+        with patch(f'{_GRADLE_MODULE}.platform.system', return_value='Linux'):
+            restore = RestoreGradleDependencies(mock_ctx, is_git_diff=False, command_timeout=30)
+        assert restore.gradle_executable == GRADLE_EXECUTABLE
+
+    def test_wrapper_is_threaded_into_get_commands(self, mock_ctx: typer.Context, tmp_path: Path) -> None:
+        wrapper = tmp_path / GRADLEW_FILE_NAME
+        wrapper.write_text('#!/bin/sh\n')
+        with patch(f'{_GRADLE_MODULE}.platform.system', return_value='Linux'):
+            restore = RestoreGradleDependencies(mock_ctx, is_git_diff=False, command_timeout=30)
+        commands = restore.get_commands(str(tmp_path / BUILD_GRADLE_FILE_NAME))
+        assert commands == [
+            [str(wrapper), 'dependencies', '-b', str(tmp_path / BUILD_GRADLE_FILE_NAME), '-q', '--console', 'plain']
+        ]
+
+    def test_wrapper_is_threaded_into_sub_project_commands(self, tmp_path: Path) -> None:
+        wrapper = tmp_path / GRADLEW_FILE_NAME
+        wrapper.write_text('#!/bin/sh\n')
+        ctx = MagicMock(spec=typer.Context)
+        ctx.obj = {'monitor': False, 'gradle_all_sub_projects': True}
+        ctx.params = {'path': str(tmp_path)}
+        module_project = tmp_path / 'module-a'
+        module_project.mkdir()
+        manifest = module_project / BUILD_GRADLE_FILE_NAME
+
+        with (
+            patch(f'{_GRADLE_MODULE}.platform.system', return_value='Linux'),
+            patch.object(RestoreGradleDependencies, 'get_all_projects', return_value={':module-a'}),
+        ):
+            restore = RestoreGradleDependencies(ctx, is_git_diff=False, command_timeout=30)
+
+        commands = restore.get_commands_for_sub_projects(str(manifest))
+        assert commands == [[str(wrapper), ':module-a:dependencies', '-q', '--console', 'plain']]
 
 
 class TestCleanup:
