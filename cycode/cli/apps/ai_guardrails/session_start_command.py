@@ -1,12 +1,15 @@
 """Handle AI guardrails session start: auth, conversation creation, session context."""
 
+import hashlib
+import json
 import sys
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import typer
 
-from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, get_ide
-from cycode.cli.apps.ai_guardrails.ides.base import IDE
+from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, collect_all_session_contexts, get_ide
 from cycode.cli.apps.ai_guardrails.scan.utils import read_stdin_text, safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -26,23 +29,76 @@ if TYPE_CHECKING:
 
 logger = get_logger('AI Guardrails')
 
+_SESSION_CONTEXT_CACHE_FILE = '.session-context-cache'
+_SESSION_CONTEXT_TTL_SECONDS = 7 * 24 * 60 * 60
 
-def _report_session_context(ai_client: 'AISecurityManagerClient', ide: IDE, user_email: Optional[str]) -> None:
-    """Report IDE session context to the AI security manager. Never raises."""
+
+def _session_context_cache_path() -> Path:
+    return Path.home() / '.cycode' / _SESSION_CONTEXT_CACHE_FILE
+
+
+def _session_context_digest(report: dict) -> str:
+    """Deterministic hash of the outgoing payload (not the raw config files, which churn)."""
+    canonical = json.dumps(report, sort_keys=True, separators=(',', ':'), default=str)
+    return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+
+
+def _should_skip_report(digest: str, tenant_id: Optional[str]) -> bool:
+    """Skip when the same payload was already sent for this tenant and the TTL hasn't expired."""
     try:
-        global_config_file, enabled_plugins = ide.get_session_context()
-        if not global_config_file and not enabled_plugins:
-            return
-        ai_client.report_session_context(
-            hostname=get_hostname(),
-            platform_name=get_platform_name(),
-            os_version=get_os_version(),
-            serial_number=get_serial_number(),
-            last_login_user=get_last_login_user(),
-            global_config_file=global_config_file,
-            enabled_plugins=enabled_plugins,
-            user_email=user_email,
+        cache = json.loads(_session_context_cache_path().read_text(encoding='utf-8'))
+        return (
+            cache.get('hash') == digest
+            and cache.get('tenant_id') == tenant_id
+            and time.time() - float(cache.get('sent_at', 0)) < _SESSION_CONTEXT_TTL_SECONDS
         )
+    except Exception:
+        # Missing/corrupt cache reads as a miss - over-sending is harmless
+        return False
+
+
+def _save_report_cache(digest: str, tenant_id: Optional[str]) -> None:
+    try:
+        cache_path = _session_context_cache_path()
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps({'hash': digest, 'tenant_id': tenant_id, 'sent_at': time.time()}), encoding='utf-8'
+        )
+    except Exception as e:
+        logger.debug('Failed to write session context cache', exc_info=e)
+
+
+def _report_session_context(
+    ai_client: 'AISecurityManagerClient',
+    user_email: Optional[str],
+    tenant_id: Optional[str],
+) -> None:
+    """Report the device + cross-IDE session context to the AI security manager. Never raises.
+
+    The device context is always reported. MCP configs are collected from every registered IDE,
+    not just the triggering one. Unchanged payloads are skipped via a hash cache until the TTL expires.
+    """
+    try:
+        config_files_by_ide, enabled_plugins = collect_all_session_contexts()
+        report = {
+            'hostname': get_hostname(),
+            'platform_name': get_platform_name(),
+            'os_version': get_os_version(),
+            'serial_number': get_serial_number(),
+            'last_login_user': get_last_login_user(),
+            # Sorted by path so the digest is stable regardless of IDE registry order.
+            'config_files': sorted(config_files_by_ide.values(), key=lambda f: f['path']),
+            'enabled_plugins': enabled_plugins,
+            'user_email': user_email,
+        }
+
+        digest = _session_context_digest(report)
+        if _should_skip_report(digest, tenant_id):
+            logger.debug('Session context unchanged; skipping report')
+            return
+
+        if ai_client.report_session_context(**report):
+            _save_report_cache(digest, tenant_id)
     except Exception as e:
         logger.debug('Failed to report session context', exc_info=e)
 
@@ -61,7 +117,7 @@ def session_start_command(
     """Handle session start: ensure auth, create conversation, report session context."""
     ide_integration = get_ide(ide)
 
-    # Step 1: Ensure authentication
+    # Ensure authentication
     auth_info = get_authorization_info(ctx)
     if auth_info is None:
         logger.debug('Not authenticated, starting authentication')
@@ -70,10 +126,11 @@ def session_start_command(
         except Exception as err:
             handle_auth_exception(ctx, err)
             return
+        auth_info = get_authorization_info(ctx)
     else:
         logger.debug('Already authenticated')
 
-    # Step 2: Read stdin payload (backward compat: old hooks pipe no stdin)
+    # Read stdin payload (backward compat: old hooks pipe no stdin)
     if sys.stdin.isatty():
         logger.debug('No stdin payload (TTY), skipping session initialization')
         return
@@ -84,7 +141,7 @@ def session_start_command(
         logger.debug('Empty or invalid stdin payload, skipping session initialization')
         return
 
-    # Step 3: Build session payload + initialize API client
+    # Build session payload + initialize API client
     session_payload = ide_integration.build_session_payload(payload)
 
     try:
@@ -93,11 +150,11 @@ def session_start_command(
         logger.debug('Failed to initialize AI security client', exc_info=e)
         return
 
-    # Step 4: Create conversation
+    # Create conversation
     try:
         ai_client.create_conversation(session_payload)
     except Exception as e:
         logger.debug('Failed to create conversation during session start', exc_info=e)
 
-    # Step 5: Report session context (MCP servers, enabled plugins)
-    _report_session_context(ai_client, ide_integration, session_payload.ide_user_email)
+    # Report session context (device + cross-IDE MCP servers and plugins)
+    _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id)

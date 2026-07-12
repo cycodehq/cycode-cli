@@ -358,13 +358,14 @@ def test_read_codex_plugin_includes_mcp_config_file(tmp_path: Path) -> None:
 
 
 def test_read_codex_plugin_mcp_config_file_bare_map(tmp_path: Path) -> None:
-    # Codex MCP files may be a bare {name: cfg} map with no mcpServers wrapper.
+    # Codex MCP files may be a bare {name: cfg} map with no mcpServers wrapper; the serialized
+    # session-context content is normalized to the canonical wrapped shape.
     mcp_content = {'dummy-server': {'command': 'dummy-command'}}
     _write_codex_plugin(tmp_path, mcp_content)
 
     entry, servers = _read_codex_plugin(tmp_path)
 
-    assert json.loads(entry['mcp_config_file']) == mcp_content
+    assert json.loads(entry['mcp_config_file']) == {'mcpServers': mcp_content}
     assert servers == mcp_content
 
 
