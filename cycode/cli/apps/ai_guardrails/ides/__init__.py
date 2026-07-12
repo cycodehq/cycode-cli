@@ -34,6 +34,25 @@ def get_ide(name: str) -> IDE:
     return ide
 
 
+def collect_all_session_contexts() -> tuple[dict[str, dict], dict]:
+    """Sweep every registered IDE's session context, regardless of which IDE triggered the hook.
+
+    Returns ``(config_files_by_ide, plugins)``: the global MCP config file of each IDE that has
+    one (keyed by IDE name), and the enabled plugins merged across IDEs (first registered IDE
+    wins on a duplicate plugin key - plugins are IDE-agnostic marketplace artifacts).
+    """
+    config_files_by_ide: dict[str, dict] = {}
+    plugins: dict = {}
+    for ide in IDES.values():
+        global_config_file, enabled_plugins = ide.get_session_context()
+        if global_config_file:
+            config_files_by_ide[ide.name] = global_config_file
+        for plugin_key, plugin in (enabled_plugins or {}).items():
+            plugins.setdefault(plugin_key, plugin)
+
+    return config_files_by_ide, plugins
+
+
 def resolve_ides(name: str) -> list[IDE]:
     """Resolve an ``--ide`` argument to one or all IDE instances.
 

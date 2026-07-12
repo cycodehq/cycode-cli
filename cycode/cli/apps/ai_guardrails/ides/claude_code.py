@@ -10,6 +10,7 @@ from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYC
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     build_global_config_file,
     load_plugin_json,
+    resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
@@ -164,6 +165,11 @@ def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]
         return None
 
 
+def _plugins_cache_dir() -> Path:
+    """Claude Code's local plugin content cache: ``~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/``."""
+    return Path.home() / '.claude' / 'plugins' / 'cache'
+
+
 def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
     """Resolve filesystem path for a directory-type marketplace."""
     source = marketplace.get('source', {})
@@ -194,25 +200,29 @@ def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     if servers:
         entry['mcp_server_names'] = list(servers.keys())
         entry['mcp_config_file_path'] = str(mcp_config_path)
-        entry['mcp_config_file'] = json.dumps(mcp_config)
+        entry['mcp_config_file'] = json.dumps({'mcpServers': servers})
     return entry, servers
 
 
 def resolve_plugins(settings: dict) -> dict:
     """Walk Claude Code's ``enabledPlugins`` via the shared plugin walker.
 
-    Each enabled plugin's marketplace is resolved through
-    ``extraKnownMarketplaces`` to a directory; the rest of the work
-    (manifest + ``.mcp.json``) is the shared ``_read_claude_plugin``.
+    Directory-type marketplaces resolve through ``extraKnownMarketplaces``; all
+    other source types (git, github, ...) resolve through the local plugin cache.
+    The rest of the work (manifest + ``.mcp.json``) is the shared ``_read_claude_plugin``.
     """
     enabled = settings.get('enabledPlugins') or {}
     marketplaces = settings.get('extraKnownMarketplaces') or {}
 
-    def _locate(_plugin_name: str, marketplace_name: str) -> Optional[Path]:
+    def _locate(plugin_name: str, marketplace_name: str) -> Optional[Path]:
+        # Directory-type marketplaces point straight at the plugin source; every other source
+        # type (git, github, ...) is cloned into the local plugin cache.
         marketplace = marketplaces.get(marketplace_name)
-        if not marketplace:
-            return None
-        return _resolve_marketplace_path(marketplace)
+        if marketplace:
+            marketplace_path = _resolve_marketplace_path(marketplace)
+            if marketplace_path is not None:
+                return marketplace_path
+        return resolve_cached_plugin_dir(_plugins_cache_dir(), marketplace_name, plugin_name)
 
     return walk_enabled_plugins(
         plugin_entries=enabled,

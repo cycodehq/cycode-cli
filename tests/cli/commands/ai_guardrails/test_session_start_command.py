@@ -9,7 +9,9 @@ import pytest
 import typer
 
 from cycode.cli.apps.ai_guardrails import session_start_command as _session_start_mod
+from cycode.cli.apps.ai_guardrails.ides import IDES, collect_all_session_contexts
 from cycode.cli.apps.ai_guardrails.ides import claude_code as _claude_mod
+from cycode.cli.apps.ai_guardrails.ides import codex as _codex_mod
 from cycode.cli.apps.ai_guardrails.ides import cursor as _cursor_mod
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 
@@ -20,6 +22,12 @@ def mock_ctx() -> MagicMock:
     ctx = MagicMock(spec=typer.Context)
     ctx.obj = {}
     return ctx
+
+
+@pytest.fixture(autouse=True)
+def _isolated_session_context_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the dedup cache away from the real ~/.cycode in every test."""
+    monkeypatch.setattr(_session_start_mod, '_session_context_cache_path', lambda: tmp_path / '.session-context-cache')
 
 
 # Auth tests
@@ -202,31 +210,28 @@ def test_conversation_creation_failure_non_blocking(
     # Should not raise
 
 
-# MCP server reporting tests
+# Session context reporting tests
 
 
-@patch.object(_claude_mod, 'load_claude_settings')
-@patch.object(_claude_mod, 'load_claude_config')
+@patch.object(_claude_mod, 'load_claude_config', return_value={})
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
-def test_claude_code_reports_mcp_servers(
+def test_reports_cross_ide_session_context(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
+    mock_collect: MagicMock,
     mock_load_config: MagicMock,
-    mock_load_settings: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
-    """Claude Code should report MCP servers from ~/.claude.json and enriched plugins."""
-    mock_get_auth.return_value = MagicMock()
+    """All registered IDEs' configs go into config_files."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mcp_servers = {
-        'gitlab': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-gitlab']},
-        'filesystem': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-filesystem']},
-    }
-    mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'test@test.com'}, 'mcpServers': mcp_servers}
-    # Marketplace won't resolve (no extraKnownMarketplaces) so plugin gets {"enabled": True} only.
-    mock_load_settings.return_value = {'enabledPlugins': {'cycode-dev@cycode-marketplace': True}}
+    cursor_file = {'path': '/home/u/.cursor/mcp.json', 'content': '{"mcpServers": {}}'}
+    claude_file = {'path': '/home/u/.claude.json', 'content': '{"mcpServers": {}}'}
+    plugins = {'dummy-plugin@dummy-marketplace': {'enabled': True}}
+    mock_collect.return_value = ({'cursor': cursor_file, 'claude-code': claude_file}, plugins)
 
     payload = {'session_id': 'session-123'}
 
@@ -239,15 +244,48 @@ def test_claude_code_reports_mcp_servers(
         os_version=ANY,
         serial_number=ANY,
         last_login_user=ANY,
-        global_config_file={
-            'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
-            'content': json.dumps({'mcpServers': mcp_servers}),
-        },
-        enabled_plugins={'cycode-dev@cycode-marketplace': {'enabled': True}},
-        user_email='test@test.com',
+        config_files=[cursor_file, claude_file],
+        enabled_plugins=plugins,
+        user_email=None,
     )
 
 
+@patch.object(_claude_mod, 'load_claude_config', return_value={})
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_no_mcp_anywhere_still_reports_device(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_load_config: MagicMock,
+    mock_ctx: MagicMock,
+) -> None:
+    """A machine with no MCP configs or plugins must still report its device context."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+    mock_collect.return_value = ({}, {})
+
+    payload = {'session_id': 'session-123'}
+
+    with patch('sys.stdin', new=StringIO(json.dumps(payload))):
+        session_start_command(mock_ctx, ide='claude-code')
+
+    mock_ai_client.report_session_context.assert_called_once_with(
+        hostname=ANY,
+        platform_name=ANY,
+        os_version=ANY,
+        serial_number=ANY,
+        last_login_user=ANY,
+        config_files=[],
+        enabled_plugins={},
+        user_email=None,
+    )
+
+
+@patch.object(_codex_mod, '_load_codex_config')
+@patch.object(_cursor_mod, '_load_cursor_mcp_config')
 @patch.object(_claude_mod, 'load_claude_settings')
 @patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
@@ -257,32 +295,36 @@ def test_claude_code_reports_global_file_and_plugin_metadata(
     mock_get_client: MagicMock,
     mock_load_config: MagicMock,
     mock_load_settings: MagicMock,
+    mock_load_cursor: MagicMock,
+    mock_load_codex: MagicMock,
     mock_ctx: MagicMock,
     tmp_path: Path,
 ) -> None:
     """The global config file carries only the global MCP servers; the plugin's own
     .mcp.json content + path + metadata enrich enabled_plugins (no merge into the global)."""
-    mock_get_auth.return_value = MagicMock()
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
+    mock_load_cursor.return_value = None
+    mock_load_codex.return_value = None
 
     # Set up a fake plugin directory on disk.
-    plugin_dir = tmp_path / 'ai-prompts'
+    plugin_dir = tmp_path / 'dummy-plugin'
     plugin_dir.mkdir()
     (plugin_dir / '.mcp.json').write_text(
-        json.dumps({'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}})
+        json.dumps({'mcpServers': {'dummy-server': {'command': 'dummy-command', 'args': ['serve']}}})
     )
     claude_plugin_dir = plugin_dir / '.claude-plugin'
     claude_plugin_dir.mkdir()
     (claude_plugin_dir / 'plugin.json').write_text(
-        json.dumps({'name': 'cycode-dev', 'version': '1.0.28', 'description': 'Shared skills'})
+        json.dumps({'name': 'dummy-plugin', 'version': '1.0.28', 'description': 'Dummy plugin'})
     )
 
-    user_mcp_servers = {'gitlab': {'command': 'npx'}}
+    user_mcp_servers = {'dummy-global': {'command': 'dummy-command'}}
     mock_load_config.return_value = {'mcpServers': user_mcp_servers}
     mock_load_settings.return_value = {
-        'enabledPlugins': {'cycode-dev@cycode-marketplace': True},
-        'extraKnownMarketplaces': {'cycode-marketplace': {'source': {'source': 'directory', 'path': str(plugin_dir)}}},
+        'enabledPlugins': {'dummy-plugin@dummy-marketplace': True},
+        'extraKnownMarketplaces': {'dummy-marketplace': {'source': {'source': 'directory', 'path': str(plugin_dir)}}},
     }
 
     payload = {'session_id': 'session-123'}
@@ -290,24 +332,25 @@ def test_claude_code_reports_global_file_and_plugin_metadata(
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='claude-code')
 
-    plugin_mcp = {'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}}
+    plugin_mcp = {'mcpServers': {'dummy-server': {'command': 'dummy-command', 'args': ['serve']}}}
+    claude_file = {
+        'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
+        'content': json.dumps({'mcpServers': user_mcp_servers}),
+    }
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
         platform_name=ANY,
         os_version=ANY,
         serial_number=ANY,
         last_login_user=ANY,
-        global_config_file={
-            'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
-            'content': json.dumps({'mcpServers': user_mcp_servers}),
-        },
+        config_files=[claude_file],
         enabled_plugins={
-            'cycode-dev@cycode-marketplace': {
+            'dummy-plugin@dummy-marketplace': {
                 'enabled': True,
-                'name': 'cycode-dev',
+                'name': 'dummy-plugin',
                 'version': '1.0.28',
-                'description': 'Shared skills',
-                'mcp_server_names': ['aspire'],
+                'description': 'Dummy plugin',
+                'mcp_server_names': ['dummy-server'],
                 'mcp_config_file_path': str(plugin_dir / '.mcp.json'),
                 'mcp_config_file': json.dumps(plugin_mcp),
             }
@@ -316,89 +359,198 @@ def test_claude_code_reports_global_file_and_plugin_metadata(
     )
 
 
+@patch.object(_codex_mod, '_load_codex_config')
 @patch.object(_claude_mod, 'load_claude_settings')
 @patch.object(_claude_mod, 'load_claude_config')
-@patch.object(_session_start_mod, 'get_ai_security_manager_client')
-@patch.object(_session_start_mod, 'get_authorization_info')
-def test_claude_code_no_mcp_servers_no_plugins_skips_report(
-    mock_get_auth: MagicMock,
-    mock_get_client: MagicMock,
-    mock_load_config: MagicMock,
-    mock_load_settings: MagicMock,
-    mock_ctx: MagicMock,
-) -> None:
-    """When no mcpServers and no plugins, report_session_context should not be called."""
-    mock_get_auth.return_value = MagicMock()
-    mock_ai_client = MagicMock()
-    mock_get_client.return_value = mock_ai_client
-    mock_load_config.return_value = {'oauthAccount': {'emailAddress': 'test@test.com'}}
-    mock_load_settings.return_value = None
-
-    payload = {'session_id': 'session-123'}
-
-    with patch('sys.stdin', new=StringIO(json.dumps(payload))):
-        session_start_command(mock_ctx, ide='claude-code')
-
-    mock_ai_client.report_session_context.assert_not_called()
-
-
 @patch.object(_cursor_mod, '_load_cursor_mcp_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
-def test_cursor_reports_mcp_servers(
+def test_cursor_trigger_sweeps_other_ides(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
     mock_load_cursor: MagicMock,
+    mock_load_config: MagicMock,
+    mock_load_settings: MagicMock,
+    mock_load_codex: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
-    """Cursor should report MCP servers from ~/.cursor/mcp.json."""
-    mock_get_auth.return_value = MagicMock()
+    """A Cursor-triggered session start also reports Claude's config via config_files."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mcp_servers = {'github': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github']}}
-    mock_load_cursor.return_value = {'mcpServers': mcp_servers}
+    cursor_servers = {'github': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github']}}
+    claude_servers = {'gitlab': {'command': 'npx'}}
+    mock_load_cursor.return_value = {'mcpServers': cursor_servers}
+    mock_load_config.return_value = {'mcpServers': claude_servers}
+    mock_load_settings.return_value = None
+    mock_load_codex.return_value = None
 
     payload = {'conversation_id': 'conv-456', 'model': 'gpt-4'}
 
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='cursor')
 
+    cursor_file = {
+        'path': str(Path.home() / '.cursor' / 'mcp.json'),
+        'content': json.dumps({'mcpServers': cursor_servers}),
+    }
+    claude_file = {
+        'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
+        'content': json.dumps({'mcpServers': claude_servers}),
+    }
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
         platform_name=ANY,
         os_version=ANY,
         serial_number=ANY,
         last_login_user=ANY,
-        global_config_file={
-            'path': str(Path.home() / '.cursor' / 'mcp.json'),
-            'content': json.dumps({'mcpServers': mcp_servers}),
-        },
+        config_files=[cursor_file, claude_file],
         enabled_plugins={},
         user_email=None,
     )
 
 
-@patch.object(_cursor_mod, '_load_cursor_mcp_config')
+# Dedup cache tests
+
+
+def _run_session_start(mock_ctx: MagicMock, payload: dict) -> None:
+    with patch('sys.stdin', new=StringIO(json.dumps(payload))):
+        session_start_command(mock_ctx, ide='claude-code')
+
+
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
-def test_cursor_no_mcp_servers_skips_report(
+def test_unchanged_context_skips_second_report(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
-    mock_load_cursor: MagicMock,
+    mock_collect: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
-    """Cursor with no MCP config file should skip report_session_context."""
-    mock_get_auth.return_value = MagicMock()
+    """An identical payload within the TTL is sent once; the second session start skips it."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_load_cursor.return_value = None
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
 
-    payload = {'conversation_id': 'conv-456', 'model': 'gpt-4'}
+    _run_session_start(mock_ctx, {'session_id': 'session-1'})
+    _run_session_start(mock_ctx, {'session_id': 'session-2'})
 
-    with patch('sys.stdin', new=StringIO(json.dumps(payload))):
-        session_start_command(mock_ctx, ide='cursor')
+    mock_ai_client.report_session_context.assert_called_once()
 
-    mock_ai_client.report_session_context.assert_not_called()
+
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_changed_context_resends(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_ctx: MagicMock,
+) -> None:
+    """A change in the collected inventory busts the cache immediately."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c1'}}, {})
+    _run_session_start(mock_ctx, {'session_id': 'session-1'})
+
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c2'}}, {})
+    _run_session_start(mock_ctx, {'session_id': 'session-2'})
+
+    assert mock_ai_client.report_session_context.call_count == 2
+
+
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_tenant_change_resends(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_ctx: MagicMock,
+) -> None:
+    """Re-authenticating against a different tenant must re-send the same inventory."""
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    _run_session_start(mock_ctx, {'session_id': 'session-1'})
+
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-2')
+    _run_session_start(mock_ctx, {'session_id': 'session-2'})
+
+    assert mock_ai_client.report_session_context.call_count == 2
+
+
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_failed_report_is_not_cached(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_ctx: MagicMock,
+) -> None:
+    """A failed send must not populate the cache - the next session retries."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    mock_ai_client = MagicMock()
+    mock_ai_client.report_session_context.return_value = False
+    mock_get_client.return_value = mock_ai_client
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+
+    _run_session_start(mock_ctx, {'session_id': 'session-1'})
+    _run_session_start(mock_ctx, {'session_id': 'session-2'})
+
+    assert mock_ai_client.report_session_context.call_count == 2
+
+
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_expired_ttl_resends(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_ctx: MagicMock,
+) -> None:
+    """After the TTL, an unchanged payload is re-sent (self-healing / liveness heartbeat)."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+
+    _run_session_start(mock_ctx, {'session_id': 'session-1'})
+
+    # Age the cache entry past the TTL.
+    cache_path = _session_start_mod._session_context_cache_path()
+    cache = json.loads(cache_path.read_text(encoding='utf-8'))
+    cache['sent_at'] = cache['sent_at'] - _session_start_mod._SESSION_CONTEXT_TTL_SECONDS - 1
+    cache_path.write_text(json.dumps(cache), encoding='utf-8')
+
+    _run_session_start(mock_ctx, {'session_id': 'session-2'})
+
+    assert mock_ai_client.report_session_context.call_count == 2
+
+
+# Cross-IDE sweep tests
+
+
+def test_collect_all_session_contexts_merges_plugins_first_wins() -> None:
+    """A plugin key present in two IDEs keeps the first registered IDE's entry."""
+    claude_plugin = {'enabled': True, 'version': '1.0.0'}
+    codex_plugin = {'enabled': True, 'version': '2.0.0'}
+
+    with (
+        patch.object(IDES['cursor'], 'get_session_context', return_value=(None, {})),
+        patch.object(IDES['claude-code'], 'get_session_context', return_value=(None, {'plug@m': claude_plugin})),
+        patch.object(IDES['codex'], 'get_session_context', return_value=(None, {'plug@m': codex_plugin})),
+    ):
+        _, plugins = collect_all_session_contexts()
+
+    assert plugins == {'plug@m': claude_plugin}
 
 
 @patch.object(_session_start_mod, 'handle_auth_exception')

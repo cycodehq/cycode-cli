@@ -17,6 +17,7 @@ from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYC
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     build_global_config_file,
     load_plugin_json,
+    resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
@@ -100,18 +101,8 @@ def _email_from_auth(auth_path: Optional[Path] = None) -> Optional[str]:
 
 
 def _resolve_codex_plugin_dir(plugin_name: str, marketplace: str) -> Optional[Path]:
-    """Find ``~/.codex/plugins/cache/<marketplace>/<plugin>/<hash>/``.
-
-    The trailing segment is a content hash. If multiple are cached, pick the
-    most recently modified.
-    """
-    base = _codex_home() / 'plugins' / 'cache' / marketplace / plugin_name
-    if not base.is_dir():
-        return None
-    candidates = [d for d in base.iterdir() if d.is_dir()]
-    if not candidates:
-        return None
-    return max(candidates, key=lambda d: d.stat().st_mtime)
+    """Find ``~/.codex/plugins/cache/<marketplace>/<plugin>/<hash>/``."""
+    return resolve_cached_plugin_dir(_codex_home() / 'plugins' / 'cache', marketplace, plugin_name)
 
 
 def _read_codex_plugin(plugin_dir: Path) -> tuple[dict, dict]:
@@ -141,7 +132,7 @@ def _read_codex_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     if servers:
         entry['mcp_server_names'] = list(servers.keys())
         entry['mcp_config_file_path'] = str(mcp_config_path)
-        entry['mcp_config_file'] = json.dumps(mcp_doc)
+        entry['mcp_config_file'] = json.dumps({'mcpServers': servers})
     return entry, servers
 
 

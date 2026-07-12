@@ -13,6 +13,7 @@ from cycode.cli.apps.ai_guardrails.ides.claude_code import (
     _email_from_config,
     _read_claude_plugin,
     load_claude_config,
+    resolve_plugins,
 )
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
@@ -222,32 +223,66 @@ def test_email_none_when_no_oauth(mocker: MockerFixture) -> None:
 # _read_claude_plugin
 
 
-def test_read_claude_plugin_includes_mcp_config_file(tmp_path: Path) -> None:
-    mcp_content = {'mcpServers': {'aspire': {'command': 'aspire', 'args': ['mcp', 'start']}}}
-    (tmp_path / '.mcp.json').write_text(json.dumps(mcp_content))
+def test_read_claude_plugin_includes_mcp_config_file(fs: FakeFilesystem) -> None:
+    plugin_dir = Path('/dummy/plugin')
+    mcp_content = {'mcpServers': {'dummy-server': {'command': 'dummy-command', 'args': ['serve']}}}
+    fs.create_file(plugin_dir / '.mcp.json', contents=json.dumps(mcp_content))
 
-    entry, servers = _read_claude_plugin(tmp_path)
+    entry, servers = _read_claude_plugin(plugin_dir)
 
     assert 'mcp_config_file' in entry
     assert json.loads(entry['mcp_config_file']) == mcp_content
-    assert entry['mcp_config_file_path'] == str(tmp_path / '.mcp.json')
+    assert entry['mcp_config_file_path'] == str(plugin_dir / '.mcp.json')
     assert servers == mcp_content['mcpServers']
 
 
-def test_read_claude_plugin_no_mcp_config_file_when_no_servers(tmp_path: Path) -> None:
-    (tmp_path / '.mcp.json').write_text(json.dumps({'mcpServers': {}}))
+def test_read_claude_plugin_no_mcp_config_file_when_no_servers(fs: FakeFilesystem) -> None:
+    plugin_dir = Path('/dummy/plugin')
+    fs.create_file(plugin_dir / '.mcp.json', contents=json.dumps({'mcpServers': {}}))
 
-    entry, servers = _read_claude_plugin(tmp_path)
+    entry, servers = _read_claude_plugin(plugin_dir)
+
+    assert 'mcp_config_file' not in entry
+    assert servers == {}
+
+
+def test_read_claude_plugin_no_mcp_config_file_when_missing(fs: FakeFilesystem) -> None:
+    plugin_dir = Path('/dummy/plugin')
+    fs.create_dir(plugin_dir)
+
+    entry, servers = _read_claude_plugin(plugin_dir)
 
     assert 'mcp_config_file' not in entry
     assert servers == {}
 
 
-def test_read_claude_plugin_no_mcp_config_file_when_missing(tmp_path: Path) -> None:
-    entry, servers = _read_claude_plugin(tmp_path)
+# resolve_plugins
 
-    assert 'mcp_config_file' not in entry
-    assert servers == {}
+
+def test_resolve_plugins_git_marketplace_resolves_from_cache(fs: FakeFilesystem) -> None:
+    """Non-directory marketplaces (git/github) resolve through ~/.claude/plugins/cache."""
+    plugin_dir = Path.home() / '.claude' / 'plugins' / 'cache' / 'dummy-marketplace' / 'dummy-plugin' / '1.0.1'
+    fs.create_file(
+        plugin_dir / '.claude-plugin' / 'plugin.json',
+        contents=json.dumps({'name': 'dummy-plugin', 'version': '1.0.1'}),
+    )
+    fs.create_file(
+        plugin_dir / '.mcp.json',
+        contents=json.dumps({'mcpServers': {'dummy-server': {'command': 'dummy-command'}}}),
+    )
+
+    settings = {
+        'enabledPlugins': {'dummy-plugin@dummy-marketplace': True},
+        'extraKnownMarketplaces': {
+            'dummy-marketplace': {'source': {'source': 'git', 'url': 'git@example.com:dummy/dummy-marketplace.git'}}
+        },
+    }
+    plugins = resolve_plugins(settings)
+
+    entry = plugins['dummy-plugin@dummy-marketplace']
+    assert entry['version'] == '1.0.1'
+    assert entry['mcp_server_names'] == ['dummy-server']
+    assert entry['mcp_config_file_path'] == str(plugin_dir / '.mcp.json')
 
 
 # Session context
