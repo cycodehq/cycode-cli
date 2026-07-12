@@ -20,7 +20,7 @@ def resolve_cached_plugin_dir(cache_root: Path, marketplace: str, plugin_name: s
 
     Both Claude Code and Codex cache installed plugin content in this layout (the trailing
     segment is a version for Claude, a content hash for Codex). If multiple are cached, pick
-    the most recently modified.
+    the most recently modified (name as a deterministic tie-breaker).
     """
     base = cache_root / marketplace / plugin_name
     if not base.is_dir():
@@ -28,7 +28,7 @@ def resolve_cached_plugin_dir(cache_root: Path, marketplace: str, plugin_name: s
     candidates = [d for d in base.iterdir() if d.is_dir()]
     if not candidates:
         return None
-    return max(candidates, key=lambda d: d.stat().st_mtime)
+    return max(candidates, key=lambda d: (d.stat().st_mtime, d.name))
 
 
 def load_plugin_json(path: Path) -> Optional[dict]:

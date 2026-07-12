@@ -238,13 +238,14 @@ def test_reports_cross_ide_session_context(
     with patch('sys.stdin', new=StringIO(json.dumps(payload))):
         session_start_command(mock_ctx, ide='claude-code')
 
+    # config_files is sorted by path for a stable digest.
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
         platform_name=ANY,
         os_version=ANY,
         serial_number=ANY,
         last_login_user=ANY,
-        config_files=[cursor_file, claude_file],
+        config_files=[claude_file, cursor_file],
         enabled_plugins=plugins,
         user_email=None,
     )
@@ -398,13 +399,14 @@ def test_cursor_trigger_sweeps_other_ides(
         'path': str(_claude_mod._CLAUDE_CONFIG_PATH),
         'content': json.dumps({'mcpServers': claude_servers}),
     }
+    # config_files is sorted by path for a stable digest (~/.claude.json < ~/.cursor/mcp.json).
     mock_ai_client.report_session_context.assert_called_once_with(
         hostname=ANY,
         platform_name=ANY,
         os_version=ANY,
         serial_number=ANY,
         last_login_user=ANY,
-        config_files=[cursor_file, claude_file],
+        config_files=[claude_file, cursor_file],
         enabled_plugins={},
         user_email=None,
     )

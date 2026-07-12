@@ -86,7 +86,8 @@ def _report_session_context(
             'os_version': get_os_version(),
             'serial_number': get_serial_number(),
             'last_login_user': get_last_login_user(),
-            'config_files': list(config_files_by_ide.values()),
+            # Sorted by path so the digest is stable regardless of IDE registry order.
+            'config_files': sorted(config_files_by_ide.values(), key=lambda f: f['path']),
             'enabled_plugins': enabled_plugins,
             'user_email': user_email,
         }
