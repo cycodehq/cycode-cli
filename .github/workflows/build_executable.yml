@@ -26,8 +26,6 @@ jobs:
         exclude:
           - os: ubuntu-22.04
             mode: onedir
-          - os: windows-2022
-            mode: onedir
 
     runs-on: ${{ matrix.os }}
 
@@ -249,18 +247,46 @@ jobs:
           C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
           smctl windows certsync --keypair-alias=%SM_KEYPAIR_ALIAS%
 
-          :: sign executable
-          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ".\dist\cycode-cli.exe" 
+          :: sign executable (in onedir mode the exe lives inside the collected directory)
+          set "EXE_PATH=.\dist\cycode-cli.exe"
+          if "${{ matrix.mode }}"=="onedir" set "EXE_PATH=.\dist\cycode-cli\cycode-cli.exe"
+          signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "%EXE_PATH%"
+
+      - name: Sign unsigned onedir binaries (Windows)
+        if: runner.os == 'Windows' && matrix.mode == 'onedir'
+        shell: powershell
+        env:
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
+        run: |
+          # Vendor binaries (PSF-signed stdlib .pyds, python3xx.dll, Microsoft VC runtime) already
+          # carry valid signatures; re-signing would replace them with ours. Sign only the unsigned
+          # ones (PyInstaller-generated and third-party wheel binaries).
+          $files = Get-ChildItem -Path dist\cycode-cli\_internal -Recurse -Include *.dll,*.pyd,*.exe |
+            Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -eq 'NotSigned' }
+          if (-not $files) {
+            Write-Host 'No unsigned binaries found'
+            exit 0
+          }
+          Write-Host "Signing $($files.Count) unsigned binaries:"
+          $files.FullName | Write-Host
+          signtool.exe sign /sha1 $env:SM_CODE_SIGNING_CERT_SHA1_HASH /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 @($files.FullName)
+          exit $LASTEXITCODE
 
       - name: Test Windows signed executable
         if: runner.os == 'Windows'
         shell: cmd
         run: |
+          set "EXE_PATH=.\dist\cycode-cli.exe"
+          if "${{ matrix.mode }}"=="onedir" set "EXE_PATH=.\dist\cycode-cli\cycode-cli.exe"
+
           :: call executable and expect correct output
-          .\dist\cycode-cli.exe status
+          "%EXE_PATH%" status
 
           :: verify signature
-          signtool.exe verify /v /pa ".\dist\cycode-cli.exe"
+          signtool.exe verify /v /pa "%EXE_PATH%"
 
       - name: Prepare files for artifact and release (rename and calculate sha256)
         run: echo "ARTIFACT_NAME=$(./process_executable_file.py dist/cycode-cli)" >> $GITHUB_ENV

@@ -22,7 +22,7 @@ _HASH_FILE_EXT = '.sha256'
 _OS_TO_CLI_DIST_TEMPLATE = {
     'darwin': Template('cycode-mac$suffix$ext'),
     'linux': Template('cycode-linux$suffix$ext'),
-    'windows': Template('cycode-win$suffix.exe$ext'),
+    'windows': Template('cycode-win$suffix$ext'),
 }
 _WINDOWS = 'windows'
 _WINDOWS_EXECUTABLE_SUFFIX = '.exe'
@@ -87,8 +87,7 @@ def get_cli_file_name(suffix: str = '', ext: str = '') -> str:
     if os_name not in _OS_TO_CLI_DIST_TEMPLATE:
         raise Exception(f'Unsupported OS: {os_name}')
 
-    template = _OS_TO_CLI_DIST_TEMPLATE[os_name]
-    return template.substitute(suffix=suffix, ext=ext)
+    return _OS_TO_CLI_DIST_TEMPLATE[os_name].substitute(suffix=suffix, ext=ext)
 
 
 def get_cli_file_suffix(is_onedir: bool) -> str:
@@ -117,7 +116,9 @@ def write_hashes_db_to_file(hashes: DirHashes, output_path: str) -> None:
 
 
 def get_cli_filename(is_onedir: bool) -> str:
-    return get_cli_file_name(get_cli_file_suffix(is_onedir))
+    # onedir is distributed as an archive of a directory, so only onefile carries .exe
+    ext = _WINDOWS_EXECUTABLE_SUFFIX if get_os_name() == _WINDOWS and not is_onedir else ''
+    return get_cli_file_name(suffix=get_cli_file_suffix(is_onedir), ext=ext)
 
 
 def get_cli_path(output_path: Path, is_onedir: bool) -> str:
@@ -125,7 +126,7 @@ def get_cli_path(output_path: Path, is_onedir: bool) -> str:
 
 
 def get_cli_hash_filename(is_onedir: bool) -> str:
-    return get_cli_file_name(suffix=get_cli_file_suffix(is_onedir), ext=_HASH_FILE_EXT)
+    return get_cli_filename(is_onedir) + _HASH_FILE_EXT
 
 
 def get_cli_hash_path(output_path: Path, is_onedir: bool) -> str:
@@ -133,7 +134,7 @@ def get_cli_hash_path(output_path: Path, is_onedir: bool) -> str:
 
 
 def get_cli_archive_filename(is_onedir: bool) -> str:
-    return get_cli_file_name(suffix=get_cli_file_suffix(is_onedir))
+    return get_cli_filename(is_onedir)
 
 
 def get_cli_archive_path(output_path: Path, is_onedir: bool) -> str:
