@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 from typing import Optional
 
@@ -12,8 +13,11 @@ from cycode.cli.utils.shell_executor import shell
 BUILD_GRADLE_FILE_NAME = 'build.gradle'
 BUILD_GRADLE_KTS_FILE_NAME = 'build.gradle.kts'
 BUILD_GRADLE_DEP_TREE_FILE_NAME = 'gradle-dependencies-generated.txt'
-BUILD_GRADLE_ALL_PROJECTS_COMMAND = ['gradle', 'projects']
 ALL_PROJECTS_REGEX = r"[+-]{3} Project '(.*?)'"
+
+GRADLE_EXECUTABLE = 'gradle'
+GRADLEW_FILE_NAME = 'gradlew'
+GRADLEW_BAT_FILE_NAME = 'gradlew.bat'
 
 
 class RestoreGradleDependencies(BaseRestoreDependencies):
@@ -21,9 +25,19 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, projects: Optional[set[str]] = None
     ) -> None:
         super().__init__(ctx, is_git_diff, command_timeout, create_output_file_manually=True)
+        self.gradle_executable = self._resolve_gradle_executable()
         if projects is None:
             projects = set()
         self.projects = self.get_all_projects() if self.is_gradle_sub_projects() else projects
+
+    def _resolve_gradle_executable(self) -> str:
+        scan_root = get_path_from_context(self.ctx)
+        if scan_root:
+            wrapper_name = GRADLEW_BAT_FILE_NAME if platform.system() == 'Windows' else GRADLEW_FILE_NAME
+            wrapper_path = os.path.join(scan_root, wrapper_name)
+            if os.path.isfile(wrapper_path):
+                return wrapper_path
+        return GRADLE_EXECUTABLE
 
     def is_gradle_sub_projects(self) -> bool:
         return self.ctx.obj.get('gradle_all_sub_projects', False)
@@ -35,7 +49,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         return (
             self.get_commands_for_sub_projects(manifest_file_path)
             if self.is_gradle_sub_projects()
-            else [['gradle', 'dependencies', '-b', manifest_file_path, '-q', '--console', 'plain']]
+            else [[self.gradle_executable, 'dependencies', '-b', manifest_file_path, '-q', '--console', 'plain']]
         )
 
     def get_lock_file_name(self) -> str:
@@ -49,7 +63,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
 
     def get_all_projects(self) -> set[str]:
         output = shell(
-            command=BUILD_GRADLE_ALL_PROJECTS_COMMAND,
+            command=[self.gradle_executable, 'projects'],
             timeout=self.command_timeout,
             working_directory=get_path_from_context(self.ctx),
         )
@@ -62,7 +76,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         project_name = os.path.basename(os.path.dirname(manifest_file_path))
         project_name = f':{project_name}'
         return (
-            [['gradle', f'{project_name}:dependencies', '-q', '--console', 'plain']]
+            [[self.gradle_executable, f'{project_name}:dependencies', '-q', '--console', 'plain']]
             if project_name in self.projects
             else []
         )
