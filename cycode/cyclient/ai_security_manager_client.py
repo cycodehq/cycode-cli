@@ -98,11 +98,11 @@ class AISecurityManagerClient:
         os_version: Optional[str] = None,
         serial_number: Optional[str] = None,
         last_login_user: Optional[str] = None,
-        global_config_file: Optional[dict] = None,
+        config_files: Optional[list[dict]] = None,
         enabled_plugins: Optional[dict] = None,
         user_email: Optional[str] = None,
-    ) -> None:
-        """Report session context to the backend."""
+    ) -> bool:
+        """Report session context to the backend. Returns whether the report was accepted."""
         body: dict = {
             'hostname': hostname,
             'platform_name': platform_name,
@@ -110,12 +110,14 @@ class AISecurityManagerClient:
             'serial_number': serial_number,
             'last_login_user': last_login_user,
             'user_email': user_email,
-            'global_config_file': global_config_file,
+            'config_files': config_files,
             'enabled_plugins': enabled_plugins,
         }
 
         try:
             self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
+            return True
         except Exception as e:
             logger.debug('Failed to report session context', exc_info=e)
             # Don't fail the session if reporting fails
+            return False
