@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
+from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, execute_commands
 from cycode.cli.models import Document
 
 _LOCK_FILE_NAME = 'generated.lock'
@@ -66,6 +66,39 @@ def _make_execute_side_effect(lock_path: Path, content: str = _LOCK_CONTENT) -> 
         return 'output'
 
     return side_effect
+
+
+class TestExecuteCommands:
+    """Directly test the shell-failure sentinel handling in execute_commands."""
+
+    def test_returns_none_when_a_command_fails(self) -> None:
+        """shell() returns None on non-zero exit; execute_commands must propagate None, not ''."""
+        with patch(f'{_BASE_MODULE}.shell', return_value=None):
+            result = execute_commands([['poetry', 'lock']], timeout=30)
+
+        assert result is None
+
+    def test_stops_at_first_failing_command(self) -> None:
+        """A failure in an earlier command short-circuits; later commands do not run."""
+        mock_shell = MagicMock(side_effect=[None, 'should-not-run'])
+        with patch(f'{_BASE_MODULE}.shell', mock_shell):
+            result = execute_commands([['a'], ['b']], timeout=30)
+
+        assert result is None
+        assert mock_shell.call_count == 1
+
+    def test_empty_output_success_is_not_treated_as_failure(self) -> None:
+        """A successful command with empty stdout ('') must NOT be treated as a failure."""
+        with patch(f'{_BASE_MODULE}.shell', return_value=''):
+            result = execute_commands([['poetry', 'lock']], timeout=30)
+
+        assert result == ''
+
+    def test_joins_successful_outputs(self) -> None:
+        with patch(f'{_BASE_MODULE}.shell', side_effect=['out1', 'out2']):
+            result = execute_commands([['a'], ['b']], timeout=30)
+
+        assert result == 'out1\nout2'
 
 
 class TestCleanupGeneratedFile:
@@ -130,6 +163,24 @@ class TestCleanupGeneratedFile:
             result = handler.try_restore_dependencies(doc)
 
         assert result is None
+        assert not lock_path.exists()
+
+    def test_shell_failure_propagates_to_none_and_no_lockfile(
+        self, handler: _MinimalRestoreHandler, tmp_path: Path
+    ) -> None:
+        """End-to-end failure path: shell() returns None (non-zero exit) -> restore returns None.
+
+        Regression for the stop-on-error bug: execute_commands must NOT swallow a failed
+        command into an empty-string success. This exercises the real execute_commands with
+        only shell() mocked (the layer where a non-zero exit is signalled as None).
+        """
+        doc = _make_doc(tmp_path)
+        lock_path = tmp_path / _LOCK_FILE_NAME
+
+        with patch(f'{_BASE_MODULE}.shell', return_value=None):
+            result = handler.try_restore_dependencies(doc)
+
+        assert result is None, 'A failed restore command must return None so stop-on-error can fire'
         assert not lock_path.exists()
 
     def test_generated_file_content_available_in_document_after_deletion(
