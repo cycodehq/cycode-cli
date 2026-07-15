@@ -43,6 +43,4 @@ def test_secret_zip_size_limit_uses_presigned_limit_when_env_enabled(monkeypatch
     # The same zip fits under the 5 GB presigned limit when async is enabled.
     _validate_zip_file_size(consts.SECRET_SCAN_TYPE, consts.DEFAULT_ZIP_MAX_SIZE_LIMIT_IN_BYTES + 1)
     with pytest.raises(custom_exceptions.ZipTooLargeError):
-        _validate_zip_file_size(
-            consts.SECRET_SCAN_TYPE, consts.PRESIGNED_LINK_UPLOADED_ZIP_MAX_SIZE_LIMIT_IN_BYTES + 1
-        )
+        _validate_zip_file_size(consts.SECRET_SCAN_TYPE, consts.PRESIGNED_LINK_UPLOADED_ZIP_MAX_SIZE_LIMIT_IN_BYTES + 1)
