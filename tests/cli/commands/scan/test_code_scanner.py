@@ -168,14 +168,16 @@ def test_entrypoint_cycode_not_added_for_single_file(
 
 
 @pytest.mark.parametrize(
-    ('scan_type', 'command_scan_type', 'sync_option', 'expect_presigned'),
+    ('scan_type', 'command_scan_type', 'sync_option', 'secret_async_env', 'expect_presigned'),
     [
         # SAST keeps uploading directly to S3 via a presigned URL (regression guard for the new sync gate).
-        (consts.SAST_SCAN_TYPE, 'path', False, True),
-        # Async secret scans now upload as a single file directly to S3 via a presigned URL.
-        (consts.SECRET_SCAN_TYPE, 'path', False, True),
-        # A --sync secret scan must stay on the batched inline path and never build one giant zip.
-        (consts.SECRET_SCAN_TYPE, 'path', True, False),
+        (consts.SAST_SCAN_TYPE, 'path', False, False, True),
+        # Secret scans use the previous batched flow by default (presigned async is opt-in).
+        (consts.SECRET_SCAN_TYPE, 'path', False, False, False),
+        # With CYCODE_SECRET_SCAN_ASYNC enabled, secret scans upload as a single file directly to S3.
+        (consts.SECRET_SCAN_TYPE, 'path', False, True, True),
+        # A --sync secret scan must stay on the batched inline path even when async is enabled.
+        (consts.SECRET_SCAN_TYPE, 'path', True, True, False),
     ],
 )
 @patch('cycode.cli.apps.scan.code_scanner.print_local_scan_results')
@@ -192,8 +194,13 @@ def test_scan_documents_routes_upload_by_scan_type_and_sync(
     scan_type: str,
     command_scan_type: str,
     sync_option: bool,
+    secret_async_env: bool,
     expect_presigned: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    if secret_async_env:
+        monkeypatch.setenv(consts.SECRET_SCAN_ASYNC_ENV_VAR_NAME, 'true')
+
     mock_presigned_upload.return_value = ([], [])
     mock_batched_scan.return_value = ([], [])
 

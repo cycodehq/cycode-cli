@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 from cycode.cli import consts
 from cycode.cli.apps.scan.commit_range_scanner import _scan_commit_range_documents
 from cycode.cli.exceptions import custom_exceptions
@@ -25,7 +27,10 @@ def test_commit_range_scan_falls_back_to_api_when_presigned_upload_raises_wrappe
     mock_print: Mock,
     mock_handle_exception: Mock,
     mock_report_status: Mock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Secret uses the presigned flow only when async is opted in.
+    monkeypatch.setenv(consts.SECRET_SCAN_ASYNC_ENV_VAR_NAME, 'true')
     # SlowUploadConnectionError is a CycodeError, not a requests.RequestException — the presigned
     # commit-range fallback must still catch it and retry via the Cycode API.
     mock_v4_async.side_effect = custom_exceptions.SlowUploadConnectionError

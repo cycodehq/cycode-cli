@@ -6,13 +6,17 @@ from cycode.cli import consts
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.models import Document
+from cycode.cli.utils.scan_utils import should_use_presigned_upload
 from cycode.logger import get_logger
 
 logger = get_logger('ZIP')
 
 
 def _validate_zip_file_size(scan_type: str, zip_file_size: int) -> None:
-    max_size_limit = consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES.get(scan_type, consts.DEFAULT_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
+    if should_use_presigned_upload(scan_type):
+        max_size_limit = consts.PRESIGNED_LINK_UPLOADED_ZIP_MAX_SIZE_LIMIT_IN_BYTES
+    else:
+        max_size_limit = consts.ZIP_MAX_SIZE_LIMIT_IN_BYTES.get(scan_type, consts.DEFAULT_ZIP_MAX_SIZE_LIMIT_IN_BYTES)
     if zip_file_size > max_size_limit:
         raise custom_exceptions.ZipTooLargeError(max_size_limit)
 

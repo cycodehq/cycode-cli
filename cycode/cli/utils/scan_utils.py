@@ -7,6 +7,7 @@ import typer
 
 from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
+from cycode.config import parse_bool
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
@@ -33,7 +34,13 @@ def is_cycodeignore_allowed_by_scan_config(ctx: typer.Context) -> bool:
 
 
 def should_use_presigned_upload(scan_type: str) -> bool:
-    return scan_type in consts.PRESIGNED_UPLOAD_SCAN_TYPES
+    if scan_type in consts.PRESIGNED_UPLOAD_SCAN_TYPES:
+        return True
+    # Secret scans use the presigned S3 async flow only when explicitly opted in via env var;
+    # read os.environ at runtime (not config.get_val_as_bool, which snapshots os.environ at import time).
+    if scan_type == consts.SECRET_SCAN_TYPE:
+        return parse_bool(os.getenv(consts.SECRET_SCAN_ASYNC_ENV_VAR_NAME))
+    return False
 
 
 def generate_unique_scan_id() -> UUID:
