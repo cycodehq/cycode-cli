@@ -19,18 +19,11 @@ def get_val_as_string(key: str) -> str:
     return configuration.get(key)
 
 
-_TRUTHY_STRING_VALUES = {'true', '1', 'yes', 'y', 'on', 'enabled'}
-
-
-def parse_bool(value: Optional[str]) -> bool:
-    return value is not None and value.lower() in _TRUTHY_STRING_VALUES
-
-
 def get_val_as_bool(key: str, default: bool = False) -> bool:
     if key not in configuration:
         return default
 
-    return parse_bool(configuration[key])
+    return configuration[key].lower() in {'true', '1', 'yes', 'y', 'on', 'enabled'}
 
 
 def get_val_as_int(key: str) -> Optional[int]:
