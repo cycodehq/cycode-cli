@@ -317,11 +317,13 @@ class Copilot(IDE):
     def render_hooks_config(self, async_mode: bool = False) -> dict:
         def entry(command: str) -> dict:
             if async_mode:
-                # Copilot has no async hook flag; background via shell on unix.
+                # Copilot has no async hook flag; background via shell on unix. The
+                # explicit <&0 keeps the payload flowing: a bare `cmd &` gets its stdin
+                # reattached to /dev/null by the shell (job control is off in hooks).
                 # Windows PowerShell has no trailing-& operator, so it stays sync.
                 return {
                     'type': 'command',
-                    'bash': f'{command} &',
+                    'bash': f'{command} <&0 &',
                     'powershell': command,
                     'timeoutSec': _HOOK_TIMEOUT_SEC,
                 }
