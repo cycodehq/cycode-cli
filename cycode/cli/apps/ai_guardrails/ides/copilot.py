@@ -20,7 +20,8 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import ClassVar, Optional, Union
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
@@ -212,7 +213,8 @@ def _vscode_registry_plugins() -> dict:
         entries[key] = plugin
         uri = plugin.get('pluginUri', '')
         if uri.startswith('file://'):
-            dirs[key] = Path(unquote(urlparse(uri).path))
+            # url2pathname unquotes and handles Windows drive-letter URIs (file:///C:/...).
+            dirs[key] = Path(url2pathname(urlparse(uri).path))
     return _walk_registry_plugins(entries, dirs, is_enabled=False)
 
 

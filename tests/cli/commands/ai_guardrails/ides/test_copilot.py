@@ -380,10 +380,11 @@ def test_local_dir_plugins_from_plugin_locations_setting(fs: FakeFilesystem) -> 
     disabled_dir = Path('/plugins/disabled-plugin')
     _create_plugin_on_disk(fs, enabled_dir, manifest_location='plugin.json')
     _create_plugin_on_disk(fs, disabled_dir, manifest_location='plugin.json')
-    locations = f'{{"{enabled_dir}": true, "{disabled_dir}": false}}'
+    # json.dumps escapes Windows path separators; the comment line exercises JSONC handling.
+    settings = json.dumps({'chat.pluginLocations': {str(enabled_dir): True, str(disabled_dir): False}})
     fs.create_file(
         _vscode_mcp_config_path().parent / 'settings.json',
-        contents=f'{{\n// user settings\n"chat.pluginLocations": {locations}\n}}',
+        contents=f'// user settings\n{settings}',
     )
 
     _, plugins = Copilot().get_session_context()
