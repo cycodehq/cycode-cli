@@ -127,7 +127,12 @@ class TestMatchingIdeProcessesPayload:
         mock_scan_command_deps: dict[str, MagicMock],
     ) -> None:
         """Test Claude Code payload is processed when --ide claude-code is specified."""
-        payload = {'hook_event_name': 'UserPromptSubmit', 'session_id': 'session-123', 'prompt': 'test'}
+        payload = {
+            'hook_event_name': 'UserPromptSubmit',
+            'session_id': 'session-123',
+            'prompt': 'test',
+            'transcript_path': '/home/user/.claude/projects/transcript.jsonl',
+        }
         mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
 
         mock_scan_command_deps['load_policy'].return_value = {'fail_open': True}
@@ -164,6 +169,63 @@ class TestMatchingIdeProcessesPayload:
 
         mock_scan_command_deps['load_policy'].assert_called_once_with('.')
         mock_handler.assert_called_once()
+
+
+class TestCopilotPayloadRouting:
+    """Copilot-specific routing through scan_command."""
+
+    def test_unmatched_tool_allows_without_policy_or_clients(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_scan_command_deps: dict[str, MagicMock],
+    ) -> None:
+        """Copilot hooks have no matchers - tools we don't scan must skip fast.
+
+        The handler lookup runs before load_policy/_initialize_clients, so an
+        unmatched tool costs neither file I/O nor network setup.
+        """
+        payload = {
+            'timestamp': '2026-07-14T13:33:24.387Z',
+            'hook_event_name': 'PreToolUse',
+            'session_id': 'session-123',
+            'tool_name': 'list_dir',
+            'tool_input': {'path': '/Users/user'},
+            'tool_use_id': 'call_abc__vscode-1',
+        }
+        mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
+        mock_scan_command_deps['get_handler'].return_value = None
+
+        scan_command(mock_ctx, ide='copilot')
+
+        mock_scan_command_deps['get_handler'].assert_called_once_with('list_dir')
+        mock_scan_command_deps['load_policy'].assert_not_called()
+        mock_scan_command_deps['initialize_clients'].assert_not_called()
+        assert json.loads(capsys.readouterr().out) == {}
+
+    def test_copilot_cli_payload_skipped(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_scan_command_deps: dict[str, MagicMock],
+    ) -> None:
+        """Copilot CLI shares the hooks file but speaks camelCase without an event
+        name - until its dialect is supported, its events skip fail-open."""
+        payload = {
+            'sessionId': '826a14c1-cfb5-4946-9618-8b0bb7060466',
+            'timestamp': 1784038775604,
+            'cwd': '/Users/user',
+            'toolName': 'view',
+            'toolArgs': '{"path": "/Users/user/file"}',
+        }
+        mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
+
+        scan_command(mock_ctx, ide='copilot')
+
+        _assert_no_api_calls(mock_scan_command_deps)
+        assert json.loads(capsys.readouterr().out) == {}
 
 
 class TestDefaultIdeParameterViaCli:
