@@ -53,7 +53,6 @@ _MCP_CONFIG_FILENAME = 'mcp.json'
 # Plugin sources. CLI installs register in ~/.copilot/config.json and auto-surface
 # in VS Code; VS Code UI installs register in ~/.vscode/agent-plugins/installed.json;
 # local-directory plugins are declared via the chat.pluginLocations setting.
-_VSCODE_AGENT_PLUGINS_DIR = Path.home() / '.vscode' / 'agent-plugins'
 _VSCODE_PLUGINS_REGISTRY_NAME = 'installed.json'
 _PLUGIN_LOCATIONS_SETTING = 'chat.pluginLocations'
 _LOCAL_PLUGINS_MARKETPLACE = 'local'
@@ -83,6 +82,13 @@ def _copilot_home() -> Path:
     if override:
         return Path(override)
     return Path.home() / '.copilot'
+
+
+def _vscode_agent_plugins_dir() -> Path:
+    # Resolved at call time (not a module-level Path constant): on py<=3.10 a Path
+    # instance binds its filesystem accessor at creation, which breaks fake-fs tests
+    # and ignores home changes.
+    return Path.home() / '.vscode' / 'agent-plugins'
 
 
 def _vscode_user_dir() -> Path:
@@ -196,7 +202,7 @@ def _vscode_registry_plugins() -> dict:
     not installed. ``pluginUri`` is the authoritative location (the registry's
     ``marketplace`` label is unreliable); presence in the registry means enabled.
     """
-    registry = load_plugin_json(_VSCODE_AGENT_PLUGINS_DIR / _VSCODE_PLUGINS_REGISTRY_NAME) or {}
+    registry = load_plugin_json(_vscode_agent_plugins_dir() / _VSCODE_PLUGINS_REGISTRY_NAME) or {}
     entries: dict[str, dict] = {}
     dirs: dict[str, Path] = {}
     for plugin in registry.get('installed') or []:
