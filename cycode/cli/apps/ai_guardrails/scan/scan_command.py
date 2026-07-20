@@ -82,6 +82,14 @@ def scan_command(
             hidden=True,
         ),
     ] = DEFAULT_IDE_NAME,
+    event: Annotated[
+        Optional[str],
+        typer.Option(
+            '--event',
+            help='Hook event that triggered the scan, for IDEs whose payloads omit it (e.g. Copilot CLI).',
+            hidden=True,
+        ),
+    ] = None,
 ) -> None:
     """Scan content from AI IDE hooks for secrets.
 
@@ -110,7 +118,18 @@ def scan_command(
 
     unified_payload = ide_integration.parse_hook_payload(payload)
     event_name = unified_payload.event_name
-    logger.debug('Processing AI guardrails hook', extra={'event_name': event_name, 'ide': ide_integration.name})
+    logger.debug(
+        'Processing AI guardrails hook',
+        extra={'event_name': event_name, 'ide': ide_integration.name, 'cli_event_hint': event},
+    )
+
+    # Resolved before any policy/client work: Copilot hooks have no matchers, so
+    # every tool call arrives here and unmatched tools must exit fast.
+    handler = get_handler_for_event(event_name)
+    if handler is None:
+        logger.debug('Unknown hook event, allowing by default', extra={'event_name': event_name})
+        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
+        return
 
     # `or` (not a .get default) - Cursor sends workspace_roots=[] when no folder is open.
     workspace_roots = payload.get('workspace_roots') or ['.']
@@ -118,12 +137,6 @@ def scan_command(
 
     try:
         _initialize_clients(ctx)
-
-        handler = get_handler_for_event(event_name)
-        if handler is None:
-            logger.debug('Unknown hook event, allowing by default', extra={'event_name': event_name})
-            output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
-            return
 
         decision = handler(ctx, unified_payload, policy)
         logger.debug('Hook handler completed', extra={'event_name': event_name, 'action': decision.action.value})

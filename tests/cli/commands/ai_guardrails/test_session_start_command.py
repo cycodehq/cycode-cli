@@ -12,6 +12,7 @@ from cycode.cli.apps.ai_guardrails import session_start_command as _session_star
 from cycode.cli.apps.ai_guardrails.ides import IDES, collect_all_session_contexts
 from cycode.cli.apps.ai_guardrails.ides import claude_code as _claude_mod
 from cycode.cli.apps.ai_guardrails.ides import codex as _codex_mod
+from cycode.cli.apps.ai_guardrails.ides import copilot as _copilot_mod
 from cycode.cli.apps.ai_guardrails.ides import cursor as _cursor_mod
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 
@@ -285,19 +286,23 @@ def test_no_mcp_anywhere_still_reports_device(
     )
 
 
+@patch.object(_copilot_mod, '_collect_installed_plugins')
+@patch.object(_copilot_mod, '_load_vscode_mcp_config')
 @patch.object(_codex_mod, '_load_codex_config')
 @patch.object(_cursor_mod, '_load_cursor_mcp_config')
 @patch.object(_claude_mod, 'load_claude_settings')
 @patch.object(_claude_mod, 'load_claude_config')
 @patch.object(_session_start_mod, 'get_ai_security_manager_client')
 @patch.object(_session_start_mod, 'get_authorization_info')
-def test_claude_code_reports_global_file_and_plugin_metadata(
+def test_claude_code_reports_config_files_and_plugin_metadata(
     mock_get_auth: MagicMock,
     mock_get_client: MagicMock,
     mock_load_config: MagicMock,
     mock_load_settings: MagicMock,
     mock_load_cursor: MagicMock,
     mock_load_codex: MagicMock,
+    mock_load_vscode: MagicMock,
+    mock_collect_copilot_plugins: MagicMock,
     mock_ctx: MagicMock,
     tmp_path: Path,
 ) -> None:
@@ -308,6 +313,8 @@ def test_claude_code_reports_global_file_and_plugin_metadata(
     mock_get_client.return_value = mock_ai_client
     mock_load_cursor.return_value = None
     mock_load_codex.return_value = None
+    mock_load_vscode.return_value = None
+    mock_collect_copilot_plugins.return_value = {}
 
     # Set up a fake plugin directory on disk.
     plugin_dir = tmp_path / 'dummy-plugin'
@@ -360,6 +367,8 @@ def test_claude_code_reports_global_file_and_plugin_metadata(
     )
 
 
+@patch.object(_copilot_mod, '_collect_installed_plugins')
+@patch.object(_copilot_mod, '_load_vscode_mcp_config')
 @patch.object(_codex_mod, '_load_codex_config')
 @patch.object(_claude_mod, 'load_claude_settings')
 @patch.object(_claude_mod, 'load_claude_config')
@@ -373,6 +382,8 @@ def test_cursor_trigger_sweeps_other_ides(
     mock_load_config: MagicMock,
     mock_load_settings: MagicMock,
     mock_load_codex: MagicMock,
+    mock_load_vscode: MagicMock,
+    mock_collect_copilot_plugins: MagicMock,
     mock_ctx: MagicMock,
 ) -> None:
     """A Cursor-triggered session start also reports Claude's config via config_files."""
@@ -385,6 +396,8 @@ def test_cursor_trigger_sweeps_other_ides(
     mock_load_config.return_value = {'mcpServers': claude_servers}
     mock_load_settings.return_value = None
     mock_load_codex.return_value = None
+    mock_load_vscode.return_value = None
+    mock_collect_copilot_plugins.return_value = {}
 
     payload = {'conversation_id': 'conv-456', 'model': 'gpt-4'}
 
@@ -549,6 +562,7 @@ def test_collect_all_session_contexts_merges_plugins_first_wins() -> None:
         patch.object(IDES['cursor'], 'get_session_context', return_value=(None, {})),
         patch.object(IDES['claude-code'], 'get_session_context', return_value=(None, {'plug@m': claude_plugin})),
         patch.object(IDES['codex'], 'get_session_context', return_value=(None, {'plug@m': codex_plugin})),
+        patch.object(IDES['copilot'], 'get_session_context', return_value=(None, {})),
     ):
         _, plugins = collect_all_session_contexts()
 

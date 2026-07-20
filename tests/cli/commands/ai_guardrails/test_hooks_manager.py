@@ -1,5 +1,6 @@
 """Tests for AI guardrails hooks manager and per-IDE hooks rendering."""
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -8,6 +9,7 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 
 if TYPE_CHECKING:
     import pytest
+    from pytest_mock import MockerFixture
 
 from cycode.cli.apps.ai_guardrails.consts import (
     CYCODE_SCAN_PROMPT_COMMAND,
@@ -22,6 +24,7 @@ from cycode.cli.apps.ai_guardrails.hooks_manager import (
 )
 from cycode.cli.apps.ai_guardrails.ides.claude_code import ClaudeCode
 from cycode.cli.apps.ai_guardrails.ides.codex import Codex
+from cycode.cli.apps.ai_guardrails.ides.copilot import Copilot
 from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor
 
 
@@ -41,6 +44,13 @@ def test_is_cycode_hook_entry_claude_code_format() -> None:
         'hooks': [{'type': 'command', 'command': 'cycode ai-guardrails scan --ide claude-code'}],
     }
     assert is_cycode_hook_entry(entry) is True
+
+
+def test_is_cycode_hook_entry_copilot_shell_fields() -> None:
+    # Copilot async entries carry per-OS bash/powershell fields instead of `command`.
+    assert is_cycode_hook_entry({'type': 'command', 'bash': 'cycode ai-guardrails scan --ide copilot &'}) is True
+    assert is_cycode_hook_entry({'type': 'command', 'powershell': 'cycode ai-guardrails scan --ide copilot'}) is True
+    assert is_cycode_hook_entry({'type': 'command', 'bash': '/usr/local/bin/user-hook.sh'}) is False
 
 
 def test_is_cycode_hook_entry_non_cycode() -> None:
@@ -69,14 +79,26 @@ def test_cursor_render_hooks_sync() -> None:
             assert '&' not in entry['command']
 
 
-def test_cursor_render_hooks_async() -> None:
-    """Cursor async hooks: '&' suffix on scan commands."""
+def test_cursor_render_hooks_async(mocker: 'MockerFixture') -> None:
+    """Cursor async hooks: '&' suffix on scan commands (unix)."""
+    mocker.patch('platform.system', return_value='Linux')
     config = Cursor().render_hooks_config(async_mode=True)
     scan_hooks = {k: v for k, v in config['hooks'].items() if k != 'sessionStart'}
     for entries in scan_hooks.values():
         for entry in entries:
             assert entry['command'].endswith('&')
             assert CYCODE_SCAN_PROMPT_COMMAND in entry['command']
+
+
+def test_cursor_render_hooks_async_windows_stays_sync(mocker: 'MockerFixture') -> None:
+    """No '&' on Windows: cmd treats it as a no-op separator and Windows
+    PowerShell rejects it outright - either way nothing detaches."""
+    mocker.patch('platform.system', return_value='Windows')
+    config = Cursor().render_hooks_config(async_mode=True)
+    scan_hooks = {k: v for k, v in config['hooks'].items() if k != 'sessionStart'}
+    for entries in scan_hooks.values():
+        for entry in entries:
+            assert '&' not in entry['command']
 
 
 def test_cursor_render_hooks_session_start() -> None:
@@ -170,8 +192,6 @@ def test_install_preserves_user_hook_colocated_with_cycode(
     """install must not clobber a user-authored hook that shares
     an entry with a Cycode hook. The filter is hook-level, not entry-level.
     """
-    import json
-
     repo = Path('/repo')
     fs.create_dir(repo)
     hooks_path = repo / '.codex' / 'hooks.json'
@@ -223,8 +243,6 @@ def test_uninstall_preserves_user_hook_colocated_with_cycode(
     fs: FakeFilesystem, monkeypatch: 'pytest.MonkeyPatch'
 ) -> None:
     """uninstall must strip only the Cycode hook from a mixed entry."""
-    import json
-
     repo = Path('/repo')
     fs.create_dir(repo)
     hooks_path = repo / '.codex' / 'hooks.json'
@@ -257,6 +275,32 @@ def test_uninstall_preserves_user_hook_colocated_with_cycode(
     commands = [h['command'] for h in hooks]
     assert '/usr/local/bin/user-debug.sh UserPromptSubmit' in commands
     assert not any('cycode ai-guardrails' in c for c in commands)
+
+
+def test_copilot_dedicated_file_install_uninstall_lifecycle(fs: FakeFilesystem) -> None:
+    """Copilot uses a dedicated Cycode-owned file: install creates it from
+    scratch, reinstall is idempotent, uninstall removes the file entirely."""
+    copilot = Copilot()
+    hooks_path = copilot.settings_path('user')
+
+    success, _ = install_hooks(copilot)
+    assert success is True
+    saved = json.loads(hooks_path.read_text())
+    assert saved['version'] == 1
+    assert set(saved['hooks']) == {'sessionStart', 'userPromptSubmitted', 'preToolUse'}
+    assert all(len(entries) == 1 for entries in saved['hooks'].values())
+
+    # Reinstall (also flipping mode) must replace, not duplicate.
+    success, _ = install_hooks(copilot, report_mode=True)
+    assert success is True
+    saved = json.loads(hooks_path.read_text())
+    assert all(len(entries) == 1 for entries in saved['hooks'].values())
+    assert saved['hooks']['preToolUse'][0]['bash'].endswith('&')
+
+    # Uninstall deletes the emptied dedicated file rather than leaving a husk.
+    success, _ = uninstall_hooks(copilot)
+    assert success is True
+    assert not hooks_path.exists()
 
 
 def test_create_policy_file_repo_scope(fs: FakeFilesystem) -> None:

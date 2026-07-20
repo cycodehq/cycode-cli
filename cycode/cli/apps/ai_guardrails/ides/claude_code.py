@@ -278,7 +278,11 @@ class ClaudeCode(IDE):
         }
 
     def matches_payload(self, raw_payload: dict) -> bool:
-        return raw_payload.get('hook_event_name', '') in _CLAUDE_CODE_EVENT_NAMES
+        # transcript_path is a documented Claude Code common field, present on every
+        # hook event. VS Code Copilot emits near-identical payloads (same event names,
+        # snake_case fields) without it — requiring it keeps those from being
+        # processed as Claude Code events.
+        return raw_payload.get('hook_event_name', '') in _CLAUDE_CODE_EVENT_NAMES and 'transcript_path' in raw_payload
 
     def parse_hook_payload(self, raw_payload: dict) -> AIHookPayload:
         hook_event_name = raw_payload.get('hook_event_name', '')
