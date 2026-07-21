@@ -8,12 +8,15 @@ import typer
 
 from cycode.cli.apps.ai_guardrails.ides.base import DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.handlers import (
+    _perform_scan,
+    _scan_path_for_secrets,
     handle_before_mcp_execution,
     handle_before_read_file,
     handle_before_submit_prompt,
 )
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
+from cycode.cli.models import Document, LocalScanResult
 
 
 @pytest.fixture
@@ -357,13 +360,51 @@ def test_handle_before_read_file_sensitive_path_scan_disabled_warns(
 
 def test_scan_path_for_secrets_directory(mock_ctx: MagicMock, default_policy: dict[str, Any], fs: Any) -> None:
     """Test that _scan_path_for_secrets returns (None, None) for directories."""
-    from cycode.cli.apps.ai_guardrails.scan.handlers import _scan_path_for_secrets
-
     fs.create_dir('/path/to/some_directory')
 
     result = _scan_path_for_secrets(mock_ctx, '/path/to/some_directory', default_policy)
 
     assert result == (None, None)
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan')
+def test_scan_path_for_secrets_skips_path_configured_in_exclusions(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any], fs: Any
+) -> None:
+    """Test that a path ignored via `cycode ignore --by-path` is not scanned."""
+    fs.create_file('/project/secrets/creds.env', contents='password=hunter2')
+    mock_perform_scan.return_value = ('Cycode found 1 violations', 'scan-id-123')
+
+    with patch(
+        'cycode.cli.files_collector.file_excluder.configuration_manager.get_exclusions_by_scan_type',
+        return_value={'paths': ['/project/secrets']},
+    ):
+        result = _scan_path_for_secrets(mock_ctx, '/project/secrets/creds.env', default_policy)
+
+    assert result == (None, None)
+    mock_perform_scan.assert_not_called()
+
+
+def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicMock) -> None:
+    """Test that detections filtered out by ignore rules do not produce a violation."""
+    local_scan_result = LocalScanResult(
+        scan_id='scan-id-123',
+        report_url=None,
+        document_detections=[],
+        issue_detected=False,
+        detections_count=1,
+        relevant_detections_count=0,
+    )
+    document = Document(path='prompt-content.txt', content='some content', is_git_diff_format=False)
+
+    with patch(
+        'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',
+        return_value=lambda batch: ('scan-id-123', None, local_scan_result),
+    ):
+        violation_summary, scan_id = _perform_scan(mock_ctx, [document], {}, timeout_seconds=5.0)
+
+    assert violation_summary is None
+    assert scan_id == 'scan-id-123'
 
 
 # Tests for handle_before_mcp_execution
