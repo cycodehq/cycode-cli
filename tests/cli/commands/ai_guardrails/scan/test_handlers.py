@@ -1,5 +1,6 @@
 """Tests for AI guardrails handlers."""
 
+import os
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -372,14 +373,17 @@ def test_scan_path_for_secrets_skips_path_configured_in_exclusions(
     mock_perform_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any], fs: Any
 ) -> None:
     """Test that a path ignored via `cycode ignore --by-path` is not scanned."""
-    fs.create_file('/project/secrets/creds.env', contents='password=hunter2')
+    # `cycode ignore --by-path` stores absolute paths; on Windows that includes the drive prefix
+    excluded_dir = os.path.abspath(os.path.join(os.sep, 'project', 'secrets'))
+    file_path = os.path.join(excluded_dir, 'creds.env')
+    fs.create_file(file_path, contents='password=hunter2')
     mock_perform_scan.return_value = ('Cycode found 1 violations', 'scan-id-123')
 
     with patch(
         'cycode.cli.files_collector.file_excluder.configuration_manager.get_exclusions_by_scan_type',
-        return_value={'paths': ['/project/secrets']},
+        return_value={'paths': [excluded_dir]},
     ):
-        result = _scan_path_for_secrets(mock_ctx, '/project/secrets/creds.env', default_policy)
+        result = _scan_path_for_secrets(mock_ctx, file_path, default_policy)
 
     assert result == (None, None)
     mock_perform_scan.assert_not_called()
