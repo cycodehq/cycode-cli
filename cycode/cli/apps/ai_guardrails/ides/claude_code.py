@@ -22,6 +22,10 @@ logger = get_logger('AI Guardrails Claude Code')
 
 _CLAUDE_CODE_EVENT_NAMES = frozenset({'UserPromptSubmit', 'PreToolUse'})
 
+# When a fork/subagent completes, the harness injects its result into the parent
+# session as a synthetic user turn, which fires UserPromptSubmit.
+_SYNTHETIC_PROMPT_PREFIXES = ('<task-notification>',)
+
 _USER_HOOKS_DIR = Path.home() / '.claude'
 _HOOKS_FILE_NAME = 'settings.json'
 _REPO_SUBDIR = '.claude'
@@ -283,6 +287,12 @@ class ClaudeCode(IDE):
         # snake_case fields) without it — requiring it keeps those from being
         # processed as Claude Code events.
         return raw_payload.get('hook_event_name', '') in _CLAUDE_CODE_EVENT_NAMES and 'transcript_path' in raw_payload
+
+    def is_synthetic_prompt(self, raw_payload: dict) -> bool:
+        if raw_payload.get('hook_event_name') != 'UserPromptSubmit':
+            return False
+        prompt = raw_payload.get('prompt') or ''
+        return prompt.lstrip().startswith(_SYNTHETIC_PROMPT_PREFIXES)
 
     def parse_hook_payload(self, raw_payload: dict) -> AIHookPayload:
         hook_event_name = raw_payload.get('hook_event_name', '')

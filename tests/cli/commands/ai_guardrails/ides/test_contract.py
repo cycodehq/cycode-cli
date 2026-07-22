@@ -82,6 +82,11 @@ def test_matches_payload_rejects_unrelated_event_names(ide: IDE) -> None:
     assert ide.matches_payload({'hook_event_name': 'completely-fabricated-event'}) is False
 
 
+def test_is_synthetic_prompt_rejects_empty(ide: IDE) -> None:
+    """The safe default: no payload is ever treated as synthetic unless an IDE opts in."""
+    assert ide.is_synthetic_prompt({}) is False
+
+
 @pytest.mark.parametrize('event_type', list(AiHookEventType))
 def test_build_hook_response_allow_returns_dict(ide: IDE, event_type: AiHookEventType) -> None:
     """ALLOW for every canonical event type yields a serializable dict."""

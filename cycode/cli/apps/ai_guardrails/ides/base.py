@@ -157,6 +157,15 @@ class IDE(ABC):
         event (e.g. Cursor reading Claude Code hooks from ~/.claude/settings.json).
         """
 
+    def is_synthetic_prompt(self, raw_payload: dict) -> bool:
+        """Return True when a prompt event carries IDE/harness-generated content
+        rather than text the user typed.
+
+        Synthetic prompts are skipped without scanning or telemetry.
+        Default: False. Override for IDEs that inject synthetic user turns.
+        """
+        return False
+
     @abstractmethod
     def parse_hook_payload(self, raw_payload: dict) -> AIHookPayload:
         """Normalize a raw stdin payload into the canonical ``AIHookPayload``."""
