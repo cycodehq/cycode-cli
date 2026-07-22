@@ -26,6 +26,7 @@ from cycode.cli.apps.ai_guardrails.scan.utils import is_denied_path, truncate_ut
 from cycode.cli.apps.scan.code_scanner import _get_scan_documents_thread_func
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.cli_types import ScanTypeOption, SeverityOption
+from cycode.cli.files_collector.file_excluder import is_path_configured_in_exclusions
 from cycode.cli.models import Document
 from cycode.cli.utils.progress_bar import DummyProgressBar, ScanProgressBarSection
 from cycode.cli.utils.scan_utils import build_violation_summary
@@ -337,7 +338,7 @@ def _perform_scan(
 
     scan_id = local_scan_result.scan_id
 
-    if local_scan_result.detections_count > 0:
+    if local_scan_result.issue_detected:
         violation_summary = build_violation_summary([local_scan_result])
         return violation_summary, scan_id
 
@@ -358,6 +359,10 @@ def _scan_text_for_secrets(ctx: typer.Context, text: str, timeout_ms: int) -> tu
 def _scan_path_for_secrets(ctx: typer.Context, file_path: str, policy: dict) -> tuple[Optional[str], Optional[str]]:
     """Scan a file path for secrets."""
     if not file_path or not os.path.isfile(file_path):
+        return None, None
+
+    if is_path_configured_in_exclusions(str(ScanTypeOption.SECRET), os.path.abspath(file_path)):
+        logger.debug('Skipping scan; the path is in the ignore paths list, %s', {'file_path': file_path})
         return None, None
 
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)

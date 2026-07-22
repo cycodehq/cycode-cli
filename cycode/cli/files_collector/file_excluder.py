@@ -25,7 +25,7 @@ def _is_subpath_of_cycode_configuration_folder(filename: str) -> bool:
     )
 
 
-def _is_path_configured_in_exclusions(scan_type: str, file_path: str) -> bool:
+def is_path_configured_in_exclusions(scan_type: str, file_path: str) -> bool:
     exclusions_by_path = configuration_manager.get_exclusions_by_scan_type(scan_type).get(
         consts.EXCLUSIONS_BY_PATH_SECTION_NAME, []
     )
@@ -106,7 +106,7 @@ class Excluder:
             )
             return False
 
-        if _is_path_configured_in_exclusions(scan_type, filename):
+        if is_path_configured_in_exclusions(scan_type, filename):
             logger.debug(
                 'The document is irrelevant because its path is in the ignore paths list, %s', {'filename': filename}
             )
