@@ -116,6 +116,14 @@ def scan_command(
         output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
         return
 
+    # Fork/subagent completions arrive as synthetic user turns (e.g. Claude Code's
+    # <task-notification>); they are agent-generated, not user prompts - skip before
+    # parse_hook_payload, which reads the transcript and IDE config from disk.
+    if ide_integration.is_synthetic_prompt(payload):
+        logger.debug('Synthetic prompt detected, skipping scan')
+        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
+        return
+
     unified_payload = ide_integration.parse_hook_payload(payload)
     event_name = unified_payload.event_name
     logger.debug(

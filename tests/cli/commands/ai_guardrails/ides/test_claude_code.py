@@ -50,6 +50,37 @@ def test_matches_payload_rejects_vscode_copilot_payloads() -> None:
     )
 
 
+def test_is_synthetic_prompt_task_notification() -> None:
+    claude = ClaudeCode()
+    payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-123',
+        'prompt': '<task-notification>Task dummy-task-1 completed</task-notification>',
+    }
+    assert claude.is_synthetic_prompt(payload) is True
+
+    payload['prompt'] = '  \n<task-notification>Task dummy-task-2 completed</task-notification>'
+    assert claude.is_synthetic_prompt(payload) is True
+
+
+def test_is_synthetic_prompt_regular_prompt() -> None:
+    claude = ClaudeCode()
+    assert claude.is_synthetic_prompt({'hook_event_name': 'UserPromptSubmit', 'prompt': 'Test prompt'}) is False
+    assert claude.is_synthetic_prompt({'hook_event_name': 'UserPromptSubmit', 'prompt': ''}) is False
+    assert claude.is_synthetic_prompt({'hook_event_name': 'UserPromptSubmit'}) is False
+
+
+def test_is_synthetic_prompt_ignores_tool_events() -> None:
+    claude = ClaudeCode()
+    payload = {
+        'hook_event_name': 'PreToolUse',
+        'tool_name': 'Read',
+        'tool_input': {'file_path': '/path/to/file'},
+        'prompt': '<task-notification>not a prompt event</task-notification>',
+    }
+    assert claude.is_synthetic_prompt(payload) is False
+
+
 def test_parse_prompt_payload() -> None:
     unified = ClaudeCode().parse_hook_payload(
         {

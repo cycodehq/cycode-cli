@@ -81,6 +81,33 @@ class TestIdeMismatchSkipsProcessing:
         assert response == {}  # Claude Code allow_prompt returns empty dict
 
 
+class TestSyntheticPromptSkipsProcessing:
+    """Tests that verify synthetic (harness-generated) prompts cause early exit without API calls."""
+
+    def test_task_notification_prompt_skipped(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_scan_command_deps: dict[str, MagicMock],
+    ) -> None:
+        """Fork/subagent completions arrive as synthetic <task-notification> user turns
+        that fire UserPromptSubmit in the parent session; they must not be scanned."""
+        payload = {
+            'hook_event_name': 'UserPromptSubmit',
+            'session_id': 'session-123',
+            'transcript_path': '/home/user/.claude/projects/transcript.jsonl',
+            'prompt': '<task-notification>Task dummy-task-1 completed</task-notification>',
+        }
+        mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
+
+        scan_command(mock_ctx, ide='claude-code')
+
+        _assert_no_api_calls(mock_scan_command_deps)
+        response = json.loads(capsys.readouterr().out)
+        assert response == {}  # Claude Code allow_prompt returns empty dict
+
+
 class TestInvalidPayloadSkipsProcessing:
     """Tests that verify invalid payloads cause early exit without API calls."""
 
