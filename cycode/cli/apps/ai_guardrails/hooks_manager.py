@@ -22,15 +22,22 @@ logger = get_logger('AI Guardrails Hooks')
 
 _CYCODE_COMMAND_MARKERS = ('cycode ai-guardrails',)
 
+# Command-carrying fields of a flat hook entry. Copilot entries use per-OS
+# `bash`/`powershell` fields instead of `command`.
+_COMMAND_FIELDS = ('command', 'bash', 'powershell')
+
 
 def _is_cycode_command(command: str) -> bool:
     return any(marker in command for marker in _CYCODE_COMMAND_MARKERS)
 
 
+def _has_cycode_command_field(entry: dict) -> bool:
+    return any(_is_cycode_command(entry.get(field, '')) for field in _COMMAND_FIELDS)
+
+
 def is_cycode_hook_entry(entry: dict) -> bool:
     """True if any hook inside ``entry`` is owned by Cycode."""
-    command = entry.get('command', '')
-    if _is_cycode_command(command):
+    if _has_cycode_command_field(entry):
         return True
 
     for hook in entry.get('hooks', []):
@@ -47,9 +54,9 @@ def _strip_cycode_from_entry(entry: dict) -> Optional[dict]:
     every nested hook was Cycode). Non-Cycode hooks co-located in the same
     entry are preserved.
     """
-    # Cursor format: the entry itself IS a single hook command.
-    if 'command' in entry and 'hooks' not in entry:
-        return None if _is_cycode_command(entry.get('command', '')) else entry
+    # Cursor/Copilot format: the entry itself IS a single hook command.
+    if 'hooks' not in entry and any(field in entry for field in _COMMAND_FIELDS):
+        return None if _has_cycode_command_field(entry) else entry
 
     # Claude Code / Codex format: nested `hooks` list inside the entry.
     nested = entry.get('hooks')

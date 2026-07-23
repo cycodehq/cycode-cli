@@ -8,6 +8,7 @@ IDE inherits the same baseline guarantees (and fails fast if it doesn't).
 from pathlib import Path
 
 import pytest
+from pytest_mock import MockerFixture
 
 from cycode.cli.apps.ai_guardrails.ides import IDES
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
@@ -60,8 +61,13 @@ def test_render_hooks_config_has_hooks_key(ide: IDE) -> None:
     assert isinstance(rendered['hooks'], dict)
 
 
-def test_render_hooks_config_async_changes_output(ide: IDE) -> None:
-    """async_mode must influence the rendered output."""
+def test_render_hooks_config_async_changes_output(ide: IDE, mocker: MockerFixture) -> None:
+    """async_mode must influence the rendered output.
+
+    Pinned to a unix platform: IDEs that background via a shell `&` render
+    identical sync/async configs on Windows, where no safe suffix exists.
+    """
+    mocker.patch('platform.system', return_value='Linux')
     assert ide.render_hooks_config(async_mode=False) != ide.render_hooks_config(async_mode=True)
 
 
@@ -74,6 +80,11 @@ def test_matches_payload_rejects_empty(ide: IDE) -> None:
 def test_matches_payload_rejects_unrelated_event_names(ide: IDE) -> None:
     """Unknown event names from other IDEs must be ignored to avoid double-processing."""
     assert ide.matches_payload({'hook_event_name': 'completely-fabricated-event'}) is False
+
+
+def test_is_synthetic_prompt_rejects_empty(ide: IDE) -> None:
+    """The safe default: no payload is ever treated as synthetic unless an IDE opts in."""
+    assert ide.is_synthetic_prompt({}) is False
 
 
 @pytest.mark.parametrize('event_type', list(AiHookEventType))

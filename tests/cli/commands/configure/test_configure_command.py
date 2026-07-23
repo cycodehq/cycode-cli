@@ -1,314 +1,170 @@
+import os
 from typing import TYPE_CHECKING
 
-from typer.testing import CliRunner
+import pytest
+import yaml
+from click.testing import CliRunner
+from typer.main import get_command
 
 from cycode.cli.app import app
+from cycode.cli.apps.configure.consts import CONFIGURATION_MANAGER, CREDENTIALS_MANAGER
+from cycode.cli.user_settings.config_file_manager import ConfigFileManager
+from cycode.cli.user_settings.credentials_manager import CredentialsManager
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
+# Built eagerly on the real filesystem; building it under pyfakefs breaks typer's
+# pathlib.Path parameter introspection.
+_click_app = get_command(app)
+
+# `cycode configure` reads/writes the real ~/.cycode files; run every test on pyfakefs
+# so file access never reaches the developer's machine.
+pytestmark = pytest.mark.usefixtures('fs')
+
+_CURRENT_CREDENTIALS = {
+    CredentialsManager.CLIENT_ID_FIELD_NAME: 'current client id',
+    CredentialsManager.CLIENT_SECRET_FIELD_NAME: 'current client secret',
+    CredentialsManager.ID_TOKEN_FIELD_NAME: 'current id token',
+}
+_CURRENT_CONFIG = {
+    ConfigFileManager.ENVIRONMENT_SECTION_NAME: {
+        ConfigFileManager.API_URL_FIELD_NAME: 'current api url',
+        ConfigFileManager.APP_URL_FIELD_NAME: 'current app url',
+    }
+}
+
+
+def _credentials_filename() -> str:
+    return CREDENTIALS_MANAGER.get_filename()
+
+
+def _config_filename() -> str:
+    return CONFIGURATION_MANAGER.global_config_file_manager.get_filename()
+
+
+def _seed_yaml(filename: str, content: dict) -> None:
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, 'w', encoding='UTF-8') as file:
+        yaml.safe_dump(content, file)
+
+
+def _read_yaml(filename: str) -> dict:
+    with open(filename, encoding='UTF-8') as file:
+        return yaml.safe_load(file)
+
+
+def _run_configure(mocker: 'MockerFixture', prompt_answers: list[str]) -> None:
+    # Prompt order: api url, app url, client id, client secret, id token
+    mocker.patch('typer.prompt', side_effect=prompt_answers)
+    result = CliRunner().invoke(_click_app, ['configure'])
+    assert result.exit_code == 0
+
 
 def test_configure_command_no_exist_values_in_file(mocker: 'MockerFixture') -> None:
-    # Arrange
-    app_url_user_input = 'new app url'
-    api_url_user_input = 'new api url'
-    client_id_user_input = 'new client id'
-    client_secret_user_input = 'new client secret'
-    id_token_user_input = 'new id token'
+    _run_configure(mocker, ['new api url', 'new app url', 'new client id', 'new client secret', 'new id token'])
 
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=(None, None),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_oidc_credentials_from_file',
-        return_value=(None, None),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_api_url',
-        return_value=None,
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_app_url',
-        return_value=None,
-    )
-
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch(
-        'typer.prompt',
-        side_effect=[
-            api_url_user_input,
-            app_url_user_input,
-            client_id_user_input,
-            client_secret_user_input,
-            id_token_user_input,
-        ],
-    )
-
-    mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
-    )
-    mocked_update_oidc_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_oidc_credentials'
-    )
-    mocked_update_api_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
-    )
-    mocked_update_app_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_app_base_url'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_credentials.assert_called_once_with(client_id_user_input, client_secret_user_input)
-    mocked_update_oidc_credentials.assert_called_once_with(client_id_user_input, id_token_user_input)
-    mocked_update_api_base_url.assert_called_once_with(api_url_user_input)
-    mocked_update_app_base_url.assert_called_once_with(app_url_user_input)
+    assert _read_yaml(_credentials_filename()) == {
+        CredentialsManager.CLIENT_ID_FIELD_NAME: 'new client id',
+        CredentialsManager.CLIENT_SECRET_FIELD_NAME: 'new client secret',
+        CredentialsManager.ID_TOKEN_FIELD_NAME: 'new id token',
+    }
+    assert _read_yaml(_config_filename()) == {
+        ConfigFileManager.ENVIRONMENT_SECTION_NAME: {
+            ConfigFileManager.API_URL_FIELD_NAME: 'new api url',
+            ConfigFileManager.APP_URL_FIELD_NAME: 'new app url',
+        }
+    }
 
 
 def test_configure_command_update_current_configs_in_files(mocker: 'MockerFixture') -> None:
-    # Arrange
-    app_url_user_input = 'new app url'
-    api_url_user_input = 'new api url'
-    client_id_user_input = 'new client id'
-    client_secret_user_input = 'new client secret'
-    id_token_user_input = 'new id token'
+    _seed_yaml(_credentials_filename(), _CURRENT_CREDENTIALS)
+    _seed_yaml(_config_filename(), _CURRENT_CONFIG)
 
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=('client id file', 'client secret file'),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_oidc_credentials_from_file',
-        return_value=('client id file', 'id token file'),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_api_url',
-        return_value='api url file',
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_app_url',
-        return_value='app url file',
-    )
+    _run_configure(mocker, ['new api url', 'new app url', 'new client id', 'new client secret', 'new id token'])
 
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch(
-        'typer.prompt',
-        side_effect=[
-            api_url_user_input,
-            app_url_user_input,
-            client_id_user_input,
-            client_secret_user_input,
-            id_token_user_input,
-        ],
-    )
-
-    mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
-    )
-    mocked_update_api_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
-    )
-    mocked_update_app_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_app_base_url'
-    )
-    mocker_update_oidc_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_oidc_credentials'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_credentials.assert_called_once_with(client_id_user_input, client_secret_user_input)
-    mocker_update_oidc_credentials.assert_called_once_with(client_id_user_input, id_token_user_input)
-    mocked_update_api_base_url.assert_called_once_with(api_url_user_input)
-    mocked_update_app_base_url.assert_called_once_with(app_url_user_input)
+    assert _read_yaml(_credentials_filename()) == {
+        CredentialsManager.CLIENT_ID_FIELD_NAME: 'new client id',
+        CredentialsManager.CLIENT_SECRET_FIELD_NAME: 'new client secret',
+        CredentialsManager.ID_TOKEN_FIELD_NAME: 'new id token',
+    }
+    assert _read_yaml(_config_filename()) == {
+        ConfigFileManager.ENVIRONMENT_SECTION_NAME: {
+            ConfigFileManager.API_URL_FIELD_NAME: 'new api url',
+            ConfigFileManager.APP_URL_FIELD_NAME: 'new app url',
+        }
+    }
 
 
 def test_set_credentials_update_only_client_id(mocker: 'MockerFixture') -> None:
-    # Arrange
-    client_id_user_input = 'new client id'
-    current_client_id = 'client secret file'
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=('client id file', 'client secret file'),
-    )
+    _seed_yaml(_credentials_filename(), _CURRENT_CREDENTIALS)
 
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('typer.prompt', side_effect=['', '', client_id_user_input, '', ''])
-    mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
-    )
+    _run_configure(mocker, ['', '', 'new client id', '', ''])
 
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_credentials.assert_called_once_with(client_id_user_input, current_client_id)
+    # Client id is replaced in both the token and OIDC credential pairs; everything else is kept
+    assert _read_yaml(_credentials_filename()) == {
+        **_CURRENT_CREDENTIALS,
+        CredentialsManager.CLIENT_ID_FIELD_NAME: 'new client id',
+    }
+    assert not os.path.exists(_config_filename())
 
 
 def test_configure_command_update_only_client_secret(mocker: 'MockerFixture') -> None:
-    # Arrange
-    client_secret_user_input = 'new client secret'
-    current_client_id = 'client secret file'
+    _seed_yaml(_credentials_filename(), _CURRENT_CREDENTIALS)
 
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=(current_client_id, 'client secret file'),
-    )
+    _run_configure(mocker, ['', '', '', 'new client secret', ''])
 
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('typer.prompt', side_effect=['', '', '', client_secret_user_input, ''])
-    mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_credentials.assert_called_once_with(current_client_id, client_secret_user_input)
+    assert _read_yaml(_credentials_filename()) == {
+        **_CURRENT_CREDENTIALS,
+        CredentialsManager.CLIENT_SECRET_FIELD_NAME: 'new client secret',
+    }
 
 
 def test_configure_command_update_only_api_url(mocker: 'MockerFixture') -> None:
-    # Arrange
-    api_url_user_input = 'new api url'
-    current_api_url = 'api url'
+    _seed_yaml(_config_filename(), _CURRENT_CONFIG)
 
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_api_url',
-        return_value=current_api_url,
-    )
+    _run_configure(mocker, ['new api url', '', '', '', ''])
 
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('typer.prompt', side_effect=[api_url_user_input, '', '', '', ''])
-    mocked_update_api_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_api_base_url.assert_called_once_with(api_url_user_input)
+    assert _read_yaml(_config_filename()) == {
+        ConfigFileManager.ENVIRONMENT_SECTION_NAME: {
+            ConfigFileManager.API_URL_FIELD_NAME: 'new api url',
+            ConfigFileManager.APP_URL_FIELD_NAME: 'current app url',
+        }
+    }
+    assert not os.path.exists(_credentials_filename())
 
 
 def test_configure_command_update_only_id_token(mocker: 'MockerFixture') -> None:
-    # Arrange
-    current_client_id = 'client id file'
-    current_id_token = 'old id token'
-    new_id_token = 'new id token'
+    _seed_yaml(_credentials_filename(), _CURRENT_CREDENTIALS)
 
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=(current_client_id, 'client secret file'),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_oidc_credentials_from_file',
-        return_value=(current_client_id, current_id_token),
-    )
+    _run_configure(mocker, ['', '', '', '', 'new id token'])
 
-    mocker.patch('typer.prompt', side_effect=['', '', '', '', new_id_token])
-
-    mocked_update_oidc_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_oidc_credentials'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_oidc_credentials.assert_called_once_with(current_client_id, new_id_token)
+    assert _read_yaml(_credentials_filename()) == {
+        **_CURRENT_CREDENTIALS,
+        CredentialsManager.ID_TOKEN_FIELD_NAME: 'new id token',
+    }
 
 
 def test_configure_command_should_not_update_credentials(mocker: 'MockerFixture') -> None:
-    # Arrange
-    client_id_user_input = ''
-    client_secret_user_input = ''
+    _seed_yaml(_credentials_filename(), _CURRENT_CREDENTIALS)
 
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=('client id file', 'client secret file'),
-    )
+    _run_configure(mocker, ['', '', '', '', ''])
 
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('typer.prompt', side_effect=['', '', client_id_user_input, client_secret_user_input, ''])
-    mocked_update_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_credentials'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    assert not mocked_update_credentials.called
+    assert _read_yaml(_credentials_filename()) == _CURRENT_CREDENTIALS
 
 
 def test_configure_command_should_not_update_config_file(mocker: 'MockerFixture') -> None:
-    # Arrange
-    app_url_user_input = ''
-    api_url_user_input = ''
+    _seed_yaml(_config_filename(), _CURRENT_CONFIG)
 
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_api_url',
-        return_value='api url file',
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_app_url',
-        return_value='app url file',
-    )
+    _run_configure(mocker, ['', '', '', '', ''])
 
-    # side effect - multiple return values, each item in the list represents return of a call
-    mocker.patch('typer.prompt', side_effect=[api_url_user_input, app_url_user_input, '', '', ''])
-    mocked_update_api_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_api_base_url'
-    )
-    mocked_update_app_base_url = mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.update_app_base_url'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    assert not mocked_update_api_base_url.called
-    assert not mocked_update_app_base_url.called
+    assert _read_yaml(_config_filename()) == _CURRENT_CONFIG
 
 
 def test_configure_command_should_not_update_oidc_credentials(mocker: 'MockerFixture') -> None:
-    # Arrange
-    current_client_id = 'client id file'
-    current_client_secret = 'client secret file'
-    current_id_token = 'old id token'
+    _seed_yaml(_credentials_filename(), _CURRENT_CREDENTIALS)
 
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_credentials_from_file',
-        return_value=(current_client_id, current_client_secret),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.get_oidc_credentials_from_file',
-        return_value=(current_client_id, current_id_token),
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_api_url',
-        return_value='api url file',
-    )
-    mocker.patch(
-        'cycode.cli.user_settings.config_file_manager.ConfigFileManager.get_app_url',
-        return_value='app url file',
-    )
+    # Re-entering the same client id must not rewrite anything
+    _run_configure(mocker, ['', '', 'current client id', '', ''])
 
-    mocker.patch('typer.prompt', side_effect=['', '', '', '', ''])
-
-    mocked_update_oidc_credentials = mocker.patch(
-        'cycode.cli.user_settings.credentials_manager.CredentialsManager.update_oidc_credentials'
-    )
-
-    # Act
-    CliRunner().invoke(app, ['configure'])
-
-    # Assert
-    mocked_update_oidc_credentials.assert_not_called()
+    assert _read_yaml(_credentials_filename()) == _CURRENT_CREDENTIALS

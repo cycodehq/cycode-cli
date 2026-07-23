@@ -7,7 +7,7 @@ from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_file
-from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
+from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision, shell_background_suffix
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.logger import get_logger
@@ -69,7 +69,7 @@ class Cursor(IDE):
         return _user_hooks_dir() / _HOOKS_FILE_NAME
 
     def render_hooks_config(self, async_mode: bool = False) -> dict:
-        command = f'{_SCAN_COMMAND} &' if async_mode else _SCAN_COMMAND
+        command = f'{_SCAN_COMMAND}{shell_background_suffix(async_mode)}'
         hooks = {event: [{'command': command}] for event in self.hook_events}
         hooks['sessionStart'] = [{'command': _SESSION_START_COMMAND}]
         return {'version': 1, 'hooks': hooks}

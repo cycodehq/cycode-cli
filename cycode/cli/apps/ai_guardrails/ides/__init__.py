@@ -10,11 +10,12 @@ import typer
 from cycode.cli.apps.ai_guardrails.ides.base import IDE
 from cycode.cli.apps.ai_guardrails.ides.claude_code import ClaudeCode
 from cycode.cli.apps.ai_guardrails.ides.codex import Codex
+from cycode.cli.apps.ai_guardrails.ides.copilot import Copilot
 from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor
 
 # Single source of truth: name → singleton instance.
 # `--ide` choices and install/uninstall/status iteration both derive from this.
-IDES: dict[str, IDE] = {ide.name: ide for ide in (Cursor(), ClaudeCode(), Codex())}
+IDES: dict[str, IDE] = {ide.name: ide for ide in (Cursor(), ClaudeCode(), Codex(), Copilot())}
 
 # Default IDE used when `--ide` is omitted. Kept here so the value is colocated
 # with the registry; no module outside `ides/` needs to know which IDE wins.

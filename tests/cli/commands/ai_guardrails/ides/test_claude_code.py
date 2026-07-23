@@ -20,10 +20,65 @@ from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 def test_matches_payload_only_claude_events() -> None:
     claude = ClaudeCode()
-    assert claude.matches_payload({'hook_event_name': 'UserPromptSubmit'}) is True
-    assert claude.matches_payload({'hook_event_name': 'PreToolUse'}) is True
-    assert claude.matches_payload({'hook_event_name': 'beforeSubmitPrompt'}) is False
-    assert claude.matches_payload({'hook_event_name': 'beforeReadFile'}) is False
+    transcript = {'transcript_path': '/home/user/.claude/projects/transcript.jsonl'}
+    assert claude.matches_payload({'hook_event_name': 'UserPromptSubmit', **transcript}) is True
+    assert claude.matches_payload({'hook_event_name': 'PreToolUse', **transcript}) is True
+    assert claude.matches_payload({'hook_event_name': 'beforeSubmitPrompt', **transcript}) is False
+    assert claude.matches_payload({'hook_event_name': 'beforeReadFile', **transcript}) is False
+
+
+def test_matches_payload_rejects_vscode_copilot_payloads() -> None:
+    """VS Code Copilot sends the same event names in the same snake_case dialect,
+    but never a transcript_path — those events must not be claimed as Claude Code."""
+    claude = ClaudeCode()
+    assert (
+        claude.matches_payload(
+            {
+                'timestamp': '2026-07-14T13:33:24.387Z',
+                'hook_event_name': 'PreToolUse',
+                'session_id': '43cbad91-ea8b-4d4a-9acc-56561421c5d2',
+                'tool_name': 'read_file',
+                'tool_input': {'filePath': '/Users/user/.gitconfig'},
+                'tool_use_id': 'call_KuiUJvNJ06uHlIdwKy16G9W6__vscode-1784034535752',
+            }
+        )
+        is False
+    )
+    assert (
+        claude.matches_payload({'timestamp': '2026-07-14T13:32:46.517Z', 'hook_event_name': 'UserPromptSubmit'})
+        is False
+    )
+
+
+def test_is_synthetic_prompt_task_notification() -> None:
+    claude = ClaudeCode()
+    payload = {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-123',
+        'prompt': '<task-notification>Task dummy-task-1 completed</task-notification>',
+    }
+    assert claude.is_synthetic_prompt(payload) is True
+
+    payload['prompt'] = '  \n<task-notification>Task dummy-task-2 completed</task-notification>'
+    assert claude.is_synthetic_prompt(payload) is True
+
+
+def test_is_synthetic_prompt_regular_prompt() -> None:
+    claude = ClaudeCode()
+    assert claude.is_synthetic_prompt({'hook_event_name': 'UserPromptSubmit', 'prompt': 'Test prompt'}) is False
+    assert claude.is_synthetic_prompt({'hook_event_name': 'UserPromptSubmit', 'prompt': ''}) is False
+    assert claude.is_synthetic_prompt({'hook_event_name': 'UserPromptSubmit'}) is False
+
+
+def test_is_synthetic_prompt_ignores_tool_events() -> None:
+    claude = ClaudeCode()
+    payload = {
+        'hook_event_name': 'PreToolUse',
+        'tool_name': 'Read',
+        'tool_input': {'file_path': '/path/to/file'},
+        'prompt': '<task-notification>not a prompt event</task-notification>',
+    }
+    assert claude.is_synthetic_prompt(payload) is False
 
 
 def test_parse_prompt_payload() -> None:
