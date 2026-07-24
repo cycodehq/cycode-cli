@@ -814,6 +814,7 @@ The following ecosystems support automatic lockfile restoration:
 | NuGet | `*.csproj` | `packages.lock.json` | `dotnet restore --use-lock-file` |
 | Ruby | `Gemfile` | `Gemfile.lock` | `bundle --quiet` |
 | Poetry | `pyproject.toml` | `poetry.lock` | `poetry lock` |
+| pip | `pyproject.toml` / `requirements.txt` | `pylock.toml` | `pip lock .` / `pip lock -r requirements.txt -o pylock.toml` |
 | Pipenv | `Pipfile` | `Pipfile.lock` | `pipenv lock` |
 | PHP Composer | `composer.json` | `composer.lock` | `composer update --no-cache --no-install --no-scripts --ignore-platform-reqs` |
 
