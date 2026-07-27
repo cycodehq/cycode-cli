@@ -41,3 +41,12 @@ class BlockReason(StrEnum):
     SECRETS_IN_MCP_ARGS = 'secrets_in_mcp_args'
     SENSITIVE_PATH = 'sensitive_path'
     SCAN_FAILURE = 'scan_failure'
+
+
+# The reason each event type yields when a secret is found in it. Also travels with the scan as
+# `detection_source`, so the violation and the hook event are labelled from the same vocabulary.
+SECRETS_BLOCK_REASON_BY_EVENT_TYPE: dict[AiHookEventType, BlockReason] = {
+    AiHookEventType.PROMPT: BlockReason.SECRETS_IN_PROMPT,
+    AiHookEventType.FILE_READ: BlockReason.SECRETS_IN_FILE,
+    AiHookEventType.MCP_EXECUTION: BlockReason.SECRETS_IN_MCP_ARGS,
+}

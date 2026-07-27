@@ -10,8 +10,13 @@ class PolicyMode(str, Enum):
     WARN = 'warn'
 
 
-class InstallMode(str, Enum):
-    """Installation mode for ai-guardrails install command."""
+class GuardrailsMode(str, Enum):
+    """Guardrails enforcement mode.
+
+    Used both as the ai-guardrails install-command mode and as the per-event
+    effective mode reported to the server (the ai_guardrails scan parameter's
+    `mode` field)
+    """
 
     REPORT = 'report'
     BLOCK = 'block'

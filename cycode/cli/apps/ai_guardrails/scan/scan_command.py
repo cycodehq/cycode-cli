@@ -8,6 +8,7 @@ The handlers in ``handlers.py`` are agent-agnostic (they return
 """
 
 from typing import Annotated, Optional, Union
+from uuid import uuid4
 
 import click
 import typer
@@ -125,6 +126,9 @@ def scan_command(
         return
 
     unified_payload = ide_integration.parse_hook_payload(payload)
+    if not unified_payload.generation_id:
+        # Not every IDE dialect provides a generation id (e.g. Copilot)
+        unified_payload.generation_id = str(uuid4())
     event_name = unified_payload.event_name
     logger.debug(
         'Processing AI guardrails hook',

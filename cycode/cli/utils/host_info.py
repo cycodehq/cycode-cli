@@ -3,6 +3,8 @@ import platform
 import re
 import socket
 import subprocess
+import tempfile
+from pathlib import Path
 from typing import Optional
 
 from cycode.logger import get_logger
@@ -93,6 +95,19 @@ def get_last_login_user() -> Optional[str]:
 
 
 def get_serial_number() -> Optional[str]:
+    # The serial is immutable hardware info, but resolving it shells out (ioreg/WMI)
+    # and this runs in a fresh process per AI hook event - cache it on disk.
+    cached = _read_serial_number_cache()
+    if cached:
+        return cached
+
+    serial = _resolve_serial_number()
+    if serial:
+        _write_serial_number_cache(serial)
+    return serial
+
+
+def _resolve_serial_number() -> Optional[str]:
     try:
         system = platform.system()
         if system == 'Darwin':
@@ -102,6 +117,27 @@ def get_serial_number() -> Optional[str]:
     except Exception as e:
         logger.debug('Failed to resolve serial number', exc_info=e)
     return None
+
+
+def _serial_number_cache_path() -> Path:
+    # The username suffix avoids collisions on OSes with a shared temp dir
+    return Path(tempfile.gettempdir()) / f'.cycode-device-serial-{getpass.getuser()}'
+
+
+def _read_serial_number_cache() -> Optional[str]:
+    try:
+        return _serial_number_cache_path().read_text(encoding='utf-8').strip() or None
+    except Exception:
+        return None
+
+
+def _write_serial_number_cache(serial: str) -> None:
+    try:
+        cache_path = _serial_number_cache_path()
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(serial, encoding='utf-8')
+    except Exception as e:
+        logger.debug('Failed to cache serial number', exc_info=e)
 
 
 def _get_macos_serial_number() -> Optional[str]:
