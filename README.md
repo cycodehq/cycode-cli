@@ -24,8 +24,9 @@ This guide walks you through both installation and usage.
     5. [Advanced Configuration](#advanced-configuration)
 5. [Platform Command](#platform-command-beta)
     1. [Discovering Commands](#discovering-commands)
-    2. [Examples](#platform-examples)
-    3. [Notes & Limitations](#platform-notes--limitations)
+    2. [Raw API Requests](#raw-api-requests)
+    3. [Examples](#platform-examples)
+    4. [Notes & Limitations](#platform-notes--limitations)
 6. [Scan Command](#scan-command)
     1. [Running a Scan](#running-a-scan)
         1. [Options](#options)
@@ -672,6 +673,35 @@ cycode platform projects --help         # list actions on a resource
 cycode platform projects list --help    # list options/arguments for an action
 ```
 
+## Raw API Requests
+
+`cycode platform api` sends a raw authenticated request to any Cycode REST endpoint — including endpoints the spec does not expose as a generated command, and writes (`post`, `put`). It is the escape hatch for scripts: you supply the method, path, and body, and the CLI handles authentication.
+
+```bash
+cycode platform api <get|post|put> <PATH> [-q KEY=VALUE]... [-H "KEY: VALUE"]... [-d JSON]
+```
+
+Credentials come from the CLI itself — `cycode auth`, the `CYCODE_CLIENT_ID` / `CYCODE_CLIENT_SECRET` (or `CYCODE_ID_TOKEN`) environment variables, or the global `--client-id` / `--client-secret` / `--id-token` options. The CLI mints and refreshes the access token for you, so scripts never handle tokens — your credentials and access token are never printed. Note that `-v` / `--verbose` logs full response bodies to stderr, so avoid it in shared CI logs when the endpoint returns sensitive data.
+
+```bash
+# GET with query parameters (repeat a key to send multiple values)
+cycode platform api get v4/projects -q page-size=5
+cycode platform api get v4/violations -q severity=High -q severity=Critical
+
+# POST a JSON body — inline, from a file, or from stdin
+cycode platform api post v4/some/resource -d '{"name": "example"}'
+cycode platform api post v4/some/resource -d @body.json
+cat body.json | cycode platform api put v4/some/resource -d -
+
+# Pipe through jq like any other platform command
+cycode platform api get v4/projects -q page-size=100 | jq '.items[].name'
+```
+
+The response body is printed as formatted JSON (non-JSON bodies are printed as-is). On an HTTP error the status and response body go to stderr and the command exits non-zero, so `set -e` scripts fail as expected. `PATH` must be a v4 API path such as `v4/projects` (or `api/v4/...`), not a full URL — use `cycode configure` to point the CLI at a different Cycode installation. The `Authorization` header is owned by the CLI and cannot be overridden. Unlike the generated commands, `cycode platform api` never fetches the OpenAPI spec.
+
+> [!NOTE]
+> `-v` / `--verbose` logs the outgoing request and the response, which is the quickest way to debug an unexpected status code.
+
 ## Platform Examples
 
 ```bash
@@ -696,7 +726,7 @@ cycode platform projects list --page-size 100 | jq '.items[].name'
 
 ## Platform Notes & Limitations
 
-- **Read-only today.** Only `GET` endpoints are exposed in this beta.
+- **Generated commands are read-only.** Only `GET` endpoints are turned into commands in this beta. For writes, use [`cycode platform api`](#raw-api-requests) with `post` or `put`.
 - **Spec-driven.** Adding a new endpoint to the API surfaces it automatically the next time the cache is refreshed.
 - **No bundled spec.** The first `cycode platform` invocation after install (or after the 24h cache expires) performs a network fetch. On slow connections this first call may take a few seconds; subsequent calls are near-instant until the cache expires.
 - **Override the cache TTL** with `CYCODE_SPEC_CACHE_TTL=<seconds>`.

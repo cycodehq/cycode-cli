@@ -60,10 +60,19 @@ class PlatformGroup(click.Group):
         return super().list_commands(ctx)
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> Optional[click.Command]:
+        # Statically registered commands (like `api`) must not trigger a spec fetch.
+        if cmd_name in self.commands:
+            return super().get_command(ctx, cmd_name)
+
         self._ensure_loaded(ctx)
         return super().get_command(ctx, cmd_name)
 
 
 def get_platform_group() -> click.Group:
     """Return the top-level `platform` Click group (lazy-loading)."""
-    return PlatformGroup(name='platform', help=_PLATFORM_HELP, no_args_is_help=True)
+    from cycode.cli.apps.api.raw_api_command import build_raw_api_command
+
+    group = PlatformGroup(name='platform', help=_PLATFORM_HELP, no_args_is_help=True)
+    # The raw request escape hatch is registered statically: it needs no OpenAPI spec.
+    group.add_command(build_raw_api_command(), 'api')
+    return group

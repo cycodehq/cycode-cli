@@ -7,6 +7,7 @@ from cycode.cyclient.ai_security_manager_service_config import (
 )
 from cycode.cyclient.config import dev_mode
 from cycode.cyclient.config_dev import DEV_CYCODE_API_URL
+from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.cycode_dev_based_client import CycodeDevBasedClient
 from cycode.cyclient.cycode_oidc_based_client import CycodeOidcBasedClient
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
@@ -54,6 +55,17 @@ def create_import_sbom_client(
     else:
         client = CycodeTokenBasedClient(client_id, client_secret)
     return ImportSbomClient(client)
+
+
+def create_raw_api_client(
+    client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
+) -> CycodeClientBase:
+    """Create an authenticated client without any service wrapper, for raw API requests."""
+    if dev_mode:
+        return CycodeDevBasedClient(DEV_CYCODE_API_URL)
+    if id_token:
+        return CycodeOidcBasedClient(client_id, id_token)
+    return CycodeTokenBasedClient(client_id, client_secret)
 
 
 def create_ai_security_manager_client(

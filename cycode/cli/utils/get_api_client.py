@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Callable, Optional, TypeVar, Union
 
 import click
 
@@ -6,6 +6,7 @@ from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cyclient.client_creator import (
     create_ai_security_manager_client,
     create_import_sbom_client,
+    create_raw_api_client,
     create_report_client,
     create_scan_client,
 )
@@ -14,18 +15,21 @@ if TYPE_CHECKING:
     import typer
 
     from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
+    from cycode.cyclient.cycode_client_base import CycodeClientBase
     from cycode.cyclient.import_sbom_client import ImportSbomClient
     from cycode.cyclient.report_client import ReportClient
     from cycode.cyclient.scan_client import ScanClient
 
+_ClientT = TypeVar('_ClientT')
+
 
 def _get_cycode_client(
-    create_client_func: callable,
+    create_client_func: Callable[..., _ClientT],
     client_id: Optional[str],
     client_secret: Optional[str],
     hide_response_log: bool,
     id_token: Optional[str] = None,
-) -> Union['ScanClient', 'ReportClient', 'ImportSbomClient', 'AISecurityManagerClient']:
+) -> _ClientT:
     if client_id and id_token:
         return create_client_func(client_id, None, hide_response_log, id_token)
 
@@ -73,6 +77,14 @@ def get_ai_security_manager_client(ctx: 'typer.Context', hide_response_log: bool
     client_secret = ctx.obj.get('client_secret')
     id_token = ctx.obj.get('id_token')
     return _get_cycode_client(create_ai_security_manager_client, client_id, client_secret, hide_response_log, id_token)
+
+
+def get_raw_api_client(ctx: Union['typer.Context', click.Context]) -> 'CycodeClientBase':
+    client_id = ctx.obj.get('client_id') if ctx.obj else None
+    client_secret = ctx.obj.get('client_secret') if ctx.obj else None
+    id_token = ctx.obj.get('id_token') if ctx.obj else None
+    # hide_response_log is unused by create_raw_api_client: raw responses are the command's output
+    return _get_cycode_client(create_raw_api_client, client_id, client_secret, True, id_token)
 
 
 def _get_configured_credentials() -> tuple[str, str]:
