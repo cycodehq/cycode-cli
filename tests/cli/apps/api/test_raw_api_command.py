@@ -1,5 +1,6 @@
 """Tests for the raw API passthrough command (`cycode platform api`)."""
 
+import contextlib
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -19,7 +20,34 @@ from cycode.cli.apps.api.raw_api_command import (
 from tests.conftest import CLI_ENV_VARS
 
 if TYPE_CHECKING:
+    from click.testing import Result
+
     from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
+
+
+# The on-close update check requests PyPI (VersionChecker.PYPI_REQUEST_TIMEOUT = 1),
+# which would otherwise show up in responses.calls and pollute request assertions.
+_ROOT_ARGS = ['--no-update-notifier']
+
+
+def _all_output(result: 'Result') -> str:
+    """Combine stdout and stderr.
+
+    Click 8.1 mixes stderr into `output`, while Click 8.2+ captures it separately.
+    """
+    parts = [result.output]
+    with contextlib.suppress(AttributeError, ValueError):
+        parts.append(result.stderr)  # raises when stderr was mixed into output already
+
+    return ''.join(parts)
+
+
+def _find_call(url: str) -> responses.Call:
+    """Find the recorded request for a URL, ignoring auth and version-check traffic."""
+    matching = [call for call in responses.calls if call.request.url.split('?')[0] == url]
+    assert matching, f'no recorded request for {url}. Recorded: {[c.request.url for c in responses.calls]}'
+    return matching[-1]
+
 
 # --- _validate_path ---
 
@@ -144,7 +172,7 @@ def test_raw_api_get_prints_json(
         )
     )
 
-    result = CliRunner().invoke(app, ['platform', 'api', 'get', 'v4/projects'], env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, [*_ROOT_ARGS, 'platform', 'api', 'get', 'v4/projects'], env=CLI_ENV_VARS)
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == {'items': [{'id': '1'}]}
@@ -164,11 +192,11 @@ def test_raw_api_get_sends_query_params(
         )
     )
 
-    args = ['platform', 'api', 'get', '/v4/violations', '-q', 'severity=High', '-q', 'severity=Critical']
+    args = [*_ROOT_ARGS, 'platform', 'api', 'get', '/v4/violations', '-q', 'severity=High', '-q', 'severity=Critical']
     result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     assert result.exit_code == 0, result.output
-    request_url = responses.calls[-1].request.url
+    request_url = _find_call(f'{token_based_client.api_url}/v4/violations').request.url
     assert 'severity=High' in request_url
     assert 'severity=Critical' in request_url
 
@@ -187,11 +215,12 @@ def test_raw_api_post_sends_body(
         )
     )
 
-    args = ['platform', 'api', 'post', 'v4/sbom/import', '-d', '{"name": "test"}']
+    args = [*_ROOT_ARGS, 'platform', 'api', 'post', 'v4/sbom/import', '-d', '{"name": "test"}']
     result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     assert result.exit_code == 0, result.output
-    assert json.loads(responses.calls[-1].request.body) == {'name': 'test'}
+    request = _find_call(f'{token_based_client.api_url}/v4/sbom/import').request
+    assert json.loads(request.body) == {'name': 'test'}
 
 
 @responses.activate
@@ -208,11 +237,11 @@ def test_raw_api_sends_additional_header(
         )
     )
 
-    args = ['platform', 'api', 'get', 'v4/projects', '-H', 'X-Foo: bar']
+    args = [*_ROOT_ARGS, 'platform', 'api', 'get', 'v4/projects', '-H', 'X-Foo: bar']
     result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     assert result.exit_code == 0, result.output
-    request_headers = responses.calls[-1].request.headers
+    request_headers = _find_call(f'{token_based_client.api_url}/v4/projects').request.headers
     assert request_headers['X-Foo'] == 'bar'
     assert request_headers['Authorization'].startswith('Bearer ')
 
@@ -231,11 +260,12 @@ def test_raw_api_put_reads_body_from_stdin(
         )
     )
 
-    args = ['platform', 'api', 'put', 'v4/some/resource', '-d', '-']
+    args = [*_ROOT_ARGS, 'platform', 'api', 'put', 'v4/some/resource', '-d', '-']
     result = CliRunner().invoke(app, args, env=CLI_ENV_VARS, input='{"from": "stdin"}')
 
     assert result.exit_code == 0, result.output
-    assert json.loads(responses.calls[-1].request.body) == {'from': 'stdin'}
+    request = _find_call(f'{token_based_client.api_url}/v4/some/resource').request
+    assert json.loads(request.body) == {'from': 'stdin'}
 
 
 @responses.activate
@@ -252,11 +282,12 @@ def test_raw_api_timeout_option_is_forwarded(
         )
     )
 
-    args = ['platform', 'api', 'get', 'v4/projects', '--timeout', '7']
+    args = [*_ROOT_ARGS, 'platform', 'api', 'get', 'v4/projects', '--timeout', '7']
     result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     assert result.exit_code == 0, result.output
-    assert responses.calls[-1].request.req_kwargs['timeout'] == 7
+    request = _find_call(f'{token_based_client.api_url}/v4/projects').request
+    assert request.req_kwargs['timeout'] == 7
 
 
 @responses.activate
@@ -273,7 +304,7 @@ def test_raw_api_non_json_response_prints_text(
         )
     )
 
-    result = CliRunner().invoke(app, ['platform', 'api', 'get', 'v4/plain'], env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, [*_ROOT_ARGS, 'platform', 'api', 'get', 'v4/plain'], env=CLI_ENV_VARS)
 
     assert result.exit_code == 0, result.output
     assert 'plain text' in result.output
@@ -293,28 +324,29 @@ def test_raw_api_http_error_exits_non_zero(
         )
     )
 
-    result = CliRunner().invoke(app, ['platform', 'api', 'get', 'v4/does-not-exist'], env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, [*_ROOT_ARGS, 'platform', 'api', 'get', 'v4/does-not-exist'], env=CLI_ENV_VARS)
 
     assert result.exit_code != 0
-    assert '404' in result.output
+    assert '404' in _all_output(result)
 
 
 @pytest.mark.parametrize('path', ['https://evil.example/v4/x', 'projects'])
 def test_raw_api_rejects_non_api_path(path: str) -> None:
-    result = CliRunner().invoke(app, ['platform', 'api', 'get', path], env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, [*_ROOT_ARGS, 'platform', 'api', 'get', path], env=CLI_ENV_VARS)
 
     assert result.exit_code != 0
-    assert 'must be a versioned API path' in result.output
+    assert 'must be a versioned API path' in _all_output(result)
 
 
 def test_raw_api_rejects_data_with_get() -> None:
-    result = CliRunner().invoke(app, ['platform', 'api', 'get', 'v4/projects', '-d', '{}'], env=CLI_ENV_VARS)
+    args = [*_ROOT_ARGS, 'platform', 'api', 'get', 'v4/projects', '-d', '{}']
+    result = CliRunner().invoke(app, args, env=CLI_ENV_VARS)
 
     assert result.exit_code != 0
-    assert '--data is not supported' in result.output
+    assert '--data is not supported' in _all_output(result)
 
 
 def test_raw_api_rejects_unsupported_method() -> None:
-    result = CliRunner().invoke(app, ['platform', 'api', 'delete', 'v4/projects'], env=CLI_ENV_VARS)
+    result = CliRunner().invoke(app, [*_ROOT_ARGS, 'platform', 'api', 'delete', 'v4/projects'], env=CLI_ENV_VARS)
 
     assert result.exit_code != 0
