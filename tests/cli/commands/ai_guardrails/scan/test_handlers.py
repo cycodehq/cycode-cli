@@ -7,10 +7,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from cycode.cli.apps.ai_guardrails.consts import GuardrailsMode
 from cycode.cli.apps.ai_guardrails.ides.base import DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.handlers import (
     _perform_scan,
     _scan_path_for_secrets,
+    _scan_text_for_secrets,
+    build_ai_guardrails_scan_parameters,
+    get_effective_mode,
     handle_before_mcp_execution,
     handle_before_read_file,
     handle_before_submit_prompt,
@@ -359,18 +363,26 @@ def test_handle_before_read_file_sensitive_path_scan_disabled_warns(
     assert call_args.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
 
 
-def test_scan_path_for_secrets_directory(mock_ctx: MagicMock, default_policy: dict[str, Any], fs: Any) -> None:
+def test_scan_path_for_secrets_directory(
+    mock_ctx: MagicMock, default_policy: dict[str, Any], mock_payload: AIHookPayload, fs: Any
+) -> None:
     """Test that _scan_path_for_secrets returns (None, None) for directories."""
     fs.create_dir('/path/to/some_directory')
 
-    result = _scan_path_for_secrets(mock_ctx, '/path/to/some_directory', default_policy)
+    result = _scan_path_for_secrets(
+        mock_ctx, '/path/to/some_directory', default_policy, payload=mock_payload, effective_mode=GuardrailsMode.BLOCK
+    )
 
     assert result == (None, None)
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan')
 def test_scan_path_for_secrets_skips_path_configured_in_exclusions(
-    mock_perform_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any], fs: Any
+    mock_perform_scan: MagicMock,
+    mock_ctx: MagicMock,
+    default_policy: dict[str, Any],
+    mock_payload: AIHookPayload,
+    fs: Any,
 ) -> None:
     """Test that a path ignored via `cycode ignore --by-path` is not scanned."""
     # `cycode ignore --by-path` stores absolute paths; on Windows that includes the drive prefix
@@ -383,7 +395,9 @@ def test_scan_path_for_secrets_skips_path_configured_in_exclusions(
         'cycode.cli.files_collector.file_excluder.configuration_manager.get_exclusions_by_scan_type',
         return_value={'paths': [excluded_dir]},
     ):
-        result = _scan_path_for_secrets(mock_ctx, file_path, default_policy)
+        result = _scan_path_for_secrets(
+            mock_ctx, file_path, default_policy, payload=mock_payload, effective_mode=GuardrailsMode.BLOCK
+        )
 
     assert result == (None, None)
     mock_perform_scan.assert_not_called()
@@ -512,3 +526,62 @@ def test_handle_before_mcp_execution_scan_disabled(
 
     assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
     mock_scan.assert_not_called()
+
+
+def test_get_effective_mode_block_only_when_both_mode_and_action_block() -> None:
+    """The event blocks only when both the global mode and the per-guardrail action are block."""
+    assert get_effective_mode({'mode': 'block'}, {'action': 'block'}) == GuardrailsMode.BLOCK
+    assert get_effective_mode({'mode': 'block'}, {'action': 'warn'}) == GuardrailsMode.REPORT
+    assert get_effective_mode({'mode': 'warn'}, {'action': 'block'}) == GuardrailsMode.REPORT
+    assert get_effective_mode({'mode': 'warn'}, {'action': 'warn'}) == GuardrailsMode.REPORT
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.get_serial_number', return_value='SER-123')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.get_hostname', return_value='test-host')
+def test_build_ai_guardrails_scan_parameters(
+    mock_hostname: MagicMock, mock_serial: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload
+) -> None:
+    """The built scan parameters embed the full hook context alongside the standard scan parameters."""
+    mock_ctx.info_name = 'ai_guardrails'
+
+    params = build_ai_guardrails_scan_parameters(
+        mock_ctx, None, mock_payload, AiHookEventType.PROMPT, effective_mode=GuardrailsMode.REPORT
+    )
+
+    assert params['command_type'] == 'ai_guardrails'
+    assert params['metadata']['ai_guardrails'] == {
+        'mode': 'report',
+        'ide_provider': 'cursor',
+        'detection_source': 'secrets_in_prompt',
+        'device_id': 'SER-123',
+        'device_hostname': 'test-host',
+        'conversation_id': 'test-conv-id',
+        'generation_id': 'test-gen-id',
+        'ide_user_email': 'test@example.com',
+        'mcp_server_name': None,
+        'mcp_tool_name': None,
+    }
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan')
+def test_scan_text_for_secrets_injects_ai_guardrails_scan_parameter(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload
+) -> None:
+    """The scan parameters sent to the server include the ai_guardrails context."""
+    mock_ctx.obj['progress_bar'] = MagicMock()
+    mock_perform_scan.return_value = (None, 'scan-id-123')
+
+    _scan_text_for_secrets(
+        mock_ctx,
+        'some text',
+        1000,
+        payload=mock_payload,
+        event_type=AiHookEventType.PROMPT,
+        effective_mode=GuardrailsMode.REPORT,
+    )
+
+    ai_guardrails = mock_perform_scan.call_args.args[2]['metadata']['ai_guardrails']
+    assert ai_guardrails['mode'] == 'report'
+    assert ai_guardrails['detection_source'] == 'secrets_in_prompt'
+    assert ai_guardrails['conversation_id'] == 'test-conv-id'
+    assert ai_guardrails['generation_id'] == 'test-gen-id'

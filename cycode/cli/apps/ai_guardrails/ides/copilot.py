@@ -333,9 +333,7 @@ class Copilot(IDE):
         return {
             'version': 1,
             'hooks': {
-                'sessionStart': [
-                    {'type': 'command', 'command': _SESSION_START_COMMAND, 'timeoutSec': _HOOK_TIMEOUT_SEC}
-                ],
+                'sessionStart': [{'type': 'command', 'command': _SESSION_START_COMMAND}],
                 'userPromptSubmitted': [entry(_SCAN_PROMPT_COMMAND)],
                 'preToolUse': [entry(_SCAN_TOOL_COMMAND)],
             },

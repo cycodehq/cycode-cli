@@ -6,7 +6,7 @@ from typing import Annotated, Optional
 import typer
 
 from cycode.cli.apps.ai_guardrails.command_utils import console, resolve_repo_path, validate_scope
-from cycode.cli.apps.ai_guardrails.consts import InstallMode, PolicyMode
+from cycode.cli.apps.ai_guardrails.consts import GuardrailsMode, PolicyMode
 from cycode.cli.apps.ai_guardrails.hooks_manager import create_policy_file, install_hooks
 from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, IDES, resolve_ides
 
@@ -40,14 +40,14 @@ def install_command(
         ),
     ] = None,
     mode: Annotated[
-        InstallMode,
+        GuardrailsMode,
         typer.Option(
             '--mode',
             '-m',
             help='Installation mode: "report" for async non-blocking hooks with warn policy, '
             '"block" for sync blocking hooks.',
         ),
-    ] = InstallMode.REPORT,
+    ] = GuardrailsMode.REPORT,
 ) -> None:
     """Install AI guardrails hooks for supported IDEs.
 
@@ -65,7 +65,7 @@ def install_command(
     repo_path = resolve_repo_path(scope, repo_path)
     ides_to_install = resolve_ides(ide)
 
-    report_mode = mode == InstallMode.REPORT
+    report_mode = mode == GuardrailsMode.REPORT
 
     results: list[tuple[str, bool, str]] = []
     for current_ide in ides_to_install:
@@ -83,7 +83,7 @@ def install_command(
             all_success = False
 
     if any_success:
-        policy_mode = PolicyMode.WARN if mode == InstallMode.REPORT else PolicyMode.BLOCK
+        policy_mode = PolicyMode.WARN if mode == GuardrailsMode.REPORT else PolicyMode.BLOCK
         _install_policy(scope, repo_path, policy_mode)
         _print_next_steps(results, mode)
 
@@ -99,7 +99,7 @@ def _install_policy(scope: str, repo_path: Optional[Path], policy_mode: PolicyMo
         console.print(f'[red]✗[/] {policy_message}', style='bold red')
 
 
-def _print_next_steps(results: list[tuple[str, bool, str]], mode: InstallMode) -> None:
+def _print_next_steps(results: list[tuple[str, bool, str]], mode: GuardrailsMode) -> None:
     console.print()
     console.print('[bold]Next steps:[/]')
     successful_ides = [name for name, success, _ in results if success]
@@ -107,7 +107,7 @@ def _print_next_steps(results: list[tuple[str, bool, str]], mode: InstallMode) -
     console.print(f'1. Restart {ide_list} to activate the hooks')
     console.print('2. (Optional) Customize policy in ~/.cycode/ai-guardrails.yaml')
     console.print()
-    if mode == InstallMode.REPORT:
+    if mode == GuardrailsMode.REPORT:
         console.print('[dim]Report mode: hooks run async (non-blocking) and policy is set to warn.[/]')
     else:
         console.print('[dim]The hooks will scan prompts, file reads, and MCP tool calls for secrets.[/]')
