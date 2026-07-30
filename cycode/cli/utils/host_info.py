@@ -1,4 +1,5 @@
 import getpass
+import os
 import platform
 import re
 import socket
@@ -12,6 +13,8 @@ from cycode.logger import get_logger
 logger = get_logger('HOST INFO')
 
 _SUBPROCESS_TIMEOUT_SEC = 5
+
+_SERIAL_NUMBER_CACHE_FILE_NAME = '.cycode-device-serial'
 
 _PLATFORM_NAMES = {'Darwin': 'macOS', 'Windows': 'Windows', 'Linux': 'Linux'}
 
@@ -134,8 +137,21 @@ def _read_serial_number_cache() -> Optional[str]:
 def _write_serial_number_cache(serial: str) -> None:
     try:
         cache_path = _serial_number_cache_path()
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(serial, encoding='utf-8')
+
+        # The serial identifies the machine, and the temp dir is shared, so the cache is created
+        # readable by its owner alone (what mkstemp does) and moved into place atomically - a hook
+        # racing another one never reads a half-written cache, and the rename can't be redirected
+        # by a symlink planted at the destination the way an in-place write could.
+        file_descriptor, temp_path = tempfile.mkstemp(
+            dir=cache_path.parent, prefix=f'{_SERIAL_NUMBER_CACHE_FILE_NAME}.'
+        )
+        try:
+            with os.fdopen(file_descriptor, 'w', encoding='utf-8') as temp_file:
+                temp_file.write(serial)
+            os.replace(temp_path, cache_path)
+        except Exception:
+            Path(temp_path).unlink(missing_ok=True)
+            raise
     except Exception as e:
         logger.debug('Failed to cache serial number', exc_info=e)
 

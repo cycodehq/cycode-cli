@@ -26,7 +26,9 @@ This guide walks you through both installation and usage.
     1. [Discovering Commands](#discovering-commands)
     2. [Examples](#platform-examples)
     3. [Notes & Limitations](#platform-notes--limitations)
-6. [Scan Command](#scan-command)
+6. [AI Guardrails](#ai-guardrails-beta)
+    1. [Data Collected by AI Guardrails](#data-collected-by-ai-guardrails)
+7. [Scan Command](#scan-command)
     1. [Running a Scan](#running-a-scan)
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
@@ -700,6 +702,32 @@ cycode platform projects list --page-size 100 | jq '.items[].name'
 - **Spec-driven.** Adding a new endpoint to the API surfaces it automatically the next time the cache is refreshed.
 - **No bundled spec.** The first `cycode platform` invocation after install (or after the 24h cache expires) performs a network fetch. On slow connections this first call may take a few seconds; subsequent calls are near-instant until the cache expires.
 - **Override the cache TTL** with `CYCODE_SPEC_CACHE_TTL=<seconds>`.
+
+
+# AI Guardrails \[BETA\]
+
+AI Guardrails installs hooks into supported AI coding agents (Claude Code, Cursor, Copilot, Codex) so that
+prompts, files the agent reads, and MCP tool arguments are scanned for secrets before they reach the model.
+
+## Data Collected by AI Guardrails
+
+Scanning happens server-side, so the scanned content leaves the machine: the prompt text, the contents of
+files the agent reads, and MCP tool arguments are sent to your Cycode tenant to be checked for secrets.
+
+Each event is also reported with context about the developer and the machine, so a finding can be attributed
+to the device and user it came from. Some of this is personal data:
+
+- **Device identifiers** — the machine's hostname and hardware serial number.
+- **User identifiers** — the email address of the user signed in to the AI coding agent, and the local
+  operating-system username.
+- **Environment details** — operating system and version, the AI agent, its version and the model in use,
+  the contents of the agent's MCP configuration files, and its enabled plugins.
+
+The hardware serial number is cached in a local temporary file, readable only by the user who ran the
+command, so repeated hook invocations don't re-query the hardware.
+
+If collecting this data is not acceptable in your environment, do not install the guardrails hooks
+(`cycode ai-guardrails uninstall` removes hooks that are already installed).
 
 
 # Scan Command
