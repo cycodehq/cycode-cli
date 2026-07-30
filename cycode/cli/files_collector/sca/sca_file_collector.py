@@ -17,6 +17,7 @@ from cycode.cli.files_collector.sca.npm.restore_pnpm_dependencies import Restore
 from cycode.cli.files_collector.sca.npm.restore_yarn_dependencies import RestoreYarnDependencies
 from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
 from cycode.cli.files_collector.sca.php.restore_composer_dependencies import RestoreComposerDependencies
+from cycode.cli.files_collector.sca.python.restore_pip_dependencies import RestorePipDependencies
 from cycode.cli.files_collector.sca.python.restore_pipenv_dependencies import RestorePipenvDependencies
 from cycode.cli.files_collector.sca.python.restore_poetry_dependencies import RestorePoetryDependencies
 from cycode.cli.files_collector.sca.python.restore_uv_dependencies import RestoreUvDependencies
@@ -164,6 +165,7 @@ def _get_restore_handlers(ctx: typer.Context, is_git_diff: bool) -> list[BaseRes
         RestoreRubyDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreUvDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be before Poetry for pyproject.toml
         RestorePoetryDependencies(ctx, is_git_diff, build_dep_tree_timeout),
+        RestorePipDependencies(ctx, is_git_diff, build_dep_tree_timeout),  # Must be after Uv & Poetry (pyproject.toml)
         RestorePipenvDependencies(ctx, is_git_diff, build_dep_tree_timeout),
         RestoreComposerDependencies(ctx, is_git_diff, build_dep_tree_timeout),
     ]

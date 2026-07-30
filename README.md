@@ -1,5 +1,7 @@
 # Cycode CLI User Guide
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fcycodehq%2Fcycode-cli.svg)](https://mcptoplist.com/server/glama%2Fcycodehq%2Fcycode-cli)
+
 The Cycode Command Line Interface (CLI) is an application you can install locally to scan your repositories for secrets, infrastructure as code misconfigurations, software composition analysis vulnerabilities, and static application security testing issues.
 
 This guide walks you through both installation and usage.
@@ -842,6 +844,7 @@ The following ecosystems support automatic lockfile restoration:
 | NuGet | `*.csproj` | `packages.lock.json` | `dotnet restore --use-lock-file` |
 | Ruby | `Gemfile` | `Gemfile.lock` | `bundle --quiet` |
 | Poetry | `pyproject.toml` | `poetry.lock` | `poetry lock` |
+| pip | `pyproject.toml` / `requirements.txt` | `pylock.toml` | `pip lock .` / `pip lock -r requirements.txt -o pylock.toml` |
 | Pipenv | `Pipfile` | `Pipfile.lock` | `pipenv lock` |
 | PHP Composer | `composer.json` | `composer.lock` | `composer update --no-cache --no-install --no-scripts --ignore-platform-reqs` |
 

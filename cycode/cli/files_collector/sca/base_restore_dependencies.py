@@ -40,6 +40,9 @@ def execute_commands(
 
         for command in commands:
             command_output = shell(command=command, timeout=timeout, working_directory=working_directory)
+            if command_output is None:  # shell returns None when the command exited non-zero
+                logger.debug('Restore command failed, %s', {'command': command})
+                return None
             if command_output:
                 outputs.append(command_output)
 
