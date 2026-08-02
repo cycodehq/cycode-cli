@@ -16,6 +16,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     collect_commit_range_diff_documents,
     get_diff_file_path,
     get_safe_head_reference_for_diff,
+    get_staged_diff_index,
     parse_commit_range,
     parse_pre_push_input,
     parse_pre_receive_input,
@@ -85,12 +86,14 @@ class TestIndexDiffWithSafeHeadReference:
 
             repo.index.add(['staged_file.py'])
 
-            head_ref = get_safe_head_reference_for_diff(repo)
-            diff_index = repo.index.diff(head_ref, create_patch=True, R=True)
+            head_ref, diff_index = get_staged_diff_index(repo)
 
+            assert head_ref == consts.GIT_EMPTY_TREE_OBJECT
             assert len(diff_index) == 1
             diff = diff_index[0]
             assert diff.b_path == 'staged_file.py'
+            # staged content must be an addition, not a removal
+            assert b"+print('staged content')" in diff.diff
 
     def test_index_diff_works_on_repository_with_commits(self) -> None:
         """Test that index.diff continues to work on repositories with existing commits."""
@@ -111,14 +114,17 @@ class TestIndexDiffWithSafeHeadReference:
 
             repo.index.add(['new_file.py', 'initial.py'])
 
-            head_ref = get_safe_head_reference_for_diff(repo)
-            diff_index = repo.index.diff(head_ref, create_patch=True, R=True)
+            head_ref, diff_index = get_staged_diff_index(repo)
 
             assert len(diff_index) == 2
             file_paths = {diff.b_path or diff.a_path for diff in diff_index}
             assert 'new_file.py' in file_paths
             assert 'initial.py' in file_paths
             assert head_ref == consts.GIT_HEAD_COMMIT_REV
+            # staged content must be additions, not removals
+            patches = b''.join(diff.diff for diff in diff_index)
+            assert b"+print('new file')" in patches
+            assert b"+print('modified initial')" in patches
 
     def test_sequential_operations_on_same_repository(self) -> None:
         """Test behavior when transitioning from bare to committed repository."""
@@ -129,8 +135,7 @@ class TestIndexDiffWithSafeHeadReference:
 
             repo.index.add(['test.py'])
 
-            head_ref_before = get_safe_head_reference_for_diff(repo)
-            diff_before = repo.index.diff(head_ref_before, create_patch=True, R=True)
+            head_ref_before, diff_before = get_staged_diff_index(repo)
 
             expected_empty_tree = consts.GIT_EMPTY_TREE_OBJECT
             assert head_ref_before == expected_empty_tree
@@ -144,8 +149,7 @@ class TestIndexDiffWithSafeHeadReference:
 
             repo.index.add(['new.py'])
 
-            head_ref_after = get_safe_head_reference_for_diff(repo)
-            diff_after = repo.index.diff(head_ref_after, create_patch=True, R=True)
+            head_ref_after, diff_after = get_staged_diff_index(repo)
 
             assert head_ref_after == consts.GIT_HEAD_COMMIT_REV
             assert len(diff_after) == 1
@@ -167,8 +171,7 @@ def test_git_mv_pre_commit_scan() -> None:
         repo.index.remove(['NEWFILE.txt'])
         repo.index.add(['RENAMED.txt'])
 
-        head_ref = get_safe_head_reference_for_diff(repo)
-        diff_index = repo.index.diff(head_ref, create_patch=True, R=True)
+        _, diff_index = get_staged_diff_index(repo)
 
         for diff in diff_index:
             file_path = get_path_by_os(get_diff_file_path(diff, repo=repo))
