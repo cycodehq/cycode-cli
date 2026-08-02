@@ -247,6 +247,11 @@ jobs:
           msiexec /i smtools-windows-x64.msi /quiet /qn
           C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
 
+          :: TODO(CM-70024): temporary diagnostics, remove before merge
+          smctl healthcheck --all
+          smctl keypair ls
+          smctl certificate ls
+
           :: certsync without an alias only syncs the first keypair the account returns,
           :: so the alias is required to get the current signing cert into the store
           smctl windows certsync --keypair-alias=%SM_KEYPAIR_ALIAS%
