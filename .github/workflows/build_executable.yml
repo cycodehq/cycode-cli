@@ -221,8 +221,7 @@ jobs:
       - name: Import cert for Windows and setup envs
         if: runner.os == 'Windows'
         env:
-          # TODO(CM-70024): revert to the non-_NEW secrets once the service account is confirmed working
-          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64_NEW }}
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
         run: |
           # import certificate
           echo "$SM_CLIENT_CERT_FILE_B64" | base64 --decode > /d/Certificate_pkcs12.p12 
@@ -237,18 +236,15 @@ jobs:
         shell: cmd
         env:
           SM_HOST: ${{ secrets.SM_HOST }}
-          # TODO(CM-70024): revert to the non-_NEW secrets once the new cert and service account are confirmed working
-          SM_API_KEY: ${{ secrets.SM_API_KEY_NEW }}
-          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD_NEW }}
-          SM_KEYPAIR_ALIAS: ${{ secrets.SM_KEYPAIR_ALIAS_NEW }}
-          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH_NEW }}
+          SM_KEYPAIR_ALIAS: ${{ secrets.SM_KEYPAIR_ALIAS }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
         run: |
           :: setup SSM KSP
           curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" -o smtools-windows-x64.msi
           msiexec /i smtools-windows-x64.msi /quiet /qn
           C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
-          :: TODO(CM-70024): temporary, remove before merge — confirms which identity signs
-          smctl healthcheck --all
 
           :: certsync only syncs keypairs the calling identity has signing access to, so the
           :: identity behind SM_API_KEY must be a signer on the certificate for this alias
@@ -264,10 +260,9 @@ jobs:
         shell: powershell
         env:
           SM_HOST: ${{ secrets.SM_HOST }}
-          # TODO(CM-70024): revert to the non-_NEW secrets once the new cert and service account are confirmed working
-          SM_API_KEY: ${{ secrets.SM_API_KEY_NEW }}
-          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD_NEW }}
-          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH_NEW }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
         run: |
           # Vendor binaries (PSF-signed stdlib .pyds, python3xx.dll, Microsoft VC runtime) already
           # carry valid signatures; re-signing would replace them with ours. Sign only the unsigned
