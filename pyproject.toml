@@ -36,13 +36,15 @@ version = "0.0.0" # DON'T TOUCH. Placeholder. Will be filled automatically on po
 click = ">=8.1.0,<8.2.0"
 colorama = ">=0.4.3,<0.5.0"
 pyyaml = ">=6.0,<7.0"
-marshmallow = ">=3.15.0,<4.0.0"
-gitpython = ">=3.1.50,<3.2.0"
+# capped while we support Python 3.9
+marshmallow = ">=4.0.1,<4.1.0"
+# floor required by get_staged_diff_index()
+gitpython = ">=3.1.51,<3.2.0"
 arrow = ">=1.0.0,<1.5.0"
 requests = ">=2.32.4,<3.0"
 urllib3 = ">=2.4.0,<3.0.0"
 pyjwt = ">=2.8.0,<3.0"
-rich = ">=13.9.4, <14"
+rich = ">=15.0.0,<16.0.0"
 patch-ng = "1.19.1"
 typer = "^0.15.3"
 tenacity = ">=9.1.2,<9.2.0"

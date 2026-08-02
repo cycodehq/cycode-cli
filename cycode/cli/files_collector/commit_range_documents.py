@@ -15,7 +15,7 @@ from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
-    from git import Diff, Repo
+    from git import Diff, DiffIndex, Repo
 
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
@@ -45,6 +45,23 @@ def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
         # Repository has no commits, use the universal empty tree hash
         # This is the standard Git approach for initial commits
         return consts.GIT_EMPTY_TREE_OBJECT
+
+
+def get_staged_diff_index(repo: 'Repo') -> tuple[str, 'DiffIndex']:
+    """Diff the index against HEAD, or against the empty tree in repositories with no commits.
+
+    GitPython only inverts the `R` flag for HEAD, so `R` must be off for the empty tree to keep
+    staged content showing up as added lines in both cases.
+
+    Args:
+        repo: Git repository object
+
+    Returns:
+        The reference that was diffed against, and the resulting diff index
+    """
+    head_reference = get_safe_head_reference_for_diff(repo)
+    reverse = head_reference == consts.GIT_HEAD_COMMIT_REV
+    return head_reference, repo.index.diff(head_reference, create_patch=True, R=reverse)
 
 
 def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: Optional[int]) -> bool:
@@ -411,8 +428,7 @@ def get_pre_commit_modified_documents(
     diff_documents = []
 
     repo = git_proxy.get_repo(repo_path)
-    head_reference = get_safe_head_reference_for_diff(repo)
-    diff_index = repo.index.diff(head_reference, create_patch=True, R=True)
+    head_reference, diff_index = get_staged_diff_index(repo)
     progress_bar.set_section_length(progress_bar_section, len(diff_index))
     for diff in diff_index:
         progress_bar.update(progress_bar_section)
