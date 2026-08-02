@@ -248,9 +248,13 @@ jobs:
           C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
 
           :: TODO(CM-70024): temporary diagnostics, remove before merge
-          smctl healthcheck --all
-          smctl keypair ls
-          smctl certificate ls
+          smctl windows certsync --help
+          echo ==== hardcoded keypair alias ====
+          smctl windows certsync --keypair-alias=key_1534117339
+          echo ==== certificate alias ====
+          smctl windows certsync --keypair-alias=cert_1534117339
+          echo ==== windows store contents ====
+          C:\Windows\System32\certutil.exe -user -store My
 
           :: certsync without an alias only syncs the first keypair the account returns,
           :: so the alias is required to get the current signing cert into the store
