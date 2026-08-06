@@ -58,15 +58,6 @@ jobs:
           LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
           git checkout $LATEST_TAG
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-
-      - name: Upgrade OpenSSL on macOS Builder
-        if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew upgrade openssl@3
-          OPENSSL_LIB="$(brew --prefix openssl@3)/lib"
-          echo "DYLD_LIBRARY_PATH=$OPENSSL_LIB:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
-          echo "DYLD_FALLBACK_LIBRARY_PATH=$OPENSSL_LIB:$DYLD_FALLBACK_LIBRARY_PATH"
           
       - name: Set up Python 3.13
         id: setup-python
