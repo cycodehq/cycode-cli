@@ -37,10 +37,24 @@ _hiddenimports = [
     'cycode.cli.apps.mcp',
 ]
 
+# Handle binaries additions
+extra_binaries = []
+if platform.system() == "Darwin":
+    try:
+        brew_openssl = subprocess.check_output(["brew", "--prefix", "openssl@3"]).decode().strip()
+        openssl_lib = os.path.join(brew_openssl, "lib")
+        extra_binaries.extend([
+            (os.path.join(openssl_lib, "libssl.3.dylib"), "."),
+            (os.path.join(openssl_lib, "libcrypto.3.dylib"), "."),
+        ])
+    except Exception as e:
+        print(f"Warning: Could not locate Homebrew OpenSSL: {e}")
+
 a = Analysis(
     scripts=['cycode/cli/main.py'],
     excludes=['tests', 'setuptools', 'pkg_resources'],
     hiddenimports=_hiddenimports,
+    binaries=extra_binaries,
 )
 
 exe_args = [PYZ(a.pure), a.scripts, a.binaries, a.datas]
