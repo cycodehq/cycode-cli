@@ -59,6 +59,12 @@ jobs:
           git checkout $LATEST_TAG
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
+      - name: Upgrade OpenSSL on macOS Builder
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew upgrade openssl@3
+          
       - name: Set up Python 3.13
         id: setup-python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
