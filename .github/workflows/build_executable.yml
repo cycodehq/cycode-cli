@@ -64,6 +64,9 @@ jobs:
         run: |
           brew update
           brew upgrade openssl@3
+          OPENSSL_LIB="$(brew --prefix openssl@3)/lib"
+          echo "DYLD_LIBRARY_PATH=$OPENSSL_LIB:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "DYLD_FALLBACK_LIBRARY_PATH=$OPENSSL_LIB:$DYLD_FALLBACK_LIBRARY_PATH"
           
       - name: Set up Python 3.13
         id: setup-python
