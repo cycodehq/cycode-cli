@@ -2,6 +2,10 @@
 # Run `poetry run pyinstaller pyinstaller.spec` to generate the binary.
 # Set the env var `CYCODE_ONEDIR_MODE` to generate a single directory instead of a single file.
 
+import os
+import platform
+import subprocess
+
 _INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
 _CODESIGN_IDENTITY = os.environ.get('APPLE_CERT_NAME')
 _ONEDIR_MODE = os.environ.get('CYCODE_ONEDIR_MODE') is not None
@@ -42,6 +46,24 @@ a = Analysis(
     excludes=['tests', 'setuptools', 'pkg_resources'],
     hiddenimports=_hiddenimports,
 )
+
+if platform.system() == 'Darwin':
+    # cryptography ships no macOS x86_64 wheel since 46.0.4, so on Intel it is built from source and
+    # dynamically links Homebrew's OpenSSL 3 (it needs symbols like `SSL_get0_group_name`, added in
+    # OpenSSL 3.2). PyInstaller also collects the older OpenSSL 3.0.x that ships with the
+    # setup-python toolcache Python; both land at the same destination name and the toolcache copy
+    # wins the dedup, which breaks `import cryptography` at runtime. Drop every collected
+    # libssl/libcrypto and inject Homebrew's, which satisfies both consumers.
+    try:
+        openssl_lib = os.path.join(
+            subprocess.check_output(['brew', '--prefix', 'openssl@3'], text=True).strip(), 'lib'
+        )
+        a.binaries = [b for b in a.binaries if 'libssl' not in b[0] and 'libcrypto' not in b[0]]
+        for name in ('libssl.3.dylib', 'libcrypto.3.dylib'):
+            a.binaries.append((name, os.path.join(openssl_lib, name), 'BINARY'))
+        print(f'Replaced collected OpenSSL dylibs with Homebrew ones from {openssl_lib}')
+    except Exception as e:
+        print(f'Warning: Could not override OpenSSL binaries: {e}')
 
 exe_args = [PYZ(a.pure), a.scripts, a.binaries, a.datas]
 if _ONEDIR_MODE:
