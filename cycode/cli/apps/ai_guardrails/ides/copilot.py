@@ -7,8 +7,9 @@ VS Code payload dialect is parsed here — CLI payloads (camelCase, no event nam
 are rejected by ``matches_payload`` and fall through to the allow-and-skip path.
 
 VS Code sends Claude-style payloads (``hook_event_name``, ``tool_name``,
-``tool_input``) with structural differences that ``matches_payload`` keys on:
-a top-level ISO ``timestamp`` and no ``transcript_path``. Copilot hooks have no
+``tool_input``), told apart by the one field Claude Code never sends: a top-level
+ISO ``timestamp``. VS Code also sends a ``transcript_path`` of its own once a
+workspace has chat history, so that field cannot discriminate. Copilot hooks have no
 matchers, so ``preToolUse`` fires for every tool; tools we don't scan pass
 through as raw event names, which match no handler and allow immediately.
 """
@@ -340,14 +341,9 @@ class Copilot(IDE):
         }
 
     def matches_payload(self, raw_payload: dict) -> bool:
-        # Structural discrimination, no magic strings: VS Code Copilot events carry
-        # a top-level ISO timestamp and no transcript_path; real Claude Code events
-        # always carry transcript_path; Copilot CLI payloads have no hook_event_name.
-        return (
-            raw_payload.get('hook_event_name', '') in _COPILOT_SCAN_EVENT_NAMES
-            and 'timestamp' in raw_payload
-            and 'transcript_path' not in raw_payload
-        )
+        # Structural discrimination, no magic strings: Copilot events carry a top-level
+        # timestamp, Claude Code events never do.
+        return raw_payload.get('hook_event_name', '') in _COPILOT_SCAN_EVENT_NAMES and 'timestamp' in raw_payload
 
     def parse_hook_payload(self, raw_payload: dict) -> AIHookPayload:
         hook_event_name = raw_payload.get('hook_event_name', '')

@@ -27,6 +27,13 @@ _VSCODE_PROMPT_PAYLOAD = {
     'prompt': 'test prompt',
 }
 
+# VS Code attaches a per-session transcript_path once the workspace has chat history.
+_VSCODE_PROMPT_PAYLOAD_WITH_TRANSCRIPT = {
+    **_VSCODE_PROMPT_PAYLOAD,
+    'cwd': '/Users/user/project',
+    'transcript_path': '/Users/user/Library/Application Support/Code/User/workspaceStorage/dummy/t.jsonl',
+}
+
 _VSCODE_READ_FILE_PAYLOAD = {
     'timestamp': '2026-07-14T13:35:08.758Z',
     'hook_event_name': 'PreToolUse',
@@ -81,10 +88,12 @@ def test_matches_payload_accepts_vscode_events() -> None:
     assert copilot.matches_payload(_VSCODE_PROMPT_PAYLOAD) is True
     assert copilot.matches_payload(_VSCODE_READ_FILE_PAYLOAD) is True
     assert copilot.matches_payload(_VSCODE_MCP_PAYLOAD) is True
+    assert copilot.matches_payload(_VSCODE_PROMPT_PAYLOAD_WITH_TRANSCRIPT) is True
 
 
 def test_matches_payload_rejects_claude_code_payloads() -> None:
-    # Same event names and dialect, but Claude Code always carries transcript_path.
+    # Same event names and dialect, and both carry transcript_path - only the
+    # top-level timestamp separates them, and Claude Code never sends one.
     assert Copilot().matches_payload(_CLAUDE_CODE_PAYLOAD) is False
 
 
