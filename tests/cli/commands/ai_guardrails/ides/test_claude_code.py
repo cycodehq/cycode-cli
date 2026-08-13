@@ -28,8 +28,9 @@ def test_matches_payload_only_claude_events() -> None:
 
 
 def test_matches_payload_rejects_vscode_copilot_payloads() -> None:
-    """VS Code Copilot sends the same event names in the same snake_case dialect,
-    but never a transcript_path — those events must not be claimed as Claude Code."""
+    """VS Code Copilot sends the same event names in the same snake_case dialect, and
+    now a transcript_path of its own — only the top-level timestamp, which Claude Code
+    never sends, keeps those events from being claimed as Claude Code."""
     claude = ClaudeCode()
     assert (
         claude.matches_payload(
@@ -46,6 +47,21 @@ def test_matches_payload_rejects_vscode_copilot_payloads() -> None:
     )
     assert (
         claude.matches_payload({'timestamp': '2026-07-14T13:32:46.517Z', 'hook_event_name': 'UserPromptSubmit'})
+        is False
+    )
+    # Carrying a transcript_path must not be enough to claim a Copilot event, or the
+    # same prompt gets processed twice when both integrations are installed.
+    assert (
+        claude.matches_payload(
+            {
+                'timestamp': '2026-08-13T10:55:29.000Z',
+                'hook_event_name': 'UserPromptSubmit',
+                'session_id': '43cbad91-ea8b-4d4a-9acc-56561421c5d2',
+                'cwd': '/Users/user/project',
+                'prompt': 'test prompt',
+                'transcript_path': '/Users/user/Library/Application Support/Code/User/workspaceStorage/d/t.jsonl',
+            }
+        )
         is False
     )
 
