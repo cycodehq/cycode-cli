@@ -1,17 +1,25 @@
-"""GitHub Copilot (VS Code extension) integration for AI guardrails.
+"""GitHub Copilot integration for AI guardrails.
 
 Hooks are installed in Copilot's native format to ``~/.copilot/hooks/cycode.json``
-(user scope) or ``<repo>/.github/hooks/cycode.json`` (repo scope). Both locations
-are also read by Copilot CLI and the Copilot cloud coding agent, but only the
-VS Code payload dialect is parsed here — CLI payloads (camelCase, no event name)
-are rejected by ``matches_payload`` and fall through to the allow-and-skip path.
+(user scope) or ``<repo>/.github/hooks/cycode.json`` (repo scope). One file, but
+two runtimes are known to execute it: VS Code's own chat runtime, and the Copilot
+agent runtime (Copilot CLI, and VS Code agent sessions). The repo-scope location
+is also read by the Copilot cloud coding agent, whose dialect is untested here.
 
-VS Code sends Claude-style payloads (``hook_event_name``, ``tool_name``,
-``tool_input``), told apart by the one field Claude Code never sends: a top-level
-ISO ``timestamp``. VS Code also sends a ``transcript_path`` of its own once a
-workspace has chat history, so that field cannot discriminate. Copilot hooks have no
-matchers, so ``preToolUse`` fires for every tool; tools we don't scan pass
-through as raw event names, which match no handler and allow immediately.
+Both deliver Claude-style payloads (``hook_event_name``, ``tool_name``,
+``tool_input``) provided the event keys are registered in PascalCase — the agent
+runtime keys its dialect off the case of the key, and answers camelCase keys with
+its own dialect (``sessionId``, no event name) that ``matches_payload`` rejects.
+Copilot payloads are told apart from Claude Code's by the one field Claude Code
+never sends, a top-level ``timestamp``; ``transcript_path`` cannot discriminate,
+since VS Code sends one of its own whenever a folder is open.
+
+The tool vocabulary still differs by runtime — VS Code reads files with
+``read_file``/``filePath`` and names MCP tools ``mcp_<server>_<tool>``, the agent
+runtime uses ``Read``/``path`` and ``<server>-<tool>`` — so both are accepted.
+Copilot hooks have no matchers, so ``PreToolUse`` fires for every tool; tools we
+don't scan pass through as raw event names, which match no handler and allow
+immediately.
 """
 
 import json
@@ -37,20 +45,39 @@ from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails Copilot')
 
-# Payload dialect (VS Code sends Claude-style PascalCase event names).
+# Payload dialect (Claude-style PascalCase event names).
 _COPILOT_SCAN_EVENT_NAMES = frozenset({'UserPromptSubmit', 'PreToolUse'})
-_READ_FILE_TOOL = 'read_file'
-# VS Code names MCP tools `mcp_<server>_<tool>` (single underscores).
-_MCP_TOOL_PREFIX = 'mcp_'
 
-# Hooks-file dialect (Copilot-native camelCase event names).
-_HOOK_EVENTS = ['userPromptSubmitted', 'preToolUse']
+# Two tool vocabularies reach us through one hooks file: VS Code's own runtime
+# names file reads `read_file` with a `filePath` argument, while the Copilot agent
+# runtime (Copilot CLI, and VS Code agent sessions) names them `Read` with `path`.
+# The names are disjoint, so both are accepted rather than switched between.
+_READ_FILE_TOOLS = frozenset({'read_file', 'Read'})
+_READ_PATH_KEYS = ('path', 'filePath')
+
+# VS Code names MCP tools `mcp_<server>_<tool>` (single underscores); the agent
+# runtime uses `<server>-<tool>` with no prefix (its SDK documents that wire form),
+# leaving a hyphen as the only marker of an MCP call there. Every built-in agent
+# tool observed is lower snake_case (`view`, `glob`, `str_replace`, `ask_user`) or
+# PascalCase (`Read`), so this holds for them — but SDK- or custom-agent-registered
+# tools may be named freely. A hyphenated custom tool would be scanned as an MCP
+# call with no resolvable server: an extra scan, never a missed one, which is the
+# safe direction to err for a guardrail.
+_MCP_TOOL_PREFIX = 'mcp_'
+_MCP_AGENT_SEPARATOR = '-'
+
+# Hooks-file event keys. The agent runtime keys its payload dialect off the CASE of
+# these keys: PascalCase yields the Claude-style dialect parsed here, camelCase its
+# own (`sessionId`, no `hook_event_name`), which matches_payload rejects. VS Code's
+# own runtime normalizes either way, so PascalCase is correct for every routing.
+_HOOK_EVENTS = ['UserPromptSubmit', 'PreToolUse']
 
 _COPILOT_HOME_ENV_VAR = 'COPILOT_HOME'
 _HOOKS_FILE_NAME = 'cycode.json'
 _REPO_HOOKS_SUBDIR = Path('.github') / 'hooks'
 _HOOK_TIMEOUT_SEC = 20
 _MCP_CONFIG_FILENAME = 'mcp.json'
+_AGENT_MCP_CONFIG_FILENAME = 'mcp-config.json'
 
 # Plugin sources. CLI installs register in ~/.copilot/config.json and auto-surface
 # in VS Code; VS Code UI installs register in ~/.vscode/agent-plugins/installed.json;
@@ -253,7 +280,11 @@ def _collect_installed_plugins() -> dict:
 
 
 def _known_mcp_server_names() -> list[str]:
-    """Config-declared MCP server names: user-level ``mcp.json`` + plugin configs.
+    """Config-declared MCP server names, across both runtimes' config files.
+
+    VS Code declares them in its user-level ``mcp.json`` under ``servers``; the
+    agent runtime uses ``~/.copilot/mcp-config.json`` under ``mcpServers``. Both are
+    read because one hooks file serves both, and plugin configs contribute to either.
 
     Best-effort inventory: servers contributed by extensions, ``chat.mcp.discovery``
     imports, dev containers, or non-default profiles are not discoverable from disk.
@@ -261,6 +292,12 @@ def _known_mcp_server_names() -> list[str]:
     config = _load_vscode_mcp_config()
     servers = (config or {}).get('servers')
     names = list(servers.keys()) if isinstance(servers, dict) else []
+
+    agent_config = _load_jsonc(_copilot_home() / _AGENT_MCP_CONFIG_FILENAME) or {}
+    agent_servers = agent_config.get('mcpServers')
+    if isinstance(agent_servers, dict):
+        names.extend(agent_servers.keys())
+
     for plugin in _collect_installed_plugins().values():
         names.extend(plugin.get('mcp_server_names') or [])
     return names
@@ -279,22 +316,56 @@ def _server_name_variants(server_name: str) -> set[str]:
     return {v for v in (server_name, underscored, collapsed) if v}
 
 
-def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[Optional[str], Optional[str]]:
-    """Split ``mcp_<server>_<tool>`` into ``(server, tool)``.
+def _read_file_path(tool_name: str, tool_input: object) -> Optional[str]:
+    """Path of a file-read tool call, or None when this isn't one.
 
-    The ``<server>`` part is VS Code's sanitized (and possibly truncated) form of
-    the server's SELF-REPORTED handshake name, not the config key — so matching
-    against known config names (and their normalized variants) is best-effort.
-    When nothing matches, return the unsplit remainder as the tool rather than
-    fabricating a server from a guessed split.
+    The agent runtime reuses its read tool for directory listings, with a payload
+    identical to a file read, so the path has to be stat-ed to tell them apart —
+    VS Code has no such ambiguity (`read_file` vs `list_dir`). A path that isn't an
+    existing file (a directory, or already deleted) has nothing to scan.
     """
-    rest = tool_name[len(_MCP_TOOL_PREFIX) :]
+    if tool_name not in _READ_FILE_TOOLS or not isinstance(tool_input, dict):
+        return None
+
+    raw_path = next((tool_input[key] for key in _READ_PATH_KEYS if tool_input.get(key)), None)
+    if not isinstance(raw_path, str):
+        return None
+
+    try:
+        if not Path(raw_path).is_file():
+            return None
+    except OSError:
+        return None
+    return raw_path
+
+
+def is_mcp_tool_name(tool_name: str) -> bool:
+    """Whether a tool name is an MCP call in either runtime's naming scheme."""
+    return tool_name.startswith(_MCP_TOOL_PREFIX) or _MCP_AGENT_SEPARATOR in tool_name
+
+
+def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[Optional[str], Optional[str]]:
+    """Split an MCP tool name into ``(server, tool)``.
+
+    Handles both naming schemes: VS Code's ``mcp_<server>_<tool>`` and the agent
+    runtime's prefix-less ``<server>-<tool>``. In the VS Code form the ``<server>``
+    part is a sanitized (and possibly truncated) form of the server's SELF-REPORTED
+    handshake name rather than the config key, so matching against known config
+    names (and their normalized variants) is best-effort. Server names may
+    themselves contain the separator, hence the longest-match. When nothing
+    matches, return the unsplit remainder as the tool rather than fabricating a
+    server from a guessed split.
+    """
+    if tool_name.startswith(_MCP_TOOL_PREFIX):
+        rest, separator = tool_name[len(_MCP_TOOL_PREFIX) :], '_'
+    else:
+        rest, separator = tool_name, _MCP_AGENT_SEPARATOR
 
     best_server = None
     best_variant_len = -1
     for server in server_names:
         for variant in _server_name_variants(server):
-            if (rest == variant or rest.startswith(f'{variant}_')) and len(variant) > best_variant_len:
+            if (rest == variant or rest.startswith(f'{variant}{separator}')) and len(variant) > best_variant_len:
                 best_server = server
                 best_variant_len = len(variant)
     if best_server is not None:
@@ -334,9 +405,9 @@ class Copilot(IDE):
         return {
             'version': 1,
             'hooks': {
-                'sessionStart': [{'type': 'command', 'command': _SESSION_START_COMMAND}],
-                'userPromptSubmitted': [entry(_SCAN_PROMPT_COMMAND)],
-                'preToolUse': [entry(_SCAN_TOOL_COMMAND)],
+                'SessionStart': [{'type': 'command', 'command': _SESSION_START_COMMAND}],
+                'UserPromptSubmit': [entry(_SCAN_PROMPT_COMMAND)],
+                'PreToolUse': [entry(_SCAN_TOOL_COMMAND)],
             },
         }
 
@@ -350,21 +421,21 @@ class Copilot(IDE):
         tool_name = raw_payload.get('tool_name', '')
         tool_input = raw_payload.get('tool_input')
 
+        read_path = _read_file_path(tool_name, tool_input)
+
         if hook_event_name == 'UserPromptSubmit':
             canonical_event: Union[AiHookEventType, str] = AiHookEventType.PROMPT
-        elif hook_event_name == 'PreToolUse' and tool_name == _READ_FILE_TOOL:
+        elif hook_event_name == 'PreToolUse' and read_path is not None:
             canonical_event = AiHookEventType.FILE_READ
-        elif hook_event_name == 'PreToolUse' and tool_name.startswith(_MCP_TOOL_PREFIX):
+        elif hook_event_name == 'PreToolUse' and is_mcp_tool_name(tool_name):
             canonical_event = AiHookEventType.MCP_EXECUTION
         else:
-            # No matchers in Copilot hooks: preToolUse fires for every tool. Pass
+            # No matchers in Copilot hooks: PreToolUse fires for every tool. Pass
             # the raw tool name through — it matches no handler, so scan_command
             # answers with a neutral allow before any policy/network work.
             canonical_event = tool_name or hook_event_name
 
-        file_path = None
-        if canonical_event == AiHookEventType.FILE_READ and isinstance(tool_input, dict):
-            file_path = tool_input.get('filePath')
+        file_path = read_path if canonical_event == AiHookEventType.FILE_READ else None
 
         mcp_server_name = None
         mcp_tool_name = None

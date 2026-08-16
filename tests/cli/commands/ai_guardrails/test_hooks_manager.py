@@ -287,7 +287,7 @@ def test_copilot_dedicated_file_install_uninstall_lifecycle(fs: FakeFilesystem) 
     assert success is True
     saved = json.loads(hooks_path.read_text())
     assert saved['version'] == 1
-    assert set(saved['hooks']) == {'sessionStart', 'userPromptSubmitted', 'preToolUse'}
+    assert set(saved['hooks']) == {'SessionStart', 'UserPromptSubmit', 'PreToolUse'}
     assert all(len(entries) == 1 for entries in saved['hooks'].values())
 
     # Reinstall (also flipping mode) must replace, not duplicate.
@@ -295,7 +295,7 @@ def test_copilot_dedicated_file_install_uninstall_lifecycle(fs: FakeFilesystem) 
     assert success is True
     saved = json.loads(hooks_path.read_text())
     assert all(len(entries) == 1 for entries in saved['hooks'].values())
-    assert saved['hooks']['preToolUse'][0]['bash'].endswith('&')
+    assert saved['hooks']['PreToolUse'][0]['bash'].endswith('&')
 
     # Uninstall deletes the emptied dedicated file rather than leaving a husk.
     success, _ = uninstall_hooks(copilot)
