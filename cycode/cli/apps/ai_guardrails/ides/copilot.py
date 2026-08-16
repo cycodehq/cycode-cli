@@ -7,9 +7,8 @@ agent runtime (Copilot CLI, and VS Code agent sessions). The repo-scope location
 is also read by the Copilot cloud coding agent, whose dialect is untested here.
 
 Both deliver Claude-style payloads (``hook_event_name``, ``tool_name``,
-``tool_input``) provided the event keys are registered in PascalCase — the agent
-runtime keys its dialect off the case of the key, and answers camelCase keys with
-its own dialect (``sessionId``, no event name) that ``matches_payload`` rejects.
+``tool_input``) when the event keys are registered in PascalCase; the agent runtime
+answers camelCase keys with its own dialect (``sessionId``, no event name) instead.
 Copilot payloads are told apart from Claude Code's by the one field Claude Code
 never sends, a top-level ``timestamp``; ``transcript_path`` cannot discriminate,
 since VS Code sends one of its own whenever a folder is open.
@@ -66,10 +65,7 @@ _READ_PATH_KEYS = ('path', 'filePath')
 _MCP_TOOL_PREFIX = 'mcp_'
 _MCP_AGENT_SEPARATOR = '-'
 
-# Hooks-file event keys. The agent runtime keys its payload dialect off the CASE of
-# these keys: PascalCase yields the Claude-style dialect parsed here, camelCase its
-# own (`sessionId`, no `hook_event_name`), which matches_payload rejects. VS Code's
-# own runtime normalizes either way, so PascalCase is correct for every routing.
+# Hooks-file event keys. Their case selects the agent runtime's payload dialect.
 _HOOK_EVENTS = ['UserPromptSubmit', 'PreToolUse']
 
 _COPILOT_HOME_ENV_VAR = 'COPILOT_HOME'
@@ -95,13 +91,9 @@ _PLUGIN_MANIFEST_LOCATIONS = (
     Path('.claude-plugin') / 'plugin.json',
 )
 
-# --event is ignored by the VS Code payload parsing (the payload self-describes)
-# but Copilot CLI payloads carry no event name at all — baking the flag in now
-# means CLI support won't require customers to re-install hooks. Values use the
-# payload-dialect spelling so a future CLI path can inject them straight into
-# hook_event_name and reuse the existing parsing.
-_SCAN_PROMPT_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide copilot --event UserPromptSubmit'
-_SCAN_TOOL_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide copilot --event PreToolUse'
+# One command for both events: every runtime self-describes via hook_event_name once
+# the events are registered in PascalCase, so --event is no longer passed.
+_SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide copilot'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide copilot'
 
 
@@ -389,13 +381,17 @@ class Copilot(IDE):
     def render_hooks_config(self, async_mode: bool = False) -> dict:
         def entry(command: str) -> dict:
             if async_mode:
-                # Copilot has no async hook flag; background via shell on unix. The
-                # explicit <&0 keeps the payload flowing: a bare `cmd &` gets its stdin
-                # reattached to /dev/null by the shell (job control is off in hooks).
-                # Windows PowerShell has no trailing-& operator, so it stays sync.
+                # Copilot has no async hook flag; background via shell on unix. Both
+                # redirects are load-bearing. `<&0` keeps the payload flowing: a bare
+                # `cmd &` gets its stdin reattached to /dev/null by the shell (job
+                # control is off in hooks), so the scan reads nothing and allows. The
+                # stdout redirect is what actually makes it async: the backgrounded
+                # child inherits the hook's stdout and the runner waits on that pipe
+                # for EOF, so without it the scan blocks the response it was meant to
+                # run behind. Windows PowerShell has no trailing-&, so it stays sync.
                 return {
                     'type': 'command',
-                    'bash': f'{command} <&0 &',
+                    'bash': f'{command} <&0 >/dev/null 2>&1 &',
                     'powershell': command,
                     'timeoutSec': _HOOK_TIMEOUT_SEC,
                 }
@@ -406,8 +402,8 @@ class Copilot(IDE):
             'version': 1,
             'hooks': {
                 'SessionStart': [{'type': 'command', 'command': _SESSION_START_COMMAND}],
-                'UserPromptSubmit': [entry(_SCAN_PROMPT_COMMAND)],
-                'PreToolUse': [entry(_SCAN_TOOL_COMMAND)],
+                'UserPromptSubmit': [entry(_SCAN_COMMAND)],
+                'PreToolUse': [entry(_SCAN_COMMAND)],
             },
         }
 

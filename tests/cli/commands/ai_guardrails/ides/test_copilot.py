@@ -306,11 +306,11 @@ def test_render_hooks_config_sync_uses_cross_platform_command() -> None:
     assert rendered['version'] == 1
 
     prompt_entry = rendered['hooks']['UserPromptSubmit'][0]
-    assert prompt_entry['command'] == 'cycode ai-guardrails scan --ide copilot --event UserPromptSubmit'
+    assert prompt_entry['command'] == 'cycode ai-guardrails scan --ide copilot'
     assert 'bash' not in prompt_entry
 
     tool_entry = rendered['hooks']['PreToolUse'][0]
-    assert tool_entry['command'] == 'cycode ai-guardrails scan --ide copilot --event PreToolUse'
+    assert tool_entry['command'] == 'cycode ai-guardrails scan --ide copilot'
 
     session_entry = rendered['hooks']['SessionStart'][0]
     assert session_entry['command'] == 'cycode ai-guardrails session-start --ide copilot'
@@ -319,7 +319,9 @@ def test_render_hooks_config_sync_uses_cross_platform_command() -> None:
 def test_render_hooks_config_async_backgrounds_on_unix() -> None:
     rendered = Copilot().render_hooks_config(async_mode=True)
     tool_entry = rendered['hooks']['PreToolUse'][0]
-    assert tool_entry['bash'].endswith('&')
+    # <&0 keeps the payload (a bare `cmd &` gets stdin from /dev/null and scans nothing);
+    # the stdout redirect releases the pipe the runner waits on, or it still blocks.
+    assert tool_entry['bash'].endswith('<&0 >/dev/null 2>&1 &')
     assert not tool_entry['powershell'].endswith('&')
     assert 'command' not in tool_entry
 
