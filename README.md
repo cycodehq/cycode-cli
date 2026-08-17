@@ -18,19 +18,20 @@ This guide walks you through both installation and usage.
             2. [On Windows](#on-windows)
     2. [Install Pre-Commit Hook](#install-pre-commit-hook)
 3. [Cycode CLI Commands](#cycode-cli-commands)
-4. [MCP Command](#mcp-command-experiment)
+4. [Certificates and Proxies](#certificates-and-proxies)
+5. [MCP Command](#mcp-command-experiment)
     1. [Starting the MCP Server](#starting-the-mcp-server)
     2. [Available Options](#available-options)
     3. [MCP Tools](#mcp-tools)
     4. [Usage Examples](#usage-examples)
     5. [Advanced Configuration](#advanced-configuration)
-5. [Platform Command](#platform-command-beta)
+6. [Platform Command](#platform-command-beta)
     1. [Discovering Commands](#discovering-commands)
     2. [Examples](#platform-examples)
     3. [Notes & Limitations](#platform-notes--limitations)
-6. [AI Guardrails](#ai-guardrails-beta)
+7. [AI Guardrails](#ai-guardrails-beta)
     1. [Data Collected by AI Guardrails](#data-collected-by-ai-guardrails)
-7. [Scan Command](#scan-command)
+8. [Scan Command](#scan-command)
     1. [Running a Scan](#running-a-scan)
         1. [Options](#options)
            1. [Severity Threshold](#severity-option)
@@ -64,11 +65,11 @@ This guide walks you through both installation and usage.
         4. [Ignoring a Secret, IaC, or SCA Rule](#ignoring-a-secret-iac-sca-or-sast-rule)
         5. [Ignoring a Package](#ignoring-a-package)
         6. [Ignoring via a config file](#ignoring-via-a-config-file)
-6. [Report command](#report-command)
+9. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
-7. [Import command](#import-command)
-8. [Scan logs](#scan-logs)
-9. [Syntax Help](#syntax-help)
+10. [Import command](#import-command)
+11. [Scan logs](#scan-logs)
+12. [Syntax Help](#syntax-help)
 
 # Prerequisites
 
@@ -356,6 +357,38 @@ The following are the options and commands available with the Cycode CLI applica
 | [report](#report-command)                 | Generate report. You will need to specify which report type to perform as SBOM.                                                              |
 | status                                    | Show the CLI status and exit.                                                                                                                |
 
+# Certificates and Proxies
+
+Cycode CLI verifies HTTPS connections against **your machine's certificate store** — the Windows
+certificate store, the macOS Keychain, or the system CA directory on Linux. This is the default on
+Python 3.10 and above, including the standalone executables and the Docker image.
+
+In practice this means that if your organization uses a proxy that inspects HTTPS traffic, and its CA
+certificate is already installed on the machine (as is usually the case on a managed device), the CLI
+works with no configuration at all.
+
+If the CA is *not* installed system-wide, point the CLI at a bundle file instead:
+
+| Environment Variable | Description |
+|----------------------|-------------|
+| `REQUESTS_CA_BUNDLE` | Path to a CA bundle file (`.pem` or `.crt`) to trust in addition to the machine's certificate store. |
+| `CURL_CA_BUNDLE`     | Alias for `REQUESTS_CA_BUNDLE`, honored when the latter is unset. |
+| `CYCODE_CLI_DISABLE_TRUSTSTORE` | Set to `1` to ignore the machine's certificate store and verify only against the CA bundle shipped with the CLI. Use this if the machine store itself is misconfigured. |
+
+> [!NOTE]
+> `REQUESTS_CA_BUNDLE` is *additive* — certificates from the bundle are trusted alongside the ones in
+> the machine store, so setting it never costs you the system trust.
+
+> [!TIP]
+> Run any command with `-v` to see which trust source is in use, for example `cycode -v status`.
+
+On Python 3.9, the machine certificate store is used on Windows only; other platforms fall back to the
+CA bundle shipped with the CLI, so `REQUESTS_CA_BUNDLE` may be required. Upgrade to Python 3.10 or
+newer, or use the standalone executable, to get the machine store everywhere.
+
+Proxies themselves are configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+environment variables.
+
 # MCP Command \[EXPERIMENT\]
 
 > [!WARNING]
@@ -565,20 +598,19 @@ cycode mcp -t streamable-http -H 127.0.0.2 -p 9000 &
 ```
 
 ### Advanced Configuration 
-##### Custom Certificates and Timeouts (Proxy Environments)
+##### Timeouts and Custom Certificates (Proxy Environments)
 
-If your organization uses a corporate proxy or a custom CA bundle for HTTPS inspection, you need to tell Cycode CLI (and the underlying Python TLS stack) where to find the trusted certificate bundle. You can also increase the MCP tool call timeout if scans are being cut short.
+If long-running scans are being cut short by your MCP client, increase the tool call timeout.
 
 | Environment Variable | Description |
 |----------------------|-------------|
-| `REQUESTS_CA_BUNDLE` | Path to a custom CA bundle file (`.pem` or `.crt`). Used by the `requests` library for all HTTPS calls made by Cycode CLI. |
-| `SSL_CERT_FILE`      | Path to a custom CA bundle file. Used by Python's low-level `ssl` module. Set this alongside `REQUESTS_CA_BUNDLE` for full coverage. |
 | `MCP_TOOL_TIMEOUT`   | Timeout (in seconds) that MCP clients such as Claude and GitHub Copilot wait for a tool call to complete. Increase this if long-running scans are being cut off before they finish. |
 
-> [!TIP]
-> Set both `REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` to the same CA bundle path. `REQUESTS_CA_BUNDLE` covers the HTTP layer; `SSL_CERT_FILE` covers the lower-level TLS layer. Using only one may still cause certificate errors in some environments.
+Certificates behind a corporate proxy usually need no configuration: the CLI trusts your machine's
+certificate store. See [Certificates and Proxies](#certificates-and-proxies) for the details, and set
+`REQUESTS_CA_BUNDLE` in the MCP server's `env` block if your CA is not installed system-wide.
 
-Example `mcp.json` configuration with custom certificates and a longer timeout:
+Example `mcp.json` configuration with a custom CA bundle and a longer timeout:
 
 ```json
 {
@@ -588,7 +620,6 @@ Example `mcp.json` configuration with custom certificates and a longer timeout:
       "args": ["mcp"],
       "env": {
         "REQUESTS_CA_BUNDLE": "/path/to/your/corporate-ca-bundle.pem",
-        "SSL_CERT_FILE": "/path/to/your/corporate-ca-bundle.pem",
         "MCP_TOOL_TIMEOUT": "1800"
       }
     }

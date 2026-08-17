@@ -49,6 +49,7 @@ patch-ng = "1.19.1"
 typer = "^0.15.3"
 tenacity = ">=9.1.2,<9.2.0"
 mcp = { version = ">=1.28.1,<2.0.0", markers = "python_version >= '3.10'" }
+truststore = { version = ">=0.10.4,<0.11.0", markers = "python_version >= '3.10'" }
 pydantic = ">=2.11.5,<3.0.0"
 pathvalidate = ">=3.3.1,<4.0.0"
 tomli-w = ">=1.0.0,<2.0.0"

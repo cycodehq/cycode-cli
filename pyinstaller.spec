@@ -5,6 +5,7 @@
 import os
 import platform
 import subprocess
+import sys
 
 _INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
 _CODESIGN_IDENTITY = os.environ.get('APPLE_CERT_NAME')
@@ -40,6 +41,11 @@ _hiddenimports = [
     'cycode.cli.apps.status',
     'cycode.cli.apps.mcp',
 ]
+
+# truststore is imported lazily inside cycode/cli/utils/trust_store.py, and it picks its platform
+# backend behind a sys.platform branch. Only the current platform's backend actually resolves.
+if sys.version_info >= (3, 10):
+    _hiddenimports += ['truststore', 'truststore._windows', 'truststore._macos', 'truststore._openssl']
 
 a = Analysis(
     scripts=['cycode/cli/main.py'],

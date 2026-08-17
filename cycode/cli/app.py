@@ -16,6 +16,7 @@ from cycode.cli.cli_types import OutputTypeOption
 from cycode.cli.consts import CLI_CONTEXT_SETTINGS
 from cycode.cli.printers import ConsolePrinter
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
+from cycode.cli.utils import trust_store
 from cycode.cli.utils.progress_bar import SCAN_PROGRESS_BAR_SECTIONS, get_progress_bar
 from cycode.cli.utils.version_checker import version_checker
 from cycode.cyclient.cycode_client_base import CycodeClientBase
@@ -245,6 +246,8 @@ def app_callback(
     ctx.obj['verbose'] = verbose
     if verbose:
         set_logging_level(logging.DEBUG)
+
+    trust_store.install()
 
     ctx.obj['output'] = output
     if output == OutputTypeOption.JSON:

@@ -19,6 +19,7 @@ from cycode.cli.exceptions.custom_exceptions import (
     RequestTimeoutError,
     SlowUploadConnectionError,
 )
+from cycode.cli.utils import trust_store
 from cycode.cyclient import config
 from cycode.cyclient.headers import get_cli_user_agent, get_correlation_id
 from cycode.cyclient.logger import logger
@@ -28,6 +29,8 @@ if TYPE_CHECKING:
 
 
 class SystemStorageSslContext(HTTPAdapter):
+    """Windows system trust store fallback for Python 3.9, where truststore is unavailable."""
+
     def init_poolmanager(self, *args, **kwargs) -> None:
         default_context = ssl.create_default_context()
         default_context.load_default_certs()
@@ -44,10 +47,12 @@ class SystemStorageSslContext(HTTPAdapter):
 def _get_session() -> requests.Session:
     """Process-wide Session so TCP+TLS connections are reused across all API calls."""
     session = requests.Session()
-    # On Windows without an explicit CA bundle env var, fall back to the system
-    # trust store via a custom SSL context.
-    if platform.system() == 'Windows' and not (
-        os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE')
+    # Python 3.9 only: truststore already covers every platform on 3.10+. Without it, on Windows and
+    # without an explicit CA bundle env var, fall back to the system trust store via a custom SSL context.
+    if (
+        not trust_store.is_installed()
+        and platform.system() == 'Windows'
+        and not (os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE'))
     ):
         session.mount('https://', SystemStorageSslContext())
     return session
