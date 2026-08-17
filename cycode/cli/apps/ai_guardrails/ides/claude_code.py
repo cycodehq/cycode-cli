@@ -282,15 +282,9 @@ class ClaudeCode(IDE):
         }
 
     def matches_payload(self, raw_payload: dict) -> bool:
-        # transcript_path is a documented Claude Code common field, present on every
-        # hook event. VS Code Copilot emits near-identical payloads (same event names,
-        # snake_case fields) — Copilot additionally carries a top-level
-        # timestamp, which Claude Code never sends.
-        return (
-            raw_payload.get('hook_event_name', '') in _CLAUDE_CODE_EVENT_NAMES
-            and 'transcript_path' in raw_payload
-            and 'timestamp' not in raw_payload
-        )
+        # transcript_path is a documented Claude Code field, present on every hook event.
+        # Positive test by design: an absence check breaks silently when a vendor adds a field.
+        return raw_payload.get('hook_event_name', '') in _CLAUDE_CODE_EVENT_NAMES and 'transcript_path' in raw_payload
 
     def is_synthetic_prompt(self, raw_payload: dict) -> bool:
         if raw_payload.get('hook_event_name') != 'UserPromptSubmit':

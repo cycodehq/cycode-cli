@@ -83,14 +83,6 @@ def scan_command(
             hidden=True,
         ),
     ] = DEFAULT_IDE_NAME,
-    event: Annotated[
-        Optional[str],
-        typer.Option(
-            '--event',
-            help='Hook event that triggered the scan, for IDEs whose payloads omit it (e.g. Copilot CLI).',
-            hidden=True,
-        ),
-    ] = None,
 ) -> None:
     """Scan content from AI IDE hooks for secrets.
 
@@ -132,7 +124,7 @@ def scan_command(
     event_name = unified_payload.event_name
     logger.debug(
         'Processing AI guardrails hook',
-        extra={'event_name': event_name, 'ide': ide_integration.name, 'cli_event_hint': event},
+        extra={'event_name': event_name, 'ide': ide_integration.name},
     )
 
     # Resolved before any policy/client work: Copilot hooks have no matchers, so

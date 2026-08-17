@@ -27,7 +27,9 @@ _VSCODE_PROMPT_PAYLOAD = {
     'prompt': 'test prompt',
 }
 
-# VS Code attaches a per-session transcript_path once the workspace has chat history.
+# VS Code attaches a per-session transcript_path whenever a folder is open: the
+# transcript dir is derived from the extension's workspace storageUri, which is
+# undefined only in an empty window.
 _VSCODE_PROMPT_PAYLOAD_WITH_TRANSCRIPT = {
     **_VSCODE_PROMPT_PAYLOAD,
     'cwd': '/Users/user/project',
@@ -60,7 +62,37 @@ _VSCODE_SESSION_START_PAYLOAD = {
     'model': 'auto',
 }
 
-# Copilot CLI dialect: camelCase, epoch-ms timestamp, no event name, stringified args.
+# Agent-runtime payloads (Copilot CLI, and VS Code agent sessions) under PascalCase
+# event keys: same Claude-style dialect as VS Code, but a `cwd` and its own tool
+# vocabulary (`Read`/`path`, `<server>-<tool>`) rather than VS Code's.
+_AGENT_PROMPT_PAYLOAD = {
+    'cwd': '/Users/user/project',
+    'hook_event_name': 'UserPromptSubmit',
+    'prompt': 'test prompt',
+    'session_id': '826a14c1-cfb5-4946-9618-8b0bb7060466',
+    'timestamp': '2026-08-14T08:49:22.000Z',
+}
+
+_AGENT_READ_FILE_PAYLOAD = {
+    'cwd': '/Users/user/project',
+    'hook_event_name': 'PreToolUse',
+    'session_id': '826a14c1-cfb5-4946-9618-8b0bb7060466',
+    'timestamp': '2026-08-14T08:51:17.000Z',
+    'tool_name': 'Read',
+    'tool_input': {'path': '/Users/user/.gitconfig'},
+}
+
+_AGENT_MCP_PAYLOAD = {
+    'cwd': '/Users/user/project',
+    'hook_event_name': 'PreToolUse',
+    'session_id': '826a14c1-cfb5-4946-9618-8b0bb7060466',
+    'timestamp': '2026-08-14T08:51:17.000Z',
+    'tool_name': 'gitlab-get_user',
+    'tool_input': {'user_id': 'dummy-user'},
+}
+
+# Stale pre-PascalCase installs still emit this: camelCase, epoch-ms timestamp,
+# no event name, stringified args. Rejected — they are corrected on reinstall.
 _COPILOT_CLI_TOOL_PAYLOAD = {
     'sessionId': '826a14c1-cfb5-4946-9618-8b0bb7060466',
     'timestamp': 1784038775604,
@@ -98,7 +130,7 @@ def test_matches_payload_rejects_claude_code_payloads() -> None:
 
 
 def test_matches_payload_rejects_copilot_cli_payloads() -> None:
-    # CLI dialect is unsupported until its own parsing lands - must skip fail-open.
+    # Only reachable from a stale camelCase install; corrected by reinstalling hooks.
     assert Copilot().matches_payload(_COPILOT_CLI_TOOL_PAYLOAD) is False
 
 
@@ -122,11 +154,25 @@ def test_parse_prompt_payload() -> None:
     assert unified.prompt == 'test prompt'
 
 
-def test_parse_read_file_payload() -> None:
-    unified = Copilot().parse_hook_payload(_VSCODE_READ_FILE_PAYLOAD)
-    assert unified.event_name == AiHookEventType.FILE_READ
-    assert unified.file_path == '/Users/user/.gitconfig'
-    assert unified.mcp_tool_name is None
+def test_parse_read_file_payload(fs: FakeFilesystem) -> None:
+    fs.create_file('/Users/user/.gitconfig')
+    # Agent-runtime naming (`Read` + `path`) must map identically to VS Code's
+    # (`read_file` + `filePath`): one hooks file serves both runtimes.
+    for payload in (_VSCODE_READ_FILE_PAYLOAD, _AGENT_READ_FILE_PAYLOAD):
+        unified = Copilot().parse_hook_payload(payload)
+        assert unified.event_name == AiHookEventType.FILE_READ
+        assert unified.file_path == '/Users/user/.gitconfig'
+        assert unified.mcp_tool_name is None
+
+
+def test_parse_read_of_directory_is_not_a_file_read(fs: FakeFilesystem) -> None:
+    # The agent runtime reuses `Read` for directory listings with an identical
+    # payload shape, so only a stat separates them.
+    fs.create_dir('/Users/user/project')
+    payload = {**_AGENT_READ_FILE_PAYLOAD, 'tool_input': {'path': '/Users/user/project'}}
+    unified = Copilot().parse_hook_payload(payload)
+    assert unified.event_name == 'Read'
+    assert unified.file_path is None
 
 
 def test_parse_mcp_payload_without_known_servers_reports_raw(fs: FakeFilesystem) -> None:
@@ -137,6 +183,33 @@ def test_parse_mcp_payload_without_known_servers_reports_raw(fs: FakeFilesystem)
     assert unified.mcp_server_name is None
     assert unified.mcp_tool_name == 'gitlab_get_user'
     assert unified.mcp_arguments == {'user_id': 'dummy-user'}
+
+
+def test_parse_agent_mcp_payload_uses_hyphenated_naming(fs: FakeFilesystem) -> None:
+    # The agent runtime names MCP tools `<server>-<tool>` with no prefix, and
+    # declares its servers in its own config rather than VS Code's mcp.json.
+    fs.create_file(
+        Path.home() / '.copilot' / 'mcp-config.json',
+        contents=json.dumps({'mcpServers': {'gitlab': {'command': 'dummy-mcp'}}}),
+    )
+    unified = Copilot().parse_hook_payload(_AGENT_MCP_PAYLOAD)
+    assert unified.event_name == AiHookEventType.MCP_EXECUTION
+    assert unified.mcp_server_name == 'gitlab'
+    assert unified.mcp_tool_name == 'get_user'
+    assert unified.mcp_arguments == {'user_id': 'dummy-user'}
+
+
+def test_parse_agent_mcp_payload_prefers_longest_hyphenated_server(fs: FakeFilesystem) -> None:
+    # Server names may themselves contain the separator, so the split must not be
+    # greedy on the first hyphen.
+    fs.create_file(
+        Path.home() / '.copilot' / 'mcp-config.json',
+        contents=json.dumps({'mcpServers': {'gitlab': {}, 'gitlab-selfhosted': {}}}),
+    )
+    payload = {**_AGENT_MCP_PAYLOAD, 'tool_name': 'gitlab-selfhosted-get_user'}
+    unified = Copilot().parse_hook_payload(payload)
+    assert unified.mcp_server_name == 'gitlab-selfhosted'
+    assert unified.mcp_tool_name == 'get_user'
 
 
 def test_parse_mcp_payload_with_known_server_containing_underscores(fs: FakeFilesystem) -> None:
@@ -232,21 +305,23 @@ def test_render_hooks_config_sync_uses_cross_platform_command() -> None:
     rendered = Copilot().render_hooks_config()
     assert rendered['version'] == 1
 
-    prompt_entry = rendered['hooks']['userPromptSubmitted'][0]
-    assert prompt_entry['command'] == 'cycode ai-guardrails scan --ide copilot --event UserPromptSubmit'
+    prompt_entry = rendered['hooks']['UserPromptSubmit'][0]
+    assert prompt_entry['command'] == 'cycode ai-guardrails scan --ide copilot'
     assert 'bash' not in prompt_entry
 
-    tool_entry = rendered['hooks']['preToolUse'][0]
-    assert tool_entry['command'] == 'cycode ai-guardrails scan --ide copilot --event PreToolUse'
+    tool_entry = rendered['hooks']['PreToolUse'][0]
+    assert tool_entry['command'] == 'cycode ai-guardrails scan --ide copilot'
 
-    session_entry = rendered['hooks']['sessionStart'][0]
+    session_entry = rendered['hooks']['SessionStart'][0]
     assert session_entry['command'] == 'cycode ai-guardrails session-start --ide copilot'
 
 
 def test_render_hooks_config_async_backgrounds_on_unix() -> None:
     rendered = Copilot().render_hooks_config(async_mode=True)
-    tool_entry = rendered['hooks']['preToolUse'][0]
-    assert tool_entry['bash'].endswith('&')
+    tool_entry = rendered['hooks']['PreToolUse'][0]
+    # <&0 keeps the payload (a bare `cmd &` gets stdin from /dev/null and scans nothing);
+    # the stdout redirect releases the pipe the runner waits on, or it still blocks.
+    assert tool_entry['bash'].endswith('<&0 >/dev/null 2>&1 &')
     assert not tool_entry['powershell'].endswith('&')
     assert 'command' not in tool_entry
 
