@@ -30,12 +30,32 @@ def _disable_via_env(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     monkeypatch.setitem(trust_store.config.configuration, consts.DISABLE_TRUSTSTORE_ENV_VAR_NAME, value)
 
 
+# On Python 3.9 truststore is neither installed nor importable, and install() refuses by design,
+# so the tests that assert a successful injection cannot run there.
+requires_truststore = pytest.mark.skipif(
+    sys.version_info < trust_store._MIN_PYTHON_VERSION,
+    reason='truststore requires Python 3.10+',
+)
+
+
+@pytest.mark.skipif(
+    sys.version_info >= trust_store._MIN_PYTHON_VERSION,
+    reason='covers the Python 3.9 fallback only',
+)
+def test_install_declines_on_python_39(mocked_truststore: MagicMock) -> None:
+    assert trust_store.install() is False
+    assert trust_store.is_installed() is False
+    mocked_truststore.inject_into_ssl.assert_not_called()
+
+
+@requires_truststore
 def test_install_injects_os_trust_store(mocked_truststore: MagicMock) -> None:
     assert trust_store.install() is True
     assert trust_store.is_installed() is True
     mocked_truststore.inject_into_ssl.assert_called_once_with()
 
 
+@requires_truststore
 def test_install_is_idempotent(mocked_truststore: MagicMock) -> None:
     assert trust_store.install() is True
     assert trust_store.install() is True
@@ -53,6 +73,7 @@ def test_install_skipped_when_disabled_by_env_var(
     mocked_truststore.inject_into_ssl.assert_not_called()
 
 
+@requires_truststore
 @pytest.mark.parametrize('value', ['0', 'false', 'no', ''])
 def test_install_not_skipped_for_falsy_env_var(
     value: str, mocked_truststore: MagicMock, monkeypatch: pytest.MonkeyPatch
@@ -71,6 +92,7 @@ def test_install_skipped_on_unsupported_python(mocked_truststore: MagicMock, mon
     mocked_truststore.inject_into_ssl.assert_not_called()
 
 
+@requires_truststore
 def test_install_swallows_import_error(monkeypatch: pytest.MonkeyPatch) -> None:
     import builtins
 
@@ -87,6 +109,7 @@ def test_install_swallows_import_error(monkeypatch: pytest.MonkeyPatch) -> None:
     assert trust_store.is_installed() is False
 
 
+@requires_truststore
 def test_install_swallows_injection_error(mocked_truststore: MagicMock) -> None:
     mocked_truststore.inject_into_ssl.side_effect = RuntimeError('no trust store on this machine')
 
@@ -107,6 +130,7 @@ def _get_fresh_session():  # noqa: ANN202
         _get_session.cache_clear()
 
 
+@requires_truststore
 @pytest.mark.skipif(platform.system() != 'Windows', reason='the legacy fallback is Windows-only')
 def test_session_skips_legacy_windows_adapter_when_trust_store_installed(
     mocked_truststore: MagicMock, monkeypatch: pytest.MonkeyPatch
