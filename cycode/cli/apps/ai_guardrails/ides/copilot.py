@@ -326,7 +326,8 @@ def _read_file_path(tool_name: str, tool_input: object) -> Optional[str]:
     try:
         if not Path(raw_path).is_file():
             return None
-    except OSError:
+    except OSError as e:
+        logger.debug('Failed to stat read path, %s', {'path': raw_path}, exc_info=e)
         return None
     return raw_path
 
