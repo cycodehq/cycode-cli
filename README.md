@@ -359,35 +359,48 @@ The following are the options and commands available with the Cycode CLI applica
 
 # Certificates and Proxies
 
-Cycode CLI verifies HTTPS connections against **your machine's certificate store** — the Windows
-certificate store, the macOS Keychain, or the system CA directory on Linux. This is the default on
-Python 3.10 and above, including the standalone executables and the Docker image.
+By default, Cycode CLI verifies HTTPS connections against the CA bundle shipped with the CLI.
 
-In practice this means that if your organization uses a proxy that inspects HTTPS traffic, and its CA
-certificate is already installed on the machine (as is usually the case on a managed device), the CLI
-works with no configuration at all.
+If your organization uses a proxy that inspects HTTPS traffic, or an on-premises installation with
+its own CA, you have two options.
 
-If the CA is *not* installed system-wide, point the CLI at a bundle file instead:
+**Option 1 — use the certificates already installed on the machine.** If your CA is in the machine
+certificate store (as is usually the case on a managed device), opt in:
+
+```bash
+export CYCODE_CLI_ENABLE_TRUSTSTORE=1
+```
+
+The CLI then verifies against the Windows certificate store, the macOS Keychain, or the system CA
+directory on Linux, and no certificate paths need to be configured.
+
+> [!IMPORTANT]
+> This is opt-in on purpose. Trusting the machine store means trusting every root certificate
+> present on that machine, including any an administrator or malicious software installed. Enable it
+> when you know your machine's certificate store is one you trust.
+
+**Option 2 — point the CLI at a CA bundle file.** Works without opting in:
 
 | Environment Variable | Description |
 |----------------------|-------------|
-| `REQUESTS_CA_BUNDLE` | Path to a CA bundle file (`.pem` or `.crt`) to trust in addition to the machine's certificate store. |
+| `REQUESTS_CA_BUNDLE` | Path to a CA bundle file (`.pem` or `.crt`) to trust. |
 | `CURL_CA_BUNDLE`     | Alias for `REQUESTS_CA_BUNDLE`, honored when the latter is unset. |
-| `CYCODE_CLI_DISABLE_TRUSTSTORE` | Set to `1` to ignore the machine's certificate store and verify only against the CA bundle shipped with the CLI. Use this if the machine store itself is misconfigured. |
 
-> [!NOTE]
-> `REQUESTS_CA_BUNDLE` is *additive* — certificates from the bundle are trusted alongside the ones in
-> the machine store, so setting it never costs you the system trust.
+The two options combine: with `CYCODE_CLI_ENABLE_TRUSTSTORE=1`, certificates from
+`REQUESTS_CA_BUNDLE` are trusted *in addition to* the machine store, not instead of it.
 
 > [!TIP]
 > Run any command with `-v` to see which trust source is in use, for example `cycode -v status`.
 
-On Python 3.9, the machine certificate store is used on Windows only; other platforms fall back to the
-CA bundle shipped with the CLI, so `REQUESTS_CA_BUNDLE` may be required. Upgrade to Python 3.10 or
-newer, or use the standalone executable, to get the machine store everywhere.
+Notes:
 
-Proxies themselves are configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
-environment variables.
+- `CYCODE_CLI_ENABLE_TRUSTSTORE` requires Python 3.10 or newer. On Python 3.9 the CLI logs a warning
+  and falls back to the bundled CA bundle; use `REQUESTS_CA_BUNDLE` instead, or upgrade Python. The
+  standalone executables and the Docker image already ship a supported Python.
+- On Windows, the CLI has always fallen back to the system certificate store when neither
+  `REQUESTS_CA_BUNDLE` nor `CURL_CA_BUNDLE` is set. That behavior is unchanged.
+- Proxies themselves are configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+  environment variables.
 
 # MCP Command \[EXPERIMENT\]
 
@@ -606,9 +619,10 @@ If long-running scans are being cut short by your MCP client, increase the tool 
 |----------------------|-------------|
 | `MCP_TOOL_TIMEOUT`   | Timeout (in seconds) that MCP clients such as Claude and GitHub Copilot wait for a tool call to complete. Increase this if long-running scans are being cut off before they finish. |
 
-Certificates behind a corporate proxy usually need no configuration: the CLI trusts your machine's
-certificate store. See [Certificates and Proxies](#certificates-and-proxies) for the details, and set
-`REQUESTS_CA_BUNDLE` in the MCP server's `env` block if your CA is not installed system-wide.
+Behind a corporate proxy, set the certificate variables in the MCP server's `env` block. See
+[Certificates and Proxies](#certificates-and-proxies) for the options: either
+`CYCODE_CLI_ENABLE_TRUSTSTORE=1` to use the certificates already on the machine, or
+`REQUESTS_CA_BUNDLE` pointing at a CA bundle file.
 
 Example `mcp.json` configuration with a custom CA bundle and a longer timeout:
 

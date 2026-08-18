@@ -5,6 +5,7 @@ import pytest
 import responses
 
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
+from cycode.cli.utils import trust_store
 from cycode.cyclient.client_creator import create_scan_client
 from cycode.cyclient.cycode_oidc_based_client import CycodeOidcBasedClient
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
@@ -118,3 +119,18 @@ def oidc_api_token_response(oidc_api_token_url: str) -> responses.Response:
         },
         status=200,
     )
+
+
+@pytest.fixture(autouse=True)
+def _no_real_trust_store_injection(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never let the suite patch the global `ssl` module.
+
+    `trust_store.install()` runs lazily from `_get_session()`, so any test that builds a session
+    would otherwise really call `truststore.inject_into_ssl()` — process-wide, leaking across tests.
+    It also fails noisily under pyfakefs, where truststore's platform probe cannot read the files
+    it expects. tests/utils/test_trust_store.py opts out: it tests install() itself, with the
+    truststore module stubbed.
+    """
+    if request.module.__name__.rsplit('.', 1)[-1] == 'test_trust_store':
+        return
+    monkeypatch.setattr(trust_store, 'install', lambda: False)
