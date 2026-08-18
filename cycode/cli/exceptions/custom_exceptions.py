@@ -97,6 +97,7 @@ class TfplanKeyError(CycodeError):
     def __str__(self) -> str:
         return f'Error occurred while parsing terraform plan file. Path: {self.file_path}'
 
+
 _SSL_ERROR_CA_BUNDLE_HINT = (
     'set the REQUESTS_CA_BUNDLE (or CURL_CA_BUNDLE) environment variable to the path of a valid .pem or similar'
 )
