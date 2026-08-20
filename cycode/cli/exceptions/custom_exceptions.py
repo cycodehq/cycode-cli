@@ -1,6 +1,8 @@
 from requests import Response
 
+from cycode.cli import consts
 from cycode.cli.models import CliError, CliErrors
+from cycode.cli.utils import trust_store
 
 
 class CycodeError(Exception):
@@ -96,6 +98,17 @@ class TfplanKeyError(CycodeError):
         return f'Error occurred while parsing terraform plan file. Path: {self.file_path}'
 
 
+_SSL_ERROR_CA_BUNDLE_HINT = (
+    'set the REQUESTS_CA_BUNDLE (or CURL_CA_BUNDLE) environment variable to the path of a valid .pem or similar'
+)
+_SSL_ERROR_TRUST_HINT = (
+    'If you use an on-premises installation or a proxy that intercepts SSL traffic, '
+    f'set {consts.ENABLE_TRUSTSTORE_ENV_VAR_NAME}=1 to trust the CA certificates installed in your '
+    f'machine certificate store, or {_SSL_ERROR_CA_BUNDLE_HINT}'
+    if trust_store.is_supported() and not trust_store.is_enabled()
+    else f'If you use an on-premises installation or a proxy that intercepts SSL traffic, {_SSL_ERROR_CA_BUNDLE_HINT}'
+)
+
 KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
     RequestHttpError: CliError(
         soft_fail=True,
@@ -122,8 +135,6 @@ KNOWN_USER_FRIENDLY_REQUEST_ERRORS: CliErrors = {
     RequestSslError: CliError(
         soft_fail=True,
         code='ssl_error',
-        message='An SSL error occurred when trying to connect to the Cycode API. '
-        'If you use an on-premises installation or a proxy that intercepts SSL traffic '
-        'you should use the CURL_CA_BUNDLE environment variable to specify path to a valid .pem or similar',
+        message=f'An SSL error occurred when trying to connect to the Cycode API. {_SSL_ERROR_TRUST_HINT}',
     ),
 }

@@ -14,6 +14,7 @@ from cycode.cli.exceptions.custom_exceptions import (
     SlowUploadConnectionError,
 )
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
+from cycode.cli.utils import trust_store
 from cycode.cyclient import models
 from cycode.cyclient.cycode_client_base import CycodeClientBase, UploadProgressTracker
 from cycode.cyclient.logger import logger
@@ -153,7 +154,9 @@ class ScanClient:
         tracker = UploadProgressTracker(prepared.body, on_upload_progress)
 
         try:
-            # We are not using Cycode client, as we are calling aws S3.
+            # We are not using Cycode client, as we are calling aws S3. That also means this call
+            # skips the shared session, so the OS trust store has to be installed explicitly here.
+            trust_store.install()
             response = requests.post(
                 url,
                 data=tracker,
