@@ -39,7 +39,7 @@ pyyaml = ">=6.0,<7.0"
 # capped while we support Python 3.9
 marshmallow = ">=4.0.1,<4.1.0"
 # floor required by get_staged_diff_index()
-gitpython = ">=3.1.51,<3.2.0"
+gitpython = ">=3.1.58,<3.2.0"
 arrow = ">=1.0.0,<1.5.0"
 requests = ">=2.32.4,<3.0"
 urllib3 = ">=2.4.0,<3.0.0"
