@@ -129,10 +129,16 @@ def test_get_default_scan_parameters_maintainability_uses_unmaintained_packages_
     assert 'unmaintained_packages' not in params
 
 
-def test_get_default_scan_parameters_maintainability_missing_from_context(mock_context: MagicMock) -> None:
-    """Test that maintainability is None when the option was not selected by the user."""
+def test_get_default_scan_parameters_maintainability_filters_out_when_not_selected(
+    mock_context: MagicMock,
+) -> None:
+    """Test that narrowing --sca-scan sends an explicit False rather than omitting the parameter.
+
+    The backend treats a missing value as "no opinion" so that CLI versions predating the option still get the
+    policy. A narrowed selection is an opinion, so it has to say False out loud.
+    """
     mock_context.obj.pop('unmaintained-packages')
 
     params = _get_default_scan_parameters(mock_context)
 
-    assert params['maintainability'] is None
+    assert params['maintainability'] is False

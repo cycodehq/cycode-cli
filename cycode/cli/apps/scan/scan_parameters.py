@@ -16,7 +16,9 @@ def _get_default_scan_parameters(ctx: typer.Context) -> dict:
         'report': ctx.obj.get('report'),
         'package_vulnerabilities': ctx.obj.get('package-vulnerabilities'),
         'license_compliance': ctx.obj.get('license-compliance'),
-        'maintainability': ctx.obj.get('unmaintained-packages'),
+        # A filter, not a switch: an explicit False is what excludes the policy from the result. Absence would
+        # read as "no opinion" server-side, which is right for older CLIs but wrong for a narrowed selection.
+        'maintainability': ctx.obj.get('unmaintained-packages', False),
         'command_type': ctx.info_name.replace('-', '_'),  # save backward compatibility
         'aggregation_id': str(generate_unique_scan_id()),
         'cli_start_time': _BOOT_WALL,
