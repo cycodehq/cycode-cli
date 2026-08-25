@@ -1,4 +1,5 @@
 import os
+import tempfile
 from collections.abc import Hashable
 from typing import Any, TextIO
 
@@ -34,22 +35,52 @@ def _yaml_object_safe_load(file: TextIO) -> dict[Hashable, Any]:
     return loaded_file
 
 
+def _quarantine_corrupt_file(filename: str) -> None:
+    # Renamed rather than deleted: the file may hold the only copy of the user's credentials,
+    # and keeping it around leaves something to look at in the next bug report.
+    index = 0
+    while os.path.exists(f'{filename}.corrupt-{index}'):
+        index += 1
+
+    try:
+        os.replace(filename, f'{filename}.corrupt-{index}')
+    except OSError as e:
+        logger.warning('Failed to quarantine corrupt file, %s', {'filename': filename}, exc_info=e)
+
+
 def read_yaml_file(filename: str) -> dict[Hashable, Any]:
     if not os.access(filename, os.R_OK) or not os.path.exists(filename):
         logger.debug('Config file is not accessible or does not exist: %s', {'filename': filename})
         return {}
 
-    with open(filename, encoding='UTF-8') as file:
-        return _yaml_object_safe_load(file)
+    try:
+        with open(filename, encoding='UTF-8') as file:
+            return _yaml_object_safe_load(file)
+    except yaml.YAMLError as e:
+        logger.warning('Config file is corrupt and will be moved aside, %s', {'filename': filename}, exc_info=e)
+        _quarantine_corrupt_file(filename)
+        return {}
 
 
 def write_yaml_file(filename: str, content: dict[Hashable, Any]) -> None:
-    if not os.access(filename, os.W_OK) and os.path.exists(filename):
+    directory = os.path.dirname(filename)
+    if not os.access(directory, os.W_OK) or (os.path.exists(filename) and not os.access(filename, os.W_OK)):
         logger.warning('No write permission for file. Cannot save config, %s', {'filename': filename})
         return
 
-    with open(filename, 'w', encoding='UTF-8') as file:
-        yaml.safe_dump(content, file)
+    # Atomic write to avoid race conditions between concurrent CLI processes
+    file_descriptor, temp_filename = tempfile.mkstemp(dir=directory, prefix=f'.{os.path.basename(filename)}.')
+    try:
+        with os.fdopen(file_descriptor, 'w', encoding='UTF-8') as file:
+            yaml.safe_dump(content, file)
+            file.flush()
+            os.fsync(file.fileno())
+
+        os.replace(temp_filename, filename)
+    except Exception:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+        raise
 
 
 def update_yaml_file(filename: str, content: dict[Hashable, Any]) -> None:
