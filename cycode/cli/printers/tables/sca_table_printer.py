@@ -13,6 +13,7 @@ from cycode.cli.printers.tables.table_models import ColumnInfoBuilder
 from cycode.cli.printers.tables.table_printer_base import TablePrinterBase
 from cycode.cli.printers.utils import is_git_diff_based_scan
 from cycode.cli.printers.utils.detection_ordering.sca_ordering import sort_and_group_detections
+from cycode.cli.printers.utils.sca_ossf import get_ossf_score
 from cycode.cli.utils.string_utils import shortcut_dependency_paths
 
 if TYPE_CHECKING:
@@ -129,8 +130,8 @@ class ScaTablePrinter(TablePrinterBase):
         table.add_cell(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.add_cell(LICENSE_COLUMN, detection_details.get('license'))
 
-        ossf_scorecard_score = detection_details.get('ossf_scorecard_score')
-        table.add_cell(OSSF_SCORE_COLUMN, 'N/A' if ossf_scorecard_score is None else str(ossf_scorecard_score))
+        ossf_score = get_ossf_score(detection_details)
+        table.add_cell(OSSF_SCORE_COLUMN, 'N/A' if ossf_score is None else str(ossf_score))
 
     def _print_summary_issues(self, detections_count: int, title: str) -> None:
         self.console.print(f'[bold]Cycode found {detections_count} violations of type: [cyan]{title}[/]')

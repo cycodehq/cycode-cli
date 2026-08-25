@@ -87,8 +87,7 @@ def test_enrich_table_with_values_populates_the_score(printer: ScaTablePrinter) 
         ecosystem='npm',
         package_name='left-pad',
         package_version='1.0.0',
-        ossf_scorecard_score=1.5,
-        source_code_repository_url='https://github.com/example/left-pad',
+        ossf={'score': 1.5, 'scorecard_report_url': 'https://scorecard.dev/viewer/?uri=github.com/example/left-pad'},
     )
 
     ScaTablePrinter._enrich_table_with_values(table, detection)
