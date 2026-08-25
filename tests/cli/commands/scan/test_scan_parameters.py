@@ -14,6 +14,7 @@ def mock_context() -> MagicMock:
         'report': False,
         'package-vulnerabilities': True,
         'license-compliance': True,
+        'unmaintained-packages': True,
     }
     ctx.info_name = 'test-command'
     return ctx
@@ -27,6 +28,7 @@ def test_get_default_scan_parameters(mock_context: MagicMock) -> None:
     assert params['report'] is False
     assert params['package_vulnerabilities'] is True
     assert params['license_compliance'] is True
+    assert params['maintainability'] is True
     assert params['command_type'] == 'test_command'  # hyphens replaced with underscores
     assert 'aggregation_id' in params
 
@@ -113,3 +115,24 @@ def test_get_scan_parameters_branch_with_various_names(mock_get_remote_url: Magi
     mock_context.obj['branch'] = 'release-v1.0.0'
     params = get_scan_parameters(mock_context, paths)
     assert params['branch'] == 'release-v1.0.0'
+
+
+def test_get_default_scan_parameters_maintainability_uses_unmaintained_packages_context_key(
+    mock_context: MagicMock,
+) -> None:
+    """Test that the maintainability wire parameter is taken from the unmaintained-packages context key."""
+    mock_context.obj['unmaintained-packages'] = False
+
+    params = _get_default_scan_parameters(mock_context)
+
+    assert params['maintainability'] is False
+    assert 'unmaintained_packages' not in params
+
+
+def test_get_default_scan_parameters_maintainability_missing_from_context(mock_context: MagicMock) -> None:
+    """Test that maintainability is None when the option was not selected by the user."""
+    mock_context.obj.pop('unmaintained-packages')
+
+    params = _get_default_scan_parameters(mock_context)
+
+    assert params['maintainability'] is None
