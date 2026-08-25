@@ -2,7 +2,11 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from cycode.cli.cli_types import SeverityOption
-from cycode.cli.consts import LICENSE_COMPLIANCE_POLICY_ID, PACKAGE_VULNERABILITY_POLICY_ID
+from cycode.cli.consts import (
+    LICENSE_COMPLIANCE_POLICY_ID,
+    PACKAGE_VULNERABILITY_POLICY_ID,
+    UNMAINTAINED_PACKAGE_POLICY_ID,
+)
 from cycode.cli.models import Detection
 from cycode.cli.printers.tables.table import Table
 from cycode.cli.printers.tables.table_models import ColumnInfoBuilder
@@ -23,6 +27,7 @@ CODE_PROJECT_COLUMN = column_builder.build(name='Code Project', highlight=False)
 ECOSYSTEM_COLUMN = column_builder.build(name='Ecosystem', highlight=False)
 PACKAGE_COLUMN = column_builder.build(name='Package', highlight=False)
 CVE_COLUMNS = column_builder.build(name='CVE', highlight=False)
+OSSF_SCORE_COLUMN = column_builder.build(name='OSSF Score')
 DEPENDENCY_PATHS_COLUMN = column_builder.build(name='Dependency Paths')
 UPGRADE_COLUMN = column_builder.build(name='Upgrade')
 LICENSE_COLUMN = column_builder.build(name='License', highlight=False)
@@ -51,6 +56,8 @@ class ScaTablePrinter(TablePrinterBase):
             return 'Dependency Vulnerabilities'
         if policy_id == LICENSE_COMPLIANCE_POLICY_ID:
             return 'License Compliance'
+        if policy_id == UNMAINTAINED_PACKAGE_POLICY_ID:
+            return 'Unmaintained Packages'
 
         return 'Unknown'
 
@@ -62,6 +69,8 @@ class ScaTablePrinter(TablePrinterBase):
             table.add_column(UPGRADE_COLUMN)
         elif policy_id == LICENSE_COMPLIANCE_POLICY_ID:
             table.add_column(LICENSE_COLUMN)
+        elif policy_id == UNMAINTAINED_PACKAGE_POLICY_ID:
+            table.add_column(OSSF_SCORE_COLUMN)
 
         if is_git_diff_based_scan(self.command_scan_type):
             table.add_column(REPOSITORY_COLUMN)
@@ -119,6 +128,9 @@ class ScaTablePrinter(TablePrinterBase):
 
         table.add_cell(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.add_cell(LICENSE_COLUMN, detection_details.get('license'))
+
+        ossf_scorecard_score = detection_details.get('ossf_scorecard_score')
+        table.add_cell(OSSF_SCORE_COLUMN, 'N/A' if ossf_scorecard_score is None else str(ossf_scorecard_score))
 
     def _print_summary_issues(self, detections_count: int, title: str) -> None:
         self.console.print(f'[bold]Cycode found {detections_count} violations of type: [cyan]{title}[/]')

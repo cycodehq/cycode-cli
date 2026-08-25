@@ -97,7 +97,15 @@ class RichPrinter(TextPrinter):
         dependency_path = detection_details.get('dependency_paths')
         details_table.add_row('Dependency path', dependency_path or 'N/A')
 
-        if not detection.has_alert:
+        if detection.detection_type_id == consts.UNMAINTAINED_PACKAGE_POLICY_ID:
+            ossf_scorecard_score = detection_details.get('ossf_scorecard_score')
+            details_table.add_row(
+                'OSSF Scorecard score', 'N/A' if ossf_scorecard_score is None else str(ossf_scorecard_score)
+            )
+            details_table.add_row(
+                'Source code repository', detection_details.get('source_code_repository_url') or 'N/A'
+            )
+        elif not detection.has_alert:
             details_table.add_row('License', detection_details.get('license'))
 
     @staticmethod
