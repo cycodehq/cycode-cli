@@ -18,14 +18,18 @@ _FILENAME = f'{_DIRECTORY}/credentials.yaml'
 
 
 def test_reading_a_corrupt_file_quarantines_it_and_returns_empty(fs: FakeFilesystem) -> None:
-    fs.create_file(_FILENAME, contents=_CORRUPT_CONTENT)
+    fs.create_dir(_DIRECTORY)
 
-    assert read_yaml_file(_FILENAME) == {}
-    assert not os.path.exists(_FILENAME)
+    for marker in ('first', 'second'):
+        contents = f'{marker}\n{_CORRUPT_CONTENT}'
+        with open(_FILENAME, 'w', encoding='UTF-8') as file:
+            file.write(contents)
 
-    quarantined = list(Path(_DIRECTORY).glob('credentials.yaml.corrupt-*'))
-    assert len(quarantined) == 1
-    assert quarantined[0].read_text(encoding='UTF-8') == _CORRUPT_CONTENT
+        assert read_yaml_file(_FILENAME) == {}
+        assert not os.path.exists(_FILENAME)
+        # only the most recent corrupt file is kept, so repeated failures cannot pile up
+        assert [path.name for path in Path(_DIRECTORY).iterdir()] == ['credentials.yaml.corrupt']
+        assert Path(f'{_FILENAME}.corrupt').read_text(encoding='UTF-8') == contents
 
 
 def test_updating_a_corrupt_file_recovers_instead_of_raising(fs: FakeFilesystem) -> None:
@@ -34,20 +38,6 @@ def test_updating_a_corrupt_file_recovers_instead_of_raising(fs: FakeFilesystem)
     update_yaml_file(_FILENAME, {'cycode_client_id': 'recovered'})
 
     assert read_yaml_file(_FILENAME) == {'cycode_client_id': 'recovered'}
-
-
-def test_quarantine_does_not_overwrite_an_earlier_quarantined_file(fs: FakeFilesystem) -> None:
-    fs.create_dir(_DIRECTORY)
-    for marker in ('first', 'second'):
-        with open(_FILENAME, 'w', encoding='UTF-8') as file:
-            file.write(f'{marker}\nnot: [valid\n')
-        read_yaml_file(_FILENAME)
-
-    quarantined = [path.read_text(encoding='UTF-8') for path in Path(_DIRECTORY).glob('credentials.yaml.corrupt-*')]
-
-    assert len(quarantined) == 2
-    assert any('first' in content for content in quarantined)
-    assert any('second' in content for content in quarantined)
 
 
 @pytest.mark.parametrize('read_only_path', [_DIRECTORY, _FILENAME])

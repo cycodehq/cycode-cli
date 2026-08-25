@@ -38,12 +38,8 @@ def _yaml_object_safe_load(file: TextIO) -> dict[Hashable, Any]:
 def _quarantine_corrupt_file(filename: str) -> None:
     # Renamed rather than deleted: the file may hold the only copy of the user's credentials,
     # and keeping it around leaves something to look at in the next bug report.
-    index = 0
-    while os.path.exists(f'{filename}.corrupt-{index}'):
-        index += 1
-
     try:
-        os.replace(filename, f'{filename}.corrupt-{index}')
+        os.replace(filename, f'{filename}.corrupt')
     except OSError as e:
         logger.warning('Failed to quarantine corrupt file, %s', {'filename': filename}, exc_info=e)
 
