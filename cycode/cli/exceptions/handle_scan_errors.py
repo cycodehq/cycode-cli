@@ -32,6 +32,13 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
             message='File collection failed. '
             'Use --no-restore to skip dependency restoration, or fix the underlying issue.',
         ),
+        custom_exceptions.BinaryExtractionError: CliError(
+            soft_fail=False,
+            code='binary_extraction_error',
+            message=f'\n{err!s}\n'
+            'The artifact could not be read safely enough to identify what is inside it. '
+            'If this is a legitimate build artifact, please report it.',
+        ),
         custom_exceptions.TfplanKeyError: CliError(
             soft_fail=True,
             code='key_error',

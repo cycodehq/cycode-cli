@@ -58,6 +58,11 @@ def _get_session() -> requests.Session:
     return session
 
 
+def get_http_session() -> requests.Session:
+    """The shared session, for callers outside the Cycode API that still need its trust-store and proxy handling."""
+    return _get_session()
+
+
 def _get_request_function() -> Callable:
     return _get_session().request
 
