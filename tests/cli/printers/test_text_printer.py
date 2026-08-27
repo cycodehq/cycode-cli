@@ -58,12 +58,17 @@ def _render(printer: TextPrinter, output: io.StringIO, detection: Detection) -> 
 def test_unmaintained_package_prints_the_score_and_report(printer: TextPrinter, output: io.StringIO) -> None:
     detection = _make_detection(
         UNMAINTAINED_PACKAGE_POLICY_ID,
-        ossf={'score': 2.1, 'scorecard_report_url': 'https://scorecard.dev/viewer/?uri=github.com/a/b'},
+        ossf={
+            'score': 4.1,
+            'scorecard_report_url': 'https://scorecard.dev/viewer/?uri=github.com/a/b',
+            'checks': [{'name': 'Maintained', 'score': 0, 'reason': '0 commit(s) in the last 90 days'}],
+        },
     )
 
     result = _render(printer, output, detection)
 
-    assert 'OSSF Scorecard score: 2.1' in result
+    assert 'Maintained score: 0' in result
+    assert 'OSSF Scorecard score: 4.1' in result
     assert 'Scorecard report: https://scorecard.dev/viewer/?uri=github.com/a/b' in result
     assert 'License' not in result
 
@@ -73,17 +78,34 @@ def test_unmaintained_package_without_ossf_details(printer: TextPrinter, output:
 
     result = _render(printer, output, detection)
 
+    assert 'Maintained score: N/A' in result
     assert 'OSSF Scorecard score: N/A' in result
     assert 'Scorecard report: N/A' in result
 
 
 def test_unmaintained_package_with_zero_score(printer: TextPrinter, output: io.StringIO) -> None:
-    detection = _make_detection(UNMAINTAINED_PACKAGE_POLICY_ID, ossf={'score': 0, 'scorecard_report_url': ''})
+    detection = _make_detection(
+        UNMAINTAINED_PACKAGE_POLICY_ID,
+        ossf={'score': 0, 'scorecard_report_url': '', 'checks': [{'name': 'Maintained', 'score': 0}]},
+    )
 
     result = _render(printer, output, detection)
 
+    assert 'Maintained score: 0' in result
     assert 'OSSF Scorecard score: 0' in result
     assert 'Scorecard report: N/A' in result
+
+
+def test_unmaintained_package_without_maintained_check(printer: TextPrinter, output: io.StringIO) -> None:
+    detection = _make_detection(
+        UNMAINTAINED_PACKAGE_POLICY_ID,
+        ossf={'score': 1.5, 'checks': [{'name': 'License', 'score': 10}]},
+    )
+
+    result = _render(printer, output, detection)
+
+    assert 'Maintained score: N/A' in result
+    assert 'OSSF Scorecard score: 1.5' in result
 
 
 def test_license_compliance_still_prints_the_license(printer: TextPrinter, output: io.StringIO) -> None:

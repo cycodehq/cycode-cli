@@ -872,7 +872,7 @@ In the previous example, if you wanted to only scan a branch named `dev`, you co
 > [!NOTE]
 > This option is only available to SCA scans.
 
-To scan only for unmaintained packages (packages whose [OpenSSF Scorecard](https://scorecard.dev) score is low), add the argument `--sca-scan unmaintained-packages` following the `-t sca` or `--scan-type sca` option.
+To scan only for unmaintained packages (packages whose [OpenSSF Scorecard](https://scorecard.dev) `Maintained` check is low, meaning little or no recent commit and issue activity), add the argument `--sca-scan unmaintained-packages` following the `-t sca` or `--scan-type sca` option.
 
 > [!NOTE]
 > Whether unmaintained packages are reported at all is controlled by your organization's policy. This option narrows what a scan reports; it cannot enable a policy that is turned off for your tenant.

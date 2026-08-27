@@ -7,7 +7,7 @@ from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax, get_detection_line
 from cycode.cli.printers.utils.detection_data import get_detection_title
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
-from cycode.cli.printers.utils.sca_ossf import get_ossf_report_url, get_ossf_score
+from cycode.cli.printers.utils.sca_ossf import get_maintained_score, get_ossf_report_url, get_ossf_score
 
 if TYPE_CHECKING:
     from cycode.cli.models import Detection, LocalScanResult
@@ -86,10 +86,13 @@ class TextPrinter(PrinterBase):
         summary_lines = []
 
         if detection.detection_type_id == consts.UNMAINTAINED_PACKAGE_POLICY_ID:
+            maintained_score = get_maintained_score(detection.detection_details)
             ossf_score = get_ossf_score(detection.detection_details)
+            maintained = 'N/A' if maintained_score is None else maintained_score
             score = 'N/A' if ossf_score is None else ossf_score
             report_url = get_ossf_report_url(detection.detection_details) or 'N/A'
 
+            summary_lines.append(f'Maintained score: [cyan]{maintained}[/]\n')
             summary_lines.append(f'OSSF Scorecard score: [cyan]{score}[/]\n')
             summary_lines.append(f'Scorecard report: [cyan]{report_url}[/]\n')
         elif detection.has_alert:

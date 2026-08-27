@@ -11,7 +11,7 @@ from cycode.cli.consts import (
 from cycode.cli.printers.tables.sca_table_printer import (
     CVE_COLUMNS,
     LICENSE_COLUMN,
-    OSSF_SCORE_COLUMN,
+    MAINTAINED_SCORE_COLUMN,
     UPGRADE_COLUMN,
     ScaTablePrinter,
 )
@@ -53,7 +53,7 @@ def test_get_title_unknown_policy() -> None:
 def test_get_table_unmaintained_packages_columns(printer: ScaTablePrinter) -> None:
     columns = printer._get_table(UNMAINTAINED_PACKAGE_POLICY_ID).get_columns_info()
 
-    assert OSSF_SCORE_COLUMN in columns
+    assert MAINTAINED_SCORE_COLUMN in columns
     assert CVE_COLUMNS not in columns
     assert UPGRADE_COLUMN not in columns
     assert LICENSE_COLUMN not in columns
@@ -67,7 +67,7 @@ def test_get_table_unmaintained_packages_column_order(printer: ScaTablePrinter) 
         'Code Project',
         'Ecosystem',
         'Package',
-        'OSSF Score',
+        'Maintained Score',
         'Dependency Paths',
         'Direct Dependency',
         'Development Dependency',
@@ -75,8 +75,8 @@ def test_get_table_unmaintained_packages_column_order(printer: ScaTablePrinter) 
 
 
 def test_get_table_other_policies_do_not_get_the_score_column(printer: ScaTablePrinter) -> None:
-    assert OSSF_SCORE_COLUMN not in printer._get_table(PACKAGE_VULNERABILITY_POLICY_ID).get_columns_info()
-    assert OSSF_SCORE_COLUMN not in printer._get_table(LICENSE_COMPLIANCE_POLICY_ID).get_columns_info()
+    assert MAINTAINED_SCORE_COLUMN not in printer._get_table(PACKAGE_VULNERABILITY_POLICY_ID).get_columns_info()
+    assert MAINTAINED_SCORE_COLUMN not in printer._get_table(LICENSE_COMPLIANCE_POLICY_ID).get_columns_info()
 
 
 def test_enrich_table_with_values_populates_the_score(printer: ScaTablePrinter) -> None:
@@ -87,13 +87,17 @@ def test_enrich_table_with_values_populates_the_score(printer: ScaTablePrinter) 
         ecosystem='npm',
         package_name='left-pad',
         package_version='1.0.0',
-        ossf={'score': 1.5, 'scorecard_report_url': 'https://scorecard.dev/viewer/?uri=github.com/example/left-pad'},
+        ossf={
+            'score': 4.1,
+            'scorecard_report_url': 'https://scorecard.dev/viewer/?uri=github.com/example/left-pad',
+            'checks': [{'name': 'Maintained', 'score': 1.5, 'reason': 'no recent activity'}],
+        },
     )
 
     ScaTablePrinter._enrich_table_with_values(table, detection)
 
     row = table.get_rows()[0]
-    score_index = table.get_columns_info().index(OSSF_SCORE_COLUMN)
+    score_index = table.get_columns_info().index(MAINTAINED_SCORE_COLUMN)
     assert row[score_index] == '1.5'
 
 
@@ -104,5 +108,5 @@ def test_enrich_table_with_values_missing_score(printer: ScaTablePrinter) -> Non
     ScaTablePrinter._enrich_table_with_values(table, detection)
 
     row = table.get_rows()[0]
-    score_index = table.get_columns_info().index(OSSF_SCORE_COLUMN)
+    score_index = table.get_columns_info().index(MAINTAINED_SCORE_COLUMN)
     assert row[score_index] == 'N/A'

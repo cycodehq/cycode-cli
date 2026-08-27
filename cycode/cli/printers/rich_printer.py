@@ -16,7 +16,7 @@ from cycode.cli.printers.utils.detection_data import (
 )
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
 from cycode.cli.printers.utils.rich_helpers import get_columns_in_1_to_3_ratio, get_markdown_panel, get_panel
-from cycode.cli.printers.utils.sca_ossf import get_ossf_report_url, get_ossf_score
+from cycode.cli.printers.utils.sca_ossf import get_maintained_score, get_ossf_report_url, get_ossf_score
 
 if TYPE_CHECKING:
     from cycode.cli.models import CliError, Detection, Document, LocalScanResult
@@ -99,7 +99,9 @@ class RichPrinter(TextPrinter):
         details_table.add_row('Dependency path', dependency_path or 'N/A')
 
         if detection.detection_type_id == consts.UNMAINTAINED_PACKAGE_POLICY_ID:
+            maintained_score = get_maintained_score(detection_details)
             ossf_score = get_ossf_score(detection_details)
+            details_table.add_row('Maintained score', 'N/A' if maintained_score is None else str(maintained_score))
             details_table.add_row('OSSF Scorecard score', 'N/A' if ossf_score is None else str(ossf_score))
             details_table.add_row('Scorecard report', get_ossf_report_url(detection_details) or 'N/A')
         elif not detection.has_alert:
