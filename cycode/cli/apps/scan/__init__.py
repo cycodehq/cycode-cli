@@ -1,5 +1,6 @@
 import typer
 
+from cycode.cli.apps.scan.binary.binary_command import binary_command
 from cycode.cli.apps.scan.commit_history.commit_history_command import commit_history_command
 from cycode.cli.apps.scan.path.path_command import path_command
 from cycode.cli.apps.scan.pre_commit.pre_commit_command import pre_commit_command
@@ -23,6 +24,7 @@ app.callback(
 
 app.command(name='path', short_help='Scan the files in the paths provided in the command.')(path_command)
 app.command(name='repository', short_help='Scan the Git repository included files.')(repository_command)
+app.command(name='binary', short_help='Scan built Java artifacts (JAR, WAR, EAR, Spring Boot).')(binary_command)
 app.command(name='commit-history', short_help='Scan commit history or perform diff scanning between specific commits.')(
     commit_history_command
 )

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
+from cycode.cli.printers.utils import binary_report
 from cycode.cyclient.models import DetectionSchema
 
 if TYPE_CHECKING:
@@ -45,10 +46,47 @@ class JsonPrinter(PrinterBase):
             # FIXME(MarshalX): we don't care about scan IDs in JSON output due to clumsy JSON root structure
             inlined_errors = [err._asdict() for err in errors.values()]
 
-        self.console.print_json(self._get_json_scan_result(scan_ids, detections_dict, report_urls, inlined_errors))
+        self._print_degradation_warning_to_stderr()
+        self.console.print_json(
+            self._get_json_scan_result(
+                scan_ids, detections_dict, report_urls, inlined_errors, self._get_binary_section(local_scan_results)
+            )
+        )
+
+    def _print_degradation_warning_to_stderr(self) -> None:
+        """The human running this still deserves the warning; stdout still has to stay parseable.
+
+        The same fact is available machine-readably as ``binary.partial``, so a CI job never has to read stderr.
+        """
+        collection = binary_report.get_binary_collection(self.ctx)
+        if collection is None or not binary_report.should_warn_about_degradation(self.ctx, collection):
+            return
+
+        for line in binary_report.get_degradation_lines(collection):
+            self.console_err.print(f'[yellow]:warning: {line}[/]', highlight=False)
+
+    def _get_binary_section(self, local_scan_results: list['LocalScanResult']) -> Optional[dict]:
+        """Coverage numbers a CI job can assert on, so a team can gate on identification rather than guess at it."""
+        collection = binary_report.get_binary_collection(self.ctx)
+        if collection is None:
+            return None
+
+        return {
+            'identified': collection.identified_count,
+            'low_confidence_components': collection.low_confidence_count,
+            'unidentified': [entry._asdict() for entry in binary_report.get_unidentified(collection)],
+            'low_confidence_detections': binary_report.count_low_confidence(self.ctx, local_scan_results),
+            'resolver_available': collection.resolver_available,
+            'partial': binary_report.should_warn_about_degradation(self.ctx, collection),
+        }
 
     def _get_json_scan_result(
-        self, scan_ids: list[str], detections: dict, report_urls: list[str], errors: list[dict]
+        self,
+        scan_ids: list[str],
+        detections: dict,
+        report_urls: list[str],
+        errors: list[dict],
+        binary: Optional[dict] = None,
     ) -> str:
         result = {
             'scan_ids': scan_ids,
@@ -56,6 +94,11 @@ class JsonPrinter(PrinterBase):
             'report_urls': report_urls,
             'errors': errors,
         }
+
+        # additive: nothing existing changes shape, and the keys are absent entirely for non-binary scans
+        if binary is not None:
+            result['unidentified'] = binary['unidentified']
+            result['binary'] = binary
 
         return self.get_data_json(result)
 

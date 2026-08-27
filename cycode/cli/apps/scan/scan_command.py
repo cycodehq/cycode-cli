@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 import click
 import typer
 
+from cycode.cli import consts
 from cycode.cli.apps.activation_manager import report_cli_activation, should_report_cli_activation
 from cycode.cli.apps.sca_options import (
     GradleAllSubProjectsOption,
@@ -26,6 +27,7 @@ from cycode.cli.utils.get_api_client import get_scan_cycode_client
 _EXPORT_RICH_HELP_PANEL = 'Export options'
 _SCA_RICH_HELP_PANEL = 'SCA options'
 _SECRET_RICH_HELP_PANEL = 'Secret options'
+_BINARY_RICH_HELP_PANEL = 'Binary options'
 
 
 def _single_value_callback(ctx: typer.Context, param: typer.CallbackParam, value: list) -> list:
@@ -109,6 +111,58 @@ def scan_command(
     no_restore: NoRestoreOption = False,
     gradle_all_sub_projects: GradleAllSubProjectsOption = False,
     maven_settings_file: MavenSettingsFileOption = None,
+    max_depth: Annotated[
+        int,
+        typer.Option(
+            '--max-depth',
+            help='Nested-archive recursion limit. An EAR containing WARs containing JARs is depth 3.',
+            min=1,
+            rich_help_panel=_BINARY_RICH_HELP_PANEL,
+        ),
+    ] = consts.BINARY_MAX_DEPTH,
+    offline: Annotated[
+        bool,
+        typer.Option(
+            '--offline',
+            help='Identify components from embedded metadata only, without resolving unknown digests. '
+            'Acknowledges and silences the partial-results warning.',
+            rich_help_panel=_BINARY_RICH_HELP_PANEL,
+        ),
+    ] = False,
+    maven_central: Annotated[
+        bool,
+        typer.Option(
+            '--maven-central',
+            help='Look archives that embedded metadata cannot identify up on Maven Central by SHA-1. '
+            'Sends the digest of each such archive, never the archive itself, to search.maven.org.',
+            rich_help_panel=_BINARY_RICH_HELP_PANEL,
+        ),
+    ] = False,
+    project_name: Annotated[
+        Optional[str],
+        typer.Option(
+            '--project-name',
+            help='Override the platform identity when the artifact is detached from its source repository.',
+            show_default='inferred from the Git remote, else the artifact filename',
+            rich_help_panel=_BINARY_RICH_HELP_PANEL,
+        ),
+    ] = None,
+    include_binaries: Annotated[
+        bool,
+        typer.Option(
+            '--include-binaries',
+            help='On `scan path` only. Extract and scan any Java archives encountered during the walk.',
+            rich_help_panel=_BINARY_RICH_HELP_PANEL,
+        ),
+    ] = False,
+    keep_bom: Annotated[
+        bool,
+        typer.Option(
+            '--keep-bom',
+            help='Write the synthesised CycloneDX document beside each artifact for inspection.',
+            rich_help_panel=_BINARY_RICH_HELP_PANEL,
+        ),
+    ] = False,
     export_type: Annotated[
         ExportTypeOption,
         typer.Option(
@@ -143,6 +197,7 @@ def scan_command(
     * `cycode scan path <PATH>`: Scan a specific local directory or file.
     * `cycode scan repository <PATH>`: Scan Git related files in a local Git repository.
     * `cycode scan commit-history <PATH>`: Scan the commit history of a local Git repository.
+    * `cycode scan -t sca binary <PATH>`: Scan a built Java artifact (JAR, WAR, EAR, Spring Boot).
 
     """
     if export_file and export_type is None:
@@ -154,6 +209,11 @@ def scan_command(
         raise typer.BadParameter(
             'Export file must be specified when --export-type is provided.',
             param_hint='--export-file',
+        )
+    if offline and maven_central:
+        raise typer.BadParameter(
+            '--offline identifies from embedded metadata only; it cannot be combined with --maven-central.',
+            param_hint='--maven-central',
         )
 
     # _single_value_callback validated exactly one value was provided; unwrap from list
@@ -167,6 +227,12 @@ def scan_command(
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
     ctx.obj['report'] = report
+    ctx.obj['binary_max_depth'] = max_depth
+    ctx.obj['offline'] = offline
+    ctx.obj['maven_central'] = maven_central
+    ctx.obj['project_name'] = project_name
+    ctx.obj['keep_bom'] = keep_bom
+    ctx.obj['include_binaries'] = include_binaries
     apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file)
 
     scan_client = get_scan_cycode_client(ctx)

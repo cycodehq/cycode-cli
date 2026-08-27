@@ -45,10 +45,16 @@ This guide walks you through both installation and usage.
             1. [Branch Option](#branch-option)
         3. [Path Scan](#path-scan)
             1. [Terraform Plan Scan](#terraform-plan-scan)
-        4. [Commit History Scan](#commit-history-scan)
+        4. [Binary Scan](#binary-scan)
+            1. [Supported Artifacts](#supported-artifacts)
+            2. [Binary Scan Options](#binary-scan-options)
+            3. [How Components Are Identified](#how-components-are-identified)
+            4. [Unidentified Components](#unidentified-components)
+            5. [Limitations](#binary-scan-limitations)
+        5. [Commit History Scan](#commit-history-scan)
             1. [Commit Range Option (Diff Scanning)](#commit-range-option-diff-scanning)
-        5. [Pre-Commit Scan](#pre-commit-scan)
-        6. [Pre-Push Scan](#pre-push-scan)
+        6. [Pre-Commit Scan](#pre-commit-scan)
+        7. [Pre-Push Scan](#pre-push-scan)
     2. [Scan Results](#scan-results)
         1. [Show/Hide Secrets](#showhide-secrets)
         2. [Soft Fail](#soft-fail)
@@ -67,6 +73,9 @@ This guide walks you through both installation and usage.
         6. [Ignoring via a config file](#ignoring-via-a-config-file)
 9. [Report command](#report-command)
     1. [Generating SBOM Report](#generating-sbom-report)
+        1. [Repository](#repository)
+        2. [Local Project](#local-project)
+        3. [Built Artifact](#built-artifact)
 10. [Import command](#import-command)
 11. [Scan logs](#scan-logs)
 12. [Syntax Help](#syntax-help)
@@ -997,6 +1006,127 @@ If you just have a configuration file, you can generate a plan by doing the foll
 
     `cycode scan -t iac path ~/PATH/TO/YOUR/{tfplan}.json`
 
+### Binary Scan
+
+A binary scan examines a built Java artifact instead of a source tree.
+Point the CLI at a JAR, WAR, EAR or Spring Boot fat JAR and it identifies the open-source components packaged inside it, then scans them exactly as an SCA scan of the source would.
+
+This closes the gap between what was scanned and what was shipped.
+It is the only option when you have no source at all: a vendor-supplied JAR, a legacy EAR whose build job no longer exists, or a release gate that should check the actual deployable rather than the commit that supposedly produced it.
+
+To scan an artifact, execute the following:
+
+`cycode scan -t sca binary {{path}}`
+
+For example:
+
+```shell
+# a single deployable
+cycode scan -t sca binary ./dist/payments.war
+
+# every Java archive under a directory
+cycode scan -t sca binary ./dist
+
+# recurse further into deeply nested archives
+cycode scan -t sca --max-depth 5 binary ./dist/payments.ear
+```
+
+Everything an SCA scan normally supports still applies: `--severity-threshold`, `--soft-fail`, `cycode ignore` rules, `--export`, `--cycode-report` and the usual exit codes.
+
+> [!IMPORTANT]
+> The artifact never leaves your machine.
+> The CLI opens it locally and uploads only the resulting component inventory, which is typically a few tens of kilobytes regardless of how large the artifact is.
+
+You can also extract archives encountered during an ordinary path scan, using `--include-binaries`:
+
+`cycode scan -t sca --include-binaries path ./target`
+
+This is off by default.
+Extracting a large tree of artifacts takes real time, and a path scan that silently got slower would be a worse surprise than an opt-in flag.
+
+#### Supported Artifacts
+
+| Artifact | Recognized layouts |
+|---|---|
+| JAR | `lib/*.jar`, embedded Maven metadata |
+| WAR | `WEB-INF/lib/*.jar` |
+| EAR | nested `*.war` and `*.jar` modules, `APP-INF/lib/*.jar` |
+| Spring Boot fat JAR | `BOOT-INF/lib/*.jar` |
+
+Nested archives are opened recursively, so a JAR inside a WAR inside an EAR is scanned.
+
+#### Binary Scan Options
+
+> [!NOTE]
+> These options belong to the `scan` command, so they must appear **before** the `binary` subcommand:
+> `cycode scan -t sca --max-depth 5 binary app.ear`
+
+| Option | Default | Description |
+|---|---|---|
+| `--max-depth` | `3` | Nested-archive recursion limit. An EAR containing WARs containing JARs is depth 3. |
+| `--offline` | off | Identify components from embedded metadata only. Acknowledges and silences the partial-results warning. |
+| `--maven-central` | off | Look up archives that embedded metadata cannot identify on Maven Central by SHA-1. Sends only the digest, never the archive. Cannot be combined with `--offline`. |
+| `--project-name` | inferred | Override the platform identity when the artifact is detached from its source repository. |
+| `--keep-bom` | off | Write the generated component inventory beside each artifact, for inspection or audit. |
+| `--include-binaries` | off | On `scan path` only. Extract any Java archives encountered during the walk. |
+
+Platform identity is inferred from the Git remote when you run inside a repository, and falls back to the artifact filename otherwise.
+`--monitor` is refused on a bare filename identity, because monitoring keyed on `app.jar` would merge unrelated projects into one and quietly corrupt the trend data.
+Use `--project-name` or run from inside the repository the artifact was built from.
+
+#### How Components Are Identified
+
+Components are identified from metadata the build itself wrote into the archive:
+
+| Source | Confidence | Notes |
+|---|---|---|
+| `META-INF/maven/.../pom.properties` | exact | Written by Maven. Authoritative group, artifact and version. |
+| Maven Central digest lookup (`--maven-central`) | exact | The SHA-1 of the archive, matched against what Maven Central published. Opt-in, because it is the one step that sends anything about the artifact off the machine. |
+| `META-INF/MANIFEST.MF` attributes | low | `Implementation-Title`, OSGi `Bundle-SymbolicName` and similar, with the group taken from `Implementation-Vendor-Id`. Used only when all three parts are shaped like Maven coordinates; a product name or a build banner is not one. |
+
+Every finding reports which source identified its component and where inside the artifact that component sits, so a hit on a large EAR points at a specific nested JAR rather than the whole file.
+
+> [!NOTE]
+> Findings from a low-confidence match are printed and exported, but do **not** affect the exit code.
+> A wrong coordinate produces a wrong vulnerability list, and a fabricated CVE breaking a release costs more trust than the extra coverage is worth.
+
+#### Unidentified Components
+
+Archives that carry no usable metadata are listed in their own section by path, digest and size, and appear under an `unidentified` key in `--output json` so CI can assert on coverage:
+
+```
+╭─ 🔎 Unidentified (1) ────────────────────────────────────────────╮
+│   Path                                          SHA-1       Size │
+│   payments.war > WEB-INF/lib/internal-shim.jar  5fe08079…  142 B │
+╰──────────────────────────────────────────────────────────────────╯
+
+3 identified (1 low confidence) | 1 unidentified | 17 vulnerabilities
+```
+
+The coverage line counts manifest-only matches as identified but calls them out, and `--output json` reports the same number as `binary.low_confidence_components`.
+
+We do not guess a component's identity from its filename.
+`internal-shim.jar` is not evidence of anything, and an admitted gap is more useful than an invented coordinate.
+Unidentified components do not set the exit code on their own.
+
+#### Binary Scan Limitations
+
+Read this before relying on a binary scan as your only check.
+
+- **Relocated and shaded classes are not detected.**
+  When a build rewrites `com.google.common` into `com.acme.shaded.common` and merges it into the parent JAR, there is no separate JAR to identify and no metadata left to read.
+  Those components will not appear in the results at all.
+  Detecting them requires class-level fingerprinting, which this feature does not do.
+- **Source scanning gives a truer picture.**
+  A source scan resolves the real dependency graph from your lockfiles.
+  A binary scan sees what is physically packaged, and infers relationships from archive nesting plus any embedded `pom.xml` files it finds.
+  Where you have source, scan the source; use binary scanning for the artifacts you cannot scan any other way.
+- **Coverage is reported, not assumed.**
+  The coverage line is always printed and always true.
+  If it says components could not be identified, the scan is genuinely incomplete for those components rather than clean.
+- **Java only, for now.**
+  .NET, npm and container artifacts are not supported yet.
+
 ### Commit History Scan
 
 > [!NOTE]
@@ -1547,6 +1677,7 @@ The following commands are available for use with this command:
 |------------------|-----------------------------------------------------------------|
 | `path`           | Generate SBOM report for provided path in the command           |
 | `repository-url` | Generate SBOM report for provided repository URI in the command |
+| `binary`         | Generate SBOM report for a built Java artifact (JAR, WAR, EAR)  |
 
 ### Repository
 
@@ -1571,6 +1702,23 @@ The `path` subcommand supports the following additional options:
 | `--no-restore`              | Skip lockfile restoration and scan direct dependencies only. See [Lock Restore Option](#lock-restore-option) for details.           |
 | `--gradle-all-sub-projects` | Run the Gradle restore command for all sub-projects (use from the root of a multi-project Gradle build).                           |
 | `--maven-settings-file`     | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when building the dependency tree. |
+
+### Built Artifact
+
+To create an SBOM report for a built Java artifact, without scanning it for vulnerabilities:\
+`cycode report sbom --format <sbom format> --output-file </path/to/file> binary </path/to/artifact>`
+
+For example:\
+`cycode report sbom --format spdx-2.3 --output-file payments-sbom.json binary ./dist/payments.war`
+
+This answers the compliance case directly: an SBOM of what you actually shipped, rather than of what was committed.
+It uses the same extraction as [Binary Scan](#binary-scan), so the [limitations](#binary-scan-limitations) documented there apply here too — in particular, shaded and relocated components will be missing from the SBOM.
+
+The `binary` subcommand supports the following additional option:
+
+| Option        | Description                                                                                  |
+|---------------|----------------------------------------------------------------------------------------------|
+| `--max-depth` | Nested-archive recursion limit. Defaults to 3. An EAR containing WARs containing JARs is depth 3. |
 
 # Import Command
 

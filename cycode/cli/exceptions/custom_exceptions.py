@@ -80,6 +80,41 @@ class FileCollectionError(CycodeError):
         return self.error_message
 
 
+class BinaryExtractionError(CycodeError):
+    """Raised when an artifact cannot be read safely enough to identify what is inside it."""
+
+    def __init__(self, error_message: str) -> None:
+        self.error_message = error_message
+        super().__init__(self.error_message)
+
+    def __str__(self) -> str:
+        return self.error_message
+
+
+class MalformedArchiveError(BinaryExtractionError):
+    """The bytes are not a readable archive: truncated directory, bad header, or not a zip at all."""
+
+
+class UnsafeArchiveEntryError(BinaryExtractionError):
+    """An entry name would escape the archive root, or names a location we refuse to reproduce."""
+
+
+class ArchiveLimitExceededError(BinaryExtractionError):
+    """An archive breached one of the resource ceilings in consts."""
+
+
+class ArchiveEntryCountLimitError(ArchiveLimitExceededError): ...
+
+
+class ArchiveEntrySizeLimitError(ArchiveLimitExceededError): ...
+
+
+class ArchiveTotalSizeLimitError(ArchiveLimitExceededError): ...
+
+
+class ArchiveCompressionRatioLimitError(ArchiveLimitExceededError): ...
+
+
 class AuthProcessError(CycodeError):
     def __init__(self, error_message: str) -> None:
         self.error_message = error_message
