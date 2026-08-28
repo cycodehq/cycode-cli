@@ -334,6 +334,7 @@ def build_ai_guardrails_scan_parameters(
         'device_hostname': get_hostname(),
         'conversation_id': payload.conversation_id,
         'generation_id': payload.generation_id,
+        'hook_event_id': payload.hook_event_id,
         'ide_user_email': payload.ide_user_email,
         'mcp_server_name': payload.mcp_server_name,
         'mcp_tool_name': payload.mcp_tool_name,

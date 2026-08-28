@@ -73,6 +73,7 @@ class AISecurityManagerClient:
             return
 
         body = {
+            'id': payload.hook_event_id,
             'conversation_id': conversation_id,
             'event_type': event_type,
             'outcome': outcome,

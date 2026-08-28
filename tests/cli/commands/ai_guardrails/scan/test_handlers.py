@@ -557,6 +557,8 @@ def test_build_ai_guardrails_scan_parameters(
         'device_hostname': 'test-host',
         'conversation_id': 'test-conv-id',
         'generation_id': 'test-gen-id',
+        # The same id the hook event is reported under, so the detection can point at that one event
+        'hook_event_id': mock_payload.hook_event_id,
         'ide_user_email': 'test@example.com',
         'mcp_server_name': None,
         'mcp_tool_name': None,
