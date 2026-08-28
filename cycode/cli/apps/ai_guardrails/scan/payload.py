@@ -5,7 +5,8 @@ The dataclass is populated by `IDE.parse_hook_payload` (see
 respective IDE class.
 """
 
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from typing import Optional
 
 
@@ -17,6 +18,11 @@ class AIHookPayload:
     event_name: Optional[str] = None  # Canonical event type from AiHookEventType
     conversation_id: Optional[str] = None
     generation_id: Optional[str] = None
+
+    # Minted here rather than by the server: the guardrail scan and the hook event are reported in two
+    # separate requests, and both have to name the same event. A generation id can't stand in for it - the
+    # IDE mints one per prompt, so several hook events share it, and some IDEs don't supply one at all.
+    hook_event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     # User and IDE information
     ide_user_email: Optional[str] = None
