@@ -16,7 +16,7 @@ from cycode.cli.printers.utils.detection_data import (
 )
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
 from cycode.cli.printers.utils.rich_helpers import get_columns_in_1_to_3_ratio, get_markdown_panel, get_panel
-from cycode.cli.printers.utils.sca_ossf import get_maintained_score, get_ossf_report_url, get_ossf_score
+from cycode.cli.printers.utils.sca_policy_details import get_sca_policy_details
 
 if TYPE_CHECKING:
     from cycode.cli.models import CliError, Detection, Document, LocalScanResult
@@ -91,21 +91,11 @@ class RichPrinter(TextPrinter):
         details_table.add_row('Package', detection_details.get('package_name'))
         details_table.add_row('Version', detection_details.get('package_version'))
 
-        if detection.has_alert:
-            patched_version = detection_details['alert'].get('first_patched_version')
-            details_table.add_row('First patched version', patched_version or 'Not fixed')
-
         dependency_path = detection_details.get('dependency_paths')
         details_table.add_row('Dependency path', dependency_path or 'N/A')
 
-        if detection.detection_type_id == consts.UNMAINTAINED_PACKAGE_POLICY_ID:
-            maintained_score = get_maintained_score(detection_details)
-            ossf_score = get_ossf_score(detection_details)
-            details_table.add_row('Maintained score', 'N/A' if maintained_score is None else str(maintained_score))
-            details_table.add_row('OSSF Scorecard score', 'N/A' if ossf_score is None else str(ossf_score))
-            details_table.add_row('Scorecard report', get_ossf_report_url(detection_details) or 'N/A')
-        elif not detection.has_alert:
-            details_table.add_row('License', detection_details.get('license'))
+        for label, value in get_sca_policy_details(detection):
+            details_table.add_row(label, value)
 
     @staticmethod
     def __add_iac_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
