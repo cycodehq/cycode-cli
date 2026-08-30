@@ -130,8 +130,9 @@ class ScaTablePrinter(TablePrinterBase):
         table.add_cell(CVE_COLUMNS, detection_details.get('vulnerability_id'))
         table.add_cell(LICENSE_COLUMN, detection_details.get('license'))
 
-        maintained_score = get_maintained_score(detection_details)
-        table.add_cell(MAINTAINED_SCORE_COLUMN, 'N/A' if maintained_score is None else str(maintained_score))
+        if detection.detection_type_id == UNMAINTAINED_PACKAGE_POLICY_ID:
+            maintained_score = get_maintained_score(detection_details)
+            table.add_cell(MAINTAINED_SCORE_COLUMN, 'N/A' if maintained_score is None else str(maintained_score))
 
     def _print_summary_issues(self, detections_count: int, title: str) -> None:
         self.console.print(f'[bold]Cycode found {detections_count} violations of type: [cyan]{title}[/]')
