@@ -87,7 +87,6 @@ class RichPrinter(TextPrinter):
     def __add_sca_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
         detection_details = detection.detection_details
 
-        details_table.add_row('CVEs', get_detection_clickable_cwe_cve(consts.SCA_SCAN_TYPE, detection))
         details_table.add_row('Package', detection_details.get('package_name'))
         details_table.add_row('Version', detection_details.get('package_version'))
 

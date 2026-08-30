@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING, Callable
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,
     PACKAGE_VULNERABILITY_POLICY_ID,
+    SCA_SCAN_TYPE,
     UNMAINTAINED_PACKAGE_POLICY_ID,
 )
+from cycode.cli.printers.utils.detection_data import get_detection_clickable_cwe_cve
 from cycode.cli.printers.utils.sca_ossf import get_maintained_score, get_ossf_report_url, get_ossf_score
 
 if TYPE_CHECKING:
@@ -15,7 +17,10 @@ _NOT_AVAILABLE = 'N/A'
 
 def _package_vulnerability_details(detection: 'Detection') -> list[tuple[str, str]]:
     alert = detection.detection_details.get('alert') or {}
-    return [('First patched version', alert.get('first_patched_version') or 'Not fixed')]
+    return [
+        ('CVEs', get_detection_clickable_cwe_cve(SCA_SCAN_TYPE, detection) or _NOT_AVAILABLE),
+        ('First patched version', alert.get('first_patched_version') or 'Not fixed'),
+    ]
 
 
 def _license_compliance_details(detection: 'Detection') -> list[tuple[str, str]]:

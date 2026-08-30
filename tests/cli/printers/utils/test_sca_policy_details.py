@@ -18,16 +18,26 @@ def _make_detection(policy_id: str, **details: object) -> Detection:
     )
 
 
-def test_package_vulnerability_reports_the_patched_version() -> None:
-    detection = _make_detection(PACKAGE_VULNERABILITY_POLICY_ID, alert={'first_patched_version': '4.17.21'})
+def test_package_vulnerability_reports_the_cve_and_the_patched_version() -> None:
+    detection = _make_detection(
+        PACKAGE_VULNERABILITY_POLICY_ID,
+        alert={'first_patched_version': '4.17.21'},
+        vulnerability_id='CVE-2021-23337',
+    )
 
-    assert get_sca_policy_details(detection) == [('First patched version', '4.17.21')]
+    assert get_sca_policy_details(detection) == [
+        ('CVEs', '[link=https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-23337]CVE-2021-23337[/]'),
+        ('First patched version', '4.17.21'),
+    ]
 
 
-def test_package_vulnerability_without_a_patch() -> None:
+def test_package_vulnerability_without_a_patch_or_a_cve() -> None:
     detection = _make_detection(PACKAGE_VULNERABILITY_POLICY_ID, alert={'first_patched_version': None})
 
-    assert get_sca_policy_details(detection) == [('First patched version', 'Not fixed')]
+    assert get_sca_policy_details(detection) == [
+        ('CVEs', 'N/A'),
+        ('First patched version', 'Not fixed'),
+    ]
 
 
 def test_license_compliance_reports_the_license() -> None:
@@ -67,6 +77,19 @@ def test_unmaintained_package_without_a_scorecard() -> None:
         ('OSSF Scorecard score', 'N/A'),
         ('Scorecard report', 'N/A'),
     ]
+
+
+def test_only_package_vulnerability_reports_a_cve() -> None:
+    """A CVE belongs to the vulnerability policy alone.
+
+    It used to be rendered for every SCA detection, so an unmaintained or license finding - neither of which
+    carries a vulnerability_id - showed an empty CVEs row.
+    """
+    for policy_id in (LICENSE_COMPLIANCE_POLICY_ID, UNMAINTAINED_PACKAGE_POLICY_ID):
+        detection = _make_detection(policy_id, vulnerability_id='CVE-2021-23337')
+
+        labels = [label for label, _ in get_sca_policy_details(detection)]
+        assert 'CVEs' not in labels
 
 
 def test_an_unregistered_policy_contributes_nothing() -> None:
