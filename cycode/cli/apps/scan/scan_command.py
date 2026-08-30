@@ -93,7 +93,11 @@ def scan_command(
             help='Specify the type of SCA scan you wish to execute.',
             rich_help_panel=_SCA_RICH_HELP_PANEL,
         ),
-    ] = (ScaScanTypeOption.PACKAGE_VULNERABILITIES, ScaScanTypeOption.LICENSE_COMPLIANCE),
+    ] = (
+        ScaScanTypeOption.PACKAGE_VULNERABILITIES,
+        ScaScanTypeOption.LICENSE_COMPLIANCE,
+        ScaScanTypeOption.UNMAINTAINED_PACKAGES,
+    ),
     monitor: Annotated[
         bool,
         typer.Option(

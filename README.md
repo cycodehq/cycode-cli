@@ -789,7 +789,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                 |
 | `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.           |
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                           |
-| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`). The default is both.                  |
+| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`/`unmaintained-packages`). The default is all. |
 | `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                                     |
 | `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                                  |
 | `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                |
@@ -866,6 +866,20 @@ To scan a specific branch of your local repository, add the argument `--sca-scan
 In the previous example, if you wanted to only scan a branch named `dev`, you could execute the following:
 
 `cycode scan -t sca --sca-scan license-compliance repository ~/home/git/codebase -b dev`
+
+#### Unmaintained Packages Option
+
+> [!NOTE]
+> This option is only available to SCA scans.
+
+To scan only for unmaintained packages (packages whose [OpenSSF Scorecard](https://scorecard.dev) `Maintained` check is low, meaning little or no recent commit and issue activity), add the argument `--sca-scan unmaintained-packages` following the `-t sca` or `--scan-type sca` option.
+
+> [!NOTE]
+> Whether unmaintained packages are reported at all is controlled by your organization's policy. This option narrows what a scan reports; it cannot enable a policy that is turned off for your tenant.
+
+In the previous example, if you wanted to only run an SCA scan on unmaintained packages, you could execute the following:
+
+`cycode scan -t sca --sca-scan unmaintained-packages repository ~/home/git/codebase`
 
 #### Lock Restore Option
 

@@ -16,6 +16,7 @@ from cycode.cli.printers.utils.detection_data import (
 )
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
 from cycode.cli.printers.utils.rich_helpers import get_columns_in_1_to_3_ratio, get_markdown_panel, get_panel
+from cycode.cli.printers.utils.sca_policy_details import get_sca_policy_details
 
 if TYPE_CHECKING:
     from cycode.cli.models import CliError, Detection, Document, LocalScanResult
@@ -86,19 +87,14 @@ class RichPrinter(TextPrinter):
     def __add_sca_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
         detection_details = detection.detection_details
 
-        details_table.add_row('CVEs', get_detection_clickable_cwe_cve(consts.SCA_SCAN_TYPE, detection))
         details_table.add_row('Package', detection_details.get('package_name'))
         details_table.add_row('Version', detection_details.get('package_version'))
-
-        if detection.has_alert:
-            patched_version = detection_details['alert'].get('first_patched_version')
-            details_table.add_row('First patched version', patched_version or 'Not fixed')
 
         dependency_path = detection_details.get('dependency_paths')
         details_table.add_row('Dependency path', dependency_path or 'N/A')
 
-        if not detection.has_alert:
-            details_table.add_row('License', detection_details.get('license'))
+        for label, value in get_sca_policy_details(detection):
+            details_table.add_row(label, value)
 
     @staticmethod
     def __add_iac_scan_related_rows(details_table: Table, detection: 'Detection') -> None:

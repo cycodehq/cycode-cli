@@ -7,6 +7,7 @@ from cycode.cli.printers.printer_base import PrinterBase
 from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax, get_detection_line
 from cycode.cli.printers.utils.detection_data import get_detection_title
 from cycode.cli.printers.utils.detection_ordering.common_ordering import sort_and_group_detections_from_scan_result
+from cycode.cli.printers.utils.sca_policy_details import get_sca_policy_details
 
 if TYPE_CHECKING:
     from cycode.cli.models import Detection, LocalScanResult
@@ -82,18 +83,7 @@ class TextPrinter(PrinterBase):
 
     @staticmethod
     def __get_sca_related_summary_lines(detection: 'Detection') -> list[str]:
-        summary_lines = []
-
-        if detection.has_alert:
-            patched_version = detection.detection_details['alert'].get('first_patched_version')
-            patched_version = patched_version or 'Not fixed'
-
-            summary_lines.append(f'First patched version: [cyan]{patched_version}[/]\n')
-        else:
-            package_license = detection.detection_details.get('license', 'N/A')
-            summary_lines.append(f'License: [cyan]{package_license}[/]\n')
-
-        return summary_lines
+        return [f'{label}: [cyan]{value}[/]\n' for label, value in get_sca_policy_details(detection)]
 
     def __print_detection_code_segment(self, detection: 'Detection', document: Document) -> None:
         self.console.print(
