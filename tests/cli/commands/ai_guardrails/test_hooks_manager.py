@@ -9,7 +9,6 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 
 if TYPE_CHECKING:
     import pytest
-    from pytest_mock import MockerFixture
 
 from cycode.cli.apps.ai_guardrails.consts import (
     CYCODE_SCAN_PROMPT_COMMAND,
@@ -79,28 +78,6 @@ def test_cursor_render_hooks_sync() -> None:
             assert '&' not in entry['command']
 
 
-def test_cursor_render_hooks_async(mocker: 'MockerFixture') -> None:
-    """Cursor async hooks: '&' suffix on scan commands (unix)."""
-    mocker.patch('platform.system', return_value='Linux')
-    config = Cursor().render_hooks_config(async_mode=True)
-    scan_hooks = {k: v for k, v in config['hooks'].items() if k != 'sessionStart'}
-    for entries in scan_hooks.values():
-        for entry in entries:
-            assert entry['command'].endswith('&')
-            assert CYCODE_SCAN_PROMPT_COMMAND in entry['command']
-
-
-def test_cursor_render_hooks_async_windows_stays_sync(mocker: 'MockerFixture') -> None:
-    """No '&' on Windows: cmd treats it as a no-op separator and Windows
-    PowerShell rejects it outright - either way nothing detaches."""
-    mocker.patch('platform.system', return_value='Windows')
-    config = Cursor().render_hooks_config(async_mode=True)
-    scan_hooks = {k: v for k, v in config['hooks'].items() if k != 'sessionStart'}
-    for entries in scan_hooks.values():
-        for entry in entries:
-            assert '&' not in entry['command']
-
-
 def test_cursor_render_hooks_session_start() -> None:
     """Cursor session_start carries the --ide flag explicitly."""
     config = Cursor().render_hooks_config()
@@ -111,8 +88,9 @@ def test_cursor_render_hooks_session_start() -> None:
     assert '--ide cursor' in entries[0]['command']
 
 
-def test_claude_code_render_hooks_sync() -> None:
-    """Claude Code sync hooks: no async/timeout fields."""
+def test_claude_code_render_hooks_never_async() -> None:
+    """Hooks are always installed plain sync: warn-vs-block synchronicity is
+    decided at scan time by the CLI itself (self-detach)."""
     config = ClaudeCode().render_hooks_config()
     scan_events = {k: v for k, v in config['hooks'].items() if k != 'SessionStart'}
     for event_entries in scan_events.values():
@@ -120,16 +98,6 @@ def test_claude_code_render_hooks_sync() -> None:
             for hook in event_entry['hooks']:
                 assert 'async' not in hook
                 assert 'timeout' not in hook
-
-
-def test_claude_code_render_hooks_async() -> None:
-    """Claude Code async hooks: 'async' flag + timeout."""
-    config = ClaudeCode().render_hooks_config(async_mode=True)
-    scan_events = {k: v for k, v in config['hooks'].items() if k != 'SessionStart'}
-    for event_entries in scan_events.values():
-        for event_entry in event_entries:
-            for hook in event_entry['hooks']:
-                assert hook['async'] is True
 
 
 def test_claude_code_render_hooks_session_start() -> None:
@@ -239,6 +207,22 @@ def test_install_preserves_user_hook_colocated_with_cycode(
     assert saved['hooks']['PostToolUse'][0]['hooks'][0]['command'] == '/usr/local/bin/user-postlog.sh'
 
 
+def test_codex_install_never_writes_version_field(fs: FakeFilesystem, monkeypatch: 'pytest.MonkeyPatch') -> None:
+    """Codex rejects a hooks file with unknown top-level fields, so install must not
+    inject `version`."""
+    repo = Path('/repo')
+    fs.create_dir(repo)
+    monkeypatch.setenv('CODEX_HOME', '/codex-home')
+    fs.create_dir('/codex-home')
+
+    success, _ = install_hooks(Codex(), scope='repo', repo_path=repo)
+    assert success is True
+
+    saved = json.loads((repo / '.codex' / 'hooks.json').read_text())
+    assert 'version' not in saved
+    assert saved['hooks']['UserPromptSubmit']
+
+
 def test_uninstall_preserves_user_hook_colocated_with_cycode(
     fs: FakeFilesystem, monkeypatch: 'pytest.MonkeyPatch'
 ) -> None:
@@ -290,12 +274,12 @@ def test_copilot_dedicated_file_install_uninstall_lifecycle(fs: FakeFilesystem) 
     assert set(saved['hooks']) == {'SessionStart', 'UserPromptSubmit', 'PreToolUse'}
     assert all(len(entries) == 1 for entries in saved['hooks'].values())
 
-    # Reinstall (also flipping mode) must replace, not duplicate.
-    success, _ = install_hooks(copilot, report_mode=True)
+    # Reinstall must replace, not duplicate.
+    success, _ = install_hooks(copilot)
     assert success is True
     saved = json.loads(hooks_path.read_text())
     assert all(len(entries) == 1 for entries in saved['hooks'].values())
-    assert saved['hooks']['PreToolUse'][0]['bash'].endswith('&')
+    assert saved['hooks']['PreToolUse'][0]['command'] == 'cycode ai-guardrails scan --ide copilot'
 
     # Uninstall deletes the emptied dedicated file rather than leaving a husk.
     success, _ = uninstall_hooks(copilot)

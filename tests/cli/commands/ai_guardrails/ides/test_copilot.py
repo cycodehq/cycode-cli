@@ -316,14 +316,15 @@ def test_render_hooks_config_sync_uses_cross_platform_command() -> None:
     assert session_entry['command'] == 'cycode ai-guardrails session-start --ide copilot'
 
 
-def test_render_hooks_config_async_backgrounds_on_unix() -> None:
-    rendered = Copilot().render_hooks_config(async_mode=True)
-    tool_entry = rendered['hooks']['PreToolUse'][0]
-    # <&0 keeps the payload (a bare `cmd &` gets stdin from /dev/null and scans nothing);
-    # the stdout redirect releases the pipe the runner waits on, or it still blocks.
-    assert tool_entry['bash'].endswith('<&0 >/dev/null 2>&1 &')
-    assert not tool_entry['powershell'].endswith('&')
-    assert 'command' not in tool_entry
+def test_render_hooks_config_never_shell_splits() -> None:
+    """Entries always use the single cross-platform `command` field: warn-vs-block
+    synchronicity is decided at scan time by the CLI itself (self-detach)."""
+    rendered = Copilot().render_hooks_config()
+    for entries in rendered['hooks'].values():
+        for entry in entries:
+            assert 'bash' not in entry
+            assert 'powershell' not in entry
+            assert '&' not in entry['command']
 
 
 def test_settings_path_user_scope() -> None:

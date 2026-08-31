@@ -379,24 +379,9 @@ class Copilot(IDE):
             return repo_path / _REPO_HOOKS_SUBDIR / _HOOKS_FILE_NAME
         return _copilot_home() / 'hooks' / _HOOKS_FILE_NAME
 
-    def render_hooks_config(self, async_mode: bool = False) -> dict:
+    def render_hooks_config(self) -> dict:
+        # Single cross-platform `command` field, copied to both shells by Copilot.
         def entry(command: str) -> dict:
-            if async_mode:
-                # Copilot has no async hook flag; background via shell on unix. Both
-                # redirects are load-bearing. `<&0` keeps the payload flowing: a bare
-                # `cmd &` gets its stdin reattached to /dev/null by the shell (job
-                # control is off in hooks), so the scan reads nothing and allows. The
-                # stdout redirect is what actually makes it async: the backgrounded
-                # child inherits the hook's stdout and the runner waits on that pipe
-                # for EOF, so without it the scan blocks the response it was meant to
-                # run behind. Windows PowerShell has no trailing-&, so it stays sync.
-                return {
-                    'type': 'command',
-                    'bash': f'{command} <&0 >/dev/null 2>&1 &',
-                    'powershell': command,
-                    'timeoutSec': _HOOK_TIMEOUT_SEC,
-                }
-            # Single cross-platform `command` field, copied to both shells by Copilot.
             return {'type': 'command', 'command': command, 'timeoutSec': _HOOK_TIMEOUT_SEC}
 
         return {

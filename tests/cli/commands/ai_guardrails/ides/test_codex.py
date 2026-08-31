@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
-from pytest_mock import MockerFixture
 
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.codex import (
@@ -158,40 +157,23 @@ def test_render_hooks_session_start_matches_all_sources() -> None:
 
 def test_render_hooks_never_emits_async_toml_flags() -> None:
     """Codex's TOML `async: true` / `timeout` flags are unimplemented; we must not emit them."""
-    for mode in (False, True):
-        rendered = Codex().render_hooks_config(async_mode=mode)
-        for entry in rendered['hooks']['PreToolUse']:
-            for hook in entry['hooks']:
-                assert 'async' not in hook
-                assert 'timeout' not in hook
+    rendered = Codex().render_hooks_config()
+    for entry in rendered['hooks']['PreToolUse']:
+        for hook in entry['hooks']:
+            assert 'async' not in hook
+            assert 'timeout' not in hook
 
 
-def test_render_hooks_async_backgrounds_scan_hooks(mocker: MockerFixture) -> None:
-    """In async mode, UserPromptSubmit + PreToolUse scan hooks shell-background (unix)."""
-    mocker.patch('platform.system', return_value='Linux')
-    rendered = Codex().render_hooks_config(async_mode=True)
+def test_render_hooks_commands_always_plain_sync() -> None:
+    """Hooks are always installed plain sync: warn-vs-block synchronicity is
+    decided at scan time by the CLI itself (self-detach)."""
+    rendered = Codex().render_hooks_config()
     prompt_cmd = rendered['hooks']['UserPromptSubmit'][0]['hooks'][0]['command']
     pretool_cmd = rendered['hooks']['PreToolUse'][0]['hooks'][0]['command']
-    assert prompt_cmd.endswith(' &')
-    assert pretool_cmd.endswith(' &')
-
-
-def test_render_hooks_async_windows_stays_sync(mocker: MockerFixture) -> None:
-    """No '&' on Windows - nothing there detaches safely, so hooks run sync."""
-    mocker.patch('platform.system', return_value='Windows')
-    rendered = Codex().render_hooks_config(async_mode=True)
-    prompt_cmd = rendered['hooks']['UserPromptSubmit'][0]['hooks'][0]['command']
-    pretool_cmd = rendered['hooks']['PreToolUse'][0]['hooks'][0]['command']
+    session_cmd = rendered['hooks']['SessionStart'][0]['hooks'][0]['command']
     assert '&' not in prompt_cmd
     assert '&' not in pretool_cmd
-
-
-def test_render_hooks_session_start_always_synchronous() -> None:
-    """SessionStart registers the conversation context — never backgrounded."""
-    for mode in (False, True):
-        rendered = Codex().render_hooks_config(async_mode=mode)
-        session_cmd = rendered['hooks']['SessionStart'][0]['hooks'][0]['command']
-        assert '&' not in session_cmd
+    assert '&' not in session_cmd
 
 
 def test_render_hooks_pretooluse_matchers_are_mcp_only() -> None:

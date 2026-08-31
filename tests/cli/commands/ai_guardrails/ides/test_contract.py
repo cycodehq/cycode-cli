@@ -8,7 +8,6 @@ IDE inherits the same baseline guarantees (and fails fast if it doesn't).
 from pathlib import Path
 
 import pytest
-from pytest_mock import MockerFixture
 
 from cycode.cli.apps.ai_guardrails.ides import IDES
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
@@ -61,14 +60,24 @@ def test_render_hooks_config_has_hooks_key(ide: IDE) -> None:
     assert isinstance(rendered['hooks'], dict)
 
 
-def test_render_hooks_config_async_changes_output(ide: IDE, mocker: MockerFixture) -> None:
-    """async_mode must influence the rendered output.
+def test_render_hooks_config_is_always_plain_sync(ide: IDE) -> None:
+    """Hook commands never carry shell-background plumbing or async flags:
+    warn-vs-block synchronicity is decided at scan time by the CLI itself
+    (self-detach in report mode)."""
 
-    Pinned to a unix platform: IDEs that background via a shell `&` render
-    identical sync/async configs on Windows, where no safe suffix exists.
-    """
-    mocker.patch('platform.system', return_value='Linux')
-    assert ide.render_hooks_config(async_mode=False) != ide.render_hooks_config(async_mode=True)
+    def assert_plain(node: object) -> None:
+        if isinstance(node, dict):
+            assert 'async' not in node
+            for field in ('command', 'bash', 'powershell'):
+                if field in node:
+                    assert not str(node[field]).rstrip().endswith('&')
+            for value in node.values():
+                assert_plain(value)
+        elif isinstance(node, list):
+            for item in node:
+                assert_plain(item)
+
+    assert_plain(ide.render_hooks_config())
 
 
 def test_matches_payload_rejects_empty(ide: IDE) -> None:

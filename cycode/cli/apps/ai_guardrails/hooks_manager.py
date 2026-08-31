@@ -127,16 +127,20 @@ def install_hooks(
     ide: IDE,
     scope: str = 'user',
     repo_path: Optional[Path] = None,
-    report_mode: bool = False,
 ) -> tuple[bool, str]:
     """Install Cycode AI guardrails hooks for ``ide``."""
     hooks_path = ide.settings_path(scope, repo_path)
 
-    existing = _load_hooks_file(hooks_path) or {'version': 1, 'hooks': {}}
-    existing.setdefault('version', 1)
+    existing = _load_hooks_file(hooks_path) or {'hooks': {}}
     existing.setdefault('hooks', {})
 
-    rendered = ide.render_hooks_config(async_mode=report_mode)
+    rendered = ide.render_hooks_config()
+
+    # Top-level fields come from the IDE's render only - Codex rejects a hooks file
+    # with unknown top-level fields, so no `version` may be injected here.
+    for key, value in rendered.items():
+        if key != 'hooks':
+            existing[key] = value
 
     for event, entries in rendered['hooks'].items():
         existing['hooks'].setdefault(event, [])

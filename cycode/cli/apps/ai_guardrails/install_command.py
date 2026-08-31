@@ -65,11 +65,9 @@ def install_command(
     repo_path = resolve_repo_path(scope, repo_path)
     ides_to_install = resolve_ides(ide)
 
-    report_mode = mode == GuardrailsMode.REPORT
-
     results: list[tuple[str, bool, str]] = []
     for current_ide in ides_to_install:
-        success, message = install_hooks(current_ide, scope, repo_path, report_mode=report_mode)
+        success, message = install_hooks(current_ide, scope, repo_path)
         results.append((current_ide.display_name, success, message))
 
     any_success = False
@@ -108,6 +106,6 @@ def _print_next_steps(results: list[tuple[str, bool, str]], mode: GuardrailsMode
     console.print('2. (Optional) Customize policy in ~/.cycode/ai-guardrails.yaml')
     console.print()
     if mode == GuardrailsMode.REPORT:
-        console.print('[dim]Report mode: hooks run async (non-blocking) and policy is set to warn.[/]')
+        console.print('[dim]Report mode: policy is set to warn.[/]')
     else:
         console.print('[dim]The hooks will scan prompts, file reads, and MCP tool calls for secrets.[/]')

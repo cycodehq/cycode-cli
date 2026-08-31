@@ -20,7 +20,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
-from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision, shell_background_suffix
+from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.utils.jwt_utils import decode_jwt_unverified
@@ -189,11 +189,10 @@ class Codex(IDE):
             return repo_path / _CONFIG_DIR_NAME / _HOOKS_FILE_NAME
         return _codex_home() / _HOOKS_FILE_NAME
 
-    def render_hooks_config(self, async_mode: bool = False) -> dict:
-        # Codex's TOML `async: true` flag is unimplemented; shell-background via
-        # `&` is the working mechanism (unix only). SessionStart stays sync so
-        # the conversation context is registered before any scan hook fires.
-        scan_cmd = f'{_SCAN_COMMAND}{shell_background_suffix(async_mode)}'
+    def render_hooks_config(self) -> dict:
+        # SessionStart stays sync so the conversation context is registered
+        # before any scan hook fires.
+        scan_cmd = _SCAN_COMMAND
         return {
             'hooks': {
                 'SessionStart': [

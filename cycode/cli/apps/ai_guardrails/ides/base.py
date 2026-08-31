@@ -14,7 +14,6 @@ event handlers; `IDE.build_hook_response` translates it into the IDE-specific
 JSON response shape that the IDE expects on stdout.
 """
 
-import platform
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -23,24 +22,6 @@ from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
-
-
-def shell_background_suffix(async_mode: bool) -> str:
-    """`' &'` when backgrounding is requested and the platform's shell supports it.
-
-    Only valid for hooks whose runner is stdin-safe under backgrounding (zsh keeps
-    a backgrounded command's stdin; verified for Cursor/Codex). bash/sh reattach it
-    to /dev/null, silently emptying the payload — hooks that run under bash (e.g.
-    Copilot's `bash` field) must add an explicit `<&0` redirect instead.
-
-    Windows gets no suffix: depending on the IDE, hooks may run under cmd (where a
-    trailing `&` is a no-op separator) or Windows PowerShell (where it's a parse
-    error that would fail the hook). Until the CLI can self-detach in report mode,
-    Windows hooks run synchronously.
-    """
-    if not async_mode or platform.system() == 'Windows':
-        return ''
-    return ' &'
 
 
 class DecisionAction(str, Enum):
@@ -118,7 +99,7 @@ class IDE(ABC):
         """
 
     @abstractmethod
-    def render_hooks_config(self, async_mode: bool = False) -> dict:
+    def render_hooks_config(self) -> dict:
         """Return the settings blob to merge into the IDE's settings file.
 
         Shape is IDE-specific (Cursor uses a flat ``{event: [{command}]}`` dict;
