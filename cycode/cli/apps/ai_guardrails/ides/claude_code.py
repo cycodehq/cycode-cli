@@ -249,12 +249,8 @@ class ClaudeCode(IDE):
             return repo_path / _REPO_SUBDIR / _HOOKS_FILE_NAME
         return _USER_HOOKS_DIR / _HOOKS_FILE_NAME
 
-    def render_hooks_config(self, async_mode: bool = False) -> dict:
-        # Claude Code uses a nested hook structure with optional async/timeout.
+    def render_hooks_config(self) -> dict:
         hook_entry: dict = {'type': 'command', 'command': _SCAN_COMMAND}
-        if async_mode:
-            hook_entry['async'] = True
-            hook_entry['timeout'] = 20
 
         return {
             'hooks': {

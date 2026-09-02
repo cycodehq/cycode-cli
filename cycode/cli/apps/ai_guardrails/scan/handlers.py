@@ -318,6 +318,30 @@ def get_effective_mode(policy: dict, feature_config: dict) -> GuardrailsMode:
     return GuardrailsMode.BLOCK if (mode == PolicyMode.BLOCK and action == PolicyMode.BLOCK) else GuardrailsMode.REPORT
 
 
+# The policy section each event's handler reads its feature config from.
+_FEATURE_KEY_BY_EVENT_TYPE: dict[str, str] = {
+    AiHookEventType.PROMPT.value: 'prompt',
+    AiHookEventType.FILE_READ.value: 'file_read',
+    AiHookEventType.MCP_EXECUTION.value: 'mcp',
+}
+
+
+def should_detach_scan(policy: dict, event_name: str) -> bool:
+    """Whether this event's scan is safe to run detached.
+
+    Report mode never blocks, so nobody consumes the verdict. Fail-closed
+    configs stay synchronous even in report mode: their deny on scan failure
+    must reach the IDE. Unknown events stay synchronous - they exit fast anyway.
+    """
+    feature_key = _FEATURE_KEY_BY_EVENT_TYPE.get(event_name)
+    if feature_key is None:
+        return False
+    if not get_policy_value(policy, 'fail_open', default=True):
+        return False
+    feature_config = get_policy_value(policy, feature_key, default={})
+    return get_effective_mode(policy, feature_config) == GuardrailsMode.REPORT
+
+
 def build_ai_guardrails_scan_parameters(
     ctx: typer.Context,
     paths: Optional[tuple[str, ...]],

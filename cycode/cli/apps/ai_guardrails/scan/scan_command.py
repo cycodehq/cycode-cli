@@ -15,7 +15,8 @@ import typer
 
 from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, get_ide
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
-from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event
+from cycode.cli.apps.ai_guardrails.scan.detach import is_detached_child, respawn_detached
+from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event, should_detach_scan
 from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.apps.ai_guardrails.scan.utils import output_json, read_stdin_text, safe_json_parse
@@ -138,6 +139,12 @@ def scan_command(
     # `or` (not a .get default) - Cursor sends workspace_roots=[] when no folder is open.
     workspace_roots = payload.get('workspace_roots') or ['.']
     policy = load_policy(workspace_roots[0])
+
+    # Report mode: nobody consumes the verdict, so hand the scan to a detached
+    # child and release the IDE immediately. Runs before any client or network
+    # work. A failed respawn falls through to the synchronous path.
+    if not is_detached_child() and should_detach_scan(policy, event_name) and respawn_detached(stdin_data):
+        return
 
     try:
         _initialize_clients(ctx)

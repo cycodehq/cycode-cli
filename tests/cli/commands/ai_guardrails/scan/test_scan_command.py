@@ -255,6 +255,135 @@ class TestCopilotPayloadRouting:
         assert json.loads(capsys.readouterr().out) == {}
 
 
+class TestSelfDetach:
+    """Report-mode scans respawn detached and release the IDE immediately."""
+
+    @pytest.fixture
+    def mock_respawn(self, mocker: MockerFixture) -> MagicMock:
+        return mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.respawn_detached', return_value=True)
+
+    @pytest.fixture
+    def not_detached(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv('_CYCODE_DETACHED', raising=False)
+
+    def _run_prompt_scan(self, mock_ctx: MagicMock, mocker: MockerFixture, policy: dict) -> str:
+        payload = json.dumps({'hook_event_name': 'beforeSubmitPrompt', 'conversation_id': 'c-1', 'prompt': 'test'})
+        mocker.patch('sys.stdin', StringIO(payload))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value=policy)
+        scan_command(mock_ctx, ide='cursor')
+        return payload
+
+    def test_warn_mode_detaches_before_any_client_work(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        initialize_clients = mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock()
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        payload = self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': True})
+
+        # The parent hands the raw payload to the child and exits with no output.
+        mock_respawn.assert_called_once_with(payload)
+        initialize_clients.assert_not_called()
+        handler.assert_not_called()
+        assert capsys.readouterr().out == ''
+
+    def test_block_mode_stays_synchronous(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'block', 'fail_open': True})
+
+        mock_respawn.assert_not_called()
+        handler.assert_called_once()
+
+    def test_detached_child_never_respawns_again(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_respawn: MagicMock,
+    ) -> None:
+        monkeypatch.setenv('_CYCODE_DETACHED', '1')
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': True})
+
+        mock_respawn.assert_not_called()
+        handler.assert_called_once()
+
+    def test_fail_closed_policy_stays_synchronous_even_in_warn_mode(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        """A fail-closed deny on scan failure must reach the IDE - it cannot go to devnull."""
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': False})
+
+        mock_respawn.assert_not_called()
+        handler.assert_called_once()
+
+    def test_detach_decision_is_per_event(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        """Prompt blocks while file-read reports: only the file-read event detaches."""
+        policy = {'mode': 'block', 'fail_open': True, 'file_read': {'action': 'warn'}}
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value=policy)
+
+        mocker.patch('sys.stdin', StringIO(json.dumps({'hook_event_name': 'beforeSubmitPrompt', 'prompt': 'x'})))
+        scan_command(mock_ctx, ide='cursor')
+        mock_respawn.assert_not_called()
+
+        read_payload = {'hook_event_name': 'beforeReadFile', 'file_path': '/workspace/app.py'}
+        mocker.patch('sys.stdin', StringIO(json.dumps(read_payload)))
+        scan_command(mock_ctx, ide='cursor')
+        mock_respawn.assert_called_once()
+
+    def test_failed_respawn_falls_back_to_synchronous_scan(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        mock_respawn.return_value = False
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': True})
+
+        mock_respawn.assert_called_once()
+        handler.assert_called_once()
+
+
 class TestDefaultIdeParameterViaCli:
     """Tests that verify default IDE parameter works correctly via CLI invocation."""
 
