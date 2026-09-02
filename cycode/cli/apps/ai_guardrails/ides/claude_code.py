@@ -13,7 +13,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
-from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -35,9 +35,6 @@ _HOOK_EVENTS = ['UserPromptSubmit', 'PreToolUse:Read', 'PreToolUse:mcp']
 _CLAUDE_CONFIG_PATH = Path.home() / '.claude.json'
 _CLAUDE_SETTINGS_PATH = Path.home() / '.claude' / 'settings.json'
 _CLAUDE_SKILLS_DIR = Path.home() / '.claude' / 'skills'
-
-# Claude hardcodes a plugin's skills under this subdirectory, the same way it hardcodes ".mcp.json".
-_PLUGIN_SKILLS_SUBDIR = 'skills'
 
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide claude-code'
@@ -206,7 +203,7 @@ def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
 
     # Attached to the plugin entry rather than the top-level skills list so the backend keeps the
     # plugin provenance (marketplace, plugin, version) that a marketplace-installed skill has.
-    skill_files = walk_skill_dirs(plugin_dir / _PLUGIN_SKILLS_SUBDIR)
+    skill_files = walk_plugin_skills(plugin_dir)
     if skill_files:
         entry['skill_files'] = skill_files
 
