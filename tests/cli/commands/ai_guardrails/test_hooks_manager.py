@@ -264,15 +264,19 @@ def test_uninstall_preserves_user_hook_colocated_with_cycode(
 def test_uninstall_keeps_shared_settings_file_when_cycode_hooks_were_the_only_hooks(fs: FakeFilesystem) -> None:
     """Claude Code's settings.json is a general-purpose file: when Cycode's hooks were the
     only hooks in it, uninstall must write back the unrelated top-level keys, not unlink."""
+    # Repo scope: the user-scope path is built from Path.home() at import time, which
+    # pyfakefs does not intercept on Python 3.9.
+    repo = Path('/repo')
+    fs.create_dir(repo)
     claude_code = ClaudeCode()
-    hooks_path = claude_code.settings_path('user')
+    hooks_path = claude_code.settings_path('repo', repo)
     mcp_servers = {'my-server': {'command': 'npx', 'args': ['-y', 'my-mcp-server']}}
     fs.create_file(hooks_path, contents=json.dumps({'mcpServers': mcp_servers, 'permissions': {'allow': ['Bash']}}))
 
-    success, _ = install_hooks(claude_code)
+    success, _ = install_hooks(claude_code, scope='repo', repo_path=repo)
     assert success is True
 
-    success, _ = uninstall_hooks(claude_code)
+    success, _ = uninstall_hooks(claude_code, scope='repo', repo_path=repo)
     assert success is True
 
     assert hooks_path.exists(), 'uninstall deleted a settings file it does not own'
