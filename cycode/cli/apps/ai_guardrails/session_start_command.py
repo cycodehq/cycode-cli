@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import typer
 
-from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, collect_all_session_contexts, get_ide
+from cycode.cli.apps.ai_guardrails.ides import (
+    DEFAULT_IDE_NAME,
+    collect_all_session_contexts,
+    collect_all_skills,
+    get_ide,
+)
 from cycode.cli.apps.ai_guardrails.scan.utils import read_stdin_text, safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -75,8 +80,9 @@ def _report_session_context(
 ) -> None:
     """Report the device + cross-IDE session context to the AI security manager. Never raises.
 
-    The device context is always reported. MCP configs are collected from every registered IDE,
-    not just the triggering one. Unchanged payloads are skipped via a hash cache until the TTL expires.
+    The device context is always reported. MCP configs and skills are collected from every
+    registered IDE, not just the triggering one. Unchanged payloads are skipped via a hash cache
+    until the TTL expires.
     """
     try:
         config_files_by_ide, enabled_plugins = collect_all_session_contexts()
@@ -89,6 +95,9 @@ def _report_session_context(
             # Sorted by path so the digest is stable regardless of IDE registry order.
             'config_files': sorted(config_files_by_ide.values(), key=lambda f: f['path']),
             'enabled_plugins': enabled_plugins,
+            # Already deduplicated and sorted by path, for the same digest-stability reason.
+            # Editing a skill body changes the digest and so re-reports the device's inventory.
+            'skill_files': collect_all_skills(),
             'user_email': user_email,
         }
 
