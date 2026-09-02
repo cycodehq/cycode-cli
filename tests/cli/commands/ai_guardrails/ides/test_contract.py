@@ -134,6 +134,16 @@ def test_get_session_context_returns_pair(ide: IDE) -> None:
     assert isinstance(plugins, dict)
 
 
+def test_get_skills_returns_path_content_dicts(ide: IDE) -> None:
+    """Skills must be a list of ``{"path", "content"}`` dicts - empty for IDEs without skills."""
+    skills = ide.get_skills()
+    assert isinstance(skills, list)
+    for skill in skills:
+        assert isinstance(skill, dict)
+        assert isinstance(skill.get('path'), str)
+        assert isinstance(skill.get('content'), str)
+
+
 # HookDecision helpers
 
 

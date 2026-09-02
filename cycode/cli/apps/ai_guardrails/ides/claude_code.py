@@ -13,6 +13,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -33,6 +34,10 @@ _HOOK_EVENTS = ['UserPromptSubmit', 'PreToolUse:Read', 'PreToolUse:mcp']
 
 _CLAUDE_CONFIG_PATH = Path.home() / '.claude.json'
 _CLAUDE_SETTINGS_PATH = Path.home() / '.claude' / 'settings.json'
+_CLAUDE_SKILLS_DIR = Path.home() / '.claude' / 'skills'
+
+# Claude hardcodes a plugin's skills under this subdirectory, the same way it hardcodes ".mcp.json".
+_PLUGIN_SKILLS_SUBDIR = 'skills'
 
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide claude-code'
@@ -187,16 +192,23 @@ def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
 
 
 def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
-    """Read one Claude Code plugin's manifest + MCP servers.
+    """Read one Claude Code plugin's manifest, MCP servers and skills.
 
     Claude hardcodes the MCP file at ``<plugin_dir>/.mcp.json`` and always
-    wraps it as ``{"mcpServers": {...}}``.
+    wraps it as ``{"mcpServers": {...}}``, and a plugin's skills at
+    ``<plugin_dir>/skills/<name>/SKILL.md``.
     """
     manifest = load_plugin_json(plugin_dir / '.claude-plugin' / 'plugin.json') or {}
     entry: dict = {}
     for field in ('name', 'version', 'description'):
         if field in manifest:
             entry[field] = manifest[field]
+
+    # Attached to the plugin entry rather than the top-level skills list so the backend keeps the
+    # plugin provenance (marketplace, plugin, version) that a marketplace-installed skill has.
+    skill_files = walk_skill_dirs(plugin_dir / _PLUGIN_SKILLS_SUBDIR)
+    if skill_files:
+        entry['skill_files'] = skill_files
 
     mcp_config_path = plugin_dir / '.mcp.json'
     mcp_config = load_plugin_json(mcp_config_path) or {}
@@ -387,3 +399,6 @@ class ClaudeCode(IDE):
         enriched_plugins = resolve_plugins(settings) if settings else {}
 
         return global_config_file, enriched_plugins
+
+    def get_skills(self) -> list[dict]:
+        return walk_skill_dirs(_CLAUDE_SKILLS_DIR)
