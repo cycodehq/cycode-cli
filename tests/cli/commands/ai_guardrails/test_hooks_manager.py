@@ -261,9 +261,34 @@ def test_uninstall_preserves_user_hook_colocated_with_cycode(
     assert not any('cycode ai-guardrails' in c for c in commands)
 
 
+def test_uninstall_keeps_shared_settings_file_when_cycode_hooks_were_the_only_hooks(fs: FakeFilesystem) -> None:
+    """Claude Code's settings.json is a general-purpose file: when Cycode's hooks were the
+    only hooks in it, uninstall must write back the unrelated top-level keys, not unlink."""
+    # Repo scope: the user-scope path is built from Path.home() at import time, which
+    # pyfakefs does not intercept on Python 3.9.
+    repo = Path('/repo')
+    fs.create_dir(repo)
+    claude_code = ClaudeCode()
+    hooks_path = claude_code.settings_path('repo', repo)
+    mcp_servers = {'my-server': {'command': 'npx', 'args': ['-y', 'my-mcp-server']}}
+    fs.create_file(hooks_path, contents=json.dumps({'mcpServers': mcp_servers, 'permissions': {'allow': ['Bash']}}))
+
+    success, _ = install_hooks(claude_code, scope='repo', repo_path=repo)
+    assert success is True
+
+    success, _ = uninstall_hooks(claude_code, scope='repo', repo_path=repo)
+    assert success is True
+
+    assert hooks_path.exists(), 'uninstall deleted a settings file it does not own'
+    saved = json.loads(hooks_path.read_text())
+    assert saved['mcpServers'] == mcp_servers
+    assert saved['permissions'] == {'allow': ['Bash']}
+    assert not saved.get('hooks')
+
+
 def test_copilot_dedicated_file_install_uninstall_lifecycle(fs: FakeFilesystem) -> None:
     """Copilot uses a dedicated Cycode-owned file: install creates it from
-    scratch, reinstall is idempotent, uninstall removes the file entirely."""
+    scratch, reinstall is idempotent, uninstall drops the emptied hooks key."""
     copilot = Copilot()
     hooks_path = copilot.settings_path('user')
 
@@ -281,10 +306,9 @@ def test_copilot_dedicated_file_install_uninstall_lifecycle(fs: FakeFilesystem) 
     assert all(len(entries) == 1 for entries in saved['hooks'].values())
     assert saved['hooks']['PreToolUse'][0]['command'] == 'cycode ai-guardrails scan --ide copilot'
 
-    # Uninstall deletes the emptied dedicated file rather than leaving a husk.
     success, _ = uninstall_hooks(copilot)
     assert success is True
-    assert not hooks_path.exists()
+    assert json.loads(hooks_path.read_text()) == {'version': 1}
 
 
 def test_create_policy_file_repo_scope(fs: FakeFilesystem) -> None:
