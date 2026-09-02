@@ -105,7 +105,9 @@ def test_walk_skill_dirs_follows_the_current_home(fs: FakeFilesystem, monkeypatc
 
     relocated = Path('/relocated-home')
     fs.create_file(relocated / '.claude' / 'skills' / 'moved-skill' / 'SKILL.md', contents=_BODY)
-    monkeypatch.setattr(Path, 'home', staticmethod(lambda: relocated))
+    # A plain function, not staticmethod/classmethod: those are not reliably callable when set as a
+    # class attribute across Python versions, which is what broke this test on 3.9 and 3.13.
+    monkeypatch.setattr(Path, 'home', lambda: relocated)
 
     assert _claude_skills_dir() == relocated / '.claude' / 'skills'
     assert [Path(s['path']).parent.name for s in ClaudeCode().get_skills()] == ['moved-skill']
