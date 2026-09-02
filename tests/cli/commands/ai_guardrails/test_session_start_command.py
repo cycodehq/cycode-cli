@@ -39,7 +39,7 @@ def _no_local_skills(monkeypatch: pytest.MonkeyPatch) -> None:
     filesystem directly - so without this every assertion would depend on whoever ran it.
     A test that cares about skills overrides ``collect_all_skills`` itself.
     """
-    monkeypatch.setattr(_session_start_mod, 'collect_all_skills', lambda: [])
+    monkeypatch.setattr(_session_start_mod, 'collect_all_skills', list)
 
 
 # Auth tests

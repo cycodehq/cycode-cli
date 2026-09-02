@@ -34,7 +34,6 @@ _HOOK_EVENTS = ['UserPromptSubmit', 'PreToolUse:Read', 'PreToolUse:mcp']
 
 _CLAUDE_CONFIG_PATH = Path.home() / '.claude.json'
 _CLAUDE_SETTINGS_PATH = Path.home() / '.claude' / 'settings.json'
-_CLAUDE_SKILLS_DIR = Path.home() / '.claude' / 'skills'
 
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide claude-code'
@@ -169,6 +168,15 @@ def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]
     except Exception as e:
         logger.debug('Failed to load Claude settings file', exc_info=e)
         return None
+
+
+def _claude_skills_dir() -> Path:
+    """Claude Code's user-scope skills: ``~/.claude/skills/<name>/SKILL.md``.
+
+    A function, not a module constant: resolving ``Path.home()`` at import time pins the directory to
+    whatever home the process started with, which a test filesystem then cannot redirect.
+    """
+    return Path.home() / '.claude' / 'skills'
 
 
 def _plugins_cache_dir() -> Path:
@@ -398,4 +406,4 @@ class ClaudeCode(IDE):
         return global_config_file, enriched_plugins
 
     def get_skills(self) -> list[dict]:
-        return walk_skill_dirs(_CLAUDE_SKILLS_DIR)
+        return walk_skill_dirs(_claude_skills_dir())
