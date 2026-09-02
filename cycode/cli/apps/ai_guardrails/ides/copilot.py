@@ -37,6 +37,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     load_plugin_json,
     walk_enabled_plugins,
 )
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -177,6 +178,12 @@ def _read_copilot_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     for field in ('name', 'version', 'description'):
         if field in manifest:
             entry[field] = manifest[field]
+
+    # Same plugin-format layout as every other IDE's plugins, so a plugin shipping skills is
+    # inventoried whichever IDE loaded it.
+    skill_files = walk_plugin_skills(plugin_dir)
+    if skill_files:
+        entry['skill_files'] = skill_files
 
     mcp_ref = manifest.get('mcpServers')
     mcp_config_path = plugin_dir / mcp_ref if isinstance(mcp_ref, str) else plugin_dir / '.mcp.json'

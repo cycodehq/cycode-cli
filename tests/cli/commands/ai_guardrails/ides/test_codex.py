@@ -377,3 +377,18 @@ def test_read_codex_plugin_no_mcp_config_file_when_no_manifest(tmp_path: Path) -
 
     assert 'mcp_config_file' not in entry
     assert servers == {}
+
+
+def test_read_codex_plugin_collects_plugin_skills(fs: FakeFilesystem) -> None:
+    """Plugin skills are a property of the plugin format, so Codex plugins carry them too."""
+    plugin_dir = Path('/dummy/codex-marketplace/dummy-plugin')
+    fs.create_file(
+        plugin_dir / '.codex-plugin' / 'plugin.json',
+        contents=json.dumps({'name': 'dummy-plugin', 'version': '3.0.0'}),
+    )
+    skill_file = plugin_dir / 'skills' / 'codex-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents='---\nname: codex-skill\n---\nBody.\n')
+
+    entry, _ = _read_codex_plugin(plugin_dir)
+
+    assert [s['path'] for s in entry['skill_files']] == [str(skill_file)]

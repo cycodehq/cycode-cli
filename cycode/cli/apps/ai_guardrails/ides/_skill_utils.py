@@ -19,6 +19,10 @@ logger = get_logger('AI Guardrails Skills')
 
 SKILL_FILE_NAME = 'SKILL.md'
 
+# Where a plugin keeps its skills, relative to the plugin directory. A property of the plugin format
+# rather than of any one IDE, so Claude Code, Codex and Copilot plugins all use it.
+PLUGIN_SKILLS_SUBDIR = 'skills'
+
 # A skill is instructions, not data. Anything larger is not a skill we can usefully inventory,
 # and sending it would push the one-request report toward the API's body limit.
 MAX_SKILL_FILE_BYTES = 256 * 1024
@@ -88,3 +92,12 @@ def walk_skill_dirs(skills_root: Path) -> list[dict]:
             skills.append(skill)
 
     return skills
+
+
+def walk_plugin_skills(plugin_dir: Path) -> list[dict]:
+    """Collect the skills a plugin ships, from ``<plugin_dir>/skills/<name>/SKILL.md``.
+
+    Shared by every IDE with a plugin system: the layout belongs to the plugin format, so a plugin
+    shipping skills is inventoried whichever IDE loaded it.
+    """
+    return walk_skill_dirs(plugin_dir / PLUGIN_SKILLS_SUBDIR)
