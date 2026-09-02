@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      confirm_non_release:
+        description: 'I know this ref is not a release tag (required for non-tag refs)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
@@ -34,6 +39,12 @@ jobs:
         shell: bash
 
     steps:
+      - name: Verify non-tag dispatch is acknowledged
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref_type != 'tag' && !inputs.confirm_non_release }}
+        run: |
+          echo "::error::Ref '${{ github.ref_name }}' is not a tag. Re-run with 'I know this ref is not a release tag' checked."
+          exit 1
+
       - name: Run Cimon
         if: matrix.os == 'ubuntu-22.04'
         uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941 # v1.0.1
@@ -52,13 +63,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout latest release tag
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: |
-          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-          git checkout $LATEST_TAG
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          
       - name: Set up Python 3.13
         id: setup-python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -343,6 +347,6 @@ jobs:
         uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         with:
           file: dist/*
-          tag: ${{ env.LATEST_TAG }}
+          tag: ${{ github.ref_name }}
           overwrite: true
           file_glob: true
