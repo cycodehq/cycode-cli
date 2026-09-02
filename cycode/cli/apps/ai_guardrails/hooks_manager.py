@@ -190,13 +190,9 @@ def _persist_uninstall(hooks_path: Path, existing: dict, modified: bool) -> tupl
     """Apply the uninstall result to disk and return ``(success, message)``."""
     if not modified:
         return True, 'No Cycode hooks found to remove'
+    # Never unlink: a shared settings file (Claude Code's settings.json) holds unrelated keys.
     if not existing.get('hooks'):
-        try:
-            hooks_path.unlink()
-        except Exception as e:
-            logger.debug('Failed to delete hooks file', exc_info=e)
-            return False, f'Failed to remove hooks file: {hooks_path}'
-        return True, f'Removed hooks file: {hooks_path}'
+        existing.pop('hooks', None)
     if not _save_hooks_file(hooks_path, existing):
         return False, f'Failed to update hooks file: {hooks_path}'
     return True, f'Cycode hooks removed from: {hooks_path}'
