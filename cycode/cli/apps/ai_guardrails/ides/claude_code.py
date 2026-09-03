@@ -13,6 +13,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -169,6 +170,15 @@ def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]
         return None
 
 
+def _claude_skills_dir() -> Path:
+    """Claude Code's user-scope skills: ``~/.claude/skills/<name>/SKILL.md``.
+
+    A function, not a module constant: resolving ``Path.home()`` at import time pins the directory to
+    whatever home the process started with, which a test filesystem then cannot redirect.
+    """
+    return Path.home() / '.claude' / 'skills'
+
+
 def _plugins_cache_dir() -> Path:
     """Claude Code's local plugin content cache: ``~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/``."""
     return Path.home() / '.claude' / 'plugins' / 'cache'
@@ -187,16 +197,23 @@ def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
 
 
 def _read_claude_plugin(plugin_dir: Path) -> tuple[dict, dict]:
-    """Read one Claude Code plugin's manifest + MCP servers.
+    """Read one Claude Code plugin's manifest, MCP servers and skills.
 
     Claude hardcodes the MCP file at ``<plugin_dir>/.mcp.json`` and always
-    wraps it as ``{"mcpServers": {...}}``.
+    wraps it as ``{"mcpServers": {...}}``, and a plugin's skills at
+    ``<plugin_dir>/skills/<name>/SKILL.md``.
     """
     manifest = load_plugin_json(plugin_dir / '.claude-plugin' / 'plugin.json') or {}
     entry: dict = {}
     for field in ('name', 'version', 'description'):
         if field in manifest:
             entry[field] = manifest[field]
+
+    # Attached to the plugin entry rather than the top-level skills list so the backend keeps the
+    # plugin provenance (marketplace, plugin, version) that a marketplace-installed skill has.
+    skill_files = walk_plugin_skills(plugin_dir)
+    if skill_files:
+        entry['skill_files'] = skill_files
 
     mcp_config_path = plugin_dir / '.mcp.json'
     mcp_config = load_plugin_json(mcp_config_path) or {}
@@ -387,3 +404,6 @@ class ClaudeCode(IDE):
         enriched_plugins = resolve_plugins(settings) if settings else {}
 
         return global_config_file, enriched_plugins
+
+    def get_skills(self) -> list[dict]:
+        return walk_skill_dirs(_claude_skills_dir())
