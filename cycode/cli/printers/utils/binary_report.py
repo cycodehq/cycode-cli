@@ -57,16 +57,38 @@ class ComponentEvidence(NamedTuple):
     logical_path: str
     evidence: str
     confidence: str
+    declared_scope: Optional[str] = None
+    declared_via: Optional[str] = None
 
     @property
     def is_ambiguous(self) -> bool:
         return self.confidence == CONFIDENCE_AMBIGUOUS
+
+    @property
+    def is_declared(self) -> bool:
+        """The component is not in the artifact; an embedded pom says a consumer's build would pull it in."""
+        return self.declared_scope is not None
+
+    @property
+    def presence_summary(self) -> str:
+        """One phrase for the printers: how a declared component got into the inventory."""
+        if self.declared_via:
+            return f'transitive ({self.declared_scope} scope) via {self.declared_via}, not shipped'
+
+        return f'declared ({self.declared_scope} scope), not shipped'
 
 
 class UnidentifiedEntry(NamedTuple):
     logical_path: str
     sha1: str
     size: int
+
+
+class UnresolvedDeclarationEntry(NamedTuple):
+    coordinate: str  # group:artifact
+    version_expression: str  # what the pom wrote, or '-' when it wrote nothing
+    declared_by: str
+    reason: str
 
 
 def get_binary_collection(ctx: typer.Context) -> Optional['BinaryCollectionResult']:
@@ -95,6 +117,8 @@ def build_component_index(collection: 'BinaryCollectionResult') -> dict[tuple[st
                     logical_path=component.logical_path,
                     evidence=component.evidence,
                     confidence=component.confidence,
+                    declared_scope=component.declared_scope,
+                    declared_via=component.declared_via,
                 ),
             )
 
@@ -158,6 +182,21 @@ def get_unidentified(collection: 'BinaryCollectionResult') -> list[UnidentifiedE
     return sorted(entries, key=lambda entry: entry.logical_path)
 
 
+def get_declared_unresolved(collection: 'BinaryCollectionResult') -> list[UnresolvedDeclarationEntry]:
+    """Every declared dependency whose version could not be established, in a stable order."""
+    entries = [
+        UnresolvedDeclarationEntry(
+            coordinate=item.coordinate_key,
+            version_expression=item.version_expression or '-',
+            declared_by=item.declared_by,
+            reason=item.reason,
+        )
+        for item in collection.declared_unresolved
+    ]
+
+    return sorted(entries, key=lambda entry: (entry.declared_by, entry.coordinate))
+
+
 def should_warn_about_degradation(ctx: typer.Context, collection: 'BinaryCollectionResult') -> bool:
     """Warn only when resolution was unavailable AND it would have made a difference.
 
@@ -180,7 +219,23 @@ def get_coverage_summary(collection: 'BinaryCollectionResult', vulnerabilities: 
     if collection.low_confidence_count:
         identified += f' ({collection.low_confidence_count} low confidence)'
 
-    return f'{identified} | {collection.unidentified_count} unidentified | {vulnerabilities} vulnerabilities'
+    parts = [identified, f'{collection.unidentified_count} unidentified']
+
+    # only when asked for: a reader who did not pass --include-declared should not see a count that is always 0
+    if collection.include_declared:
+        declared = f'{collection.declared_count} declared'
+        details = []
+        if collection.transitive_count:
+            details.append(f'{collection.transitive_count} transitive')
+        unresolved = len(collection.declared_unresolved)
+        if unresolved:
+            details.append(f'{unresolved} unresolved')
+        if details:
+            declared += f' ({", ".join(details)})'
+        parts.append(declared)
+
+    parts.append(f'{vulnerabilities} vulnerabilities')
+    return ' | '.join(parts)
 
 
 def get_degradation_lines(collection: 'BinaryCollectionResult') -> list[str]:

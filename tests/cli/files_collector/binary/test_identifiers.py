@@ -316,3 +316,66 @@ class TestXmlSafety:
         payload += b'</dependency></dependencies></project>'
 
         assert pom_xml.parse_dependencies(payload)[0].group == 'a&b'
+
+
+class TestPomModel:
+    def test_coordinates_parent_properties_and_management_are_read_as_written(self) -> None:
+        payload = f"""<?xml version="1.0"?>
+        <project xmlns="{_POM_NAMESPACE}">
+          <parent>
+            <groupId>org.apache</groupId><artifactId>apache</artifactId><version>30</version>
+          </parent>
+          <artifactId>xmlsec</artifactId>
+          <version>3.0.3</version>
+          <properties>
+            <slf4j.version>1.7.36</slf4j.version>
+            <jetty.version>9.4.53.v20231009</jetty.version>
+          </properties>
+          <dependencyManagement>
+            <dependencies>
+              <dependency>
+                <groupId>com.fasterxml.jackson</groupId><artifactId>jackson-bom</artifactId>
+                <version>2.18.3</version><type>pom</type><scope>import</scope>
+              </dependency>
+            </dependencies>
+          </dependencyManagement>
+          <dependencies>
+            <dependency>
+              <groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>${{slf4j.version}}</version>
+            </dependency>
+            <dependency>
+              <groupId>org.eclipse.jetty</groupId><artifactId>jetty-server</artifactId>
+              <version>${{jetty.version}}</version><scope>test</scope><optional>true</optional>
+            </dependency>
+          </dependencies>
+        </project>""".encode()
+
+        model = pom_xml.parse_model(payload)
+
+        assert model is not None
+        # inherited from the parent, so absent here: the resolver fills it in, the parser does not guess
+        assert model.group is None
+        assert (model.artifact, model.version) == ('xmlsec', '3.0.3')
+        assert model.parent is not None
+        assert model.parent.coordinate == 'org.apache:apache:30'
+        assert model.properties == {'slf4j.version': '1.7.36', 'jetty.version': '9.4.53.v20231009'}
+        assert [(d.coordinate_key, d.version, d.scope, d.type) for d in model.dependency_management] == [
+            ('com.fasterxml.jackson:jackson-bom', '2.18.3', 'import', 'pom')
+        ]
+        # nothing interpolated, nothing filtered: every scope is kept for the resolver to weigh
+        assert [(d.coordinate_key, d.version, d.scope, d.optional) for d in model.dependencies] == [
+            ('org.slf4j:slf4j-api', '${slf4j.version}', None, False),
+            ('org.eclipse.jetty:jetty-server', '${jetty.version}', 'test', True),
+        ]
+
+    def test_a_parent_missing_a_part_is_ignored(self) -> None:
+        payload = b'<project><parent><groupId>g</groupId><artifactId>a</artifactId></parent></project>'
+
+        model = pom_xml.parse_model(payload)
+
+        assert model is not None
+        assert model.parent is None
+
+    def test_an_unsafe_document_has_no_model(self) -> None:
+        assert pom_xml.parse_model(b'<!DOCTYPE x><project/>') is None
+        assert pom_xml.parse_model(b'<project><dependencies>') is None

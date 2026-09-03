@@ -11,6 +11,7 @@ from cycode.cli.files_collector.binary.base_extractor import (
     CONFIDENCE_EXACT,
     EVIDENCE_MANIFEST,
     EVIDENCE_POM_PROPERTIES,
+    EVIDENCE_POM_XML,
     ExtractionResult,
     IdentifiedComponent,
     UnidentifiedArtifact,
@@ -219,6 +220,60 @@ class TestDependencyGraph:
         assert_valid_cyclonedx(bom)
 
 
+class TestDeclaredComponents:
+    def test_a_declared_component_has_no_hashes_and_says_so(self) -> None:
+        declared = IdentifiedComponent(
+            group='commons-codec',
+            artifact='commons-codec',
+            version='1.15',
+            sha1=None,
+            logical_path='app.war > WEB-INF/lib/xmlsec.jar > META-INF/maven/org.apache.santuario/xmlsec/pom.xml',
+            parent='app.war > WEB-INF/lib/xmlsec.jar',
+            evidence=EVIDENCE_POM_XML,
+            confidence=CONFIDENCE_EXACT,
+            declared_scope='compile',
+        )
+
+        bom = _build(ExtractionResult(components=[declared]))
+        component = bom['components'][0]
+        properties = {entry['name']: entry['value'] for entry in component['properties']}
+
+        assert_valid_cyclonedx(bom)
+        assert 'hashes' not in component
+        assert properties['cycode:evidence'] == 'pom.xml'
+        assert properties['cycode:presence'] == 'declared'
+        assert properties['cycode:scope'] == 'compile'
+        assert properties['cycode:path'].endswith('/xmlsec/pom.xml')
+
+    def test_a_shipped_component_is_marked_shipped_and_carries_no_scope(self) -> None:
+        bom = _build(ExtractionResult(components=[_component(*_GUAVA)]))
+        properties = {entry['name']: entry['value'] for entry in bom['components'][0]['properties']}
+
+        assert properties['cycode:presence'] == 'shipped'
+        assert 'cycode:scope' not in properties
+
+    def test_coverage_counts_only_what_is_physically_there(self) -> None:
+        declared = IdentifiedComponent(
+            group='a',
+            artifact='b',
+            version='1',
+            sha1=None,
+            logical_path='app.war > x.jar > META-INF/maven/g/x/pom.xml',
+            parent='app.war > x.jar',
+            evidence=EVIDENCE_POM_XML,
+            confidence=CONFIDENCE_EXACT,
+            declared_scope='compile',
+        )
+        result = ExtractionResult(
+            components=[_component(*_GUAVA), declared],
+            unidentified=[UnidentifiedArtifact('app.war > mystery.jar', 'f' * 40, 10)],
+        )
+
+        properties = {entry['name']: entry['value'] for entry in _build(result)['metadata']['properties']}
+
+        assert properties['cycode:coverage'] == '1/2'
+
+
 class TestAgainstRealArtifacts:
     def _extract(self, tmp_path: Path, name: str, content: bytes) -> tuple[dict, ExtractionResult]:
         path = tmp_path / name
@@ -359,6 +414,7 @@ class TestGoldenDocument:
                 'properties': [
                     {'name': 'cycode:evidence', 'value': 'pom.properties'},
                     {'name': 'cycode:confidence', 'value': 'exact'},
+                    {'name': 'cycode:presence', 'value': 'shipped'},
                     {'name': 'cycode:path', 'value': 'payments.war > WEB-INF/lib/guava-31.1-jre.jar'},
                 ],
                 'group': 'com.google.guava',
@@ -373,6 +429,7 @@ class TestGoldenDocument:
                 'properties': [
                     {'name': 'cycode:evidence', 'value': 'pom.properties'},
                     {'name': 'cycode:confidence', 'value': 'exact'},
+                    {'name': 'cycode:presence', 'value': 'shipped'},
                     {'name': 'cycode:path', 'value': 'payments.war > WEB-INF/lib/log4j-core-2.14.1.jar'},
                 ],
                 'group': 'org.apache.logging.log4j',

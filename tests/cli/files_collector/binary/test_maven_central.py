@@ -8,8 +8,9 @@ import requests
 import responses
 
 from cycode.cli import consts
+from cycode.cli.files_collector.binary.declared import DeclaredDependencyResolver
 from cycode.cli.files_collector.binary.java_extractor import JavaArchiveExtractor
-from cycode.cli.files_collector.binary.maven_central import MavenCentralDigestResolver
+from cycode.cli.files_collector.binary.maven_central import MavenCentralDigestResolver, MavenCentralPomSource
 from tests.cli.files_collector.binary import fixtures
 
 _GUAVA_SHA1 = 'bd41a290787b5301e63929676d792c507bbc00ae'
@@ -236,3 +237,113 @@ def test_an_unexpected_json_shape_is_a_miss_not_a_crash(body: str) -> None:
 
     assert resolver.resolve([_GUAVA_SHA1]) == {}
     assert resolver.available is True
+
+
+_REPOSITORY = 'https://repo.test/maven2'
+_APACHE_POM_URL = f'{_REPOSITORY}/org/apache/apache/30/apache-30.pom'
+_APACHE_POM = b'<project><groupId>org.apache</groupId><artifactId>apache</artifactId><version>30</version></project>'
+
+
+def _pom_source(**kwargs: object) -> MavenCentralPomSource:
+    return MavenCentralPomSource(session=requests.Session(), repository_url=_REPOSITORY, **kwargs)
+
+
+class TestPomSource:
+    @responses.activate
+    def test_a_pom_is_fetched_from_its_repository_path(self) -> None:
+        responses.add(responses.GET, _APACHE_POM_URL, body=_APACHE_POM, status=200)
+
+        fetched = _pom_source().fetch('org.apache', 'apache', '30')
+
+        assert fetched.payload == _APACHE_POM
+        assert fetched.failure is None
+
+    @responses.activate
+    def test_a_missing_pom_is_a_miss_with_a_reason(self) -> None:
+        responses.add(responses.GET, _APACHE_POM_URL, status=404)
+
+        fetched = _pom_source().fetch('org.apache', 'apache', '30')
+
+        assert fetched.payload is None
+        assert fetched.failure == 'org.apache:apache:30 is not on Maven Central'
+
+    @responses.activate
+    def test_a_timeout_is_retried_once_then_reported(self) -> None:
+        responses.add(responses.GET, _APACHE_POM_URL, body=requests.Timeout('slow'))
+        responses.add(responses.GET, _APACHE_POM_URL, body=_APACHE_POM, status=200)
+
+        assert _pom_source().fetch('org.apache', 'apache', '30').payload == _APACHE_POM
+        assert len(responses.calls) == 2
+
+    @responses.activate
+    def test_two_timeouts_are_a_failure(self) -> None:
+        responses.add(responses.GET, _APACHE_POM_URL, body=requests.Timeout('slow'))
+        responses.add(responses.GET, _APACHE_POM_URL, body=requests.Timeout('slow'))
+
+        fetched = _pom_source().fetch('org.apache', 'apache', '30')
+
+        assert fetched.payload is None
+        assert 'fetch from Maven Central failed' in fetched.failure
+
+    @responses.activate
+    def test_a_connection_failure_stops_further_fetches(self) -> None:
+        responses.add(responses.GET, _APACHE_POM_URL, body=requests.ConnectionError('refused'))
+        source = _pom_source()
+
+        first = source.fetch('org.apache', 'apache', '30')
+        second = source.fetch('org.apache', 'apache', '31')
+
+        assert first.payload is None
+        assert 'unreachable' in second.failure
+        assert len(responses.calls) == 1
+
+    @responses.activate
+    def test_a_hostile_coordinate_never_becomes_a_url(self) -> None:
+        fetched = _pom_source().fetch('../../etc', 'passwd', '1')
+
+        assert fetched.payload is None
+        assert 'is not a valid Maven coordinate' in fetched.failure
+        assert len(responses.calls) == 0
+
+    @responses.activate
+    def test_an_oversized_body_is_refused(self) -> None:
+        responses.add(responses.GET, _APACHE_POM_URL, body=b'x' * 2048, status=200)
+
+        fetched = _pom_source(max_size_in_bytes=1024).fetch('org.apache', 'apache', '30')
+
+        assert fetched.payload is None
+        assert 'exceeds 1024 bytes' in fetched.failure
+
+    @responses.activate
+    def test_an_embedded_pom_resolves_its_parent_managed_version_end_to_end(self, tmp_path: Path) -> None:
+        parent = (
+            b'<project><groupId>org.apache.woden</groupId><artifactId>woden</artifactId><version>1.0M10</version>'
+            b'<dependencyManagement><dependencies><dependency>'
+            b'<groupId>commons-logging</groupId><artifactId>commons-logging</artifactId><version>1.1.1</version>'
+            b'</dependency></dependencies></dependencyManagement></project>'
+        )
+        responses.add(
+            responses.GET, f'{_REPOSITORY}/org/apache/woden/woden/1.0M10/woden-1.0M10.pom', body=parent, status=200
+        )
+        child = (
+            b'<project><parent><groupId>org.apache.woden</groupId><artifactId>woden</artifactId>'
+            b'<version>1.0M10</version></parent><artifactId>woden-core</artifactId>'
+            b'<dependencies><dependency><groupId>commons-logging</groupId><artifactId>commons-logging</artifactId>'
+            b'</dependency></dependencies></project>'
+        )
+        jar = fixtures.archive_bytes(
+            files={
+                fixtures.pom_properties_entry_name('org.apache.woden', 'woden-core'): fixtures.pom_properties(
+                    'org.apache.woden', 'woden-core', '1.0M10'
+                ),
+                'META-INF/maven/org.apache.woden/woden-core/pom.xml': child,
+            }
+        )
+        path = tmp_path / 'woden-core.jar'
+        path.write_bytes(jar)
+
+        extractor = JavaArchiveExtractor(declared_resolver=DeclaredDependencyResolver(_pom_source()))
+        result = extractor.identify(extractor.extract(str(path)))
+
+        assert [c.purl for c in result.declared_components] == ['pkg:maven/commons-logging/commons-logging@1.1.1']
+        assert result.declared_unresolved == []

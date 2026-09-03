@@ -29,6 +29,9 @@ GRAPH_PROPERTY = 'cycode:graph'
 COVERAGE_PROPERTY = 'cycode:coverage'
 EVIDENCE_PROPERTY = 'cycode:evidence'
 CONFIDENCE_PROPERTY = 'cycode:confidence'
+PRESENCE_PROPERTY = 'cycode:presence'
+SCOPE_PROPERTY = 'cycode:scope'
+VIA_PROPERTY = 'cycode:via'
 PATH_PROPERTY = 'cycode:path'
 
 BINARY_EXTRACTION_SOURCE = 'binary-extraction'
@@ -45,7 +48,9 @@ def _property(name: str, value: str) -> dict[str, str]:
 
 
 def _hashes(component: IdentifiedComponent) -> list[dict[str, str]]:
-    hashes = [{'alg': 'SHA-1', 'content': component.sha1}]
+    hashes = []
+    if component.sha1:
+        hashes.append({'alg': 'SHA-1', 'content': component.sha1})
     if component.sha256:
         hashes.append({'alg': 'SHA-256', 'content': component.sha256})
 
@@ -53,20 +58,34 @@ def _hashes(component: IdentifiedComponent) -> list[dict[str, str]]:
 
 
 def build_component(component: IdentifiedComponent, paths: list[str]) -> dict:
-    """One CycloneDX component. ``paths`` lists every place in the artifact this coordinate was found."""
+    """One CycloneDX component. ``paths`` lists every place in the artifact this coordinate was found.
+
+    A declared component carries no hashes: there are no bytes to digest, and a digest of nothing would be a lie
+    an SBOM consumer could act on. Its presence property says so explicitly.
+    """
     body = {
         'bom-ref': component.purl,
         'type': 'library',
         'name': component.artifact,
         'version': component.version,
         'purl': component.purl,
-        'hashes': _hashes(component),
-        'properties': [
-            _property(EVIDENCE_PROPERTY, component.evidence),
-            _property(CONFIDENCE_PROPERTY, component.confidence),
-            _property(PATH_PROPERTY, ', '.join(paths)),
-        ],
     }
+
+    hashes = _hashes(component)
+    if hashes:
+        body['hashes'] = hashes
+
+    properties = [
+        _property(EVIDENCE_PROPERTY, component.evidence),
+        _property(CONFIDENCE_PROPERTY, component.confidence),
+        _property(PRESENCE_PROPERTY, component.presence),
+    ]
+    if component.declared_scope:
+        properties.append(_property(SCOPE_PROPERTY, component.declared_scope))
+    if component.declared_via:
+        properties.append(_property(VIA_PROPERTY, component.declared_via))
+    properties.append(_property(PATH_PROPERTY, ', '.join(paths)))
+    body['properties'] = properties
 
     if component.group:
         body['group'] = component.group
@@ -103,7 +122,8 @@ def build_bom(
     components, paths = _deduplicate(result.components)
     root_ref = artifact_name
 
-    identified_count = len(components)
+    # coverage is about the archives physically in the artifact; a declared component is neither found nor missed
+    identified_count = sum(1 for component in components if not component.is_declared)
     total_count = identified_count + len(result.unidentified)
     graph_kind = GRAPH_CONTAINMENT_WITH_REAL_EDGES if result.has_real_edges else GRAPH_CONTAINMENT
 

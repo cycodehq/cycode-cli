@@ -9,9 +9,11 @@ from cycode.cli.files_collector.binary.base_extractor import (
     CONFIDENCE_EXACT,
     EVIDENCE_MANIFEST,
     EVIDENCE_POM_PROPERTIES,
+    EVIDENCE_POM_XML,
     ExtractionResult,
     IdentifiedComponent,
     UnidentifiedArtifact,
+    UnresolvedDeclaration,
 )
 from cycode.cli.files_collector.binary.collector import BinaryCollectionResult
 from cycode.cli.models import DocumentDetections, LocalScanResult
@@ -281,3 +283,120 @@ class TestDegradationWording:
 
         assert 'Maven Central lookup failed (timed out)' in text
         assert 'not available in this release' not in text
+
+
+def _declared(
+    group: str, artifact: str, version: str, scope: str = 'compile', via: Optional[str] = None
+) -> IdentifiedComponent:
+    return IdentifiedComponent(
+        group=group,
+        artifact=artifact,
+        version=version,
+        sha1=None,
+        logical_path='app.war > WEB-INF/lib/x.jar > META-INF/maven/g/x/pom.xml',
+        parent='app.war > WEB-INF/lib/x.jar',
+        evidence=EVIDENCE_POM_XML,
+        confidence=CONFIDENCE_EXACT,
+        declared_scope=scope,
+        declared_via=via,
+    )
+
+
+class TestDeclared:
+    def test_the_coverage_line_mentions_declared_only_when_asked(self) -> None:
+        collection = _collection(components=[_component(*_LOG4J), _declared('a', 'b', '1')])
+
+        assert binary_report.get_coverage_summary(collection, 0) == '1 identified | 0 unidentified | 0 vulnerabilities'
+
+        collection.include_declared = True
+
+        assert (
+            binary_report.get_coverage_summary(collection, 0)
+            == '1 identified | 0 unidentified | 1 declared | 0 vulnerabilities'
+        )
+
+    def test_the_coverage_line_counts_unresolved_declarations(self) -> None:
+        collection = _collection(components=[_declared('a', 'b', '1')])
+        collection.include_declared = True
+        collection.results_by_artifact['app.war'].declared_unresolved = [
+            UnresolvedDeclaration('c', 'd', None, 'app.war > x.jar > META-INF/maven/g/x/pom.xml', 'why'),
+            UnresolvedDeclaration('e', 'f', '${v}', 'app.war > x.jar > META-INF/maven/g/x/pom.xml', 'why'),
+        ]
+
+        assert (
+            binary_report.get_coverage_summary(collection, 3)
+            == '0 identified | 0 unidentified | 1 declared (2 unresolved) | 3 vulnerabilities'
+        )
+
+    def test_unresolved_declarations_are_listed_in_a_stable_order(self) -> None:
+        collection = _collection()
+        collection.results_by_artifact['app.war'].declared_unresolved = [
+            UnresolvedDeclaration('z', 'z', None, 'app.war > b.jar > pom.xml', 'no version'),
+            UnresolvedDeclaration('a', 'a', '${v}', 'app.war > b.jar > pom.xml', 'undefined'),
+            UnresolvedDeclaration('m', 'm', None, 'app.war > a.jar > pom.xml', 'no version'),
+        ]
+
+        entries = binary_report.get_declared_unresolved(collection)
+
+        assert [(e.declared_by, e.coordinate, e.version_expression) for e in entries] == [
+            ('app.war > a.jar > pom.xml', 'm:m', '-'),
+            ('app.war > b.jar > pom.xml', 'a:a', '${v}'),
+            ('app.war > b.jar > pom.xml', 'z:z', '-'),
+        ]
+
+    def test_a_finding_on_a_declared_component_knows_it_was_declared(self) -> None:
+        collection = _collection(components=[_declared('org.slf4j', 'slf4j-api', '1.7.36', scope='runtime')])
+        ctx = _ctx(collection)
+
+        evidence = binary_report.get_detection_evidence(ctx, _detection('org.slf4j:slf4j-api', '1.7.36'))
+
+        assert evidence is not None
+        assert evidence.is_declared is True
+        assert evidence.is_ambiguous is False
+        assert evidence.declared_scope == 'runtime'
+        assert evidence.logical_path.endswith('/pom.xml')
+
+    def test_a_declared_finding_gates_the_build(self) -> None:
+        # the coordinate is exact; only its presence differs, and the user asked for it
+        collection = _collection(components=[_declared('org.slf4j', 'slf4j-api', '1.7.36')])
+        ctx = _ctx(collection)
+
+        detection = _detection('org.slf4j:slf4j-api', '1.7.36')
+
+        assert binary_report.is_low_confidence(ctx, detection) is False
+        assert binary_report.has_gating_detections(ctx, _scan_results(detection)) is True
+
+    def test_a_shipped_component_is_not_declared(self) -> None:
+        collection = _collection(components=[_component(*_LOG4J)])
+
+        detection = _detection('org.apache.logging.log4j:log4j-core', '2.14.1')
+        evidence = binary_report.get_detection_evidence(_ctx(collection), detection)
+
+        assert evidence is not None
+        assert evidence.is_declared is False
+
+    def test_the_coverage_line_counts_transitives(self) -> None:
+        collection = _collection(components=[_declared('a', 'b', '1'), _declared('c', 'd', '2', via='a:b')])
+        collection.include_declared = True
+
+        assert (
+            binary_report.get_coverage_summary(collection, 0)
+            == '0 identified | 0 unidentified | 2 declared (1 transitive) | 0 vulnerabilities'
+        )
+
+    def test_a_transitive_finding_names_what_pulled_it_in(self) -> None:
+        collection = _collection(components=[_declared('c', 'd', '2', scope='test', via='a:b')])
+
+        evidence = binary_report.get_detection_evidence(_ctx(collection), _detection('c:d', '2'))
+
+        assert evidence is not None
+        assert evidence.declared_via == 'a:b'
+        assert evidence.presence_summary == 'transitive (test scope) via a:b, not shipped'
+
+    def test_a_direct_declaration_summary(self) -> None:
+        collection = _collection(components=[_declared('a', 'b', '1')])
+
+        evidence = binary_report.get_detection_evidence(_ctx(collection), _detection('a:b', '1'))
+
+        assert evidence is not None
+        assert evidence.presence_summary == 'declared (compile scope), not shipped'

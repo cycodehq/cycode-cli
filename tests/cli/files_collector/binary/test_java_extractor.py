@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from cycode.cli.exceptions.custom_exceptions import BinaryExtractionError, UnsafeArchiveEntryError
-from cycode.cli.files_collector.binary.base_extractor import ArchiveEntry
+from cycode.cli.files_collector.binary.base_extractor import (
+    CONFIDENCE_EXACT,
+    EVIDENCE_POM_XML,
+    ArchiveEntry,
+    ExtractionResult,
+)
+from cycode.cli.files_collector.binary.declared import DeclaredDependencyResolver, PomFetch, PomSource
 from cycode.cli.files_collector.binary.java_extractor import (
     JavaArchiveExtractor,
     is_library_entry,
@@ -411,3 +417,207 @@ class TestIdentify:
         # level2 carries no metadata of its own; level3 was never opened so its metadata was never read
         assert len(result.components) == 0
         assert len(result.unidentified) == 2
+
+
+class TestDeclaredExpansion:
+    """``--include-declared``: embedded poms contribute components, not just edges."""
+
+    _WODEN = ('org.apache.woden', 'woden-core', '1.0M10')
+    _POM = b"""<?xml version="1.0"?>
+    <project xmlns="http://maven.apache.org/POM/4.0.0">
+      <groupId>org.apache.woden</groupId><artifactId>woden-core</artifactId><version>1.0M10</version>
+      <properties><codec.version>1.15</codec.version></properties>
+      <dependencies>
+        <dependency>
+          <groupId>commons-codec</groupId><artifactId>commons-codec</artifactId><version>${codec.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>1.7.36</version>
+        </dependency>
+        <dependency>
+          <groupId>log4j</groupId><artifactId>log4j</artifactId><version>1.2.15</version><scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>commons-logging</groupId><artifactId>commons-logging</artifactId>
+        </dependency>
+      </dependencies>
+    </project>"""
+
+    def _jar(self) -> bytes:
+        return fixtures.archive_bytes(
+            files={
+                fixtures.pom_properties_entry_name(*self._WODEN[:2]): fixtures.pom_properties(*self._WODEN),
+                f'META-INF/maven/{self._WODEN[0]}/{self._WODEN[1]}/pom.xml': self._POM,
+            }
+        )
+
+    def _identify(self, tmp_path: Path, name: str, content: bytes, enabled: bool = True) -> ExtractionResult:
+        path = tmp_path / name
+        path.write_bytes(content)
+        resolver = DeclaredDependencyResolver() if enabled else None
+        extractor = JavaArchiveExtractor(declared_resolver=resolver)
+        return extractor.identify(extractor.extract(str(path)))
+
+    def test_off_by_default_poms_contribute_nothing_but_edges(self, tmp_path: Path) -> None:
+        result = self._identify(tmp_path, 'woden-core.jar', self._jar(), enabled=False)
+
+        assert [c.purl for c in result.components] == ['pkg:maven/org.apache.woden/woden-core@1.0M10']
+        assert result.declared_unresolved == []
+
+    def test_declared_dependencies_become_components_marked_as_such(self, tmp_path: Path) -> None:
+        result = self._identify(tmp_path, 'woden-core.jar', self._jar())
+
+        declared = {c.purl: c for c in result.declared_components}
+        assert set(declared) == {
+            'pkg:maven/commons-codec/commons-codec@1.15',
+            'pkg:maven/org.slf4j/slf4j-api@1.7.36',
+        }
+        component = declared['pkg:maven/commons-codec/commons-codec@1.15']
+        assert component.evidence == EVIDENCE_POM_XML
+        assert component.confidence == CONFIDENCE_EXACT
+        assert component.declared_scope == 'compile'
+        assert component.sha1 is None
+        assert component.sha256 is None
+        # the declaring pom, so a finding says exactly which file made the claim
+        assert component.logical_path == 'woden-core.jar > META-INF/maven/org.apache.woden/woden-core/pom.xml'
+        assert component.parent == 'woden-core.jar'
+        # the shipped jar itself is untouched and still counts as the only identified archive
+        assert [c.purl for c in result.shipped_components] == ['pkg:maven/org.apache.woden/woden-core@1.0M10']
+
+    def test_a_test_scoped_dependency_is_neither_a_component_nor_unresolved(self, tmp_path: Path) -> None:
+        result = self._identify(tmp_path, 'woden-core.jar', self._jar())
+
+        assert not any(c.artifact == 'log4j' for c in result.components)
+        assert not any(u.artifact == 'log4j' for u in result.declared_unresolved)
+
+    def test_an_unresolvable_version_is_listed_with_its_pom(self, tmp_path: Path) -> None:
+        result = self._identify(tmp_path, 'woden-core.jar', self._jar())
+
+        assert [(u.coordinate_key, u.version_expression) for u in result.declared_unresolved] == [
+            ('commons-logging:commons-logging', None)
+        ]
+        assert result.declared_unresolved[0].declared_by.endswith('/woden-core/pom.xml')
+        assert 'no version declared or managed' in result.declared_unresolved[0].reason
+
+    def test_a_declared_dependency_that_shipped_is_not_repeated(self, tmp_path: Path) -> None:
+        # the war ships slf4j 1.7.30; the pom asks for 1.7.36. What shipped is the truth about it.
+        war = fixtures.war_bytes(
+            libraries={
+                'woden-core.jar': self._jar(),
+                'slf4j-api.jar': fixtures.library_jar('org.slf4j', 'slf4j-api', '1.7.30'),
+            }
+        )
+
+        result = self._identify(tmp_path, 'app.war', war)
+
+        purls = [c.purl for c in result.components]
+        assert 'pkg:maven/org.slf4j/slf4j-api@1.7.30' in purls
+        assert 'pkg:maven/org.slf4j/slf4j-api@1.7.36' not in purls
+        assert [c.artifact for c in result.declared_components] == ['commons-codec']
+
+    def test_a_declared_component_hangs_off_the_jar_that_declared_it(self, tmp_path: Path) -> None:
+        war = fixtures.war_bytes(libraries={'woden-core.jar': self._jar()})
+
+        result = self._identify(tmp_path, 'app.war', war)
+
+        woden = 'pkg:maven/org.apache.woden/woden-core@1.0M10'
+        assert result.has_real_edges is True
+        assert sorted(result.dependency_edges[woden]) == [
+            'pkg:maven/commons-codec/commons-codec@1.15',
+            'pkg:maven/org.slf4j/slf4j-api@1.7.36',
+        ]
+        assert result.dependency_edges['app.war'] == [woden]
+
+    def test_the_deployable_own_pom_contributes_too(self, tmp_path: Path) -> None:
+        # a war built by Maven carries its own pom; something it declares at compile scope but did not package is
+        # exactly what this flag exists to surface
+        war_pom = b"""<project>
+          <groupId>com.acme</groupId><artifactId>app</artifactId><version>1</version>
+          <dependencies>
+            <dependency><groupId>javax.servlet</groupId><artifactId>servlet-api</artifactId>
+              <version>2.5</version><scope>provided</scope></dependency>
+            <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId>
+              <version>31.1-jre</version></dependency>
+          </dependencies>
+        </project>"""
+        war = fixtures.archive_bytes(
+            files={'WEB-INF/web.xml': '<web-app/>', 'META-INF/maven/com.acme/app/pom.xml': war_pom}
+        )
+
+        result = self._identify(tmp_path, 'app.war', war)
+
+        assert [c.purl for c in result.declared_components] == ['pkg:maven/com.google.guava/guava@31.1-jre']
+        assert result.dependency_edges['app.war'] == ['pkg:maven/com.google.guava/guava@31.1-jre']
+
+    def test_a_dependency_inherited_from_a_parent_is_an_edge_of_the_jar(self, tmp_path: Path) -> None:
+        # the jar's own pom never mentions jackson-core; its parent declares it on the jar's behalf. The edge must
+        # still come from the jar, not fall back to containment on the application
+        parent = b"""<project>
+          <groupId>g</groupId><artifactId>parent</artifactId><version>1</version>
+          <dependencies>
+            <dependency><groupId>a</groupId><artifactId>inherited</artifactId><version>2</version></dependency>
+          </dependencies>
+        </project>"""
+        child = b"""<project>
+          <parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>
+          <artifactId>child</artifactId>
+        </project>"""
+
+        class _Source(PomSource):
+            def fetch(self, group: str, artifact: str, version: str) -> PomFetch:
+                return PomFetch(payload=parent)
+
+        jar = fixtures.archive_bytes(
+            files={
+                fixtures.pom_properties_entry_name('g', 'child'): fixtures.pom_properties('g', 'child', '1'),
+                'META-INF/maven/g/child/pom.xml': child,
+            }
+        )
+        war = fixtures.war_bytes(libraries={'child.jar': jar})
+        path = tmp_path / 'app.war'
+        path.write_bytes(war)
+
+        extractor = JavaArchiveExtractor(declared_resolver=DeclaredDependencyResolver(_Source()))
+        result = extractor.identify(extractor.extract(str(path)))
+
+        assert result.dependency_edges['pkg:maven/g/child@1'] == ['pkg:maven/a/inherited@2']
+        assert result.dependency_edges['app.war'] == ['pkg:maven/g/child@1']
+
+
+class TestTransitiveExpansion:
+    def test_a_transitive_hangs_off_the_declared_component_that_pulled_it_in(self, tmp_path: Path) -> None:
+        jar_pom = b"""<project>
+          <groupId>g</groupId><artifactId>lib</artifactId><version>1</version>
+          <dependencies>
+            <dependency><groupId>a</groupId><artifactId>b</artifactId><version>1</version></dependency>
+          </dependencies>
+        </project>"""
+        poms = {
+            'a:b:1': b'<project><groupId>a</groupId><artifactId>b</artifactId><version>1</version><dependencies>'
+            b'<dependency><groupId>c</groupId><artifactId>d</artifactId><version>2</version></dependency>'
+            b'</dependencies></project>',
+        }
+
+        class _Source(PomSource):
+            def fetch(self, group: str, artifact: str, version: str) -> PomFetch:
+                payload = poms.get(f'{group}:{artifact}:{version}')
+                return PomFetch(payload=payload) if payload else PomFetch(failure='missing')
+
+        jar = fixtures.archive_bytes(
+            files={
+                fixtures.pom_properties_entry_name('g', 'lib'): fixtures.pom_properties('g', 'lib', '1'),
+                'META-INF/maven/g/lib/pom.xml': jar_pom,
+            }
+        )
+        path = tmp_path / 'lib.jar'
+        path.write_bytes(jar)
+
+        resolver = DeclaredDependencyResolver(_Source(), transitive=True)
+        extractor = JavaArchiveExtractor(declared_resolver=resolver)
+        result = extractor.identify(extractor.extract(str(path)))
+
+        transitive = [c for c in result.declared_components if c.is_transitive]
+        assert [(c.purl, c.declared_via) for c in transitive] == [('pkg:maven/c/d@2', 'a:b')]
+        assert result.dependency_edges['pkg:maven/g/lib@1'] == ['pkg:maven/a/b@1']
+        assert result.dependency_edges['pkg:maven/a/b@1'] == ['pkg:maven/c/d@2']
+        assert result.transitive_components == transitive
