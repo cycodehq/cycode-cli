@@ -50,7 +50,8 @@ This guide walks you through both installation and usage.
             2. [Binary Scan Options](#binary-scan-options)
             3. [How Components Are Identified](#how-components-are-identified)
             4. [Unidentified Components](#unidentified-components)
-            5. [Limitations](#binary-scan-limitations)
+            5. [Declared Dependencies](#declared-dependencies)
+            6. [Limitations](#binary-scan-limitations)
         5. [Commit History Scan](#commit-history-scan)
             1. [Commit Range Option (Diff Scanning)](#commit-range-option-diff-scanning)
         6. [Pre-Commit Scan](#pre-commit-scan)
@@ -1051,7 +1052,10 @@ Nested archives are opened recursively, so a JAR inside a WAR inside an EAR is s
 |---|---|---|
 | `--max-depth` | `3` | Nested-archive recursion limit. An EAR containing WARs containing JARs is depth 3. |
 | `--offline` | off | Identify components from embedded metadata only. Acknowledges and silences the partial-results warning. |
-| `--maven-central` | off | Look up archives that embedded metadata cannot identify on Maven Central by SHA-1. Sends only the digest, never the archive. Cannot be combined with `--offline`. |
+| `--maven-central` | off | Consult Maven Central: look up archives that embedded metadata cannot identify by SHA-1, and with `--include-declared` fetch parent poms to pin declared versions. Sends digests and public coordinates, never the archive. Cannot be combined with `--offline`. |
+| `--include-declared` | off | Also report the compile- and runtime-scope dependencies that embedded `pom.xml` files declare but the artifact does not ship. See [Declared Dependencies](#declared-dependencies). |
+| `--include-test-scope` | off | With `--include-declared`: also report test-, provided- and system-scope declarations, which never reach a consuming build. Matches SCA tools that count every declared dependency. |
+| `--include-transitive` | off | With `--include-declared` and `--maven-central`: follow each declared dependency through its own pom to the dependencies it needs in turn, the way a Maven build would. |
 | `--project-name` | inferred | Override the platform identity when the artifact is detached from its source repository. |
 | `--keep-bom` | off | Write the generated component inventory beside each artifact, for inspection or audit. |
 | `--include-binaries` | off | On `scan path` only. Extract any Java archives encountered during the walk. |
@@ -1094,6 +1098,52 @@ The coverage line counts manifest-only matches as identified but calls them out,
 We do not guess a component's identity from its filename.
 `internal-shim.jar` is not evidence of anything, and an admitted gap is more useful than an invented coordinate.
 Unidentified components do not set the exit code on their own.
+
+#### Declared Dependencies
+
+By default a binary scan reports what is physically inside the artifact.
+That is the right answer for a deployable, but it is not the only question worth asking of a library JAR.
+A build that consumes that JAR inherits its compile- and runtime-scope dependencies, whether or not the vendor shipped them, and a vulnerability in one of those is real in the consuming build.
+
+`--include-declared` answers that second question from the same embedded metadata:
+
+`cycode scan -t sca --include-declared --maven-central binary ./vendor/woden-core.jar`
+
+Every embedded `pom.xml` is read the way Maven reads it.
+Each dependency it declares at `compile` or `runtime` scope, and which is not already present in the artifact, is added to the component inventory as a **declared** component and scanned like any other.
+Dependencies Maven would never hand to a consumer are left out: `test`, `provided` and `system` scope, and anything marked `optional`.
+
+Some SCA tools count every declared dependency regardless of scope, so their totals include a vendor's own test libraries.
+To compare against such a report, add `--include-test-scope` and those declarations are reported too.
+Each declared component still records its scope, so a `test` finding can be told apart from one that reaches a build.
+
+Versions in a real pom are rarely literal.
+`${property}` references and `${project.version}` are resolved from the pom itself.
+A version managed by a parent pom, or by an imported BOM, lives on Maven Central rather than inside the JAR, so resolving it needs `--maven-central`.
+Without it, or when the parent cannot be fetched, the dependency is listed in its own section with the reason instead of being guessed at:
+
+```
+╭─ 📜 Declared, version unresolved (2) ──────────────────────────────────────────────╮
+│   Dependency                    Version  Declared by                    Why          │
+│   commons-logging:commons-log…  -        woden-core.jar > META-INF/…    no version …  │
+╰────────────────────────────────────────────────────────────────────────────────────╯
+
+1 identified | 0 unidentified | 2 declared (2 unresolved) | 0 vulnerabilities
+```
+
+A finding on a declared component says `Declared by` and the pom that made the claim, rather than `Found in`, and its presence is marked `declared` in the generated BOM.
+Declared components carry no hashes, because there are no bytes to digest.
+`--output json` reports the counts under `binary.declared`.
+
+A declared dependency has dependencies of its own.
+`--include-transitive` follows each one through its pom on Maven Central and reports what it needs in turn, so it requires `--maven-central`.
+The walk follows Maven's rules: the nearest declaration of a coordinate wins, exclusions apply down their branch, optional dependencies are not followed, and a transitive's scope is combined with the scope it was reached through, so a test dependency's tree stays test scope.
+Each transitive component records the dependency that pulled it in as `cycode:via`, and the dependency graph in the BOM links them.
+On a real vendor jar this typically fetches a few dozen poms and adds under a minute to the scan.
+
+> [!NOTE]
+> Version ranges and versions that only a repository's metadata could pin are listed as unresolved, never guessed.
+> Where the consuming build exists, scanning its output or its `pom.xml` remains the most exact answer: a build tool resolves profiles and repository settings this walk cannot see.
 
 #### Binary Scan Limitations
 
@@ -1702,9 +1752,13 @@ It uses the same extraction as [Binary Scan](#binary-scan), so the [limitations]
 
 The `binary` subcommand supports the following additional option:
 
-| Option        | Description                                                                                  |
-|---------------|----------------------------------------------------------------------------------------------|
-| `--max-depth` | Nested-archive recursion limit. Defaults to 3. An EAR containing WARs containing JARs is depth 3. |
+| Option               | Description                                                                                  |
+|----------------------|----------------------------------------------------------------------------------------------|
+| `--max-depth`        | Nested-archive recursion limit. Defaults to 3. An EAR containing WARs containing JARs is depth 3. |
+| `--maven-central`    | Consult Maven Central to identify archives by SHA-1 and, with `--include-declared`, to fetch parent poms. |
+| `--include-declared` | Also include the compile- and runtime-scope dependencies that embedded `pom.xml` files declare but the artifact does not ship, marked `declared` rather than `shipped`. See [Declared Dependencies](#declared-dependencies). |
+| `--include-test-scope` | With `--include-declared`: also include test-, provided- and system-scope declarations. |
+| `--include-transitive` | With `--include-declared` and `--maven-central`: follow each declared dependency to what its own pom needs. |
 
 # Import Command
 

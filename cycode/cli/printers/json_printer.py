@@ -71,7 +71,7 @@ class JsonPrinter(PrinterBase):
         if collection is None:
             return None
 
-        return {
+        section = {
             'identified': collection.identified_count,
             'low_confidence_components': collection.low_confidence_count,
             'unidentified': [entry._asdict() for entry in binary_report.get_unidentified(collection)],
@@ -79,6 +79,16 @@ class JsonPrinter(PrinterBase):
             'resolver_available': collection.resolver_available,
             'partial': binary_report.should_warn_about_degradation(self.ctx, collection),
         }
+
+        # present only when --include-declared was given, so its absence means "not asked", never "none found"
+        if collection.include_declared:
+            section['declared'] = {
+                'components': collection.declared_count,
+                'transitive': collection.transitive_count,
+                'unresolved': [entry._asdict() for entry in binary_report.get_declared_unresolved(collection)],
+            }
+
+        return section
 
     def _get_json_scan_result(
         self,

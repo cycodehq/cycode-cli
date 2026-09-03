@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from cycode.cli import consts
 from cycode.cli.apps.scan.binary.identity import (
     IDENTITY_FROM_FILENAME,
     IDENTITY_FROM_GIT_REMOTE,
@@ -23,9 +24,16 @@ from cycode.cli.files_collector.binary.collector import (
     build_synthetic_manifest,
     collect_binary_documents,
     find_supported_artifacts,
+    get_declared_resolver,
     get_resolver,
 )
-from cycode.cli.files_collector.binary.maven_central import MavenCentralDigestResolver
+from cycode.cli.files_collector.binary.declared import (
+    ALL_SCOPES,
+    PROPAGATED_SCOPES,
+    DeclaredDependencyResolver,
+    NullPomSource,
+)
+from cycode.cli.files_collector.binary.maven_central import MavenCentralDigestResolver, MavenCentralPomSource
 from cycode.cli.files_collector.binary.resolver import NullDigestResolver
 from cycode.cli.utils.path_utils import get_path_by_os
 from tests.cli.files_collector.binary import fixtures
@@ -340,3 +348,90 @@ class TestMonitorGuard:
             identity = resolve_platform_identity(mock_ctx, (str(path),))
 
         assert_monitor_has_an_explicit_identity(identity)
+
+
+class TestIncludeDeclared:
+    _POM = b"""<project>
+      <groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>31.1-jre</version>
+      <dependencies>
+        <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>1.7.36</version></dependency>
+        <dependency><groupId>a</groupId><artifactId>managed-elsewhere</artifactId></dependency>
+      </dependencies>
+    </project>"""
+
+    def _war(self) -> bytes:
+        guava = fixtures.archive_bytes(
+            files={
+                fixtures.pom_properties_entry_name(*_GUAVA[:2]): fixtures.pom_properties(*_GUAVA),
+                f'META-INF/maven/{_GUAVA[0]}/{_GUAVA[1]}/pom.xml': self._POM,
+            }
+        )
+        return fixtures.war_bytes(libraries={'guava.jar': guava})
+
+    def test_the_declared_resolver_is_opt_in(self, mock_ctx: typer.Context) -> None:
+        assert get_declared_resolver(mock_ctx) is None
+
+        mock_ctx.obj['include_declared'] = True
+
+        assert isinstance(get_declared_resolver(mock_ctx), DeclaredDependencyResolver)
+
+    def test_maven_central_decides_where_parents_come_from(self, mock_ctx: typer.Context) -> None:
+        mock_ctx.obj['include_declared'] = True
+        assert isinstance(get_declared_resolver(mock_ctx)._source, NullPomSource)
+
+        mock_ctx.obj['maven_central'] = True
+        assert isinstance(get_declared_resolver(mock_ctx)._source, MavenCentralPomSource)
+
+    def test_test_scope_is_opt_in_on_top_of_declared(self, mock_ctx: typer.Context) -> None:
+        mock_ctx.obj['include_declared'] = True
+        assert get_declared_resolver(mock_ctx)._scopes == PROPAGATED_SCOPES
+
+        mock_ctx.obj['include_test_scope'] = True
+        assert get_declared_resolver(mock_ctx)._scopes == ALL_SCOPES
+
+    def test_transitives_are_opt_in_and_get_the_larger_budget(self, mock_ctx: typer.Context) -> None:
+        mock_ctx.obj['include_declared'] = True
+        resolver = get_declared_resolver(mock_ctx)
+        assert resolver._transitive is False
+        assert resolver._fetch_budget == consts.BINARY_POM_FETCH_BUDGET
+
+        mock_ctx.obj['include_transitive'] = True
+        resolver = get_declared_resolver(mock_ctx)
+        assert resolver._transitive is True
+        assert resolver._fetch_budget == consts.BINARY_TRANSITIVE_FETCH_BUDGET
+
+    def test_off_by_default_nothing_is_declared_and_the_result_says_it_was_not_asked(
+        self, mock_ctx: typer.Context, tmp_path: Path
+    ) -> None:
+        path = tmp_path / 'app.war'
+        path.write_bytes(self._war())
+
+        collection = collect_binary_documents(mock_ctx, (str(path),))
+
+        assert collection.include_declared is False
+        assert collection.identified_count == 1
+        assert collection.declared_count == 0
+        assert collection.declared_unresolved == []
+
+    def test_declared_components_are_counted_apart_from_identified_ones(
+        self, mock_ctx: typer.Context, tmp_path: Path
+    ) -> None:
+        mock_ctx.obj['include_declared'] = True
+        path = tmp_path / 'app.war'
+        path.write_bytes(self._war())
+
+        collection = collect_binary_documents(mock_ctx, (str(path),))
+
+        assert collection.include_declared is True
+        assert collection.identified_count == 1
+        assert collection.declared_count == 1
+        assert [u.coordinate_key for u in collection.declared_unresolved] == ['a:managed-elsewhere']
+
+        bom = json.loads(collection.documents[0].content)
+        presence = {
+            c['purl']: {p['name']: p['value'] for p in c['properties']}['cycode:presence'] for c in bom['components']
+        }
+        assert presence == {
+            'pkg:maven/com.google.guava/guava@31.1-jre': 'shipped',
+            'pkg:maven/org.slf4j/slf4j-api@1.7.36': 'declared',
+        }

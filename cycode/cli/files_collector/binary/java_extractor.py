@@ -17,13 +17,16 @@ from cycode.cli.files_collector.binary.base_extractor import (
     EVIDENCE_DIGEST,
     EVIDENCE_MANIFEST,
     EVIDENCE_POM_PROPERTIES,
+    EVIDENCE_POM_XML,
     ArchiveEntry,
     BinaryExtractor,
     ExtractionResult,
     IdentifiedComponent,
     UnidentifiedArtifact,
+    UnresolvedDeclaration,
     join_logical_path,
 )
+from cycode.cli.files_collector.binary.declared import DeclaredDependencyResolver
 from cycode.cli.files_collector.binary.identifiers import manifest_mf, pom_properties, pom_xml
 from cycode.cli.files_collector.binary.identifiers.pom_properties import MavenCoordinates
 from cycode.cli.files_collector.binary.resolver import DigestResolver, NullDigestResolver
@@ -102,9 +105,16 @@ def compute_file_digest(path: str) -> str:
 class JavaArchiveExtractor(BinaryExtractor):
     """Reads a Java archive and everything shipped inside it, down to a bounded depth."""
 
-    def __init__(self, limits: Optional[ArchiveLimits] = None, resolver: Optional[DigestResolver] = None) -> None:
+    def __init__(
+        self,
+        limits: Optional[ArchiveLimits] = None,
+        resolver: Optional[DigestResolver] = None,
+        declared_resolver: Optional[DeclaredDependencyResolver] = None,
+    ) -> None:
         self._limits = limits or ArchiveLimits()
         self._resolver = resolver or NullDigestResolver()
+        # None means --include-declared was not given: embedded poms then contribute edges only, never components
+        self._declared_resolver = declared_resolver
 
     def handles(self, path: str) -> bool:
         return is_java_archive_name(path)
@@ -176,11 +186,23 @@ class JavaArchiveExtractor(BinaryExtractor):
 
         components, unidentified = self._run_identification_ladder(candidates, metadata_by_container)
 
-        edges, has_real_edges = self._build_dependency_graph(root, candidates, components, metadata_by_container)
+        declared_unresolved: list[UnresolvedDeclaration] = []
+        declared_keys_by_path: dict[str, set[str]] = {}
+        transitive_edges: dict[str, set[str]] = {}
+        if self._declared_resolver is not None:
+            declared, declared_unresolved, declared_keys_by_path, transitive_edges = self._expand_declared(
+                archives, components, metadata_by_container
+            )
+            components.extend(declared)
+
+        edges, has_real_edges = self._build_dependency_graph(
+            root, candidates, components, metadata_by_container, declared_keys_by_path, transitive_edges
+        )
 
         return ExtractionResult(
             components=components,
             unidentified=unidentified,
+            declared_unresolved=declared_unresolved,
             archives_opened=sum(1 for entry in entries if entry.was_opened),
             # expressed as a count of archives on the deepest chain, so it compares directly against --max-depth
             max_depth_reached=max((entry.depth for entry in entries if entry.is_archive), default=-1) + 1,
@@ -267,18 +289,90 @@ class JavaArchiveExtractor(BinaryExtractor):
 
         return None
 
+    def _expand_declared(
+        self,
+        archives: list[ArchiveEntry],
+        shipped: list[IdentifiedComponent],
+        metadata_by_container: dict[str, list[ArchiveEntry]],
+    ) -> tuple[list[IdentifiedComponent], list[UnresolvedDeclaration], dict[str, set[str]], dict[str, set[str]]]:
+        """``--include-declared``: what every embedded pom says its component needs and did not ship.
+
+        Every archive with a pom contributes, the deployable itself included: a war's pom that declares something
+        absent from WEB-INF/lib is exactly the case a reader of this list wants to know about. A declared
+        coordinate that is also physically present is not repeated -- the shipped component is the truth about
+        it, whatever version the pom asked for -- so this only ever adds what a consumer would pull in unseen.
+
+        The third result is every directly resolved coordinate key per archive, shipped or not, so the dependency
+        graph can draw an edge for a dependency a parent pom declared on the jar's behalf: the jar's own pom never
+        mentions it, but the jar depends on it all the same. The fourth is the edges among declared components
+        themselves, requester key to transitive key, when transitives were expanded.
+        """
+        shipped_keys = {f'{component.group}:{component.artifact}' for component in shipped}
+        declared: list[IdentifiedComponent] = []
+        unresolved: list[UnresolvedDeclaration] = []
+        keys_by_path: dict[str, set[str]] = defaultdict(set)
+        transitive_edges: dict[str, set[str]] = defaultdict(set)
+
+        for archive in archives:
+            for entry in metadata_by_container.get(archive.logical_path, []):
+                if entry.name != POM_XML_FILE_NAME or entry.payload is None:
+                    continue
+
+                resolution = self._declared_resolver.resolve(entry.payload)
+                for dependency in resolution.dependencies:
+                    if dependency.via is None:
+                        keys_by_path[archive.logical_path].add(dependency.coordinate_key)
+                    else:
+                        transitive_edges[dependency.via].add(dependency.coordinate_key)
+
+                    if dependency.coordinate_key in shipped_keys:
+                        continue
+
+                    declared.append(
+                        IdentifiedComponent(
+                            group=dependency.group,
+                            artifact=dependency.artifact,
+                            version=dependency.version,
+                            sha1=None,
+                            logical_path=entry.logical_path,
+                            parent=archive.logical_path,
+                            evidence=EVIDENCE_POM_XML,
+                            confidence=CONFIDENCE_EXACT,
+                            declared_scope=dependency.scope,
+                            declared_via=dependency.via,
+                        )
+                    )
+
+                unresolved.extend(
+                    UnresolvedDeclaration(
+                        group=item.group,
+                        artifact=item.artifact,
+                        version_expression=item.version_expression,
+                        declared_by=entry.logical_path,
+                        reason=item.reason,
+                    )
+                    for item in resolution.unresolved
+                    if item.coordinate_key not in shipped_keys
+                )
+
+        return declared, unresolved, dict(keys_by_path), dict(transitive_edges)
+
     def _build_dependency_graph(
         self,
         root: ArchiveEntry,
         candidates: list[ArchiveEntry],
         components: list[IdentifiedComponent],
         metadata_by_container: dict[str, list[ArchiveEntry]],
+        declared_keys_by_path: Optional[dict[str, set[str]]] = None,
+        transitive_edges: Optional[dict[str, set[str]]] = None,
     ) -> tuple[dict[str, list[str]], bool]:
         """Containment as the base tree, with real edges from embedded poms overlaid on top.
 
         Where the two disagree the real edge wins and the containment edge is dropped, because a jar that is
         genuinely a transitive dependency of another is not a direct child of the application.
         """
+        declared_keys_by_path = declared_keys_by_path or {}
+        transitive_edges = transitive_edges or {}
         refs_by_path: dict[str, list[str]] = defaultdict(list)
         for component in components:
             refs_by_path[component.logical_path].append(component.purl)
@@ -293,17 +387,24 @@ class JavaArchiveExtractor(BinaryExtractor):
             if container != component.purl:
                 containment[container].add(component.purl)
 
-        real: dict[str, set] = defaultdict(set)
+        # what each archive's pom (and, with --include-declared, its parents) says it depends on
+        keys_by_source_ref: dict[str, set[str]] = defaultdict(set)
         for archive in candidates:
             source_refs = refs_by_path.get(archive.logical_path)
             if not source_refs:
                 continue
 
-            for dependency in self._declared_dependencies(archive, metadata_by_container):
-                target_ref = ref_by_coordinate.get(dependency.coordinate_key)
-                if target_ref and target_ref != source_refs[0]:
-                    real[source_refs[0]].add(target_ref)
+            keys = {d.coordinate_key for d in self._declared_dependencies(archive, metadata_by_container)}
+            keys |= declared_keys_by_path.get(archive.logical_path, set())
+            keys_by_source_ref[source_refs[0]] |= keys
 
+        # a transitive hangs off whichever component asked for it, shipped or declared
+        for source_key, target_keys in transitive_edges.items():
+            source_ref = ref_by_coordinate.get(source_key)
+            if source_ref:
+                keys_by_source_ref[source_ref] |= target_keys
+
+        real = _resolve_edges(keys_by_source_ref, ref_by_coordinate)
         claimed = {target for targets in real.values() for target in targets}
         for targets in containment.values():
             targets -= claimed
@@ -443,6 +544,18 @@ class JavaArchiveExtractor(BinaryExtractor):
                 visited_digests=visited_digests,
                 entries=entries,
             )
+
+
+def _resolve_edges(keys_by_source_ref: dict[str, set[str]], ref_by_coordinate: dict[str, str]) -> dict[str, set]:
+    """Coordinate keys to bom-refs, dropping anything that is not a known component or points at itself."""
+    real: dict[str, set] = defaultdict(set)
+    for source_ref, keys in keys_by_source_ref.items():
+        for key in sorted(keys):
+            target_ref = ref_by_coordinate.get(key)
+            if target_ref and target_ref != source_ref:
+                real[source_ref].add(target_ref)
+
+    return real
 
 
 def _is_library_root(root: ArchiveEntry) -> bool:

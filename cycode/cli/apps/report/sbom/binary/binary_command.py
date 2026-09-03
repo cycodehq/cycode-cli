@@ -34,8 +34,34 @@ def binary_command(
         bool,
         typer.Option(
             '--maven-central',
-            help='Look archives that embedded metadata cannot identify up on Maven Central by SHA-1. '
-            'Sends the digest of each such archive, never the archive itself, to search.maven.org.',
+            help='Consult Maven Central: look archives that embedded metadata cannot identify up by SHA-1, and '
+            'with --include-declared fetch parent poms to pin declared versions. Sends digests and public '
+            'coordinates, never the archive itself.',
+        ),
+    ] = False,
+    include_declared: Annotated[
+        bool,
+        typer.Option(
+            '--include-declared',
+            help='Also include the compile- and runtime-scope dependencies that embedded pom.xml files declare '
+            'but the artifact does not ship, marked as declared rather than shipped. '
+            'Versions managed by a parent pom need --maven-central to resolve.',
+        ),
+    ] = False,
+    include_test_scope: Annotated[
+        bool,
+        typer.Option(
+            '--include-test-scope',
+            help='With --include-declared: also include test-, provided- and system-scope declarations, which '
+            'Maven never passes to a consuming build. Each component still records its scope.',
+        ),
+    ] = False,
+    include_transitive: Annotated[
+        bool,
+        typer.Option(
+            '--include-transitive',
+            help='With --include-declared and --maven-central: follow each declared dependency to the '
+            'dependencies its own pom declares, the way a Maven build would, and include those too.',
         ),
     ] = False,
 ) -> None:
@@ -52,8 +78,23 @@ def binary_command(
     Format conversion happens server-side, so every format the path command supports is supported here too.
 
     """
+    if include_test_scope and not include_declared:
+        raise typer.BadParameter(
+            '--include-test-scope widens what --include-declared reports; it does nothing on its own.',
+            param_hint='--include-test-scope',
+        )
+    if include_transitive and not (include_declared and maven_central):
+        raise typer.BadParameter(
+            '--include-transitive follows declared dependencies through their poms on Maven Central; '
+            'it needs both --include-declared and --maven-central.',
+            param_hint='--include-transitive',
+        )
+
     ctx.obj['binary_max_depth'] = max_depth
     ctx.obj['maven_central'] = maven_central
+    ctx.obj['include_declared'] = include_declared
+    ctx.obj['include_test_scope'] = include_test_scope
+    ctx.obj['include_transitive'] = include_transitive
 
     client = get_report_cycode_client(ctx)
     report_parameters = ctx.obj['report_parameters']

@@ -63,6 +63,7 @@ class TextPrinter(PrinterBase):
             self._print_degradation_warning(collection)
 
         self._print_unidentified_section(collection)
+        self._print_declared_unresolved_section(collection)
         self._print_low_confidence_note(local_scan_results)
         self._print_coverage_summary(collection, local_scan_results)
 
@@ -84,6 +85,22 @@ class TextPrinter(PrinterBase):
             self.console.print(
                 f'    [dim]sha1 {entry.sha1[:8]}...  {binary_report.format_size(entry.size)}[/]', highlight=False
             )
+
+    def _print_declared_unresolved_section(self, collection: 'BinaryCollectionResult') -> None:
+        unresolved = binary_report.get_declared_unresolved(collection)
+        if not unresolved:
+            return
+
+        self.console.line()
+        self.console.print(f'[bold]DECLARED, VERSION UNRESOLVED ({len(unresolved)})[/]')
+        for entry in unresolved:
+            # every field comes from inside an untrusted archive
+            coordinate = binary_report.for_display(entry.coordinate)
+            expression = binary_report.for_display(entry.version_expression)
+            declared_by = binary_report.for_display(entry.declared_by)
+            self.console.print(f'  {coordinate} {expression}', highlight=False)
+            self.console.print(f'    [dim]declared by {declared_by}[/]', highlight=False)
+            self.console.print(f'    [dim]{binary_report.for_display(entry.reason)}[/]', highlight=False)
 
     def _print_low_confidence_note(self, local_scan_results: list['LocalScanResult']) -> None:
         low_confidence = binary_report.count_low_confidence(self.ctx, local_scan_results)
@@ -139,7 +156,15 @@ class TextPrinter(PrinterBase):
         if evidence is None:
             return []
 
-        lines = [f'\n[dodger_blue1]Found in: {evidence.logical_path}[/]']
+        location = binary_report.for_display(evidence.logical_path)
+        if evidence.is_declared:
+            # the component is not in the artifact at all; saying "found in" would be false
+            return [
+                f'\n[dodger_blue1]Declared by: {location}[/]',
+                f'\n[dim]Presence: {binary_report.for_display(evidence.presence_summary)}[/]',
+            ]
+
+        lines = [f'\n[dodger_blue1]Found in: {location}[/]']
         if evidence.is_ambiguous:
             lines.append(f'\n[yellow]Identified by: {evidence.evidence} (low confidence, does not affect exit code)[/]')
         else:

@@ -17,6 +17,7 @@ from urllib.parse import quote
 import requests
 
 from cycode.cli import consts
+from cycode.cli.files_collector.binary.declared import PomFetch, PomSource, is_safe_coordinate
 from cycode.cli.files_collector.binary.resolver import DigestResolver
 from cycode.cyclient.cycode_client_base import get_http_session
 from cycode.cyclient.headers import get_cli_user_agent
@@ -24,7 +25,7 @@ from cycode.cyclient.headers import get_cli_user_agent
 logger = logging.getLogger(__name__)
 
 _SHA1_FIELD = '1'
-_ATTEMPTS_PER_DIGEST = 2  # the index is intermittently slow; one retry, never a storm
+_ATTEMPTS_PER_DIGEST = 2  # the index is intermittently slow; one retry, never a storm. Pom fetches share it
 
 
 def _purl_of(group: str, artifact: str, version: str) -> str:
@@ -139,6 +140,82 @@ class MavenCentralDigestResolver(DigestResolver):
             )
 
         return _purl_of(*candidates[0])
+
+    def _get_session(self) -> requests.Session:
+        if self._session is None:
+            self._session = get_http_session()
+
+        return self._session
+
+
+class MavenCentralPomSource(PomSource):
+    """Parent and imported poms for ``--include-declared``, read from the Maven Central repository itself.
+
+    What leaves the machine is a public coordinate such as ``org.apache:apache:30``, never anything from inside the
+    artifact. The same transport rules as the digest lookup apply: one retry on a timeout, an abort for the rest of
+    the run on a connection-level failure, and a body cap so a hostile mirror configured through a proxy cannot
+    feed the parser an unbounded document.
+    """
+
+    def __init__(
+        self,
+        session: Optional[requests.Session] = None,
+        repository_url: str = consts.BINARY_MAVEN_CENTRAL_REPOSITORY_URL,
+        timeout_in_seconds: float = consts.BINARY_DIGEST_LOOKUP_TIMEOUT_IN_SECONDS,
+        max_size_in_bytes: int = consts.BINARY_POM_MAX_SIZE_IN_BYTES,
+    ) -> None:
+        self._session = session
+        self._repository_url = repository_url.rstrip('/')
+        self._timeout = timeout_in_seconds
+        self._max_size = max_size_in_bytes
+        self._aborted: Optional[str] = None
+
+    def fetch(self, group: str, artifact: str, version: str) -> PomFetch:
+        coordinate = f'{group}:{artifact}:{version}'
+        if not is_safe_coordinate(group, artifact, version):
+            return PomFetch(failure=f'{coordinate} is not a valid Maven coordinate')
+
+        if self._aborted:
+            return PomFetch(failure=f'{coordinate} not fetched: Maven Central is unreachable ({self._aborted})')
+
+        url = f'{self._repository_url}/{group.replace(".", "/")}/{artifact}/{version}/{artifact}-{version}.pom'
+        last_error: Optional[str] = None
+        for attempt in range(_ATTEMPTS_PER_DIGEST):
+            try:
+                with self._get_session().get(
+                    url, headers={'User-Agent': get_cli_user_agent()}, timeout=self._timeout, stream=True
+                ) as response:
+                    if response.status_code == requests.codes.not_found:
+                        return PomFetch(failure=f'{coordinate} is not on Maven Central')
+
+                    response.raise_for_status()
+                    return self._read_bounded(response, coordinate)
+            except requests.Timeout as e:
+                last_error = str(e) or e.__class__.__name__
+                if attempt + 1 < _ATTEMPTS_PER_DIGEST:
+                    logger.debug('Maven Central pom fetch timed out, retrying once, %s', {'coordinate': coordinate})
+            except requests.ConnectionError as e:
+                last_error = str(e) or e.__class__.__name__
+                self._aborted = last_error
+                break
+            except requests.RequestException as e:
+                last_error = str(e) or e.__class__.__name__
+                break
+
+        logger.warning('Maven Central pom fetch failed, %s', {'coordinate': coordinate, 'error': last_error})
+        return PomFetch(failure=f'{coordinate} fetch from Maven Central failed ({last_error})')
+
+    def _read_bounded(self, response: requests.Response, coordinate: str) -> PomFetch:
+        chunks = []
+        received = 0
+        for chunk in response.iter_content(chunk_size=64 * 1024):
+            received += len(chunk)
+            if received > self._max_size:
+                return PomFetch(failure=f'{coordinate} exceeds {self._max_size} bytes and was not read')
+
+            chunks.append(chunk)
+
+        return PomFetch(payload=b''.join(chunks))
 
     def _get_session(self) -> requests.Session:
         if self._session is None:

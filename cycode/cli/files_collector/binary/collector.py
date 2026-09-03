@@ -15,9 +15,20 @@ import typer
 
 from cycode.cli import consts
 from cycode.cli.files_collector.binary import cyclonedx_builder
-from cycode.cli.files_collector.binary.base_extractor import CONFIDENCE_AMBIGUOUS, BinaryExtractor, ExtractionResult
+from cycode.cli.files_collector.binary.base_extractor import (
+    CONFIDENCE_AMBIGUOUS,
+    BinaryExtractor,
+    ExtractionResult,
+    UnresolvedDeclaration,
+)
+from cycode.cli.files_collector.binary.declared import (
+    ALL_SCOPES,
+    PROPAGATED_SCOPES,
+    DeclaredDependencyResolver,
+    NullPomSource,
+)
 from cycode.cli.files_collector.binary.java_extractor import JavaArchiveExtractor
-from cycode.cli.files_collector.binary.maven_central import MavenCentralDigestResolver
+from cycode.cli.files_collector.binary.maven_central import MavenCentralDigestResolver, MavenCentralPomSource
 from cycode.cli.files_collector.binary.resolver import DigestResolver, NullDigestResolver
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_path_by_os
@@ -90,10 +101,24 @@ class BinaryCollectionResult:
     documents: list[Document] = field(default_factory=list)
     results_by_artifact: dict[str, ExtractionResult] = field(default_factory=dict)
     failures: dict[str, str] = field(default_factory=dict)
+    include_declared: bool = False  # whether --include-declared was given, so the printers know to report on it
 
     @property
     def identified_count(self) -> int:
-        return sum(len(result.components) for result in self.results_by_artifact.values())
+        """Archives physically in the artifact that were named. A declared component is not one of them."""
+        return sum(len(result.shipped_components) for result in self.results_by_artifact.values())
+
+    @property
+    def declared_count(self) -> int:
+        return sum(len(result.declared_components) for result in self.results_by_artifact.values())
+
+    @property
+    def transitive_count(self) -> int:
+        return sum(len(result.transitive_components) for result in self.results_by_artifact.values())
+
+    @property
+    def declared_unresolved(self) -> list[UnresolvedDeclaration]:
+        return [item for result in self.results_by_artifact.values() for item in result.declared_unresolved]
 
     @property
     def low_confidence_count(self) -> int:
@@ -125,12 +150,15 @@ class BinaryCollectionResult:
         return reasons[-1] if reasons else None
 
 
-def get_extractors(resolver: Optional[DigestResolver] = None) -> list[BinaryExtractor]:
+def get_extractors(
+    resolver: Optional[DigestResolver] = None,
+    declared_resolver: Optional[DeclaredDependencyResolver] = None,
+) -> list[BinaryExtractor]:
     """Registered extractors, in the order they are offered a path.
 
     .NET, npm and container support arrive as additional entries here rather than as new architecture.
     """
-    return [JavaArchiveExtractor(resolver=resolver or NullDigestResolver())]
+    return [JavaArchiveExtractor(resolver=resolver or NullDigestResolver(), declared_resolver=declared_resolver)]
 
 
 def get_resolver(ctx: typer.Context) -> DigestResolver:
@@ -139,6 +167,18 @@ def get_resolver(ctx: typer.Context) -> DigestResolver:
         return MavenCentralDigestResolver()
 
     return NullDigestResolver()
+
+
+def get_declared_resolver(ctx: typer.Context) -> Optional[DeclaredDependencyResolver]:
+    """``--include-declared`` turns embedded poms into components; ``--maven-central`` lets it read their parents."""
+    if not ctx.obj.get('include_declared'):
+        return None
+
+    source = MavenCentralPomSource() if ctx.obj.get('maven_central') else NullPomSource()
+    scopes = ALL_SCOPES if ctx.obj.get('include_test_scope') else PROPAGATED_SCOPES
+    transitive = bool(ctx.obj.get('include_transitive'))
+    budget = consts.BINARY_TRANSITIVE_FETCH_BUDGET if transitive else consts.BINARY_POM_FETCH_BUDGET
+    return DeclaredDependencyResolver(source, fetch_budget=budget, scopes=scopes, transitive=transitive)
 
 
 def find_supported_artifacts(paths: tuple[str, ...]) -> list[str]:
@@ -186,9 +226,9 @@ def collect_binary_documents(
     if progress_bar and artifacts:
         progress_bar.set_section_length(progress_bar_section, len(artifacts))
 
-    collection = BinaryCollectionResult()
+    collection = BinaryCollectionResult(include_declared=bool(ctx.obj.get('include_declared')))
     # one resolver for the whole run, so a transport failure on the first artifact is not retried on every other
-    extractors = get_extractors(get_resolver(ctx))
+    extractors = get_extractors(get_resolver(ctx), get_declared_resolver(ctx))
 
     for artifact_path in artifacts:
         try:
@@ -227,7 +267,8 @@ def _collect_one(
         'Synthesised a BOM, %s',
         {
             'path': document_path,
-            'components': len(result.components),
+            'components': len(result.shipped_components),
+            'declared': len(result.declared_components),
             'unidentified': len(result.unidentified),
             'archives_opened': result.archives_opened,
         },

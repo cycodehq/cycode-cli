@@ -69,6 +69,28 @@ class RichPrinter(TextPrinter):
         self.console.line()
         self.console.print(get_panel(table, title=f'\U0001f50e Unidentified ({len(unidentified)})'))
 
+    def _print_declared_unresolved_section(self, collection: 'BinaryCollectionResult') -> None:
+        unresolved = binary_report.get_declared_unresolved(collection)
+        if not unresolved:
+            return
+
+        table = Table(show_header=True, box=None, padding=(0, 2))
+        table.add_column('Dependency', style='', overflow='fold')
+        table.add_column('Version', style='dim', overflow='fold')
+        table.add_column('Declared by', style='dim', overflow='fold')
+        table.add_column('Why', style='dim', overflow='fold')
+
+        for entry in unresolved:
+            table.add_row(
+                binary_report.for_display(entry.coordinate),
+                binary_report.for_display(entry.version_expression),
+                binary_report.for_display(entry.declared_by),
+                binary_report.for_display(entry.reason),
+            )
+
+        self.console.line()
+        self.console.print(get_panel(table, title=f'\U0001f4dc Declared, version unresolved ({len(unresolved)})'))
+
     def _get_details_table(self, detection: 'Detection') -> Table:
         details_table = Table(show_header=False, box=None, padding=(0, 1))
 
@@ -133,6 +155,11 @@ class RichPrinter(TextPrinter):
             return
 
         source = binary_report.for_display(evidence.evidence)
+
+        if evidence.is_declared:
+            details_table.add_row('Declared by', binary_report.for_display(evidence.logical_path))
+            details_table.add_row('Presence', binary_report.for_display(evidence.presence_summary))
+            return
 
         details_table.add_row('Found in', binary_report.for_display(evidence.logical_path))
         if evidence.is_ambiguous:
