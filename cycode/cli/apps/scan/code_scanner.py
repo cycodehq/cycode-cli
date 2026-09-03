@@ -19,16 +19,19 @@ from cycode.cli.apps.scan.scan_result import (
 from cycode.cli.config import configuration_manager
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
+from cycode.cli.files_collector.binary.collector import collect_binary_documents
 from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, LocalScanResult
+from cycode.cli.printers.utils import binary_report
 from cycode.cli.utils.path_utils import get_absolute_path, get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
 from cycode.cli.utils.scan_utils import (
     generate_unique_scan_id,
     is_cycodeignore_allowed_by_scan_config,
+    set_issue_detected,
     set_issue_detected_by_scan_results,
     should_use_presigned_upload,
 )
@@ -106,7 +109,57 @@ def scan_disk_files(ctx: typer.Context, paths: tuple[str, ...]) -> None:
                 documents.append(entrypoint_document)
 
         add_sca_dependencies_tree_documents_if_needed(ctx, scan_type, documents)
+        _add_binary_documents_if_needed(ctx, paths, documents)
         scan_documents(ctx, documents, get_scan_parameters(ctx, paths))
+    except Exception as e:
+        handle_scan_exception(ctx, e)
+
+
+def _add_binary_documents_if_needed(ctx: typer.Context, paths: tuple[str, ...], documents: list[Document]) -> None:
+    """``--include-binaries``: extract any Java archives met during the walk and append their BOMs.
+
+    Off by default and never implicit. Extraction of a large artifact tree costs real time, and a path scan that
+    silently got slower would be a worse surprise than an opt-in flag.
+    """
+    if not ctx.obj.get('include_binaries'):
+        return
+
+    # the local-files section is already complete by this point, so the collector must not reopen it
+    collection = collect_binary_documents(
+        ctx, paths, stop_on_error=ctx.obj.get('stop_on_error', False), progress_bar_section=None
+    )
+    if not collection.documents:
+        logger.debug('No binary artifacts found during the walk, %s', {'paths': paths})
+        return
+
+    logger.debug(
+        'Adding binary artifact documents, %s',
+        {'artifacts': len(collection.results_by_artifact), 'documents': len(collection.documents)},
+    )
+    ctx.obj['binary_result'] = collection
+    documents.extend(collection.documents)
+
+
+def scan_binary_artifacts(ctx: typer.Context, paths: tuple[str, ...]) -> None:
+    """Scan built artifacts by synthesising a CycloneDX document for each and feeding it to the normal SCA path.
+
+    A sibling of scan_disk_files rather than a variation on it: the archive itself never becomes a Document, so the
+    binary filter in file_excluder stays correct and untouched. What reaches scan_documents is exactly one
+    synthesised bom.json per artifact, which the SCA engine already knows how to consume.
+    """
+    try:
+        collection = collect_binary_documents(ctx, paths, stop_on_error=ctx.obj.get('stop_on_error', False))
+
+        # the printers read the unidentified section and the coverage line from here
+        ctx.obj['binary_result'] = collection
+
+        for artifact_path, error in collection.failures.items():
+            logger.warning('Could not read an artifact, %s', {'path': artifact_path, 'error': error})
+
+        if not collection.documents:
+            logger.warning('No supported binary artifacts were found, %s', {'paths': paths})
+
+        scan_documents(ctx, collection.documents, get_scan_parameters(ctx, paths))
     except Exception as e:
         handle_scan_exception(ctx, e)
 
@@ -297,8 +350,22 @@ def scan_documents(
     progress_bar.update(ScanProgressBarSection.GENERATE_REPORT)
     progress_bar.stop()
 
-    set_issue_detected_by_scan_results(ctx, local_scan_results)
+    _set_issue_detected(ctx, local_scan_results)
     print_local_scan_results(ctx, local_scan_results, errors)
+
+
+def _set_issue_detected(ctx: typer.Context, local_scan_results: list['LocalScanResult']) -> None:
+    """Decide whether this scan fails the build.
+
+    For a binary scan, findings whose component was identified only from manifest attributes are excluded: a
+    fabricated CVE from a guessed coordinate breaking someone's release is the fastest way to lose trust in the
+    feature. They are still printed, still exported, still counted.
+    """
+    if binary_report.get_binary_collection(ctx) is None:
+        set_issue_detected_by_scan_results(ctx, local_scan_results)
+        return
+
+    set_issue_detected(ctx, binary_report.has_gating_detections(ctx, local_scan_results))
 
 
 def _perform_scan_v4_async(

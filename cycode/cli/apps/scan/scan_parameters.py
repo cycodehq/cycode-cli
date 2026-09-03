@@ -36,6 +36,12 @@ def get_scan_parameters(ctx: typer.Context, paths: Optional[tuple[str, ...]] = N
     ctx.obj['remote_url'] = remote_url
     scan_parameters['remote_url'] = remote_url
 
+    # An artifact detached from its source repository has no remote URL, so the platform is told the project name
+    # explicitly instead. Additive: nothing else in the CLI sets this today.
+    project_name = ctx.obj.get('project_name')
+    if project_name:
+        scan_parameters['project_name'] = project_name
+
     # Include branch information if available (for repository scans)
     branch = ctx.obj.get('branch')
     if branch:

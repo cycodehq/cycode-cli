@@ -227,6 +227,23 @@ FILE_MAX_SIZE_LIMIT_IN_BYTES = 5000000
 PRESIGNED_LINK_UPLOADED_ZIP_MAX_SIZE_LIMIT_IN_BYTES = 5 * 1024 * 1024 * 1024  # 5 GB (S3 presigned POST limit)
 PRESIGNED_UPLOAD_SCAN_TYPES = {SAST_SCAN_TYPE, SECRET_SCAN_TYPE}
 
+# binary composition analysis: limits applied while reading untrusted archives (JAR/WAR/EAR)
+BINARY_MAX_DEPTH = 3
+BINARY_MAVEN_CENTRAL_SEARCH_URL = 'https://search.maven.org/solrsearch/select'
+BINARY_DIGEST_LOOKUP_TIMEOUT_IN_SECONDS = 10
+BINARY_MAVEN_CENTRAL_REPOSITORY_URL = 'https://repo1.maven.org/maven2'
+BINARY_POM_MAX_SIZE_IN_BYTES = 1024 * 1024  # 1 MB; the largest poms on Central are a few hundred KB
+BINARY_POM_FETCH_BUDGET = 32  # parent and imported poms consulted for one embedded pom
+BINARY_POM_PARENT_MAX_DEPTH = 10
+BINARY_TRANSITIVE_MAX_DEPTH = 10  # hops from a declared dependency; Maven trees are rarely deeper than 6
+BINARY_TRANSITIVE_FETCH_BUDGET = 250  # poms consulted for one embedded pom's whole tree, parents included
+BINARY_MAX_ENTRY_COUNT = 100_000
+BINARY_MAX_ENTRY_SIZE_IN_BYTES = 512 * 1024 * 1024  # 512 MB
+BINARY_MAX_TOTAL_SIZE_IN_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+BINARY_MAX_COMPRESSION_RATIO = 200
+# small, highly compressible files legitimately beat the ratio ceiling, so it only applies past this floor
+BINARY_COMPRESSION_RATIO_FLOOR_IN_BYTES = 1024 * 1024  # 1 MB
+
 DEFAULT_ZIP_MAX_SIZE_LIMIT_IN_BYTES = 20 * 1024 * 1024
 ZIP_MAX_SIZE_LIMIT_IN_BYTES = {
     SCA_SCAN_TYPE: 200 * 1024 * 1024,

@@ -8,6 +8,7 @@ from rich.text import Text
 from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.printers.text_printer import TextPrinter
+from cycode.cli.printers.utils import binary_report
 from cycode.cli.printers.utils.code_snippet_syntax import get_code_snippet_syntax
 from cycode.cli.printers.utils.detection_data import (
     get_detection_clickable_cwe_cve,
@@ -19,6 +20,7 @@ from cycode.cli.printers.utils.rich_helpers import get_columns_in_1_to_3_ratio, 
 from cycode.cli.printers.utils.sca_policy_details import get_sca_policy_details
 
 if TYPE_CHECKING:
+    from cycode.cli.files_collector.binary.collector import BinaryCollectionResult
     from cycode.cli.models import CliError, Detection, Document, LocalScanResult
 
 
@@ -30,6 +32,7 @@ class RichPrinter(TextPrinter):
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             self.console.print(self.NO_DETECTIONS_MESSAGE)
+            self.print_binary_report(local_scan_results)
             return
 
         detections, _ = sort_and_group_detections_from_scan_result(local_scan_results)
@@ -42,8 +45,52 @@ class RichPrinter(TextPrinter):
                 detections_count,
             )
 
+        self.print_binary_report(local_scan_results)
         self.print_scan_results_summary(local_scan_results)
         self.print_report_urls_and_errors(local_scan_results, errors)
+
+    def _print_unidentified_section(self, collection: 'BinaryCollectionResult') -> None:
+        unidentified = binary_report.get_unidentified(collection)
+        if not unidentified:
+            return
+
+        table = Table(show_header=True, box=None, padding=(0, 2))
+        table.add_column('Path', style='', overflow='fold')
+        table.add_column('SHA-1', style='dim')
+        table.add_column('Size', style='dim', justify='right')
+
+        for entry in unidentified:
+            # Table renders markup, so an untrusted entry name is sanitised before it becomes a cell
+            table.add_row(
+                binary_report.for_display(entry.logical_path),
+                f'{entry.sha1[:12]}...',
+                binary_report.format_size(entry.size),
+            )
+
+        self.console.line()
+        self.console.print(get_panel(table, title=f'\U0001f50e Unidentified ({len(unidentified)})'))
+
+    def _print_declared_unresolved_section(self, collection: 'BinaryCollectionResult') -> None:
+        unresolved = binary_report.get_declared_unresolved(collection)
+        if not unresolved:
+            return
+
+        table = Table(show_header=True, box=None, padding=(0, 2))
+        table.add_column('Dependency', style='', overflow='fold')
+        table.add_column('Version', style='dim', overflow='fold')
+        table.add_column('Declared by', style='dim', overflow='fold')
+        table.add_column('Why', style='dim', overflow='fold')
+
+        for entry in unresolved:
+            table.add_row(
+                binary_report.for_display(entry.coordinate),
+                binary_report.for_display(entry.version_expression),
+                binary_report.for_display(entry.declared_by),
+                binary_report.for_display(entry.reason),
+            )
+
+        self.console.line()
+        self.console.print(get_panel(table, title=f'\U0001f4dc Declared, version unresolved ({len(unresolved)})'))
 
     def _get_details_table(self, detection: 'Detection') -> Table:
         details_table = Table(show_header=False, box=None, padding=(0, 1))
@@ -83,8 +130,7 @@ class RichPrinter(TextPrinter):
     def __add_secret_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
         details_table.add_row('Secret SHA', detection.detection_details.get('sha512'))
 
-    @staticmethod
-    def __add_sca_scan_related_rows(details_table: Table, detection: 'Detection') -> None:
+    def __add_sca_scan_related_rows(self, details_table: Table, detection: 'Detection') -> None:
         detection_details = detection.detection_details
 
         details_table.add_row('Package', detection_details.get('package_name'))
@@ -95,6 +141,27 @@ class RichPrinter(TextPrinter):
 
         for label, value in get_sca_policy_details(detection):
             details_table.add_row(label, value)
+
+        self.__add_binary_evidence_rows(details_table, detection)
+
+    def __add_binary_evidence_rows(self, details_table: Table, detection: 'Detection') -> None:
+        """Where inside the artifact the component sits, and how confidently we named it."""
+        evidence = binary_report.get_detection_evidence(self.ctx, detection)
+        if evidence is None:
+            return
+
+        source = binary_report.for_display(evidence.evidence)
+
+        if evidence.is_declared:
+            details_table.add_row('Declared by', binary_report.for_display(evidence.logical_path))
+            details_table.add_row('Presence', binary_report.for_display(evidence.presence_summary))
+            return
+
+        details_table.add_row('Found in', binary_report.for_display(evidence.logical_path))
+        if evidence.is_ambiguous:
+            details_table.add_row('Identified by', f'[yellow]{source} - low confidence, does not affect exit code[/]')
+        else:
+            details_table.add_row('Identified by', f'{source} (exact)')
 
     @staticmethod
     def __add_iac_scan_related_rows(details_table: Table, detection: 'Detection') -> None:

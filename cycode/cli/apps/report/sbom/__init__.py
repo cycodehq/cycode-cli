@@ -1,5 +1,6 @@
 import typer
 
+from cycode.cli.apps.report.sbom.binary.binary_command import binary_command
 from cycode.cli.apps.report.sbom.path.path_command import path_command
 from cycode.cli.apps.report.sbom.repository_url.repository_url_command import repository_url_command
 from cycode.cli.apps.report.sbom.sbom_command import sbom_command
@@ -10,6 +11,7 @@ app.command(name='path', short_help='Generate SBOM report for provided path in t
 app.command(name='repository-url', short_help='Generate SBOM report for provided repository URI in the command.')(
     repository_url_command
 )
+app.command(name='binary', short_help='Generate SBOM report for a built Java artifact (JAR, WAR, EAR).')(binary_command)
 
 # backward compatibility
 app.command(hidden=True, name='repository_url')(repository_url_command)
