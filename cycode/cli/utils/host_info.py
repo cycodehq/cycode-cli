@@ -180,8 +180,7 @@ def _get_macos_serial_number() -> Optional[str]:
 
 
 def _get_windows_machine_guid() -> Optional[str]:
-    """Read the per-installation machine GUID from the registry.
-    """
+    """Read the per-installation machine GUID from the registry."""
     import winreg  # Windows-only stdlib module
 
     with winreg.OpenKey(
