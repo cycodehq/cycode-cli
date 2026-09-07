@@ -11,7 +11,7 @@ import sys
 _IS_WINDOWS = platform.system() == 'Windows'
 
 _INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
-_CODESIGN_IDENTITY = os.environ.get('APPLE_CERT_NAME')
+_CODESIGN_IDENTITY = os.environ.get('APPLE_CERT_NAME') or None
 _ONEDIR_MODE = os.environ.get('CYCODE_ONEDIR_MODE') is not None
 
 # save the prev content of __init__ file
