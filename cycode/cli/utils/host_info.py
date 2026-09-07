@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
+from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.logger import get_logger
 
 logger = get_logger('HOST INFO')
@@ -24,7 +25,7 @@ if sys.platform == 'win32':
 
 _SUBPROCESS_TIMEOUT_SEC = 5
 
-_SERIAL_NUMBER_CACHE_FILE_NAME = '.cycode-device-serial'
+_DEVICE_ID_CACHE_FILE_NAME = 'device-id'
 
 _PLATFORM_NAMES = {'Darwin': 'macOS', 'Windows': 'Windows', 'Linux': 'Linux'}
 
@@ -133,8 +134,7 @@ def _resolve_serial_number() -> Optional[str]:
 
 
 def _serial_number_cache_path() -> Path:
-    # The username suffix avoids collisions on OSes with a shared temp dir
-    return Path(tempfile.gettempdir()) / f'{_SERIAL_NUMBER_CACHE_FILE_NAME}-{getpass.getuser()}'
+    return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / _DEVICE_ID_CACHE_FILE_NAME
 
 
 def _read_serial_number_cache() -> Optional[str]:
@@ -147,14 +147,13 @@ def _read_serial_number_cache() -> Optional[str]:
 def _write_serial_number_cache(serial: str) -> None:
     try:
         cache_path = _serial_number_cache_path()
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # The serial identifies the machine, and the temp dir is shared, so the cache is created
-        # readable by its owner alone (what mkstemp does) and moved into place atomically - a hook
-        # racing another one never reads a half-written cache, and the rename can't be redirected
-        # by a symlink planted at the destination the way an in-place write could.
-        file_descriptor, temp_path = tempfile.mkstemp(
-            dir=cache_path.parent, prefix=f'{_SERIAL_NUMBER_CACHE_FILE_NAME}.'
-        )
+        # The serial identifies the machine, so the cache is created readable by its owner alone
+        # (what mkstemp does) and moved into place atomically - a hook racing another one never
+        # reads a half-written cache, and the rename can't be redirected by a symlink planted at
+        # the destination the way an in-place write could.
+        file_descriptor, temp_path = tempfile.mkstemp(dir=cache_path.parent, prefix=f'{_DEVICE_ID_CACHE_FILE_NAME}.')
         try:
             with os.fdopen(file_descriptor, 'w', encoding='utf-8') as temp_file:
                 temp_file.write(serial)

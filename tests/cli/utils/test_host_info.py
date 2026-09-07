@@ -14,14 +14,13 @@ _IOREG_OUTPUT = """
 
 
 @pytest.fixture(autouse=True)
-def _temp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setattr(host_info.tempfile, 'gettempdir', lambda: str(tmp_path))
-    monkeypatch.setattr(host_info.getpass, 'getuser', lambda: 'tester')
+def _home_in_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(Path, 'home', classmethod(lambda _cls: tmp_path))
     return tmp_path
 
 
 def _cache_path(tmp_path: Path) -> Path:
-    return tmp_path / '.cycode-device-serial-tester'
+    return tmp_path / '.cycode' / 'device-id'
 
 
 class _ComCalls:
@@ -69,11 +68,12 @@ def _windows(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(host_info.platform, 'system', lambda: 'Windows')
 
 
-def test_cache_path_is_per_user_in_the_temp_dir(tmp_path: Path) -> None:
+def test_cache_path_is_under_the_cycode_home_dir(tmp_path: Path) -> None:
     assert host_info._serial_number_cache_path() == _cache_path(tmp_path)
 
 
 def test_cached_value_short_circuits_resolution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _cache_path(tmp_path).parent.mkdir(parents=True)
     _cache_path(tmp_path).write_text('CACHED-ID', encoding='utf-8')
 
     def _fail() -> str:
