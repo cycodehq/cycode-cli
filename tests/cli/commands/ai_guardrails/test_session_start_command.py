@@ -32,7 +32,7 @@ def _isolated_session_context_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 
 @pytest.fixture(autouse=True)
-def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Point every home-relative lookup at a scratch directory.
 
     The skills sweep walks the filesystem rather than going through a collector these tests
@@ -632,7 +632,7 @@ def test_reports_skill_files(
     mock_collect: MagicMock,
     mock_load_config: MagicMock,
     mock_ctx: MagicMock,
-    _isolated_home: Path,
+    isolated_home: Path,
 ) -> None:
     """User-scope skills ride alongside the MCP inventory in the same report."""
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
@@ -640,7 +640,7 @@ def test_reports_skill_files(
     mock_get_client.return_value = mock_ai_client
     mock_collect.return_value = ({}, {})
     content = '---\nname: dummy-skill\n---\nBody.\n'
-    skill_file = _write_claude_skill(_isolated_home, 'dummy-skill', content)
+    skill_file = _write_claude_skill(isolated_home, 'dummy-skill', content)
     skills = [{'path': str(skill_file), 'content': content}]
 
     payload = {'session_id': 'session-123'}
@@ -671,7 +671,7 @@ def test_editing_a_skill_re_reports(
     mock_collect: MagicMock,
     mock_load_config: MagicMock,
     mock_ctx: MagicMock,
-    _isolated_home: Path,
+    isolated_home: Path,
 ) -> None:
     """Skill bodies are part of the dedup digest, so an edit sends a fresh report."""
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
@@ -680,7 +680,7 @@ def test_editing_a_skill_re_reports(
     mock_collect.return_value = ({}, {})
     payload = json.dumps({'session_id': 'session-123'})
 
-    _write_claude_skill(_isolated_home, 'dummy-skill', 'first')
+    _write_claude_skill(isolated_home, 'dummy-skill', 'first')
     with patch('sys.stdin', new=StringIO(payload)):
         session_start_command(mock_ctx, ide='claude-code')
 
@@ -689,7 +689,7 @@ def test_editing_a_skill_re_reports(
         session_start_command(mock_ctx, ide='claude-code')
     assert mock_ai_client.report_session_context.call_count == 1
 
-    _write_claude_skill(_isolated_home, 'dummy-skill', 'edited')
+    _write_claude_skill(isolated_home, 'dummy-skill', 'edited')
     with patch('sys.stdin', new=StringIO(payload)):
         session_start_command(mock_ctx, ide='claude-code')
     assert mock_ai_client.report_session_context.call_count == 2
