@@ -14,9 +14,14 @@ _IOREG_OUTPUT = """
 
 
 @pytest.fixture(autouse=True)
-def _home_in_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setattr(Path, 'home', classmethod(lambda _cls: tmp_path))
+def _temp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(host_info.tempfile, 'gettempdir', lambda: str(tmp_path))
+    monkeypatch.setattr(host_info.getpass, 'getuser', lambda: 'tester')
     return tmp_path
+
+
+def _cache_path(tmp_path: Path) -> Path:
+    return tmp_path / '.cycode-device-serial-tester'
 
 
 class _ComCalls:
@@ -64,14 +69,12 @@ def _windows(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(host_info.platform, 'system', lambda: 'Windows')
 
 
-def test_cache_path_is_under_cycode_home_and_not_temp(tmp_path: Path) -> None:
-    assert host_info._serial_number_cache_path() == tmp_path / '.cycode' / 'device-id'
+def test_cache_path_is_per_user_in_the_temp_dir(tmp_path: Path) -> None:
+    assert host_info._serial_number_cache_path() == _cache_path(tmp_path)
 
 
 def test_cached_value_short_circuits_resolution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    cache_path = tmp_path / '.cycode' / 'device-id'
-    cache_path.parent.mkdir(parents=True)
-    cache_path.write_text('CACHED-ID', encoding='utf-8')
+    _cache_path(tmp_path).write_text('CACHED-ID', encoding='utf-8')
 
     def _fail() -> str:
         raise AssertionError('must not resolve when the cache is warm')
@@ -86,7 +89,7 @@ def test_windows_reads_bios_serial_over_wmi_and_caches_it(monkeypatch: pytest.Mo
     calls = _install_fake_pywin32(monkeypatch)
 
     assert host_info.get_serial_number() == _SERIAL
-    assert (tmp_path / '.cycode' / 'device-id').read_text(encoding='utf-8') == _SERIAL
+    assert _cache_path(tmp_path).read_text(encoding='utf-8') == _SERIAL
     assert (calls.initialized, calls.uninitialized) == (1, 1)
 
 
@@ -96,7 +99,7 @@ def test_windows_uninitializes_com_when_wmi_fails(monkeypatch: pytest.MonkeyPatc
 
     assert host_info.get_serial_number() is None
     assert (calls.initialized, calls.uninitialized) == (1, 1)
-    assert not (tmp_path / '.cycode' / 'device-id').exists()
+    assert not _cache_path(tmp_path).exists()
 
 
 @pytest.mark.usefixtures('_windows')
@@ -104,7 +107,7 @@ def test_windows_blank_serial_is_none_and_not_cached(monkeypatch: pytest.MonkeyP
     _install_fake_pywin32(monkeypatch, serial='   ')
 
     assert host_info.get_serial_number() is None
-    assert not (tmp_path / '.cycode' / 'device-id').exists()
+    assert not _cache_path(tmp_path).exists()
 
 
 @pytest.mark.usefixtures('_windows')
@@ -113,21 +116,6 @@ def test_windows_without_pywin32_returns_none(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(host_info, 'win32com_client', None, raising=False)
 
     assert host_info.get_serial_number() is None
-
-
-@pytest.mark.usefixtures('_windows')
-def test_windows_write_removes_legacy_temp_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    legacy_dir = tmp_path / 'temp'
-    legacy_dir.mkdir()
-    monkeypatch.setattr(host_info.tempfile, 'gettempdir', lambda: str(legacy_dir))
-    monkeypatch.setattr(host_info.getpass, 'getuser', lambda: 'tester')
-    legacy_path = legacy_dir / '.cycode-device-serial-tester'
-    legacy_path.write_text('OLD-CACHED-SERIAL', encoding='utf-8')
-
-    _install_fake_pywin32(monkeypatch)
-
-    assert host_info.get_serial_number() == _SERIAL
-    assert not legacy_path.exists()
 
 
 def test_macos_serial_number_is_parsed_from_ioreg(monkeypatch: pytest.MonkeyPatch) -> None:
