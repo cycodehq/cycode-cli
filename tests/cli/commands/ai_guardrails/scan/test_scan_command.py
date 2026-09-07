@@ -1,7 +1,9 @@
 """Tests for AI guardrails scan command."""
 
 import json
+import time
 from io import StringIO
+from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,8 +12,16 @@ from typer.testing import CliRunner
 
 from cycode.cli.apps.ai_guardrails import app as ai_guardrails_app
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
+from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
+from tests.cli.commands.ai_guardrails.scan.conftest import platform_config
+
+
+@pytest.fixture(autouse=True)
+def no_guardrail_cache(mocker: MockerFixture) -> None:
+    """Keep tests hermetic: never read a real ~/.cycode cache. Tests re-patch with their own config."""
+    mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=None)
 
 
 @pytest.fixture
@@ -266,14 +276,24 @@ class TestSelfDetach:
     def not_detached(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv('_CYCODE_DETACHED', raising=False)
 
-    def _run_prompt_scan(self, mock_ctx: MagicMock, mocker: MockerFixture, policy: dict) -> str:
+    def _run_prompt_scan(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        config: Optional[GuardrailConfig],
+        policy: Optional[dict] = None,
+    ) -> str:
         payload = json.dumps({'hook_event_name': 'beforeSubmitPrompt', 'conversation_id': 'c-1', 'prompt': 'test'})
         mocker.patch('sys.stdin', StringIO(payload))
-        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value=policy)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=config)
+        mocker.patch(
+            'cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy',
+            return_value=policy if policy is not None else {'fail_open': True},
+        )
         scan_command(mock_ctx, ide='cursor')
         return payload
 
-    def test_warn_mode_detaches_before_any_client_work(
+    def test_report_mode_detaches_before_any_client_work(
         self,
         mock_ctx: MagicMock,
         mocker: MockerFixture,
@@ -285,7 +305,7 @@ class TestSelfDetach:
         handler = MagicMock()
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
 
-        payload = self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': True})
+        payload = self._run_prompt_scan(mock_ctx, mocker, platform_config(prompt='report'))
 
         # The parent hands the raw payload to the child and exits with no output.
         mock_respawn.assert_called_once_with(payload)
@@ -293,7 +313,7 @@ class TestSelfDetach:
         handler.assert_not_called()
         assert capsys.readouterr().out == ''
 
-    def test_block_mode_stays_synchronous(
+    def test_block_cell_stays_synchronous(
         self,
         mock_ctx: MagicMock,
         mocker: MockerFixture,
@@ -304,7 +324,69 @@ class TestSelfDetach:
         handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
 
-        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'block', 'fail_open': True})
+        self._run_prompt_scan(mock_ctx, mocker, platform_config(prompt='block'))
+
+        mock_respawn.assert_not_called()
+        handler.assert_called_once()
+
+    def test_cold_start_without_cache_stays_synchronous(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        """No cache means built-in Report defaults, but never a detach on an assumption."""
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+        passed_policies = []
+        handler.side_effect = lambda _ctx, _payload, policy: (
+            passed_policies.append(policy),
+            HookDecision.allow(AiHookEventType.PROMPT),
+        )[1]
+
+        self._run_prompt_scan(mock_ctx, mocker, config=None)
+
+        mock_respawn.assert_not_called()
+        handler.assert_called_once()
+        # Cold-start defaults equal an unconfigured tenant's platform config: Report (warn).
+        assert passed_policies[0]['prompt']['action'] == 'warn'
+
+    def test_off_cell_skips_scan_entirely(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        """Every guardrail for the event Off: allow immediately - no scan, no event, no auth."""
+        initialize_clients = mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock()
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        self._run_prompt_scan(mock_ctx, mocker, platform_config(prompt='off'))
+
+        mock_respawn.assert_not_called()
+        initialize_clients.assert_not_called()
+        handler.assert_not_called()
+        assert json.loads(capsys.readouterr().out).get('continue') is True
+
+    def test_expired_cache_is_still_applied(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        """Scans never fetch: a stale cache is used as-is; session-start refreshes it (TTL-gated)."""
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+
+        expired = platform_config(prompt='block', fetched_at=time.time() - 10_000)
+        self._run_prompt_scan(mock_ctx, mocker, expired)
 
         mock_respawn.assert_not_called()
         handler.assert_called_once()
@@ -321,12 +403,12 @@ class TestSelfDetach:
         handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
 
-        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': True})
+        self._run_prompt_scan(mock_ctx, mocker, platform_config(prompt='report'))
 
         mock_respawn.assert_not_called()
         handler.assert_called_once()
 
-    def test_fail_closed_policy_stays_synchronous_even_in_warn_mode(
+    def test_fail_closed_policy_stays_synchronous_even_in_report_mode(
         self,
         mock_ctx: MagicMock,
         mocker: MockerFixture,
@@ -338,7 +420,7 @@ class TestSelfDetach:
         handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
 
-        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': False})
+        self._run_prompt_scan(mock_ctx, mocker, platform_config(prompt='report'), policy={'fail_open': False})
 
         mock_respawn.assert_not_called()
         handler.assert_called_once()
@@ -351,11 +433,12 @@ class TestSelfDetach:
         not_detached: None,
     ) -> None:
         """Prompt blocks while file-read reports: only the file-read event detaches."""
-        policy = {'mode': 'block', 'fail_open': True, 'file_read': {'action': 'warn'}}
+        config = platform_config(prompt='block', file_read='report', sensitive_path='report')
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
         handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
-        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value=policy)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=config)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value={'fail_open': True})
 
         mocker.patch('sys.stdin', StringIO(json.dumps({'hook_event_name': 'beforeSubmitPrompt', 'prompt': 'x'})))
         scan_command(mock_ctx, ide='cursor')
@@ -378,7 +461,7 @@ class TestSelfDetach:
         handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
 
-        self._run_prompt_scan(mock_ctx, mocker, {'mode': 'warn', 'fail_open': True})
+        self._run_prompt_scan(mock_ctx, mocker, platform_config(prompt='report'))
 
         mock_respawn.assert_called_once()
         handler.assert_called_once()

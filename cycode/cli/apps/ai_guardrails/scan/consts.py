@@ -12,7 +12,6 @@ POLICY_FILE_NAME = 'ai-guardrails.yaml'
 # Default policy configuration
 DEFAULT_POLICY = {
     'version': 1,
-    'mode': 'block',  # block | warn
     'fail_open': True,  # allow if scan fails/timeouts
     'secrets': {
         'scan_type': 'secret',

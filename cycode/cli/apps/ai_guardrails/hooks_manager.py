@@ -12,9 +12,9 @@ from typing import Optional
 
 import yaml
 
-from cycode.cli.apps.ai_guardrails.consts import PolicyMode
 from cycode.cli.apps.ai_guardrails.ides.base import IDE
 from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY, POLICY_FILE_NAME
+from cycode.cli.apps.ai_guardrails.scan.policy import strip_platform_managed_keys
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails Hooks')
@@ -102,22 +102,23 @@ def _load_policy_dict(policy_path: Path) -> dict:
     return {**copy.deepcopy(DEFAULT_POLICY), **existing}
 
 
-def create_policy_file(scope: str, mode: PolicyMode, repo_path: Optional[Path] = None) -> tuple[bool, str]:
-    """Create or update the ai-guardrails.yaml policy file.
+def create_policy_file(scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+    """Create or update the ai-guardrails.yaml policy file (operational knobs only).
 
-    If the file already exists, only the mode field is updated; otherwise a new
-    file is created from the default policy.
+    Enforcement mode and sensitive-path globs are platform-managed; those keys are stripped
+    (including ones an older CLI wrote), everything else the user customized is preserved.
     """
     config_dir = repo_path / '.cycode' if scope == 'repo' and repo_path else Path.home() / '.cycode'
     policy_path = config_dir / POLICY_FILE_NAME
 
-    policy = _load_policy_dict(policy_path)
-    policy['mode'] = mode.value
+    policy = strip_platform_managed_keys(_load_policy_dict(policy_path), str(policy_path))
+    # Sections left empty by the stripping have nothing for the user to edit.
+    policy = {key: value for key, value in policy.items() if value != {}}
 
     try:
         config_dir.mkdir(parents=True, exist_ok=True)
         policy_path.write_text(yaml.dump(policy, default_flow_style=False, sort_keys=False), encoding='utf-8')
-        return True, f'AI guardrails policy ({mode.value} mode) set: {policy_path}'
+        return True, f'AI guardrails policy file set: {policy_path}'
     except Exception as e:
         logger.error('Failed to create policy file', exc_info=e)
         return False, f'Failed to create policy file: {policy_path}'

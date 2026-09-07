@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import typer
 
 from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, collect_all_session_contexts, get_ide
+from cycode.cli.apps.ai_guardrails.scan.guardrail_config import load_guardrail_config, save_guardrail_config
 from cycode.cli.apps.ai_guardrails.scan.utils import read_stdin_text, safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -158,3 +159,23 @@ def session_start_command(
 
     # Report session context (device + cross-IDE MCP servers and plugins)
     _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id)
+
+    # SessionStart precedes the first prompt hook in every IDE, so scans normally find a cache.
+    _sync_guardrail_config(ai_client, auth_info.tenant_id)
+
+
+def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Optional[str]) -> None:
+    """Refresh the guardrail config cache when it is expired or belongs to another tenant.
+
+    Every step here swallows its own failures - a broken cache or an unreachable platform
+    must never fail the session.
+    """
+    cached = load_guardrail_config()
+    if cached is not None and not cached.needs_refresh(tenant_id):
+        logger.debug('Guardrail config cache is fresh, skipping fetch')
+        return
+
+    resolved = ai_client.get_resolved_guardrails()
+    if resolved:
+        save_guardrail_config(resolved, tenant_id)
+        logger.debug('Guardrail config cache updated')

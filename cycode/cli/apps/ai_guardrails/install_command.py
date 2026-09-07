@@ -6,7 +6,7 @@ from typing import Annotated, Optional
 import typer
 
 from cycode.cli.apps.ai_guardrails.command_utils import console, resolve_repo_path, validate_scope
-from cycode.cli.apps.ai_guardrails.consts import GuardrailsMode, PolicyMode
+from cycode.cli.apps.ai_guardrails.consts import GuardrailsMode
 from cycode.cli.apps.ai_guardrails.hooks_manager import create_policy_file, install_hooks
 from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, IDES, resolve_ides
 
@@ -44,8 +44,7 @@ def install_command(
         typer.Option(
             '--mode',
             '-m',
-            help='Installation mode: "report" for async non-blocking hooks with warn policy, '
-            '"block" for sync blocking hooks.',
+            help='[Deprecated] Enforcement mode is platform-managed; configure guardrails in the Cycode platform.',
         ),
     ] = GuardrailsMode.REPORT,
 ) -> None:
@@ -80,32 +79,34 @@ def install_command(
             console.print(f'[red]✗[/] {message}', style='bold red')
             all_success = False
 
+    if mode == GuardrailsMode.BLOCK:
+        console.print(
+            '[yellow]--mode is deprecated:[/] enforcement mode is platform-managed; '
+            'configure guardrails in the Cycode platform.'
+        )
+
     if any_success:
-        policy_mode = PolicyMode.WARN if mode == GuardrailsMode.REPORT else PolicyMode.BLOCK
-        _install_policy(scope, repo_path, policy_mode)
-        _print_next_steps(results, mode)
+        _install_policy(scope, repo_path)
+        _print_next_steps(results)
 
     if not all_success:
         raise typer.Exit(1)
 
 
-def _install_policy(scope: str, repo_path: Optional[Path], policy_mode: PolicyMode) -> None:
-    policy_success, policy_message = create_policy_file(scope, policy_mode, repo_path)
+def _install_policy(scope: str, repo_path: Optional[Path]) -> None:
+    policy_success, policy_message = create_policy_file(scope, repo_path)
     if policy_success:
         console.print(f'[green]✓[/] {policy_message}')
     else:
         console.print(f'[red]✗[/] {policy_message}', style='bold red')
 
 
-def _print_next_steps(results: list[tuple[str, bool, str]], mode: GuardrailsMode) -> None:
+def _print_next_steps(results: list[tuple[str, bool, str]]) -> None:
     console.print()
     console.print('[bold]Next steps:[/]')
     successful_ides = [name for name, success, _ in results if success]
     ide_list = ', '.join(successful_ides)
     console.print(f'1. Restart {ide_list} to activate the hooks')
-    console.print('2. (Optional) Customize policy in ~/.cycode/ai-guardrails.yaml')
+    console.print('2. Configure guardrail enforcement in the Cycode platform')
     console.print()
-    if mode == GuardrailsMode.REPORT:
-        console.print('[dim]Report mode: policy is set to warn.[/]')
-    else:
-        console.print('[dim]The hooks will scan prompts, file reads, and MCP tool calls for secrets.[/]')
+    console.print('[dim]The hooks will scan prompts, file reads, and MCP tool calls for secrets.[/]')
