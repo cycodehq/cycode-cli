@@ -386,3 +386,66 @@ def test_email_from_config_missing_oauth_account() -> None:
 
 def test_email_from_config_missing_email_address() -> None:
     assert _email_from_config({'oauthAccount': {'someOtherField': 'value'}}) is None
+
+
+# skills
+
+
+def test_get_skills_reads_user_scope_skills(fs: FakeFilesystem) -> None:
+    body = '---\nname: dummy-skill\ndescription: Dummy.\n---\n\nDo it.\n'
+    skill_file = Path.home() / '.claude' / 'skills' / 'dummy-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents=body)
+
+    skills = ClaudeCode().get_skills()
+
+    assert skills == [{'path': str(skill_file), 'content': body}]
+
+
+def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
+    fs.create_file(Path.home() / '.claude' / 'settings.json', contents='{}')
+
+    assert ClaudeCode().get_skills() == []
+
+
+def test_read_claude_plugin_collects_plugin_skills(fs: FakeFilesystem) -> None:
+    """Plugin skills ride on the plugin entry, which is what carries marketplace provenance."""
+    plugin_dir = Path('/dummy/marketplace/dummy-plugin')
+    fs.create_file(
+        plugin_dir / '.claude-plugin' / 'plugin.json',
+        contents=json.dumps({'name': 'dummy-plugin', 'version': '2.0.0'}),
+    )
+    skill_file = plugin_dir / 'skills' / 'plugin-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents='---\nname: plugin-skill\n---\n\nPlugin body.\n')
+
+    entry, servers = _read_claude_plugin(plugin_dir)
+
+    assert servers == {}
+    assert entry['version'] == '2.0.0'
+    assert [s['path'] for s in entry['skill_files']] == [str(skill_file)]
+
+
+def test_read_claude_plugin_without_skills_omits_key(fs: FakeFilesystem) -> None:
+    plugin_dir = Path('/dummy/marketplace/dummy-plugin')
+    fs.create_file(
+        plugin_dir / '.claude-plugin' / 'plugin.json',
+        contents=json.dumps({'name': 'dummy-plugin'}),
+    )
+
+    entry, _ = _read_claude_plugin(plugin_dir)
+
+    assert 'skill_files' not in entry
+
+
+def test_resolve_plugins_surfaces_plugin_skills(fs: FakeFilesystem) -> None:
+    plugin_dir = Path.home() / '.claude' / 'plugins' / 'cache' / 'dummy-marketplace' / 'dummy-plugin' / '1.0.0'
+    fs.create_file(
+        plugin_dir / '.claude-plugin' / 'plugin.json',
+        contents=json.dumps({'name': 'dummy-plugin', 'version': '1.0.0'}),
+    )
+    skill_file = plugin_dir / 'skills' / 'cached-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents='---\nname: cached-skill\n---\nBody.\n')
+
+    plugins = resolve_plugins({'enabledPlugins': {'dummy-plugin@dummy-marketplace': True}})
+
+    entry = plugins['dummy-plugin@dummy-marketplace']
+    assert [Path(s['path']).parent.name for s in entry['skill_files']] == ['cached-skill']

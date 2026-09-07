@@ -189,3 +189,17 @@ class IDE(ABC):
         Override to surface MCP/plugin inventory.
         """
         return None, {}
+
+    def get_skills(self) -> list[dict]:
+        """Return the IDE's user-scope skills as ``[{"path", "content"}]``.
+
+        A skill is a ``SKILL.md`` under a per-skill directory. Raw content is returned rather
+        than parsed frontmatter: the backend owns parsing, because the device connectors that
+        read these files off endpoints can only ever return raw content.
+
+        Kept separate from ``get_session_context`` rather than folded into its
+        ``global_config_file`` slot, which is normalized to an MCP server map.
+
+        Default: ``[]`` (the IDE has no skill system). Override to surface skills.
+        """
+        return []

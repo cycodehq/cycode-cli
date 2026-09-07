@@ -7,6 +7,7 @@ from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_file
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -43,6 +44,11 @@ def _user_hooks_dir() -> Path:
 def _cursor_mcp_config_path() -> Path:
     """User-scope Cursor MCP config path (``~/.cursor/mcp.json``, all platforms)."""
     return Path.home() / '.cursor' / _MCP_CONFIG_FILENAME
+
+
+def _cursor_skills_dir() -> Path:
+    """User-scope Cursor skills directory (``~/.cursor/skills``, all platforms)."""
+    return Path.home() / '.cursor' / 'skills'
 
 
 def _load_cursor_mcp_config(config_path: Optional[Path] = None) -> Optional[dict]:
@@ -125,3 +131,6 @@ class Cursor(IDE):
         config_path = _cursor_mcp_config_path()
         global_config_file = build_global_config_file(config_path, config.get('mcpServers'))
         return global_config_file, {}
+
+    def get_skills(self) -> list[dict]:
+        return walk_skill_dirs(_cursor_skills_dir())

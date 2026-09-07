@@ -37,6 +37,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     load_plugin_json,
     walk_enabled_plugins,
 )
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -103,6 +104,11 @@ def _copilot_home() -> Path:
     if override:
         return Path(override)
     return Path.home() / '.copilot'
+
+
+def _copilot_skills_dir() -> Path:
+    """User-scope Copilot skills directory (honors ``$COPILOT_HOME``)."""
+    return _copilot_home() / 'skills'
 
 
 def _vscode_agent_plugins_dir() -> Path:
@@ -177,6 +183,12 @@ def _read_copilot_plugin(plugin_dir: Path) -> tuple[dict, dict]:
     for field in ('name', 'version', 'description'):
         if field in manifest:
             entry[field] = manifest[field]
+
+    # Same plugin-format layout as every other IDE's plugins, so a plugin shipping skills is
+    # inventoried whichever IDE loaded it.
+    skill_files = walk_plugin_skills(plugin_dir)
+    if skill_files:
+        entry['skill_files'] = skill_files
 
     mcp_ref = manifest.get('mcpServers')
     mcp_config_path = plugin_dir / mcp_ref if isinstance(mcp_ref, str) else plugin_dir / '.mcp.json'
@@ -481,3 +493,6 @@ class Copilot(IDE):
             build_global_config_file(_vscode_mcp_config_path(), config.get('servers')) if config else None
         )
         return global_config_file, _collect_installed_plugins()
+
+    def get_skills(self) -> list[dict]:
+        return walk_skill_dirs(_copilot_skills_dir())

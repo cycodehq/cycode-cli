@@ -31,6 +31,29 @@ def _isolated_session_context_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(_session_start_mod, '_session_context_cache_path', lambda: tmp_path / '.session-context-cache')
 
 
+@pytest.fixture(autouse=True)
+def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point every home-relative lookup at a scratch directory.
+
+    The skills sweep walks the filesystem rather than going through a collector these tests
+    stub, so without this it would read the real ~/.claude/skills of whoever ran it.
+    """
+    home = tmp_path / 'home'
+    home.mkdir()
+    monkeypatch.setattr(Path, 'home', lambda: home)
+
+    return home
+
+
+def _write_claude_skill(home: Path, name: str, content: str) -> Path:
+    """Create a user-scope Claude Code skill under the isolated home and return its path."""
+    skill_file = home / '.claude' / 'skills' / name / 'SKILL.md'
+    skill_file.parent.mkdir(parents=True, exist_ok=True)
+    skill_file.write_text(content, encoding='utf-8')
+
+    return skill_file
+
+
 # Auth tests
 
 
@@ -248,6 +271,7 @@ def test_reports_cross_ide_session_context(
         last_login_user=ANY,
         config_files=[claude_file, cursor_file],
         enabled_plugins=plugins,
+        skill_files=[],
         user_email=None,
     )
 
@@ -282,6 +306,7 @@ def test_no_mcp_anywhere_still_reports_device(
         last_login_user=ANY,
         config_files=[],
         enabled_plugins={},
+        skill_files=[],
         user_email=None,
     )
 
@@ -363,6 +388,7 @@ def test_claude_code_reports_config_files_and_plugin_metadata(
                 'mcp_config_file': json.dumps(plugin_mcp),
             }
         },
+        skill_files=[],
         user_email=None,
     )
 
@@ -421,6 +447,7 @@ def test_cursor_trigger_sweeps_other_ides(
         last_login_user=ANY,
         config_files=[claude_file, cursor_file],
         enabled_plugins={},
+        skill_files=[],
         user_email=None,
     )
 
@@ -590,3 +617,92 @@ def test_unauthenticated_skips_session_init(
         session_start_command(mock_ctx, ide='claude-code')
 
     mock_get_client.assert_not_called()
+
+
+# Skills reporting
+
+
+@patch.object(_claude_mod, 'load_claude_config', return_value={})
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_reports_skill_files(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_load_config: MagicMock,
+    mock_ctx: MagicMock,
+    isolated_home: Path,
+) -> None:
+    """User-scope skills ride alongside the MCP inventory in the same report."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+    mock_collect.return_value = ({}, {})
+    content = '---\nname: dummy-skill\n---\nBody.\n'
+    skill_file = _write_claude_skill(isolated_home, 'dummy-skill', content)
+    skills = [{'path': str(skill_file), 'content': content}]
+
+    payload = {'session_id': 'session-123'}
+
+    with patch('sys.stdin', new=StringIO(json.dumps(payload))):
+        session_start_command(mock_ctx, ide='claude-code')
+
+    mock_ai_client.report_session_context.assert_called_once_with(
+        hostname=ANY,
+        platform_name=ANY,
+        os_version=ANY,
+        serial_number=ANY,
+        last_login_user=ANY,
+        config_files=[],
+        enabled_plugins={},
+        skill_files=skills,
+        user_email=None,
+    )
+
+
+@patch.object(_claude_mod, 'load_claude_config', return_value={})
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_editing_a_skill_re_reports(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_load_config: MagicMock,
+    mock_ctx: MagicMock,
+    isolated_home: Path,
+) -> None:
+    """Skill bodies are part of the dedup digest, so an edit sends a fresh report."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+    mock_collect.return_value = ({}, {})
+    payload = json.dumps({'session_id': 'session-123'})
+
+    _write_claude_skill(isolated_home, 'dummy-skill', 'first')
+    with patch('sys.stdin', new=StringIO(payload)):
+        session_start_command(mock_ctx, ide='claude-code')
+
+    # Unchanged inventory is deduplicated away.
+    with patch('sys.stdin', new=StringIO(payload)):
+        session_start_command(mock_ctx, ide='claude-code')
+    assert mock_ai_client.report_session_context.call_count == 1
+
+    _write_claude_skill(isolated_home, 'dummy-skill', 'edited')
+    with patch('sys.stdin', new=StringIO(payload)):
+        session_start_command(mock_ctx, ide='claude-code')
+    assert mock_ai_client.report_session_context.call_count == 2
+
+
+def test_collect_all_skills_dedupes_and_sorts_by_path() -> None:
+    """Two IDEs sharing a skills dir report it once; order is stable for the digest."""
+    from cycode.cli.apps.ai_guardrails.ides import collect_all_skills
+
+    charlie = {'path': '/dummy/charlie/SKILL.md', 'content': 'c'}
+    alpha = {'path': '/dummy/alpha/SKILL.md', 'content': 'a'}
+    first = MagicMock(get_skills=MagicMock(return_value=[charlie, alpha]))
+    second = MagicMock(get_skills=MagicMock(return_value=[alpha]))
+
+    with patch.dict('cycode.cli.apps.ai_guardrails.ides.IDES', {'first': first, 'second': second}, clear=True):
+        assert collect_all_skills() == [alpha, charlie]
