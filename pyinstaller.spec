@@ -4,8 +4,11 @@
 
 import os
 import platform
+import re
 import subprocess
 import sys
+
+_IS_WINDOWS = platform.system() == 'Windows'
 
 _INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
 _CODESIGN_IDENTITY = os.environ.get('APPLE_CERT_NAME')
@@ -47,6 +50,48 @@ _hiddenimports = [
 if sys.version_info >= (3, 10):
     _hiddenimports += ['truststore', 'truststore._windows', 'truststore._macos', 'truststore._openssl']
 
+
+def _build_windows_version_info(version: str):
+    """Windows-only VERSIONINFO resource."""
+    from PyInstaller.utils.win32.versioninfo import (
+        FixedFileInfo,
+        StringFileInfo,
+        StringStruct,
+        StringTable,
+        VarFileInfo,
+        VarStruct,
+        VSVersionInfo,
+    )
+
+    numbers = [int(part) for part in re.match(r'\d+(?:\.\d+)*', version).group(0).split('.')]
+    filevers = tuple((numbers + [0, 0, 0, 0])[:4])
+
+    return VSVersionInfo(
+        ffi=FixedFileInfo(filevers=filevers, prodvers=filevers),
+        kids=[
+            StringFileInfo(
+                [
+                    StringTable(
+                        '040904B0',  # US English, Unicode
+                        [
+                            StringStruct('CompanyName', 'Cycode Ltd.'),
+                            StringStruct('FileDescription', 'Cycode CLI'),
+                            StringStruct('FileVersion', version),
+                            StringStruct('InternalName', 'cycode-cli'),
+                            StringStruct('OriginalFilename', 'cycode-cli.exe'),
+                            StringStruct('ProductName', 'Cycode CLI'),
+                            StringStruct('ProductVersion', version),
+                            StringStruct('LegalCopyright', 'Copyright (c) Cycode Ltd.'),
+                            StringStruct('Comments', 'MIT licensed. https://github.com/cycodehq/cycode-cli'),
+                        ],
+                    )
+                ]
+            ),
+            VarFileInfo([VarStruct('Translation', [0x0409, 1200])]),
+        ],
+    )
+
+
 a = Analysis(
     scripts=['cycode/cli/main.py'],
     excludes=['tests', 'setuptools', 'pkg_resources'],
@@ -61,9 +106,7 @@ if platform.system() == 'Darwin':
     # wins the dedup, which breaks `import cryptography` at runtime. Drop every collected
     # libssl/libcrypto and inject Homebrew's, which satisfies both consumers.
     try:
-        openssl_lib = os.path.join(
-            subprocess.check_output(['brew', '--prefix', 'openssl@3'], text=True).strip(), 'lib'
-        )
+        openssl_lib = os.path.join(subprocess.check_output(['brew', '--prefix', 'openssl@3'], text=True).strip(), 'lib')
         a.binaries = [b for b in a.binaries if 'libssl' not in b[0] and 'libcrypto' not in b[0]]
         for name in ('libssl.3.dylib', 'libcrypto.3.dylib'):
             a.binaries.append((name, os.path.join(openssl_lib, name), 'BINARY'))
@@ -82,6 +125,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=_CODESIGN_IDENTITY,
     entitlements_file='entitlements.plist',
+    icon='images/cycode.ico' if _IS_WINDOWS else None,
+    version=_build_windows_version_info(CLI_VERSION) if _IS_WINDOWS else None,
 )
 
 if _ONEDIR_MODE:
