@@ -392,3 +392,20 @@ def test_read_codex_plugin_collects_plugin_skills(fs: FakeFilesystem) -> None:
     entry, _ = _read_codex_plugin(plugin_dir)
 
     assert [s['path'] for s in entry['skill_files']] == [str(skill_file)]
+
+
+# skills
+
+
+def test_get_skills_reads_user_scope_skills(fs: FakeFilesystem) -> None:
+    body = '---\nname: dummy-skill\ndescription: Dummy.\n---\n\nDo it.\n'
+    skill_file = Path.home() / '.codex' / 'skills' / 'dummy-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents=body)
+
+    skills = Codex().get_skills()
+
+    assert skills == [{'path': str(skill_file), 'content': body}]
+
+
+def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
+    assert Codex().get_skills() == []

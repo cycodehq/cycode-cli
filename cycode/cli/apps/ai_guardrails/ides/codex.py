@@ -20,7 +20,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
 )
-from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills
+from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -52,6 +52,11 @@ def _codex_home() -> Path:
     if override:
         return Path(override)
     return Path.home() / _CONFIG_DIR_NAME
+
+
+def _codex_skills_dir() -> Path:
+    """User-scope Codex skills directory (honors ``$CODEX_HOME``)."""
+    return _codex_home() / 'skills'
 
 
 def _codex_config_toml_path(scope: str, repo_path: Optional[Path] = None) -> Path:
@@ -311,3 +316,6 @@ class Codex(IDE):
         global_config_file = build_global_config_file(config_path, config.get('mcp_servers'))
         enriched_plugins = _resolve_codex_plugins(config)
         return global_config_file, enriched_plugins
+
+    def get_skills(self) -> list[dict]:
+        return walk_skill_dirs(_codex_skills_dir())

@@ -32,14 +32,26 @@ def _isolated_session_context_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 
 @pytest.fixture(autouse=True)
-def _no_local_skills(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the skills sweep away from the developer's real ~/.claude/skills.
+def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point every home-relative lookup at a scratch directory.
 
-    Unlike the MCP collectors, which these tests stub per IDE, the skills sweep walks the
-    filesystem directly - so without this every assertion would depend on whoever ran it.
-    A test that cares about skills overrides ``collect_all_skills`` itself.
+    The skills sweep walks the filesystem rather than going through a collector these tests
+    stub, so without this it would read the real ~/.claude/skills of whoever ran it.
     """
-    monkeypatch.setattr(_session_start_mod, 'collect_all_skills', list)
+    home = tmp_path / 'home'
+    home.mkdir()
+    monkeypatch.setattr(Path, 'home', lambda: home)
+
+    return home
+
+
+def _write_claude_skill(home: Path, name: str, content: str) -> Path:
+    """Create a user-scope Claude Code skill under the isolated home and return its path."""
+    skill_file = home / '.claude' / 'skills' / name / 'SKILL.md'
+    skill_file.parent.mkdir(parents=True, exist_ok=True)
+    skill_file.write_text(content, encoding='utf-8')
+
+    return skill_file
 
 
 # Auth tests
@@ -620,16 +632,16 @@ def test_reports_skill_files(
     mock_collect: MagicMock,
     mock_load_config: MagicMock,
     mock_ctx: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
+    _isolated_home: Path,
 ) -> None:
     """User-scope skills ride alongside the MCP inventory in the same report."""
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
     mock_collect.return_value = ({}, {})
-    skill_path = '/home/u/.claude/skills/dummy-skill/SKILL.md'
-    skills = [{'path': skill_path, 'content': '---\nname: dummy-skill\n---\nBody.\n'}]
-    monkeypatch.setattr(_session_start_mod, 'collect_all_skills', lambda: skills)
+    content = '---\nname: dummy-skill\n---\nBody.\n'
+    skill_file = _write_claude_skill(_isolated_home, 'dummy-skill', content)
+    skills = [{'path': str(skill_file), 'content': content}]
 
     payload = {'session_id': 'session-123'}
 
@@ -659,17 +671,16 @@ def test_editing_a_skill_re_reports(
     mock_collect: MagicMock,
     mock_load_config: MagicMock,
     mock_ctx: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
+    _isolated_home: Path,
 ) -> None:
     """Skill bodies are part of the dedup digest, so an edit sends a fresh report."""
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
     mock_collect.return_value = ({}, {})
-    path = '/home/u/.claude/skills/dummy-skill/SKILL.md'
     payload = json.dumps({'session_id': 'session-123'})
 
-    monkeypatch.setattr(_session_start_mod, 'collect_all_skills', lambda: [{'path': path, 'content': 'first'}])
+    _write_claude_skill(_isolated_home, 'dummy-skill', 'first')
     with patch('sys.stdin', new=StringIO(payload)):
         session_start_command(mock_ctx, ide='claude-code')
 
@@ -678,7 +689,7 @@ def test_editing_a_skill_re_reports(
         session_start_command(mock_ctx, ide='claude-code')
     assert mock_ai_client.report_session_context.call_count == 1
 
-    monkeypatch.setattr(_session_start_mod, 'collect_all_skills', lambda: [{'path': path, 'content': 'edited'}])
+    _write_claude_skill(_isolated_home, 'dummy-skill', 'edited')
     with patch('sys.stdin', new=StringIO(payload)):
         session_start_command(mock_ctx, ide='claude-code')
     assert mock_ai_client.report_session_context.call_count == 2
