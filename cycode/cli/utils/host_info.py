@@ -5,16 +5,19 @@ import re
 import socket
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Optional
 
+from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.logger import get_logger
 
 logger = get_logger('HOST INFO')
 
 _SUBPROCESS_TIMEOUT_SEC = 5
 
-_SERIAL_NUMBER_CACHE_FILE_NAME = '.cycode-device-serial'
+_DEVICE_ID_CACHE_FILE_NAME = 'device-id'
+_LEGACY_SERIAL_NUMBER_CACHE_FILE_NAME = '.cycode-device-serial'
 
 _PLATFORM_NAMES = {'Darwin': 'macOS', 'Windows': 'Windows', 'Linux': 'Linux'}
 
@@ -98,13 +101,18 @@ def get_last_login_user() -> Optional[str]:
 
 
 def get_serial_number() -> Optional[str]:
-    # The serial is immutable hardware info, but resolving it shells out (ioreg/WMI)
+    # The serial is immutable host info, but resolving it costs a syscall chain (ioreg/registry)
     # and this runs in a fresh process per AI hook event - cache it on disk.
     cached = _read_serial_number_cache()
     if cached:
         return cached
 
     serial = _resolve_serial_number()
+    if not serial and platform.system() == 'Windows':
+        # MachineGuid is missing only on stripped/preinstallation images. Mint our own stable id
+        # rather than reporting no device at all; the cache write below makes it persistent.
+        serial = str(uuid.uuid4())
+
     if serial:
         _write_serial_number_cache(serial)
     return serial
@@ -116,15 +124,22 @@ def _resolve_serial_number() -> Optional[str]:
         if system == 'Darwin':
             return _get_macos_serial_number()
         if system == 'Windows':
-            return _get_windows_serial_number()
+            return _get_windows_machine_guid()
     except Exception as e:
         logger.debug('Failed to resolve serial number', exc_info=e)
     return None
 
 
 def _serial_number_cache_path() -> Path:
-    # The username suffix avoids collisions on OSes with a shared temp dir
-    return Path(tempfile.gettempdir()) / f'.cycode-device-serial-{getpass.getuser()}'
+    return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / _DEVICE_ID_CACHE_FILE_NAME
+
+
+def _remove_legacy_serial_number_cache() -> None:
+    try:
+        legacy_path = Path(tempfile.gettempdir()) / f'{_LEGACY_SERIAL_NUMBER_CACHE_FILE_NAME}-{getpass.getuser()}'
+        legacy_path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.debug('Failed to remove legacy serial number cache', exc_info=e)
 
 
 def _read_serial_number_cache() -> Optional[str]:
@@ -137,18 +152,18 @@ def _read_serial_number_cache() -> Optional[str]:
 def _write_serial_number_cache(serial: str) -> None:
     try:
         cache_path = _serial_number_cache_path()
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # The serial identifies the machine, and the temp dir is shared, so the cache is created
-        # readable by its owner alone (what mkstemp does) and moved into place atomically - a hook
-        # racing another one never reads a half-written cache, and the rename can't be redirected
-        # by a symlink planted at the destination the way an in-place write could.
-        file_descriptor, temp_path = tempfile.mkstemp(
-            dir=cache_path.parent, prefix=f'{_SERIAL_NUMBER_CACHE_FILE_NAME}.'
-        )
+        # The serial identifies the machine, so the cache is created readable by its owner alone
+        # (what mkstemp does) and moved into place atomically - a hook racing another one never
+        # reads a half-written cache, and the rename can't be redirected by a symlink planted at
+        # the destination the way an in-place write could.
+        file_descriptor, temp_path = tempfile.mkstemp(dir=cache_path.parent, prefix=f'{_DEVICE_ID_CACHE_FILE_NAME}.')
         try:
             with os.fdopen(file_descriptor, 'w', encoding='utf-8') as temp_file:
                 temp_file.write(serial)
             os.replace(temp_path, cache_path)
+            _remove_legacy_serial_number_cache()
         except Exception:
             Path(temp_path).unlink(missing_ok=True)
             raise
@@ -164,16 +179,17 @@ def _get_macos_serial_number() -> Optional[str]:
     return match.group(1) if match else None
 
 
-def _get_windows_serial_number() -> Optional[str]:
-    import pythoncom  # from pywin32
-    import win32com.client  # from pywin32
+def _get_windows_machine_guid() -> Optional[str]:
+    """Read the per-installation machine GUID from the registry.
+    """
+    import winreg  # Windows-only stdlib module
 
-    pythoncom.CoInitialize()
-    try:
-        wmi_service = win32com.client.GetObject('winmgmts:')
-        for bios in wmi_service.InstancesOf('Win32_BIOS'):
-            serial = bios.SerialNumber
-            return serial.strip() if serial else None
-    finally:
-        pythoncom.CoUninitialize()
-    return None
+    with winreg.OpenKey(
+        winreg.HKEY_LOCAL_MACHINE,
+        r'SOFTWARE\Microsoft\Cryptography',
+        0,
+        winreg.KEY_READ | winreg.KEY_WOW64_64KEY,
+    ) as key:
+        machine_guid, _ = winreg.QueryValueEx(key, 'MachineGuid')
+
+    return machine_guid.strip() if machine_guid else None
