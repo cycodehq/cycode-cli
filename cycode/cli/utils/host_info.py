@@ -4,15 +4,24 @@ import platform
 import re
 import socket
 import subprocess
+import sys
 import tempfile
-import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.logger import get_logger
 
 logger = get_logger('HOST INFO')
+
+pythoncom: Optional[Any] = None
+win32com_client: Optional[Any] = None
+if sys.platform == 'win32':
+    try:
+        import pythoncom
+        import win32com.client as win32com_client
+    except ImportError as e:
+        logger.debug('pywin32 is unavailable', exc_info=e)
 
 _SUBPROCESS_TIMEOUT_SEC = 5
 
@@ -101,18 +110,13 @@ def get_last_login_user() -> Optional[str]:
 
 
 def get_serial_number() -> Optional[str]:
-    # The serial is immutable host info, but resolving it costs a syscall chain (ioreg/registry)
+    # The serial is immutable hardware info, but resolving it shells out (ioreg/WMI)
     # and this runs in a fresh process per AI hook event - cache it on disk.
     cached = _read_serial_number_cache()
     if cached:
         return cached
 
     serial = _resolve_serial_number()
-    if not serial and platform.system() == 'Windows':
-        # MachineGuid is missing only on stripped/preinstallation images. Mint our own stable id
-        # rather than reporting no device at all; the cache write below makes it persistent.
-        serial = str(uuid.uuid4())
-
     if serial:
         _write_serial_number_cache(serial)
     return serial
@@ -124,7 +128,7 @@ def _resolve_serial_number() -> Optional[str]:
         if system == 'Darwin':
             return _get_macos_serial_number()
         if system == 'Windows':
-            return _get_windows_machine_guid()
+            return _get_windows_serial_number()
     except Exception as e:
         logger.debug('Failed to resolve serial number', exc_info=e)
     return None
@@ -179,16 +183,18 @@ def _get_macos_serial_number() -> Optional[str]:
     return match.group(1) if match else None
 
 
-def _get_windows_machine_guid() -> Optional[str]:
-    """Read the per-installation machine GUID from the registry."""
-    import winreg  # Windows-only stdlib module
+def _get_windows_serial_number() -> Optional[str]:
+    """Read the OEM serial over WMI."""
+    if pythoncom is None or win32com_client is None:
+        return None
 
-    with winreg.OpenKey(
-        winreg.HKEY_LOCAL_MACHINE,
-        r'SOFTWARE\Microsoft\Cryptography',
-        0,
-        winreg.KEY_READ | winreg.KEY_WOW64_64KEY,
-    ) as key:
-        machine_guid, _ = winreg.QueryValueEx(key, 'MachineGuid')
-
-    return machine_guid.strip() if machine_guid else None
+    pythoncom.CoInitialize()
+    try:
+        wmi_service = win32com_client.GetObject('winmgmts:')
+        for bios in wmi_service.InstancesOf('Win32_BIOS'):
+            serial = bios.SerialNumber
+            # whitespace-only is what whiteboxes and some hypervisors report
+            return serial.strip() or None if serial else None
+    finally:
+        pythoncom.CoUninitialize()
+    return None

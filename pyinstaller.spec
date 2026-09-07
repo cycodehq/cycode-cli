@@ -8,6 +8,8 @@ import re
 import subprocess
 import sys
 
+_IS_WINDOWS = platform.system() == 'Windows'
+
 _INIT_FILE_PATH = os.path.join('cycode', '__init__.py')
 _CODESIGN_IDENTITY = os.environ.get('APPLE_CERT_NAME')
 _ONEDIR_MODE = os.environ.get('CYCODE_ONEDIR_MODE') is not None
@@ -47,8 +49,6 @@ _hiddenimports = [
 # backend behind a sys.platform branch. Only the current platform's backend actually resolves.
 if sys.version_info >= (3, 10):
     _hiddenimports += ['truststore', 'truststore._windows', 'truststore._macos', 'truststore._openssl']
-
-_IS_WINDOWS = platform.system() == 'Windows'
 
 
 def _build_windows_version_info(version: str):

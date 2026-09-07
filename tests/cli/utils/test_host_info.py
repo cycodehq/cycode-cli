@@ -1,13 +1,12 @@
-import sys
-import types
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 
 import pytest
 
 from cycode.cli.utils import host_info
 
-_MACHINE_GUID = 'e0e8e0a1-2222-4c3f-9d4a-000000000001'
+_SERIAL = 'C02XY1234567'
 _IOREG_OUTPUT = """
   +-o Root  <class IORegistryEntry, id 1, retain 42>
       "IOPlatformSerialNumber" = "C02XY1234567"
@@ -20,33 +19,44 @@ def _home_in_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def _fake_winreg(machine_guid: Optional[str] = _MACHINE_GUID) -> types.ModuleType:
-    module = types.ModuleType('winreg')
-    module.HKEY_LOCAL_MACHINE = 0
-    module.KEY_READ = 0x20019
-    module.KEY_WOW64_64KEY = 0x0100
+class _ComCalls:
+    def __init__(self) -> None:
+        self.initialized = 0
+        self.uninitialized = 0
 
-    class _Key:
-        def __enter__(self) -> '_Key':  # noqa: PYI034
-            return self
 
-        def __exit__(self, *_args: object) -> None:
-            return None
+def _install_fake_pywin32(
+    monkeypatch: pytest.MonkeyPatch,
+    serial: Optional[str] = _SERIAL,
+    get_object_error: Optional[Exception] = None,
+) -> _ComCalls:
+    calls = _ComCalls()
 
-    def open_key(_hive: int, sub_key: str, _reserved: int, access: int) -> _Key:
-        assert sub_key == r'SOFTWARE\Microsoft\Cryptography'
-        assert access & module.KEY_WOW64_64KEY  # must read the 64-bit view, not WOW6432Node
-        return _Key()
+    pythoncom = SimpleNamespace(
+        CoInitialize=lambda: setattr(calls, 'initialized', calls.initialized + 1),
+        CoUninitialize=lambda: setattr(calls, 'uninitialized', calls.uninitialized + 1),
+    )
 
-    def query_value_ex(_key: '_Key', name: str) -> tuple:
-        assert name == 'MachineGuid'
-        if machine_guid is None:
-            raise FileNotFoundError(name)
-        return machine_guid, 1
+    class _Bios:
+        SerialNumber = serial
 
-    module.OpenKey = open_key
-    module.QueryValueEx = query_value_ex
-    return module
+    class _WmiService:
+        def InstancesOf(self, class_name: str) -> list:  # noqa: N802 - mirrors the COM API
+            assert class_name == 'Win32_BIOS'
+            return [_Bios()]
+
+    def get_object(moniker: str) -> _WmiService:
+        assert moniker == 'winmgmts:'
+        if get_object_error is not None:
+            raise get_object_error
+        return _WmiService()
+
+    win32com_client = SimpleNamespace(GetObject=get_object)
+
+    # host_info imports pywin32 at module level (guarded by sys.platform), so patch the bound names
+    monkeypatch.setattr(host_info, 'pythoncom', pythoncom, raising=False)
+    monkeypatch.setattr(host_info, 'win32com_client', win32com_client, raising=False)
+    return calls
 
 
 @pytest.fixture
@@ -55,8 +65,7 @@ def _windows(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_cache_path_is_under_cycode_home_and_not_temp(tmp_path: Path) -> None:
-    cache_path = host_info._serial_number_cache_path()
-    assert cache_path == tmp_path / '.cycode' / 'device-id'
+    assert host_info._serial_number_cache_path() == tmp_path / '.cycode' / 'device-id'
 
 
 def test_cached_value_short_circuits_resolution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -73,22 +82,37 @@ def test_cached_value_short_circuits_resolution(monkeypatch: pytest.MonkeyPatch,
 
 
 @pytest.mark.usefixtures('_windows')
-def test_windows_reads_machine_guid_and_caches_it(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setitem(sys.modules, 'winreg', _fake_winreg())
+def test_windows_reads_bios_serial_over_wmi_and_caches_it(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls = _install_fake_pywin32(monkeypatch)
 
-    assert host_info.get_serial_number() == _MACHINE_GUID
-    assert (tmp_path / '.cycode' / 'device-id').read_text(encoding='utf-8') == _MACHINE_GUID
+    assert host_info.get_serial_number() == _SERIAL
+    assert (tmp_path / '.cycode' / 'device-id').read_text(encoding='utf-8') == _SERIAL
+    assert (calls.initialized, calls.uninitialized) == (1, 1)
 
 
 @pytest.mark.usefixtures('_windows')
-def test_windows_falls_back_to_generated_uuid_and_reuses_it(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, 'winreg', _fake_winreg(machine_guid=None))
+def test_windows_uninitializes_com_when_wmi_fails(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls = _install_fake_pywin32(monkeypatch, get_object_error=OSError('WMI is unavailable'))
 
-    first = host_info.get_serial_number()
-    second = host_info.get_serial_number()
+    assert host_info.get_serial_number() is None
+    assert (calls.initialized, calls.uninitialized) == (1, 1)
+    assert not (tmp_path / '.cycode' / 'device-id').exists()
 
-    assert first is not None
-    assert first == second  # persisted, so the id is stable across processes
+
+@pytest.mark.usefixtures('_windows')
+def test_windows_blank_serial_is_none_and_not_cached(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install_fake_pywin32(monkeypatch, serial='   ')
+
+    assert host_info.get_serial_number() is None
+    assert not (tmp_path / '.cycode' / 'device-id').exists()
+
+
+@pytest.mark.usefixtures('_windows')
+def test_windows_without_pywin32_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(host_info, 'pythoncom', None, raising=False)
+    monkeypatch.setattr(host_info, 'win32com_client', None, raising=False)
+
+    assert host_info.get_serial_number() is None
 
 
 @pytest.mark.usefixtures('_windows')
@@ -98,11 +122,11 @@ def test_windows_write_removes_legacy_temp_cache(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(host_info.tempfile, 'gettempdir', lambda: str(legacy_dir))
     monkeypatch.setattr(host_info.getpass, 'getuser', lambda: 'tester')
     legacy_path = legacy_dir / '.cycode-device-serial-tester'
-    legacy_path.write_text('OLD-BIOS-SERIAL', encoding='utf-8')
+    legacy_path.write_text('OLD-CACHED-SERIAL', encoding='utf-8')
 
-    monkeypatch.setitem(sys.modules, 'winreg', _fake_winreg())
+    _install_fake_pywin32(monkeypatch)
 
-    assert host_info.get_serial_number() == _MACHINE_GUID
+    assert host_info.get_serial_number() == _SERIAL
     assert not legacy_path.exists()
 
 
@@ -110,7 +134,7 @@ def test_macos_serial_number_is_parsed_from_ioreg(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(host_info.platform, 'system', lambda: 'Darwin')
     monkeypatch.setattr(host_info, '_run', lambda *_args, **_kwargs: _IOREG_OUTPUT)
 
-    assert host_info.get_serial_number() == 'C02XY1234567'
+    assert host_info.get_serial_number() == _SERIAL
 
 
 def test_linux_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
