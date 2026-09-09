@@ -8,8 +8,8 @@ on:
         required: false
         default: false
         type: boolean
-      confirm_non_release:
-        description: 'I know this ref is not a release tag (required for non-tag refs)'
+      sign:
+        description: 'Sign the executables'
         required: false
         default: false
         type: boolean
@@ -39,11 +39,18 @@ jobs:
         shell: bash
 
     steps:
-      - name: Verify non-tag dispatch is acknowledged
-        if: ${{ github.event_name == 'workflow_dispatch' && github.ref_type != 'tag' && !inputs.confirm_non_release }}
+      - name: Resolve signing mode
+        id: signing
         run: |
-          echo "::error::Ref '${{ github.ref_name }}' is not a tag. Re-run with 'I know this ref is not a release tag' checked."
-          exit 1
+          if [ "${{ github.ref_type }}" = 'tag' ] \
+            || [ "${{ inputs.sign }}" = 'true' ] \
+            || [ "${{ inputs.publish }}" = 'true' ]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+            echo 'Signing enabled'
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::Skipping code signing and notarization for non-tag ref ${{ github.ref_name }}. Re-run with "Sign and notarize the executables" checked to sign.'
+          fi
 
       - name: Run Cimon
         if: matrix.os == 'ubuntu-22.04'
@@ -89,7 +96,7 @@ jobs:
         run: poetry install --without dev,test
 
       - name: Import macOS signing certificate
-        if: runner.os == 'macOS'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'macOS'
         env:
           APPLE_CERT: ${{ secrets.APPLE_CERT }}
           APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
@@ -113,7 +120,7 @@ jobs:
       - name: Build executable (onefile)
         if: matrix.mode == 'onefile'
         env:
-          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+          APPLE_CERT_NAME: ${{ steps.signing.outputs.enabled == 'true' && secrets.APPLE_CERT_NAME || '' }}
         run: |
           poetry run pyinstaller pyinstaller.spec
           echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode-cli" >> $GITHUB_ENV
@@ -122,7 +129,7 @@ jobs:
         if: matrix.mode == 'onedir'
         env:
           CYCODE_ONEDIR_MODE: 1
-          APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
+          APPLE_CERT_NAME: ${{ steps.signing.outputs.enabled == 'true' && secrets.APPLE_CERT_NAME || '' }}
         run: |
           poetry run pyinstaller pyinstaller.spec
           echo "PATH_TO_CYCODE_CLI_EXECUTABLE=dist/cycode-cli/cycode-cli" >> $GITHUB_ENV
@@ -131,7 +138,7 @@ jobs:
         run: time $PATH_TO_CYCODE_CLI_EXECUTABLE status
 
       - name: Codesign onedir binaries
-        if: runner.os == 'macOS' && matrix.mode == 'onedir'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'macOS' && matrix.mode == 'onedir'
         env:
           APPLE_CERT_NAME: ${{ secrets.APPLE_CERT_NAME }}
         run: |
@@ -161,7 +168,7 @@ jobs:
           codesign --force --sign "$APPLE_CERT_NAME" --timestamp --options runtime --entitlements entitlements.plist dist/cycode-cli/cycode-cli
 
       - name: Notarize macOS executable
-        if: runner.os == 'macOS'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'macOS'
         env:
           APPLE_NOTARIZATION_EMAIL: ${{ secrets.APPLE_NOTARIZATION_EMAIL }}
           APPLE_NOTARIZATION_PWD: ${{ secrets.APPLE_NOTARIZATION_PWD }}
@@ -194,7 +201,7 @@ jobs:
           # we can't staple the app because it's executable
 
       - name: Verify macOS code signatures
-        if: runner.os == 'macOS'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'macOS'
         run: |
           FAILED=false
           while IFS= read -r file; do
@@ -217,13 +224,13 @@ jobs:
           codesign -dv --verbose=4 $PATH_TO_CYCODE_CLI_EXECUTABLE
 
       - name: Test macOS signed executable
-        if: runner.os == 'macOS'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'macOS'
         run: |
           file -b $PATH_TO_CYCODE_CLI_EXECUTABLE
           time $PATH_TO_CYCODE_CLI_EXECUTABLE status
 
       - name: Import cert for Windows and setup envs
-        if: runner.os == 'Windows'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'Windows'
         env:
           SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
         run: |
@@ -236,7 +243,7 @@ jobs:
           echo "C:\Program Files\DigiCert\DigiCert One Signing Manager Tools" >> $GITHUB_PATH 
 
       - name: Sign Windows executable
-        if: runner.os == 'Windows'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'Windows'
         shell: cmd
         env:
           SM_HOST: ${{ secrets.SM_HOST }}
@@ -257,7 +264,7 @@ jobs:
           signtool.exe sign /sha1 %SM_CODE_SIGNING_CERT_SHA1_HASH% /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "%EXE_PATH%"
 
       - name: Sign unsigned onedir binaries (Windows)
-        if: runner.os == 'Windows' && matrix.mode == 'onedir'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'Windows' && matrix.mode == 'onedir'
         shell: powershell
         env:
           SM_HOST: ${{ secrets.SM_HOST }}
@@ -280,7 +287,7 @@ jobs:
           exit $LASTEXITCODE
 
       - name: Test Windows signed executable
-        if: runner.os == 'Windows'
+        if: steps.signing.outputs.enabled == 'true' && runner.os == 'Windows'
         shell: cmd
         run: |
           set "EXE_PATH=.\dist\cycode-cli.exe"
@@ -316,30 +323,36 @@ jobs:
           echo "Verifying archive: $ARCHIVE"
           unzip "$ARCHIVE" -d /tmp/artifact-extracted
 
-          # verify all Mach-O code signatures
-          FAILED=false
-          while IFS= read -r file; do
-            if file -b "$file" | grep -q "Mach-O"; then
-              if ! codesign --verify "$file" 2>&1; then
-                echo "INVALID: $file"
-                codesign -dv "$file" 2>&1 || true
-                FAILED=true
-              else
-                echo "OK: $file"
+          if [ "${{ steps.signing.outputs.enabled }}" = 'true' ]; then
+            # verify all Mach-O code signatures
+            FAILED=false
+            while IFS= read -r file; do
+              if file -b "$file" | grep -q "Mach-O"; then
+                if ! codesign --verify "$file" 2>&1; then
+                  echo "INVALID: $file"
+                  codesign -dv "$file" 2>&1 || true
+                  FAILED=true
+                else
+                  echo "OK: $file"
+                fi
               fi
-            fi
-          done < <(find /tmp/artifact-extracted -type f)
+            done < <(find /tmp/artifact-extracted -type f)
 
-          if [ "$FAILED" = true ]; then
-            echo "Artifact contains binaries with invalid signatures!"
-            exit 1
+            if [ "$FAILED" = true ]; then
+              echo "Artifact contains binaries with invalid signatures!"
+              exit 1
+            fi
+
+            # simulate download quarantine
+            # this is the definitive test — it triggers the same dlopen checks end users experience
+            find /tmp/artifact-extracted -type f -exec xattr -w com.apple.quarantine "0081;$(printf '%x' $(date +%s));CI;$(uuidgen)" {} \;
+          else
+            echo '::notice::Unsigned build: skipping signature verification and the quarantine simulation (Gatekeeper kills quarantined un-notarized binaries).'
           fi
 
-          # simulate download quarantine and test execution
-          # this is the definitive test — it triggers the same dlopen checks end users experience
-          find /tmp/artifact-extracted -type f -exec xattr -w com.apple.quarantine "0081;$(printf '%x' $(date +%s));CI;$(uuidgen)" {} \;
+          # run the packaged artifact exactly as an end user would
           EXECUTABLE=$(find /tmp/artifact-extracted -name "cycode-cli" -type f | head -1)
-          echo "Testing quarantined executable: $EXECUTABLE"
+          echo "Testing artifact executable: $EXECUTABLE"
           time "$EXECUTABLE" status
 
       - name: Upload files to release

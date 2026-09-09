@@ -15,6 +15,7 @@ from pytest_mock import MockerFixture
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.copilot import (
     Copilot,
+    _read_copilot_plugin,
     _vscode_mcp_config_path,
     split_mcp_tool_name,
 )
@@ -499,3 +500,35 @@ def test_parse_mcp_payload_matches_plugin_server_via_normalized_name(fs: FakeFil
 
     assert unified.mcp_server_name == 'dummy-tracker'
     assert unified.mcp_tool_name == 'fetch_api'
+
+
+def test_read_copilot_plugin_collects_plugin_skills(fs: FakeFilesystem) -> None:
+    """Plugin skills are a property of the plugin format, so Copilot plugins carry them too."""
+    plugin_dir = Path('/dummy/copilot-marketplace/dummy-plugin')
+    fs.create_file(
+        plugin_dir / 'plugin.json',
+        contents=json.dumps({'name': 'dummy-plugin', 'version': '4.0.0'}),
+    )
+    skill_file = plugin_dir / 'skills' / 'copilot-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents='---\nname: copilot-skill\n---\nBody.\n')
+
+    entry, _ = _read_copilot_plugin(plugin_dir)
+
+    assert [s['path'] for s in entry['skill_files']] == [str(skill_file)]
+
+
+# skills
+
+
+def test_get_skills_reads_user_scope_skills(fs: FakeFilesystem) -> None:
+    body = '---\nname: dummy-skill\ndescription: Dummy.\n---\n\nDo it.\n'
+    skill_file = Path.home() / '.copilot' / 'skills' / 'dummy-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents=body)
+
+    skills = Copilot().get_skills()
+
+    assert skills == [{'path': str(skill_file), 'content': body}]
+
+
+def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
+    assert Copilot().get_skills() == []

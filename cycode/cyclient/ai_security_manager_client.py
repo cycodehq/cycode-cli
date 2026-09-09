@@ -111,6 +111,7 @@ class AISecurityManagerClient:
         last_login_user: Optional[str] = None,
         config_files: Optional[list[dict]] = None,
         enabled_plugins: Optional[dict] = None,
+        skill_files: Optional[list[dict]] = None,
         user_email: Optional[str] = None,
     ) -> bool:
         """Report session context to the backend. Returns whether the report was accepted."""
@@ -123,6 +124,7 @@ class AISecurityManagerClient:
             'user_email': user_email,
             'config_files': config_files,
             'enabled_plugins': enabled_plugins,
+            'skill_files': skill_files,
         }
 
         try:

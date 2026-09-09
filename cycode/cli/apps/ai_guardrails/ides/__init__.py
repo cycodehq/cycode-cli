@@ -54,6 +54,22 @@ def collect_all_session_contexts() -> tuple[dict[str, dict], dict]:
     return config_files_by_ide, plugins
 
 
+def collect_all_skills() -> list[dict]:
+    """Sweep every registered IDE's user-scope skills, regardless of which IDE triggered the hook.
+
+    Returns ``[{"path", "content"}]`` deduplicated by path and sorted, so two IDEs sharing a skills
+    directory report it once and the session-context digest stays stable across registry order.
+    Skills a plugin ships are not here - those ride on their plugin entry, which carries the
+    marketplace provenance.
+    """
+    skills_by_path: dict[str, dict] = {}
+    for ide in IDES.values():
+        for skill in ide.get_skills():
+            skills_by_path.setdefault(skill['path'], skill)
+
+    return [skills_by_path[path] for path in sorted(skills_by_path)]
+
+
 def resolve_ides(name: str) -> list[IDE]:
     """Resolve an ``--ide`` argument to one or all IDE instances.
 

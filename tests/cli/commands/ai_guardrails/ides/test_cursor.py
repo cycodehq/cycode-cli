@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from pyfakefs.fake_filesystem import FakeFilesystem
+
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -153,3 +155,20 @@ def test_session_context_no_config_returns_empty() -> None:
         global_config_file, plugins = Cursor().get_session_context()
     assert global_config_file is None
     assert plugins == {}
+
+
+# skills
+
+
+def test_get_skills_reads_user_scope_skills(fs: FakeFilesystem) -> None:
+    body = '---\nname: dummy-skill\ndescription: Dummy.\n---\n\nDo it.\n'
+    skill_file = Path.home() / '.cursor' / 'skills' / 'dummy-skill' / 'SKILL.md'
+    fs.create_file(skill_file, contents=body)
+
+    skills = Cursor().get_skills()
+
+    assert skills == [{'path': str(skill_file), 'content': body}]
+
+
+def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
+    assert Cursor().get_skills() == []
