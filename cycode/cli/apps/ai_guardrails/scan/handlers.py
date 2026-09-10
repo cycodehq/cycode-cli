@@ -51,10 +51,6 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     ai_client = ctx.obj['ai_security_client']
 
     prompt_config = get_policy_value(policy, 'prompt', default={})
-    if not get_policy_value(prompt_config, 'enabled', default=True):
-        ai_client.create_event(payload, AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
-        return HookDecision.allow(AiHookEventType.PROMPT)
-
     effective_mode = get_effective_mode(prompt_config)
     prompt = payload.prompt or ''
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
@@ -107,12 +103,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
     ai_client = ctx.obj['ai_security_client']
 
     file_read_config = get_policy_value(policy, 'file_read', default={})
-    if not get_policy_value(file_read_config, 'enabled', default=True):
-        ai_client.create_event(payload, AiHookEventType.FILE_READ, AIHookOutcome.ALLOWED)
-        return HookDecision.allow(AiHookEventType.FILE_READ)
-
     file_path = payload.file_path or ''
-    # Two guardrails share this event, each with its own mode: the path match and the content scan.
     path_mode = get_effective_mode(file_read_config, action_key='path_action')
     content_mode = get_effective_mode(file_read_config)
 
@@ -206,7 +197,6 @@ class _ArgScanFeature:
     """
 
     policy_key: str  # 'mcp' or 'command_exec'
-    scan_key: str  # 'scan_arguments' or 'scan_command'
     event_type: AiHookEventType
     deny_message: Callable[[str], str]
     deny_agent_message: str
@@ -225,10 +215,6 @@ def _handle_arg_scan(
     ai_client = ctx.obj['ai_security_client']
 
     feature_config = get_policy_value(policy, feature.policy_key, default={})
-    if not get_policy_value(feature_config, 'enabled', default=True):
-        ai_client.create_event(payload, feature.event_type, AIHookOutcome.ALLOWED)
-        return HookDecision.allow(feature.event_type)
-
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
     clipped = truncate_utf8(scan_text, max_bytes)
@@ -240,30 +226,29 @@ def _handle_arg_scan(
     error_message = None
 
     try:
-        if get_policy_value(feature_config, feature.scan_key, default=True):
-            violation_summary, scan_id = _scan_text_for_secrets(
-                ctx,
-                clipped,
-                timeout_ms,
-                payload=payload,
-                event_type=feature.event_type,
-                effective_mode=effective_mode,
-            )
-            if violation_summary:
-                block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[feature.event_type]
-                if effective_mode == GuardrailsMode.BLOCK:
-                    outcome = AIHookOutcome.BLOCKED
-                    return HookDecision.deny(
-                        feature.event_type,
-                        feature.deny_message(violation_summary),
-                        feature.deny_agent_message,
-                    )
-                outcome = AIHookOutcome.WARNED
-                return HookDecision.ask(
+        violation_summary, scan_id = _scan_text_for_secrets(
+            ctx,
+            clipped,
+            timeout_ms,
+            payload=payload,
+            event_type=feature.event_type,
+            effective_mode=effective_mode,
+        )
+        if violation_summary:
+            block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[feature.event_type]
+            if effective_mode == GuardrailsMode.BLOCK:
+                outcome = AIHookOutcome.BLOCKED
+                return HookDecision.deny(
                     feature.event_type,
-                    feature.ask_message(violation_summary),
-                    feature.ask_agent_message,
+                    feature.deny_message(violation_summary),
+                    feature.deny_agent_message,
                 )
+            outcome = AIHookOutcome.WARNED
+            return HookDecision.ask(
+                feature.event_type,
+                feature.ask_message(violation_summary),
+                feature.ask_agent_message,
+            )
 
         return HookDecision.allow(feature.event_type)
     except Exception as e:
@@ -295,7 +280,6 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         policy,
         _ArgScanFeature(
             policy_key='mcp',
-            scan_key='scan_arguments',
             event_type=AiHookEventType.MCP_EXECUTION,
             deny_message=lambda v: f'Cycode blocked MCP tool call "{tool}". {v}',
             deny_agent_message='Do not pass secrets to tools. Use secret references (name/id) instead.',

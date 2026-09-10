@@ -111,9 +111,7 @@ def create_policy_file(scope: str, repo_path: Optional[Path] = None) -> tuple[bo
     config_dir = repo_path / '.cycode' if scope == 'repo' and repo_path else Path.home() / '.cycode'
     policy_path = config_dir / POLICY_FILE_NAME
 
-    policy = strip_platform_managed_keys(_load_policy_dict(policy_path), str(policy_path))
-    # Sections left empty by the stripping have nothing for the user to edit.
-    policy = {key: value for key, value in policy.items() if value != {}}
+    policy = strip_platform_managed_keys(_load_policy_dict(policy_path))
 
     try:
         config_dir.mkdir(parents=True, exist_ok=True)

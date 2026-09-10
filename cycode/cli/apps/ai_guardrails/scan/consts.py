@@ -1,15 +1,31 @@
 """
 Constants and default configuration for AI guardrails.
 
-These defaults can be overridden by:
-1. User-level config: ~/.cycode/ai-guardrails.yaml
-2. Repo-level config: <workspace>/.cycode/ai-guardrails.yaml
+Enforcement (which guardrails run, in which mode, over which paths) is platform-owned and
+resolved per scan; see scan/guardrail_config.py. What is left here is the operational knobs
+a local file may override - user-level ~/.cycode/ai-guardrails.yaml, then repo-level
+<workspace>/.cycode/ai-guardrails.yaml.
 """
 
 # Policy file name
 POLICY_FILE_NAME = 'ai-guardrails.yaml'
 
-# Default policy configuration
+# Sensitive-path globs used until the platform's own list is cached (cold start, or a tenant
+# that never customized them). Not a local knob: apply_platform_config always overwrites it.
+DEFAULT_SENSITIVE_PATH_GLOBS = [
+    '.env',
+    '.env.*',
+    '*.pem',
+    '*.p12',
+    '*.key',
+    '.aws/**',
+    '.ssh/**',
+    '*kubeconfig*',
+    '.npmrc',
+    '.netrc',
+]
+
+# Default policy configuration: operational knobs only.
 DEFAULT_POLICY = {
     'version': 1,
     'fail_open': True,  # allow if scan fails/timeouts
@@ -17,31 +33,5 @@ DEFAULT_POLICY = {
         'scan_type': 'secret',
         'timeout_ms': 30000,
         'max_bytes': 200000,
-    },
-    'prompt': {
-        'enabled': True,
-        'action': 'block',
-    },
-    'file_read': {
-        'enabled': True,
-        'action': 'block',
-        'deny_globs': [
-            '.env',
-            '.env.*',
-            '*.pem',
-            '*.p12',
-            '*.key',
-            '.aws/**',
-            '.ssh/**',
-            '*kubeconfig*',
-            '.npmrc',
-            '.netrc',
-        ],
-        'scan_content': True,
-    },
-    'mcp': {
-        'enabled': True,
-        'action': 'block',
-        'scan_arguments': True,
     },
 }

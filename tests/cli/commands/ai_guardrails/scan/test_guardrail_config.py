@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
-from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY
+from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_SENSITIVE_PATH_GLOBS
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import (
     GuardrailConfig,
     apply_platform_config,
@@ -106,7 +106,7 @@ def test_apply_platform_config_without_cache_uses_report_defaults() -> None:
     assert policy['file_read']['action'] == 'warn'
     assert policy['file_read']['path_action'] == 'warn'
     assert policy['mcp']['action'] == 'warn'
-    assert policy['file_read']['deny_globs'] == DEFAULT_POLICY['file_read']['deny_globs']
+    assert policy['file_read']['deny_globs'] == DEFAULT_SENSITIVE_PATH_GLOBS
 
 
 def test_apply_platform_config_block_cell_sets_block_action() -> None:

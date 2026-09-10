@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from cycode.cli.apps.ai_guardrails.consts import GuardrailsMode, PolicyMode
-from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY
+from cycode.cli.apps.ai_guardrails.consts import GuardrailCellMode, PolicyMode
+from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_SENSITIVE_PATH_GLOBS
 from cycode.cli.apps.ai_guardrails.scan.types import BlockReason
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.cli.utils.path_utils import atomic_write_text, quarantine_corrupt_file
@@ -22,11 +22,6 @@ from cycode.logger import get_logger
 logger = get_logger('AI Guardrails')
 
 GUARDRAILS_CONFIG_FILE_NAME = 'ai-guardrails-config.json'
-
-# The matrix cell values; Report and Block share GuardrailsMode's spelling.
-MODE_OFF = 'off'
-MODE_REPORT = GuardrailsMode.REPORT.value
-MODE_BLOCK = GuardrailsMode.BLOCK.value
 
 _DEFAULT_TTL_SECONDS = 900
 
@@ -56,7 +51,7 @@ def agent_for_ide(ide_name: Optional[str]) -> str:
 
 
 def _default_sensitive_globs() -> list:
-    return list(DEFAULT_POLICY['file_read']['deny_globs'])
+    return list(DEFAULT_SENSITIVE_PATH_GLOBS)
 
 
 @dataclass
@@ -75,7 +70,7 @@ class GuardrailConfig:
 
     def mode_for(self, guardrail_key: str, ide_name: Optional[str]) -> str:
         agents = (self._guardrails.get(guardrail_key) or {}).get('agents') or {}
-        return str(agents.get(agent_for_ide(ide_name), MODE_REPORT)).lower()
+        return str(agents.get(agent_for_ide(ide_name), GuardrailCellMode.REPORT.value)).lower()
 
     def _modes_for_event(self, event_name: str, ide_name: Optional[str]) -> list:
         return [
@@ -87,11 +82,11 @@ class GuardrailConfig:
     def is_event_off(self, event_name: str, ide_name: Optional[str]) -> bool:
         """Every guardrail for this event is Off - skip the scan entirely."""
         modes = self._modes_for_event(event_name, ide_name)
-        return bool(modes) and all(mode == MODE_OFF for mode in modes)
+        return bool(modes) and all(mode == GuardrailCellMode.OFF for mode in modes)
 
     def can_event_block(self, event_name: str, ide_name: Optional[str]) -> bool:
         """At least one guardrail for this event is in Block mode - the scan must stay synchronous."""
-        return MODE_BLOCK in self._modes_for_event(event_name, ide_name)
+        return GuardrailCellMode.BLOCK in self._modes_for_event(event_name, ide_name)
 
     def sensitive_globs(self) -> list:
         settings = (self._guardrails.get(BlockReason.SENSITIVE_PATH) or {}).get('settings') or {}
@@ -114,23 +109,23 @@ def apply_platform_config(policy: dict, config: Optional[GuardrailConfig], ide_n
     Report everywhere with the default globs - which equal an unconfigured tenant's platform
     config, so behaviour is uniform either way. Each matrix cell lands on its own per-feature
     action, so the two FileRead guardrails (content scan vs. sensitive path) keep independent modes.
-    An all-Off event never reaches here (scan_command skips it), so `enabled` stays untouched.
+    An all-Off event never reaches here at all: scan_command skips it.
     """
 
     def cell(guardrail_key: str) -> str:
-        return config.mode_for(guardrail_key, ide_name) if config is not None else MODE_REPORT
+        return config.mode_for(guardrail_key, ide_name) if config is not None else GuardrailCellMode.REPORT.value
 
     def action(guardrail_key: str) -> str:
-        return PolicyMode.BLOCK.value if cell(guardrail_key) == MODE_BLOCK else PolicyMode.WARN.value
+        return PolicyMode.BLOCK.value if cell(guardrail_key) == GuardrailCellMode.BLOCK else PolicyMode.WARN.value
 
     policy.setdefault('prompt', {})['action'] = action(BlockReason.SECRETS_IN_PROMPT)
 
     file_read = policy.setdefault('file_read', {})
-    file_read['scan_content'] = cell(BlockReason.SECRETS_IN_FILE) != MODE_OFF
+    file_read['scan_content'] = cell(BlockReason.SECRETS_IN_FILE) != GuardrailCellMode.OFF
     file_read['action'] = action(BlockReason.SECRETS_IN_FILE)
     file_read['deny_globs'] = (
         (config.sensitive_globs() if config is not None else _default_sensitive_globs())
-        if cell(BlockReason.SENSITIVE_PATH) != MODE_OFF
+        if cell(BlockReason.SENSITIVE_PATH) != GuardrailCellMode.OFF
         else []
     )
     file_read['path_action'] = action(BlockReason.SENSITIVE_PATH)

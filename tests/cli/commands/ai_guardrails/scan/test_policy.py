@@ -75,15 +75,14 @@ def test_load_yaml_file_invalid_yaml(fs: FakeFilesystem) -> None:
     assert result is None
 
 
-def test_load_defaults() -> None:
-    """Test that load_defaults returns a dict with expected keys."""
+def test_load_defaults_carries_knobs_only() -> None:
+    """Defaults are operational knobs; enforcement sections come from the platform."""
     defaults = load_defaults()
 
     assert isinstance(defaults, dict)
     assert 'fail_open' in defaults
-    assert 'prompt' in defaults
-    assert 'file_read' in defaults
-    assert 'mcp' in defaults
+    assert 'secrets' in defaults
+    assert not {'mode', 'prompt', 'file_read', 'mcp'} & defaults.keys()
 
 
 def test_get_policy_value_single_key() -> None:
@@ -164,6 +163,7 @@ def test_load_policy_with_repo_config(mock_load: MagicMock) -> None:
                 'fail_open': False,
                 'prompt': {'enabled': False},
                 'file_read': {'deny_globs': ['*.bak'], 'scan_content': False},
+                'mcp': {'scan_arguments': False},
             }
         return None
 
@@ -171,12 +171,10 @@ def test_load_policy_with_repo_config(mock_load: MagicMock) -> None:
 
     policy = load_policy(str(repo_path))
 
-    # Knobs merge from the repo file; enforcement keys are platform-managed and stripped.
+    # Knobs merge from the repo file; nothing a local file says about enforcement survives,
+    # so it cannot turn a guardrail off, widen the globs, or skip the content scan.
     assert policy['fail_open'] is False
-    assert 'mode' not in policy
-    assert policy['prompt']['enabled'] is True
-    assert policy['file_read']['deny_globs'] == DEFAULT_POLICY['file_read']['deny_globs']
-    assert policy['file_read']['scan_content'] is True
+    assert not {'mode', 'prompt', 'file_read', 'mcp'} & policy.keys()
 
 
 @patch('pathlib.Path.home')

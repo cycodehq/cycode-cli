@@ -57,26 +57,13 @@ def default_policy() -> dict[str, Any]:
         'mode': 'block',
         'fail_open': True,
         'secrets': {'max_bytes': 200000},
-        'prompt': {'enabled': True, 'action': 'block'},
-        'file_read': {'enabled': True, 'action': 'block', 'scan_content': True, 'deny_globs': []},
-        'mcp': {'enabled': True, 'action': 'block', 'scan_arguments': True},
+        'prompt': {'action': 'block'},
+        'file_read': {'action': 'block', 'scan_content': True, 'deny_globs': []},
+        'mcp': {'action': 'block'},
     }
 
 
 # Tests for handle_before_submit_prompt
-
-
-def test_handle_before_submit_prompt_disabled(
-    mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
-) -> None:
-    """Test that disabled prompt scanning allows the prompt."""
-    default_policy['prompt']['enabled'] = False
-
-    result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.PROMPT)
-    mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
-    mock_ctx.obj['ai_security_client'].create_conversation.assert_not_called()
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
@@ -166,20 +153,6 @@ def test_handle_before_submit_prompt_scan_failure_fail_closed(
 
 
 # Tests for handle_before_read_file
-
-
-def test_handle_before_read_file_disabled(mock_ctx: MagicMock, default_policy: dict[str, Any]) -> None:
-    """Test that disabled file read scanning allows the file."""
-    default_policy['file_read']['enabled'] = False
-    payload = AIHookPayload(
-        event_name='FileRead',
-        ide_provider='cursor',
-        file_path='/path/to/file.txt',
-    )
-
-    result = handle_before_read_file(mock_ctx, payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.FILE_READ)
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
@@ -450,21 +423,6 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
 # Tests for handle_before_mcp_execution
 
 
-def test_handle_before_mcp_execution_disabled(mock_ctx: MagicMock, default_policy: dict[str, Any]) -> None:
-    """Test that disabled MCP scanning allows the execution."""
-    default_policy['mcp']['enabled'] = False
-    payload = AIHookPayload(
-        event_name='McpExecution',
-        ide_provider='cursor',
-        mcp_tool_name='test_tool',
-        mcp_arguments={'arg1': 'value1'},
-    )
-
-    result = handle_before_mcp_execution(mock_ctx, payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
-
-
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_mcp_execution_no_secrets(
     mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
@@ -529,25 +487,6 @@ def test_handle_before_mcp_execution_with_secrets_warned(
     assert 'Found 1 secret: token' in result.user_message
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.WARNED
-
-
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
-def test_handle_before_mcp_execution_scan_disabled(
-    mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
-) -> None:
-    """Test that MCP execution is allowed when argument scanning is disabled."""
-    default_policy['mcp']['scan_arguments'] = False
-    payload = AIHookPayload(
-        event_name='McpExecution',
-        ide_provider='cursor',
-        mcp_tool_name='test_tool',
-        mcp_arguments={'arg1': 'value1'},
-    )
-
-    result = handle_before_mcp_execution(mock_ctx, payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
-    mock_scan.assert_not_called()
 
 
 def test_get_effective_mode_reads_the_guardrails_action() -> None:
