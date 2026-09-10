@@ -57,26 +57,13 @@ def default_policy() -> dict[str, Any]:
         'mode': 'block',
         'fail_open': True,
         'secrets': {'max_bytes': 200000},
-        'prompt': {'enabled': True, 'action': 'block'},
-        'file_read': {'enabled': True, 'action': 'block', 'scan_content': True, 'deny_globs': []},
-        'mcp': {'enabled': True, 'action': 'block', 'scan_arguments': True},
+        'prompt': {'action': 'block'},
+        'file_read': {'action': 'block', 'scan_content': True, 'deny_globs': []},
+        'mcp': {'action': 'block'},
     }
 
 
 # Tests for handle_before_submit_prompt
-
-
-def test_handle_before_submit_prompt_disabled(
-    mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
-) -> None:
-    """Test that disabled prompt scanning allows the prompt."""
-    default_policy['prompt']['enabled'] = False
-
-    result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.PROMPT)
-    mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
-    mock_ctx.obj['ai_security_client'].create_conversation.assert_not_called()
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
@@ -168,20 +155,6 @@ def test_handle_before_submit_prompt_scan_failure_fail_closed(
 # Tests for handle_before_read_file
 
 
-def test_handle_before_read_file_disabled(mock_ctx: MagicMock, default_policy: dict[str, Any]) -> None:
-    """Test that disabled file read scanning allows the file."""
-    default_policy['file_read']['enabled'] = False
-    payload = AIHookPayload(
-        event_name='FileRead',
-        ide_provider='cursor',
-        file_path='/path/to/file.txt',
-    )
-
-    result = handle_before_read_file(mock_ctx, payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.FILE_READ)
-
-
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
 def test_handle_before_read_file_sensitive_path(
     mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
@@ -204,6 +177,17 @@ def test_handle_before_read_file_sensitive_path(
     assert call_args.args[2] == AIHookOutcome.BLOCKED
     assert call_args.kwargs['block_reason'] == BlockReason.SENSITIVE_PATH
     assert call_args.kwargs['file_path'] == '/path/to/.env'
+
+    # The path guardrail has its own action: content scan in block mode must not make a
+    # report-mode path match block.
+    mock_ctx.obj['ai_security_client'].create_event.reset_mock()
+    default_policy['file_read']['path_action'] = 'warn'
+    default_policy['file_read']['scan_content'] = False
+
+    result = handle_before_read_file(mock_ctx, payload, default_policy)
+
+    assert result.action == DecisionAction.ASK
+    assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[2] == AIHookOutcome.WARNED
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
@@ -252,6 +236,16 @@ def test_handle_before_read_file_with_secrets(
     assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_FILE
     assert call_args.kwargs['file_path'] == '/path/to/file.txt'
 
+    # A block-mode path guardrail must not make a report-mode content scan block.
+    default_policy['file_read']['action'] = 'warn'
+    default_policy['file_read']['path_action'] = 'block'
+
+    result = handle_before_read_file(mock_ctx, payload, default_policy)
+
+    assert result.action == DecisionAction.ASK
+    assert mock_scan.call_args.kwargs['effective_mode'] == GuardrailsMode.REPORT
+    assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[2] == AIHookOutcome.WARNED
+
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.is_denied_path')
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_path_for_secrets')
@@ -281,7 +275,7 @@ def test_handle_before_read_file_sensitive_path_warn_mode_scans_content(
     """Test that sensitive path in warn mode still scans file content and emits two events."""
     mock_is_denied.return_value = True
     mock_scan.return_value = (None, 'scan-id-123')
-    default_policy['mode'] = 'warn'
+    default_policy['file_read']['path_action'] = 'warn'
     payload = AIHookPayload(
         event_name='FileRead',
         ide_provider='cursor',
@@ -312,7 +306,8 @@ def test_handle_before_read_file_sensitive_path_warn_mode_with_secrets(
     """Test that sensitive path in warn mode reports secrets and emits two events."""
     mock_is_denied.return_value = True
     mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-456')
-    default_policy['mode'] = 'warn'
+    default_policy['file_read']['path_action'] = 'warn'
+    default_policy['file_read']['action'] = 'warn'
     payload = AIHookPayload(
         event_name='FileRead',
         ide_provider='cursor',
@@ -342,7 +337,7 @@ def test_handle_before_read_file_sensitive_path_scan_disabled_warns(
 ) -> None:
     """Test that sensitive path in warn mode with scan disabled emits a single event."""
     mock_is_denied.return_value = True
-    default_policy['mode'] = 'warn'
+    default_policy['file_read']['path_action'] = 'warn'
     default_policy['file_read']['scan_content'] = False
     payload = AIHookPayload(
         event_name='FileRead',
@@ -428,21 +423,6 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
 # Tests for handle_before_mcp_execution
 
 
-def test_handle_before_mcp_execution_disabled(mock_ctx: MagicMock, default_policy: dict[str, Any]) -> None:
-    """Test that disabled MCP scanning allows the execution."""
-    default_policy['mcp']['enabled'] = False
-    payload = AIHookPayload(
-        event_name='McpExecution',
-        ide_provider='cursor',
-        mcp_tool_name='test_tool',
-        mcp_arguments={'arg1': 'value1'},
-    )
-
-    result = handle_before_mcp_execution(mock_ctx, payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
-
-
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_mcp_execution_no_secrets(
     mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
@@ -509,31 +489,14 @@ def test_handle_before_mcp_execution_with_secrets_warned(
     assert call_args.args[2] == AIHookOutcome.WARNED
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
-def test_handle_before_mcp_execution_scan_disabled(
-    mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
-) -> None:
-    """Test that MCP execution is allowed when argument scanning is disabled."""
-    default_policy['mcp']['scan_arguments'] = False
-    payload = AIHookPayload(
-        event_name='McpExecution',
-        ide_provider='cursor',
-        mcp_tool_name='test_tool',
-        mcp_arguments={'arg1': 'value1'},
-    )
-
-    result = handle_before_mcp_execution(mock_ctx, payload, default_policy)
-
-    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
-    mock_scan.assert_not_called()
-
-
-def test_get_effective_mode_block_only_when_both_mode_and_action_block() -> None:
-    """The event blocks only when both the global mode and the per-guardrail action are block."""
-    assert get_effective_mode({'mode': 'block'}, {'action': 'block'}) == GuardrailsMode.BLOCK
-    assert get_effective_mode({'mode': 'block'}, {'action': 'warn'}) == GuardrailsMode.REPORT
-    assert get_effective_mode({'mode': 'warn'}, {'action': 'block'}) == GuardrailsMode.REPORT
-    assert get_effective_mode({'mode': 'warn'}, {'action': 'warn'}) == GuardrailsMode.REPORT
+def test_get_effective_mode_reads_the_guardrails_action() -> None:
+    assert get_effective_mode({'action': 'block'}) == GuardrailsMode.BLOCK
+    assert get_effective_mode({'action': 'warn'}) == GuardrailsMode.REPORT
+    assert get_effective_mode({}) == GuardrailsMode.BLOCK
+    # A feature may carry more than one action; the caller picks which cell to read.
+    feature = {'action': 'warn', 'path_action': 'block'}
+    assert get_effective_mode(feature) == GuardrailsMode.REPORT
+    assert get_effective_mode(feature, action_key='path_action') == GuardrailsMode.BLOCK
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.get_serial_number', return_value='SER-123')
