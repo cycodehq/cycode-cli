@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 from cycode.cli.apps.ai_guardrails.consts import (
     CYCODE_SCAN_PROMPT_COMMAND,
     CYCODE_SESSION_START_COMMAND,
-    PolicyMode,
 )
 from cycode.cli.apps.ai_guardrails.hooks_manager import (
     create_policy_file,
@@ -114,44 +113,48 @@ def test_claude_code_render_hooks_session_start() -> None:
 # Policy file tests
 
 
-def test_create_policy_file_warn(fs: FakeFilesystem) -> None:
-    """Create a warn-mode policy file."""
+def test_create_policy_file_writes_knobs_only(fs: FakeFilesystem) -> None:
+    """The policy file carries operational knobs only; enforcement is platform-managed."""
     fs.create_dir(Path.home())
-    success, message = create_policy_file('user', PolicyMode.WARN)
+    success, _ = create_policy_file('user')
 
     assert success is True
-    assert 'warn mode' in message
 
     policy_path = Path.home() / '.cycode' / 'ai-guardrails.yaml'
     assert policy_path.exists()
-    assert yaml.safe_load(policy_path.read_text())['mode'] == 'warn'
+    policy = yaml.safe_load(policy_path.read_text())
+    assert 'mode' not in policy
+    assert policy['fail_open'] is True
+    assert policy['secrets']['timeout_ms'] > 0
 
 
-def test_create_policy_file_block(fs: FakeFilesystem) -> None:
-    """Create a block-mode policy file."""
-    fs.create_dir(Path.home())
-    success, message = create_policy_file('user', PolicyMode.BLOCK)
-
-    assert success is True
-    assert 'block mode' in message
-
-    policy_path = Path.home() / '.cycode' / 'ai-guardrails.yaml'
-    assert yaml.safe_load(policy_path.read_text())['mode'] == 'block'
-
-
-def test_create_policy_file_updates_existing(fs: FakeFilesystem) -> None:
-    """Re-running updates only the mode field and preserves customizations."""
+def test_create_policy_file_updates_existing_and_strips_platform_keys(fs: FakeFilesystem) -> None:
+    """Re-running preserves customizations but strips enforcement keys older CLIs wrote."""
     policy_dir = Path.home() / '.cycode'
     fs.create_dir(policy_dir)
     policy_path = policy_dir / 'ai-guardrails.yaml'
-    policy_path.write_text(yaml.dump({'version': 1, 'mode': 'warn', 'custom_field': 'keep_me'}))
+    policy_path.write_text(
+        yaml.dump(
+            {
+                'version': 1,
+                'mode': 'warn',
+                'custom_field': 'keep_me',
+                'secrets': {'timeout_ms': 5000},
+                'file_read': {'deny_globs': ['*.secret'], 'scan_content': False},
+            }
+        )
+    )
 
-    success, _ = create_policy_file('user', PolicyMode.BLOCK)
+    success, _ = create_policy_file('user')
 
     assert success is True
     policy = yaml.safe_load(policy_path.read_text())
-    assert policy['mode'] == 'block'
+    assert 'mode' not in policy
     assert policy['custom_field'] == 'keep_me'
+    assert policy['secrets']['timeout_ms'] == 5000
+    # Nothing platform-managed is left, and an emptied section is dropped rather than written as {}.
+    assert 'file_read' not in policy
+    assert 'prompt' not in policy
 
 
 def test_install_preserves_user_hook_colocated_with_cycode(
@@ -316,9 +319,9 @@ def test_create_policy_file_repo_scope(fs: FakeFilesystem) -> None:
     repo_path = Path('/my-repo')
     fs.create_dir(repo_path)
 
-    success, _ = create_policy_file('repo', PolicyMode.WARN, repo_path=repo_path)
+    success, _ = create_policy_file('repo', repo_path=repo_path)
 
     assert success is True
     policy_path = repo_path / '.cycode' / 'ai-guardrails.yaml'
     assert policy_path.exists()
-    assert yaml.safe_load(policy_path.read_text())['mode'] == 'warn'
+    assert 'mode' not in yaml.safe_load(policy_path.read_text())

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
+from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_POLICY
 from cycode.cli.apps.ai_guardrails.scan.policy import (
     deep_merge,
     get_machine_policy_path,
@@ -74,16 +75,14 @@ def test_load_yaml_file_invalid_yaml(fs: FakeFilesystem) -> None:
     assert result is None
 
 
-def test_load_defaults() -> None:
-    """Test that load_defaults returns a dict with expected keys."""
+def test_load_defaults_carries_knobs_only() -> None:
+    """Defaults are operational knobs; enforcement sections come from the platform."""
     defaults = load_defaults()
 
     assert isinstance(defaults, dict)
-    assert 'mode' in defaults
     assert 'fail_open' in defaults
-    assert 'prompt' in defaults
-    assert 'file_read' in defaults
-    assert 'mcp' in defaults
+    assert 'secrets' in defaults
+    assert not {'mode', 'prompt', 'file_read', 'mcp'} & defaults.keys()
 
 
 def test_get_policy_value_single_key() -> None:
@@ -132,8 +131,8 @@ def test_load_policy_defaults_only(mock_load: MagicMock) -> None:
 
     policy = load_policy()
 
-    assert 'mode' in policy
     assert 'fail_open' in policy
+    assert 'secrets' in policy
 
 
 @patch('pathlib.Path.home')
@@ -146,8 +145,8 @@ def test_load_policy_with_user_config(mock_home: MagicMock, fs: FakeFilesystem) 
 
     policy = load_policy()
 
-    # User config should override defaults
-    assert policy['mode'] == 'warn'
+    # Knobs merge; `mode` is platform-managed and stripped from local files.
+    assert 'mode' not in policy
     assert policy['fail_open'] is False
 
 
@@ -159,16 +158,23 @@ def test_load_policy_with_repo_config(mock_load: MagicMock) -> None:
 
     def side_effect(path: Path) -> Optional[dict]:
         if path == repo_config:
-            return {'mode': 'block', 'prompt': {'enabled': False}}
+            return {
+                'mode': 'block',
+                'fail_open': False,
+                'prompt': {'enabled': False},
+                'file_read': {'deny_globs': ['*.bak'], 'scan_content': False},
+                'mcp': {'scan_arguments': False},
+            }
         return None
 
     mock_load.side_effect = side_effect
 
     policy = load_policy(str(repo_path))
 
-    # Repo config should have highest precedence
-    assert policy['mode'] == 'block'
-    assert policy['prompt']['enabled'] is False
+    # Knobs merge from the repo file; nothing a local file says about enforcement survives,
+    # so it cannot turn a guardrail off, widen the globs, or skip the content scan.
+    assert policy['fail_open'] is False
+    assert not {'mode', 'prompt', 'file_read', 'mcp'} & policy.keys()
 
 
 @patch('pathlib.Path.home')
@@ -177,15 +183,17 @@ def test_load_policy_precedence(mock_home: MagicMock, fs: FakeFilesystem) -> Non
     mock_home.return_value = Path('/home/testuser')
 
     # Create user config
-    fs.create_file('/home/testuser/.cycode/ai-guardrails.yaml', contents='mode: warn\nfail_open: false\n')
+    fs.create_file(
+        '/home/testuser/.cycode/ai-guardrails.yaml', contents='fail_open: false\nsecrets:\n  max_bytes: 100\n'
+    )
 
     # Create repo config
-    fs.create_file('/fake/repo/.cycode/ai-guardrails.yaml', contents='mode: block\n')
+    fs.create_file('/fake/repo/.cycode/ai-guardrails.yaml', contents='secrets:\n  max_bytes: 200\n')
 
     policy = load_policy('/fake/repo')
 
-    # mode should come from repo (highest precedence)
-    assert policy['mode'] == 'block'
+    # max_bytes should come from repo (highest precedence)
+    assert policy['secrets']['max_bytes'] == 200
     # fail_open should come from user config (repo doesn't override it)
     assert policy['fail_open'] is False
 
@@ -198,7 +206,7 @@ def test_load_policy_none_workspace_root(mock_load: MagicMock) -> None:
     policy = load_policy(None)
 
     # Should only load defaults (no repo config)
-    assert 'mode' in policy
+    assert policy == DEFAULT_POLICY
 
 
 def test_get_machine_policy_path_per_os(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -223,13 +231,13 @@ def test_load_policy_with_machine_config(
     mock_home.return_value = Path('/home/testuser')
     machine_path = Path('/machine/ai-guardrails.yaml')
     mock_machine_path.return_value = machine_path
-    fs.create_file(str(machine_path), contents='mode: warn\n')
+    fs.create_file(str(machine_path), contents='mode: warn\nsecrets:\n  timeout_ms: 5000\n')
 
     policy = load_policy()
 
-    # Machine config overrides the built-in default (block); other keys inherit from defaults.
-    assert policy['mode'] == 'warn'
-    assert policy['fail_open'] is True
+    # Machine knobs merge; `mode` is platform-managed and stripped from local files.
+    assert 'mode' not in policy
+    assert policy['secrets']['timeout_ms'] == 5000
 
 
 @patch('pathlib.Path.home')
@@ -241,12 +249,12 @@ def test_load_policy_precedence_defaults_machine_user_repo(
     mock_home.return_value = Path('/home/testuser')
     machine_path = Path('/machine/ai-guardrails.yaml')
     mock_machine_path.return_value = machine_path
-    fs.create_file(str(machine_path), contents='mode: warn\nfail_open: false\n')
+    fs.create_file(str(machine_path), contents='fail_open: false\nsecrets:\n  timeout_ms: 1000\n')
     fs.create_file('/home/testuser/.cycode/ai-guardrails.yaml', contents='fail_open: true\n')
-    fs.create_file('/fake/repo/.cycode/ai-guardrails.yaml', contents='mode: block\n')
+    fs.create_file('/fake/repo/.cycode/ai-guardrails.yaml', contents='secrets:\n  timeout_ms: 3000\n')
 
     policy = load_policy('/fake/repo')
 
-    # repo overrides machine's mode; user overrides machine's fail_open.
-    assert policy['mode'] == 'block'
+    # repo overrides machine's timeout; user overrides machine's fail_open.
+    assert policy['secrets']['timeout_ms'] == 3000
     assert policy['fail_open'] is True

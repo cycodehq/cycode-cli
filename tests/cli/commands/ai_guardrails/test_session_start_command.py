@@ -1,6 +1,7 @@
 """Tests for session-start command."""
 
 import json
+import time
 from io import StringIO
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, patch
@@ -14,6 +15,7 @@ from cycode.cli.apps.ai_guardrails.ides import claude_code as _claude_mod
 from cycode.cli.apps.ai_guardrails.ides import codex as _codex_mod
 from cycode.cli.apps.ai_guardrails.ides import copilot as _copilot_mod
 from cycode.cli.apps.ai_guardrails.ides import cursor as _cursor_mod
+from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 
 
@@ -23,6 +25,15 @@ def mock_ctx() -> MagicMock:
     ctx = MagicMock(spec=typer.Context)
     ctx.obj = {}
     return ctx
+
+
+@pytest.fixture(autouse=True)
+def mock_save_guardrail_config(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Keep tests hermetic: never read or write the real guardrail config cache."""
+    save_mock = MagicMock(return_value=True)
+    monkeypatch.setattr(_session_start_mod, 'save_guardrail_config', save_mock)
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=None))
+    return save_mock
 
 
 @pytest.fixture(autouse=True)
@@ -617,6 +628,78 @@ def test_unauthenticated_skips_session_init(
         session_start_command(mock_ctx, ide='claude-code')
 
     mock_get_client.assert_not_called()
+
+
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_session_start_fetches_guardrail_config(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_ctx: MagicMock,
+    mock_save_guardrail_config: MagicMock,
+) -> None:
+    """session-start fetches the platform guardrail config into the local cache, keyed by tenant."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-a')
+    mock_ai_client = MagicMock()
+    mock_ai_client.get_resolved_guardrails.return_value = {'ttl_seconds': 900, 'guardrails': []}
+    mock_get_client.return_value = mock_ai_client
+
+    with patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-1'}))):
+        session_start_command(mock_ctx, ide='cursor')
+
+    mock_save_guardrail_config.assert_called_once_with({'ttl_seconds': 900, 'guardrails': []}, 'tenant-a')
+
+
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_guardrail_config_fetch_failure_is_non_fatal(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_ctx: MagicMock,
+    mock_save_guardrail_config: MagicMock,
+) -> None:
+    """The client reports a failed fetch as None (it never raises); nothing is written over the cache."""
+    mock_get_auth.return_value = MagicMock()
+    mock_ai_client = MagicMock()
+    mock_ai_client.get_resolved_guardrails.return_value = None
+    mock_get_client.return_value = mock_ai_client
+
+    with patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-1'}))):
+        session_start_command(mock_ctx, ide='cursor')
+
+    mock_save_guardrail_config.assert_not_called()
+
+
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_fresh_guardrail_config_cache_skips_fetch(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_ctx: MagicMock,
+    mock_save_guardrail_config: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fetch is gated on the cache: fresh and same-tenant skips the network call entirely."""
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-a')
+    mock_ai_client = MagicMock()
+    mock_get_client.return_value = mock_ai_client
+    cached = GuardrailConfig(payload={'ttl_seconds': 900}, fetched_at=time.time(), tenant_id='tenant-a')
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=cached))
+
+    with patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-1'}))):
+        session_start_command(mock_ctx, ide='cursor')
+
+    mock_ai_client.get_resolved_guardrails.assert_not_called()
+    mock_save_guardrail_config.assert_not_called()
+
+    # Same fresh cache, but the user switched tenants: it must be refetched.
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-b')
+
+    with patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-2'}))):
+        session_start_command(mock_ctx, ide='cursor')
+
+    mock_ai_client.get_resolved_guardrails.assert_called_once()
+    mock_save_guardrail_config.assert_called_once_with(mock_ai_client.get_resolved_guardrails.return_value, 'tenant-b')
 
 
 # Skills reporting

@@ -18,6 +18,7 @@ class AISecurityManagerClient:
     _CONVERSATIONS_PATH = 'v4/ai-security/interactions/conversations'
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
     _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
+    _RESOLVED_GUARDRAILS_PATH = 'v4/ai-security/guardrails/resolved'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -91,6 +92,15 @@ class AISecurityManagerClient:
         except Exception as e:
             logger.debug('Failed to create AI hook event', exc_info=e)
             # Don't fail the hook if tracking fails
+
+    def get_resolved_guardrails(self) -> Optional[dict]:
+        """Fetch the tenant's resolved guardrail config (per-agent modes + sensitive-path globs)."""
+        try:
+            response = self.client.get(self._build_endpoint_path(self._RESOLVED_GUARDRAILS_PATH))
+            return response.json()
+        except Exception as e:
+            logger.debug('Failed to fetch resolved guardrail config', exc_info=e)
+            return None
 
     def report_session_context(
         self,

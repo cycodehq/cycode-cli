@@ -14,8 +14,9 @@ import click
 import typer
 
 from cycode.cli.apps.ai_guardrails.ides import DEFAULT_IDE_NAME, get_ide
-from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
+from cycode.cli.apps.ai_guardrails.ides.base import IDE, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.detach import is_detached_child, respawn_detached
+from cycode.cli.apps.ai_guardrails.scan.guardrail_config import apply_platform_config, load_guardrail_config
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event, should_detach_scan
 from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -61,6 +62,31 @@ def _deny_for_event(
     return HookDecision.deny(target, user_message, agent_message)
 
 
+def _should_skip_payload(ide_integration: IDE, payload: Optional[dict]) -> bool:
+    """Fast exits that never scan: empty/foreign/synthetic payloads all answer a plain allow."""
+    if not payload:
+        logger.debug('Empty or invalid JSON payload received')
+        return True
+
+    # Prevent cross-IDE processing (e.g. Cursor reading Claude Code hooks
+    # from ~/.claude/settings.json).
+    if not ide_integration.matches_payload(payload):
+        logger.debug(
+            'Payload event does not match expected IDE, skipping',
+            extra={'hook_event_name': payload.get('hook_event_name'), 'expected_ide': ide_integration.name},
+        )
+        return True
+
+    # Fork/subagent completions arrive as synthetic user turns (e.g. Claude Code's
+    # <task-notification>); they are agent-generated, not user prompts - skip before
+    # parse_hook_payload, which reads the transcript and IDE config from disk.
+    if ide_integration.is_synthetic_prompt(payload):
+        logger.debug('Synthetic prompt detected, skipping scan')
+        return True
+
+    return False
+
+
 def _initialize_clients(ctx: typer.Context) -> None:
     """Initialize API clients.
 
@@ -95,26 +121,7 @@ def scan_command(
     stdin_data = read_stdin_text().strip()
     payload = safe_json_parse(stdin_data)
 
-    if not payload:
-        logger.debug('Empty or invalid JSON payload received')
-        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
-        return
-
-    # Prevent cross-IDE processing (e.g. Cursor reading Claude Code hooks
-    # from ~/.claude/settings.json).
-    if not ide_integration.matches_payload(payload):
-        logger.debug(
-            'Payload event does not match expected IDE, skipping',
-            extra={'hook_event_name': payload.get('hook_event_name'), 'expected_ide': ide_integration.name},
-        )
-        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
-        return
-
-    # Fork/subagent completions arrive as synthetic user turns (e.g. Claude Code's
-    # <task-notification>); they are agent-generated, not user prompts - skip before
-    # parse_hook_payload, which reads the transcript and IDE config from disk.
-    if ide_integration.is_synthetic_prompt(payload):
-        logger.debug('Synthetic prompt detected, skipping scan')
+    if _should_skip_payload(ide_integration, payload):
         output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
         return
 
@@ -136,14 +143,27 @@ def scan_command(
         output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
         return
 
+    # Scans only read the cache; session-start refreshes it, so the hot path never waits on the
+    # network. Every guardrail for this event Off: skip entirely - no scan, no event, no auth.
+    config = load_guardrail_config()
+    if config is not None and config.is_event_off(event_name, ide_integration.name):
+        logger.debug('Guardrails are off for this event, allowing', extra={'event_name': event_name})
+        output_json(ide_integration.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)))
+        return
+
     # `or` (not a .get default) - Cursor sends workspace_roots=[] when no folder is open.
     workspace_roots = payload.get('workspace_roots') or ['.']
     policy = load_policy(workspace_roots[0])
+    apply_platform_config(policy, config, ide_integration.name)
 
     # Report mode: nobody consumes the verdict, so hand the scan to a detached
     # child and release the IDE immediately. Runs before any client or network
     # work. A failed respawn falls through to the synchronous path.
-    if not is_detached_child() and should_detach_scan(policy, event_name) and respawn_detached(stdin_data):
+    if (
+        not is_detached_child()
+        and should_detach_scan(config, policy, event_name, ide_integration.name)
+        and respawn_detached(stdin_data)
+    ):
         return
 
     try:

@@ -22,6 +22,18 @@ class GuardrailsMode(str, Enum):
     BLOCK = 'block'
 
 
+class GuardrailCellMode(str, Enum):
+    """A guardrail x agent cell in the platform-resolved matrix.
+
+    Separate from GuardrailsMode because Off is a platform-only state: it is not an
+    install `--mode` choice, and an off guardrail reports no mode to the server.
+    """
+
+    OFF = 'off'
+    REPORT = GuardrailsMode.REPORT.value
+    BLOCK = GuardrailsMode.BLOCK.value
+
+
 # Base CLI commands invoked from installed hooks. IDE classes append --ide flags
 # (and any other suffix) on top of these.
 CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
