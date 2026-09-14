@@ -79,6 +79,7 @@ class AISecurityManagerClient:
             'event_type': event_type,
             'outcome': outcome,
             'generation_id': payload.generation_id,
+            'model': payload.model,
             'block_reason': block_reason,
             'cli_scan_id': scan_id,
             'mcp_server_name': payload.mcp_server_name,
