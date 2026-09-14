@@ -42,6 +42,32 @@ def test_create_event_reports_a_distinct_id_per_hook_event() -> None:
     assert len(set(reported_ids)) == 2
 
 
+def test_create_event_reports_the_model_of_that_event() -> None:
+    """A model switch starts no new conversation, so the conversation's model goes stale."""
+    client, http_client = _build_client()
+    conversation_id = 'conv-1'
+    # The same conversation before and after the user switched models.
+    first = AIHookPayload(event_name='Prompt', conversation_id=conversation_id, model='grok-4.6')
+    second = AIHookPayload(event_name='Prompt', conversation_id=conversation_id, model='gpt-5.6-sol')
+
+    client.create_event(first, AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
+    client.create_event(second, AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
+
+    reported_models = [call.kwargs['body']['model'] for call in http_client.post.call_args_list]
+    assert reported_models == ['grok-4.6', 'gpt-5.6-sol']
+
+
+def test_create_event_without_a_model_reports_none() -> None:
+    """Not every IDE dialect resolves a model (e.g. a Claude Code transcript with no assistant turn yet)."""
+    client, http_client = _build_client()
+
+    client.create_event(
+        AIHookPayload(event_name='Prompt', conversation_id='conv-1'), AiHookEventType.PROMPT, AIHookOutcome.ALLOWED
+    )
+
+    assert _posted_body(http_client)['model'] is None
+
+
 def test_create_event_without_a_conversation_posts_nothing() -> None:
     client, http_client = _build_client()
 
