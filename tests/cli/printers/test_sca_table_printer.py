@@ -5,10 +5,12 @@ from rich.console import Console
 
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,
+    MALICIOUS_PACKAGE_POLICY_ID,
     PACKAGE_VULNERABILITY_POLICY_ID,
     UNMAINTAINED_PACKAGE_POLICY_ID,
 )
 from cycode.cli.printers.tables.sca_table_printer import (
+    ADVISORY_COLUMN,
     CVE_COLUMNS,
     LICENSE_COLUMN,
     MAINTAINED_SCORE_COLUMN,
@@ -110,3 +112,67 @@ def test_enrich_table_with_values_missing_score(printer: ScaTablePrinter) -> Non
     row = table.get_rows()[0]
     score_index = table.get_columns_info().index(MAINTAINED_SCORE_COLUMN)
     assert row[score_index] == 'N/A'
+
+
+def test_get_title_malicious_packages() -> None:
+    assert ScaTablePrinter._get_title(MALICIOUS_PACKAGE_POLICY_ID) == 'Malicious Packages'
+
+
+def test_get_table_malicious_packages_columns(printer: ScaTablePrinter) -> None:
+    columns = printer._get_table(MALICIOUS_PACKAGE_POLICY_ID).get_columns_info()
+
+    assert ADVISORY_COLUMN in columns
+    assert CVE_COLUMNS not in columns
+    assert UPGRADE_COLUMN not in columns
+    assert LICENSE_COLUMN not in columns
+    assert MAINTAINED_SCORE_COLUMN not in columns
+
+
+def test_get_table_malicious_packages_column_order(printer: ScaTablePrinter) -> None:
+    column_names = [column.name for column in printer._get_table(MALICIOUS_PACKAGE_POLICY_ID).get_columns_info()]
+
+    assert column_names == [
+        'Severity',
+        'Code Project',
+        'Ecosystem',
+        'Package',
+        'Advisory',
+        'Dependency Paths',
+        'Direct Dependency',
+        'Development Dependency',
+    ]
+
+
+def test_get_table_other_policies_do_not_get_the_advisory_column(printer: ScaTablePrinter) -> None:
+    for policy_id in (PACKAGE_VULNERABILITY_POLICY_ID, LICENSE_COMPLIANCE_POLICY_ID, UNMAINTAINED_PACKAGE_POLICY_ID):
+        assert ADVISORY_COLUMN not in printer._get_table(policy_id).get_columns_info()
+
+
+def test_enrich_table_with_values_populates_the_advisory(printer: ScaTablePrinter) -> None:
+    table = printer._get_table(MALICIOUS_PACKAGE_POLICY_ID)
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID,
+        file_path='/repo/package.json',
+        ecosystem='npm',
+        package_name='evil-pkg',
+        package_version='1.0.0',
+        threat_id='MAL-2024-1234',
+        advisory_url='https://osv.dev/vulnerability/MAL-2024-1234',
+    )
+
+    ScaTablePrinter._enrich_table_with_values(table, detection)
+
+    row = table.get_rows()[0]
+    advisory_index = table.get_columns_info().index(ADVISORY_COLUMN)
+    assert row[advisory_index] == 'MAL-2024-1234'
+
+
+def test_enrich_table_with_values_missing_advisory(printer: ScaTablePrinter) -> None:
+    table = printer._get_table(MALICIOUS_PACKAGE_POLICY_ID)
+    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID, file_path='/repo/package.json', package_name='evil-pkg')
+
+    ScaTablePrinter._enrich_table_with_values(table, detection)
+
+    row = table.get_rows()[0]
+    advisory_index = table.get_columns_info().index(ADVISORY_COLUMN)
+    assert row[advisory_index] == 'N/A'

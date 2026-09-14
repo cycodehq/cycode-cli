@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Callable
 
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,
+    MALICIOUS_PACKAGE_POLICY_ID,
     PACKAGE_VULNERABILITY_POLICY_ID,
     SCA_SCAN_TYPE,
     UNMAINTAINED_PACKAGE_POLICY_ID,
@@ -13,6 +14,11 @@ if TYPE_CHECKING:
     from cycode.cyclient.models import Detection
 
 _NOT_AVAILABLE = 'N/A'
+
+# Malware carries no CVSS and no patched version, so removal is the whole remediation.
+_MALICIOUS_PACKAGE_REMEDIATION = (
+    'This package has been identified as malicious. Remove it from your dependencies immediately.'
+)
 
 
 def _package_vulnerability_details(detection: 'Detection') -> list[tuple[str, str]]:
@@ -39,10 +45,30 @@ def _unmaintained_package_details(detection: 'Detection') -> list[tuple[str, str
     ]
 
 
+def _malicious_package_details(detection: 'Detection') -> list[tuple[str, str]]:
+    detection_details = detection.detection_details
+
+    # A MAL- id matches none of the CVE/GHSA/CWE URL shapes, so the advisory URL comes from the detection.
+    threat_id = detection_details.get('threat_id')
+    advisory_url = detection_details.get('advisory_url')
+    if not threat_id:
+        advisory = _NOT_AVAILABLE
+    elif advisory_url:
+        advisory = f'[link={advisory_url}]{threat_id}[/]'
+    else:
+        advisory = threat_id
+
+    return [
+        ('Advisory', advisory),
+        ('Remediation', _MALICIOUS_PACKAGE_REMEDIATION),
+    ]
+
+
 _DETAILS_BY_POLICY: dict[str, Callable[['Detection'], list[tuple[str, str]]]] = {
     PACKAGE_VULNERABILITY_POLICY_ID: _package_vulnerability_details,
     LICENSE_COMPLIANCE_POLICY_ID: _license_compliance_details,
     UNMAINTAINED_PACKAGE_POLICY_ID: _unmaintained_package_details,
+    MALICIOUS_PACKAGE_POLICY_ID: _malicious_package_details,
 }
 
 

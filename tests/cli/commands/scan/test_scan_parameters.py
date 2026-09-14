@@ -15,6 +15,7 @@ def mock_context() -> MagicMock:
         'package-vulnerabilities': True,
         'license-compliance': True,
         'unmaintained-packages': True,
+        'malicious-packages': True,
     }
     ctx.info_name = 'test-command'
     return ctx
@@ -29,6 +30,7 @@ def test_get_default_scan_parameters(mock_context: MagicMock) -> None:
     assert params['package_vulnerabilities'] is True
     assert params['license_compliance'] is True
     assert params['maintainability'] is True
+    assert params['malicious_packages'] is True
     assert params['command_type'] == 'test_command'  # hyphens replaced with underscores
     assert 'aggregation_id' in params
 
@@ -142,3 +144,30 @@ def test_get_default_scan_parameters_maintainability_filters_out_when_not_select
     params = _get_default_scan_parameters(mock_context)
 
     assert params['maintainability'] is False
+
+
+def test_get_default_scan_parameters_malicious_packages_uses_the_hyphenated_context_key(
+    mock_context: MagicMock,
+) -> None:
+    """Test that the malicious_packages wire parameter is taken from the malicious-packages context key."""
+    mock_context.obj['malicious-packages'] = False
+
+    params = _get_default_scan_parameters(mock_context)
+
+    assert params['malicious_packages'] is False
+    assert 'malicious-packages' not in params
+
+
+def test_get_default_scan_parameters_malicious_packages_filters_out_when_not_selected(
+    mock_context: MagicMock,
+) -> None:
+    """Test that narrowing --sca-scan sends an explicit False rather than omitting the parameter.
+
+    The backend runs every SCA detector when no option is mentioned at all, so a narrowed selection has to say
+    False out loud or it would silently re-enable the detector it just excluded.
+    """
+    mock_context.obj.pop('malicious-packages')
+
+    params = _get_default_scan_parameters(mock_context)
+
+    assert params['malicious_packages'] is False

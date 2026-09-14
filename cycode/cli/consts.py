@@ -315,6 +315,7 @@ SCAN_ERROR_STATUS_CODE = 2
 LICENSE_COMPLIANCE_POLICY_ID = '8f681450-49e1-4f7e-85b7-0c8fe84b3a35'
 PACKAGE_VULNERABILITY_POLICY_ID = '9369d10a-9ac0-48d3-9921-5de7fe9a37a7'
 UNMAINTAINED_PACKAGE_POLICY_ID = '7b45ee1f-ee08-4353-a00a-2586db27b0f1'
+MALICIOUS_PACKAGE_POLICY_ID = '1fe6d83a-19de-48a2-a5ba-a80fe648489b'
 
 # Shortcut dependency paths by remove all middle dependencies
 # between direct dependency and influence/vulnerable dependency.
