@@ -1,3 +1,4 @@
+import zipfile
 from typing import Optional
 
 import typer
@@ -25,6 +26,13 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
             message='The path you attempted to scan exceeds the current maximum scanning size cap (10MB). '
             'Please try ignoring irrelevant paths using the `cycode ignore --by-path` command '
             'and execute the scan again',
+        ),
+        zipfile.LargeZipFile: CliError(
+            soft_fail=True,
+            code='zip_too_large_error',
+            message='The path you attempted to scan contains too many files to pack into a single archive. '
+            'Scanning such paths requires a 64-bit Python interpreter. '
+            'Please try ignoring irrelevant paths using a .cycodeignore file and execute the scan again',
         ),
         custom_exceptions.FileCollectionError: CliError(
             soft_fail=False,
