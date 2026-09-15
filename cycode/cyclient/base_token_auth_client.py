@@ -1,3 +1,5 @@
+import secrets
+import time
 from abc import ABC, abstractmethod
 from threading import Lock
 from typing import Any, Optional
@@ -5,6 +7,7 @@ from typing import Any, Optional
 import arrow
 from requests import Response
 
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
 from cycode.cli.user_settings.jwt_creator import JwtCreator
 from cycode.cyclient.cycode_client import CycodeClient
@@ -14,6 +17,11 @@ _NGINX_PLAIN_ERRORS = [
     b'JWT Token Needed',
     b'JWT Token validation failed',
 ]
+
+# Identity provider brute-force protection rejects logins for the same user that land within
+# milliseconds of each other, so when several processes mint at once all but one are refused.
+_MINT_CONFLICT_RETRY_MIN_MS = 50
+_MINT_CONFLICT_RETRY_SPREAD_MS = 100
 
 
 class BaseTokenAuthClient(CycodeClient, ABC):
@@ -49,7 +57,20 @@ class BaseTokenAuthClient(CycodeClient, ABC):
         self._load_token_from_disk()
         if self._has_valid_token():
             return
-        self.refresh_access_token()
+
+        try:
+            self.refresh_access_token()
+        except HttpUnauthorizedError:
+            # Processes sharing one cached token all expire at the same instant, so a burst of
+            # them mints together and the identity provider refuses all but the first as a
+            # too-fast login. The winner persists a usable token, so prefer re-reading it over
+            # minting again. The wait is randomized to keep the losers from colliding a second
+            # time. A genuinely invalid token still raises on the retry.
+            time.sleep((_MINT_CONFLICT_RETRY_MIN_MS + secrets.randbelow(_MINT_CONFLICT_RETRY_SPREAD_MS)) / 1000)
+            self._load_token_from_disk()
+            if self._has_valid_token():
+                return
+            self.refresh_access_token()
 
     def _has_valid_token(self) -> bool:
         return self._access_token is not None and self._expires_in is not None and arrow.utcnow() < self._expires_in

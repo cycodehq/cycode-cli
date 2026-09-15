@@ -1,6 +1,9 @@
 import arrow
+import pytest
 import responses
+from pyfakefs.fake_filesystem import FakeFilesystem
 
+from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cyclient.cycode_token_based_client import CycodeTokenBasedClient
 from tests.conftest import _EXPECTED_API_TOKEN, create_token_based_client
 
@@ -64,6 +67,51 @@ def test_access_token_cached_creator_changed(
     client2 = create_token_based_client('client_id2', 'client_secret2')
     assert client2._access_token is None
     assert client2._expires_in is None
+
+
+@responses.activate
+def test_access_token_mint_conflict_prefers_token_persisted_by_another_process(
+    api_token_url: str, fs: FakeFilesystem
+) -> None:
+    client = create_token_based_client()
+
+    def _refuse_while_another_process_wins(_request: object) -> tuple:
+        # the process that won the race persists its token while this one is being refused
+        client._credentials_manager.update_access_token(
+            _EXPECTED_API_TOKEN, arrow.utcnow().shift(hours=1).timestamp(), client._create_jwt_creator()
+        )
+        return 401, {}, ''
+
+    responses.add_callback(responses.POST, api_token_url, callback=_refuse_while_another_process_wins)
+
+    assert client.get_access_token() == _EXPECTED_API_TOKEN
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_access_token_mint_conflict_retries_when_no_other_process_won(
+    api_token_url: str, api_token_response: responses.Response, fs: FakeFilesystem
+) -> None:
+    client = create_token_based_client()
+
+    responses.add(responses.Response(method=responses.POST, url=api_token_url, status=401))
+    responses.add(api_token_response)
+
+    assert client.get_access_token() == _EXPECTED_API_TOKEN
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_access_token_mint_conflict_raises_when_retry_is_refused_too(api_token_url: str, fs: FakeFilesystem) -> None:
+    client = create_token_based_client()
+
+    responses.add(responses.Response(method=responses.POST, url=api_token_url, status=401))
+    responses.add(responses.Response(method=responses.POST, url=api_token_url, status=401))
+
+    with pytest.raises(HttpUnauthorizedError):
+        client.get_access_token()
+
+    assert len(responses.calls) == 2
 
 
 @responses.activate
