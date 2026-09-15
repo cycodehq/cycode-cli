@@ -62,10 +62,11 @@ def test_expired_cache_detected() -> None:
 # --- lookups ---
 
 
-def test_agent_mapping_claude_code_reads_claude_column() -> None:
+def test_cells_are_read_by_ide_name() -> None:
     config = _config()
-    # cursor column is Report; claude column is Block - the claude-code ide maps onto it.
+    # cursor column is Report; the claude-code column is Block.
     assert config.can_event_block('Prompt', 'claude-code') is True
+    assert config.can_event_block('Prompt', 'Claude-Code') is True
     assert config.can_event_block('Prompt', 'cursor') is False
 
 

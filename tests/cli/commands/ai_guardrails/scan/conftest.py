@@ -15,7 +15,7 @@ def resolved_guardrails_payload(
     return {
         'ttl_seconds': 900,
         'guardrails': [
-            {'key': 'secrets_in_prompt', 'event_type': 'Prompt', 'agents': {'cursor': prompt, 'claude': 'Block'}},
+            {'key': 'secrets_in_prompt', 'event_type': 'Prompt', 'agents': {'cursor': prompt, 'claude-code': 'Block'}},
             {'key': 'secrets_in_file', 'event_type': 'FileRead', 'agents': {'cursor': file_read}},
             {
                 'key': 'sensitive_path',

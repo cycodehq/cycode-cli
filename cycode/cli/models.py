@@ -58,6 +58,7 @@ class LocalScanResult(NamedTuple):
     issue_detected: bool
     detections_count: int
     relevant_detections_count: int
+    verdict: Optional[str] = None
 
 
 @dataclass
