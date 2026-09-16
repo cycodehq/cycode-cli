@@ -21,8 +21,8 @@ from cycode.cli.apps.ai_guardrails.scan.handlers import (
 )
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
+from cycode.cli.apps.ai_guardrails.scan.utils import MAX_VIOLATION_DETAIL_LINES, build_violation_summary
 from cycode.cli.models import Document, DocumentDetections, LocalScanResult
-from cycode.cli.utils.scan_utils import MAX_VIOLATION_DETAIL_LINES, build_violation_summary
 from cycode.cyclient.models import Detection
 
 
