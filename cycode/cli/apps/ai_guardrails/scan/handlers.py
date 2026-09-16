@@ -30,7 +30,7 @@ from cycode.cli.apps.ai_guardrails.scan.types import (
     AIHookOutcome,
     BlockReason,
 )
-from cycode.cli.apps.ai_guardrails.scan.utils import is_denied_path, truncate_utf8
+from cycode.cli.apps.ai_guardrails.scan.utils import build_violation_summary, is_denied_path, truncate_utf8
 from cycode.cli.apps.scan.code_scanner import _get_scan_documents_thread_func
 from cycode.cli.apps.scan.scan_parameters import get_scan_parameters
 from cycode.cli.cli_types import ScanTypeOption, SeverityOption
@@ -38,7 +38,6 @@ from cycode.cli.files_collector.file_excluder import is_path_configured_in_exclu
 from cycode.cli.models import Document
 from cycode.cli.utils.host_info import get_hostname, get_serial_number
 from cycode.cli.utils.progress_bar import DummyProgressBar, ScanProgressBarSection
-from cycode.cli.utils.scan_utils import build_violation_summary
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails')
@@ -76,7 +75,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.PROMPT]
             if effective_mode == GuardrailsMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
-                user_message = f'{violation_summary}. Remove secrets before sending.'
+                user_message = f'Remove secrets before sending. {violation_summary}'
                 return HookDecision.deny(AiHookEventType.PROMPT, user_message)
             outcome = AIHookOutcome.WARNED
         return HookDecision.allow(AiHookEventType.PROMPT)
@@ -283,7 +282,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
             event_type=AiHookEventType.MCP_EXECUTION,
             deny_message=lambda v: f'Cycode blocked MCP tool call "{tool}". {v}',
             deny_agent_message='Do not pass secrets to tools. Use secret references (name/id) instead.',
-            ask_message=lambda v: f'{v} in MCP tool call "{tool}". Allow execution?',
+            ask_message=lambda v: f'Allow MCP tool call "{tool}"? {v}',
             ask_agent_message='Possible secrets detected in tool arguments; proceed with caution.',
         ),
         scan_text=args_text,
