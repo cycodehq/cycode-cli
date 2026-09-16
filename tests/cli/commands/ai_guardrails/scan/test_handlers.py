@@ -21,7 +21,9 @@ from cycode.cli.apps.ai_guardrails.scan.handlers import (
 )
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
-from cycode.cli.models import Document, LocalScanResult
+from cycode.cli.models import Document, DocumentDetections, LocalScanResult
+from cycode.cli.utils.scan_utils import MAX_VIOLATION_DETAIL_LINES, build_violation_summary
+from cycode.cyclient.models import Detection
 
 
 @pytest.fixture
@@ -418,6 +420,60 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
 
     assert violation_summary is None
     assert scan_id == 'scan-id-123'
+
+
+def _local_scan_result_with_detections(*shas: str) -> LocalScanResult:
+    document = Document(path='prompt-content.txt', content='some content', is_git_diff_format=False)
+    detections = [
+        Detection(
+            detection_type_id='type-id',
+            type='GitHub Token',
+            message='Hardcoded secret',
+            detection_details={'sha512': sha},
+            detection_rule_id='rule-id',
+            severity='High',
+        )
+        for sha in shas
+    ]
+    return LocalScanResult(
+        scan_id='scan-id-123',
+        report_url=None,
+        document_detections=[DocumentDetections(document=document, detections=detections)],
+        issue_detected=True,
+        detections_count=len(detections),
+        relevant_detections_count=len(detections),
+    )
+
+
+def test_violation_summary_lists_one_line_per_distinct_sha() -> None:
+    """A blocked developer needs the value hash to act on the finding (e.g. `cycode ignore --by-sha`)."""
+    summary = build_violation_summary([_local_scan_result_with_detections('sha-aaa', 'sha-bbb', 'sha-aaa')])
+
+    assert 'Cycode found 3 violations' in summary
+    assert 'GitHub Token: sha-aaa' in summary
+    assert 'GitHub Token: sha-bbb' in summary
+    # Repeated values collapse to one line; the hash identifies the value, not the occurrence
+    assert summary.count('sha-aaa') == 1
+
+
+def test_violation_summary_caps_the_detection_lines() -> None:
+    """A file full of detections must not turn the hook message into a wall of text."""
+    shas = [f'sha-{index}' for index in range(MAX_VIOLATION_DETAIL_LINES + 3)]
+
+    summary = build_violation_summary([_local_scan_result_with_detections(*shas)])
+
+    assert summary.count('GitHub Token: ') == MAX_VIOLATION_DETAIL_LINES
+    assert '...and 3 more' in summary
+
+
+def test_violation_summary_omits_lines_without_a_sha() -> None:
+    """Non-secret scan types carry no value hash, so there is nothing to list."""
+    local_scan_result = _local_scan_result_with_detections('sha-aaa')
+    local_scan_result.document_detections[0].detections[0].detection_details = {}
+
+    summary = build_violation_summary([local_scan_result])
+
+    assert 'GitHub Token' not in summary
 
 
 # Tests for handle_before_mcp_execution

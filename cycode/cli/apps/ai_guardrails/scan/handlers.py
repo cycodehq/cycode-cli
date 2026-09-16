@@ -76,7 +76,8 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.PROMPT]
             if effective_mode == GuardrailsMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
-                user_message = f'{violation_summary}. Remove secrets before sending.'
+                # Summary last: it is multi-line, so it must not be interpolated mid-sentence
+                user_message = f'Remove secrets before sending. {violation_summary}'
                 return HookDecision.deny(AiHookEventType.PROMPT, user_message)
             outcome = AIHookOutcome.WARNED
         return HookDecision.allow(AiHookEventType.PROMPT)
@@ -283,7 +284,8 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
             event_type=AiHookEventType.MCP_EXECUTION,
             deny_message=lambda v: f'Cycode blocked MCP tool call "{tool}". {v}',
             deny_agent_message='Do not pass secrets to tools. Use secret references (name/id) instead.',
-            ask_message=lambda v: f'{v} in MCP tool call "{tool}". Allow execution?',
+            # Summary last: it is multi-line, so it must not be interpolated mid-sentence
+            ask_message=lambda v: f'Allow MCP tool call "{tool}"? {v}',
             ask_agent_message='Possible secrets detected in tool arguments; proceed with caution.',
         ),
         scan_text=args_text,
