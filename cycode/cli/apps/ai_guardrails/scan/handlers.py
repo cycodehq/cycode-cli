@@ -389,7 +389,7 @@ def _perform_scan(
     with ThreadPool(processes=1) as pool:
         result = pool.apply_async(scan_batch_thread_func, (documents,))
         try:
-            scan_id, error, local_scan_result = result.get(timeout=timeout_seconds)
+            _, error, local_scan_result = result.get(timeout=timeout_seconds)
         except PoolTimeoutError:
             logger.debug('Scan timed out after %s seconds', timeout_seconds)
             raise RuntimeError(f'Scan timed out after {timeout_seconds} seconds') from None
