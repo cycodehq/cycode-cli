@@ -26,6 +26,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     get_commit_range_modified_documents,
     get_diff_file_content,
     get_diff_file_path,
+    get_local_diff_documents,
     get_pre_commit_modified_documents,
     get_staged_diff_index,
     parse_commit_range,
@@ -34,6 +35,7 @@ from cycode.cli.files_collector.documents_walk_ignore import filter_documents_wi
 from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.files_collector.sca.sca_file_collector import (
+    perform_sca_local_diff_scan_actions,
     perform_sca_pre_commit_range_scan_actions,
     perform_sca_pre_hook_range_scan_actions,
 )
@@ -420,3 +422,102 @@ def scan_pre_commit(ctx: typer.Context, repo_path: str) -> None:
 
     _SCAN_TYPE_TO_PRE_COMMIT_HANDLER[scan_type](ctx, repo_path)
     logger.debug('Pre-commit scan completed successfully')
+
+
+def _scan_sca_local_diff(
+    ctx: typer.Context, repo_path: str, commit_rev: str, paths: Optional[list[str]] = None, **_
+) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
+
+    from_commit_documents, working_tree_documents, _diff_documents = get_local_diff_documents(
+        progress_bar=ctx.obj['progress_bar'],
+        progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path=repo_path,
+        commit_rev=commit_rev,
+        paths=paths,
+    )
+
+    from_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, from_commit_documents)
+    working_tree_documents = excluder.exclude_irrelevant_documents_to_scan(
+        consts.SCA_SCAN_TYPE, working_tree_documents
+    )
+
+    is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
+    from_commit_documents = filter_documents_with_cycodeignore(
+        from_commit_documents, repo_path, is_cycodeignore_allowed
+    )
+    working_tree_documents = filter_documents_with_cycodeignore(
+        working_tree_documents, repo_path, is_cycodeignore_allowed
+    )
+
+    perform_sca_local_diff_scan_actions(repo_path, from_commit_documents, commit_rev, working_tree_documents)
+
+    _scan_commit_range_documents(ctx, from_commit_documents, working_tree_documents, scan_parameters=scan_parameters)
+
+
+def _scan_secret_local_diff(
+    ctx: typer.Context, repo_path: str, commit_rev: str, paths: Optional[list[str]] = None, **_
+) -> None:
+    _from_commit_documents, _working_tree_documents, diff_documents = get_local_diff_documents(
+        progress_bar=ctx.obj['progress_bar'],
+        progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path=repo_path,
+        commit_rev=commit_rev,
+        paths=paths,
+    )
+
+    diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SECRET_SCAN_TYPE, diff_documents)
+
+    is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
+    diff_documents = filter_documents_with_cycodeignore(diff_documents, repo_path, is_cycodeignore_allowed)
+
+    scan_documents(ctx, diff_documents, get_scan_parameters(ctx, (repo_path,)), is_git_diff=True)
+
+
+def _scan_sast_local_diff(
+    ctx: typer.Context, repo_path: str, commit_rev: str, paths: Optional[list[str]] = None, **_
+) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
+
+    _from_commit_documents, working_tree_documents, diff_documents = get_local_diff_documents(
+        progress_bar=ctx.obj['progress_bar'],
+        progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path=repo_path,
+        commit_rev=commit_rev,
+        paths=paths,
+    )
+
+    working_tree_documents = excluder.exclude_irrelevant_documents_to_scan(
+        consts.SAST_SCAN_TYPE, working_tree_documents
+    )
+    diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, diff_documents)
+
+    is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
+    working_tree_documents = filter_documents_with_cycodeignore(
+        working_tree_documents, repo_path, is_cycodeignore_allowed
+    )
+    diff_documents = filter_documents_with_cycodeignore(diff_documents, repo_path, is_cycodeignore_allowed)
+
+    _scan_commit_range_documents(ctx, working_tree_documents, diff_documents, scan_parameters=scan_parameters)
+
+
+_SCAN_TYPE_TO_LOCAL_DIFF_HANDLER = {
+    consts.SCA_SCAN_TYPE: _scan_sca_local_diff,
+    consts.SECRET_SCAN_TYPE: _scan_secret_local_diff,
+    consts.SAST_SCAN_TYPE: _scan_sast_local_diff,
+}
+
+
+def scan_local_diff(
+    ctx: typer.Context, repo_path: str, commit_rev: str, paths: Optional[list[str]] = None, **kwargs
+) -> None:
+    scan_type = ctx.obj['scan_type']
+
+    progress_bar = ctx.obj['progress_bar']
+    progress_bar.start()
+
+    if scan_type not in _SCAN_TYPE_TO_LOCAL_DIFF_HANDLER:
+        raise click.ClickException(f'Local diff scanning for {scan_type.upper()} is not supported')
+
+    _SCAN_TYPE_TO_LOCAL_DIFF_HANDLER[scan_type](ctx, repo_path, commit_rev, paths=paths, **kwargs)
+    logger.debug('Local diff scan completed successfully')
