@@ -1,3 +1,4 @@
+import zipfile
 from typing import TYPE_CHECKING, Any
 
 import click
@@ -31,6 +32,7 @@ def ctx() -> typer.Context:
         (custom_exceptions.ScanAsyncError('msg'), True),
         (custom_exceptions.HttpUnauthorizedError('msg', Response()), True),
         (custom_exceptions.ZipTooLargeError(1000), True),
+        (zipfile.LargeZipFile('Files count would require ZIP64 extensions'), True),
         (custom_exceptions.TfplanKeyError('msg'), True),
         (custom_exceptions.FileCollectionError('Failed to generate dependencies tree for pom.xml'), None),
         (git_proxy.get_invalid_git_repository_error()(), None),

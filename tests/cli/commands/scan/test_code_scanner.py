@@ -1,11 +1,18 @@
 import os
+import zipfile
 from os.path import normpath
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from cycode.cli import consts
-from cycode.cli.apps.scan.code_scanner import _perform_scan, scan_disk_files, scan_documents
+from cycode.cli.apps.scan.code_scanner import (
+    _get_scan_documents_thread_func,
+    _perform_scan,
+    _run_presigned_upload_scan,
+    scan_disk_files,
+    scan_documents,
+)
 from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
@@ -237,3 +244,101 @@ def test_perform_scan_falls_back_to_api_when_presigned_upload_raises_wrapped_err
     assert result is fallback_result
     mock_v4_async.assert_called_once()
     mock_async.assert_called_once()
+
+
+def _presigned_scan_ctx() -> MagicMock:
+    ctx = MagicMock()
+    ctx.obj = {
+        'client': MagicMock(),
+        'scan_type': consts.SECRET_SCAN_TYPE,
+        'severity_threshold': None,
+        'sync': False,
+        'progress_bar': MagicMock(),
+    }
+    return ctx
+
+
+@pytest.mark.parametrize(
+    ('is_64bit', 'expected_skip_batching', 'expected_zip_calls'),
+    [
+        # 64-bit: ZIP64 lifts the entries limit, so everything still goes up as a single ZIP
+        (True, True, 1),
+        # 32-bit: the archive can't hold that many entries; route to batches without zipping first
+        (False, None, 0),
+    ],
+)
+@patch('cycode.cli.apps.scan.code_scanner.run_parallel_batched_scan')
+@patch('cycode.cli.apps.scan.code_scanner.zip_documents')
+@patch('cycode.cli.apps.scan.code_scanner.is_64bit')
+def test_run_presigned_upload_scan_routes_by_files_count(
+    mock_is_64bit: Mock,
+    mock_zip_documents: Mock,
+    mock_run_parallel_batched_scan: Mock,
+    is_64bit: bool,
+    expected_skip_batching: bool,
+    expected_zip_calls: int,
+) -> None:
+    mock_is_64bit.return_value = is_64bit
+    documents = [Document(f'file_{index}.txt', 'content') for index in range(consts.ZIP_MAX_FILES_COUNT + 1)]
+
+    _run_presigned_upload_scan(_presigned_scan_ctx(), False, False, {}, documents, MagicMock(), MagicMock())
+
+    assert mock_zip_documents.call_count == expected_zip_calls
+    assert mock_run_parallel_batched_scan.call_args.kwargs.get('skip_batching') is expected_skip_batching
+
+
+@patch('cycode.cli.apps.scan.code_scanner.run_parallel_batched_scan')
+@patch('cycode.cli.apps.scan.code_scanner.zip_documents')
+def test_run_presigned_upload_scan_falls_back_to_batches_on_large_zip_file(
+    mock_zip_documents: Mock, mock_run_parallel_batched_scan: Mock
+) -> None:
+    # safety net: zipfile raises LargeZipFile directly instead of our own ZipTooLargeError
+    mock_zip_documents.side_effect = zipfile.LargeZipFile('Files count would require ZIP64 extensions')
+
+    _run_presigned_upload_scan(
+        _presigned_scan_ctx(), False, False, {}, [Document('file.txt', 'content')], MagicMock(), MagicMock()
+    )
+
+    assert mock_run_parallel_batched_scan.call_args.kwargs.get('skip_batching') is None
+
+
+@patch('cycode.cli.apps.scan.code_scanner.run_parallel_batched_scan')
+@patch('cycode.cli.apps.scan.code_scanner.zip_documents')
+@patch('cycode.cli.apps.scan.code_scanner._get_scan_documents_thread_func')
+def test_run_presigned_upload_scan_reuses_the_archive_it_built(
+    mock_get_thread_func: Mock, mock_zip_documents: Mock, mock_run_parallel_batched_scan: Mock
+) -> None:
+    # the archive built to check that everything fits is the one we upload; don't compress it twice
+    zipped_documents = mock_zip_documents.return_value
+
+    _run_presigned_upload_scan(
+        _presigned_scan_ctx(), False, False, {}, [Document('file.txt', 'content')], MagicMock(), MagicMock()
+    )
+
+    mock_zip_documents.assert_called_once()
+    assert mock_get_thread_func.call_args.args[-1] is zipped_documents
+    assert mock_run_parallel_batched_scan.call_args.kwargs.get('skip_batching') is True
+
+
+@patch('cycode.cli.apps.scan.code_scanner._perform_scan')
+@patch('cycode.cli.apps.scan.code_scanner.zip_documents')
+def test_scan_batch_thread_func_does_not_rezip_a_prezipped_batch(
+    mock_zip_documents: Mock, mock_perform_scan: Mock
+) -> None:
+    prezipped = MagicMock()
+    ctx = MagicMock()
+    ctx.obj = {
+        'client': MagicMock(),
+        'scan_type': consts.SECRET_SCAN_TYPE,
+        'severity_threshold': None,
+        'sync': False,
+        'progress_bar': MagicMock(),
+    }
+
+    scan_batch_thread_func = _get_scan_documents_thread_func(ctx, False, False, {}, prezipped)
+    scan_batch_thread_func([Document('file.txt', 'content')])
+
+    mock_zip_documents.assert_not_called()
+    assert mock_perform_scan.call_args.args[1] is prezipped
+    # the buffer is released once the batch is done with it
+    prezipped.cleanup.assert_called_once()

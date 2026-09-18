@@ -214,6 +214,9 @@ def _scan_commit_range_documents(
 
     zip_file_size = from_commit_zipped_documents.size + to_commit_zipped_documents.size
 
+    from_commit_zipped_documents.cleanup()
+    to_commit_zipped_documents.cleanup()
+
     detections_count = relevant_detections_count = 0
     if local_scan_result:
         detections_count = local_scan_result.detections_count

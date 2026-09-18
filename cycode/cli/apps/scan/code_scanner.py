@@ -1,5 +1,6 @@
 import os
 import time
+import zipfile
 from platform import platform
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -23,6 +24,7 @@ from cycode.cli.files_collector.path_documents import get_relevant_documents
 from cycode.cli.files_collector.sca.sca_file_collector import add_sca_dependencies_tree_documents_if_needed
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import CliError, Document, LocalScanResult
+from cycode.cli.utils.host_info import is_64bit
 from cycode.cli.utils.path_utils import get_absolute_path, get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_batch import run_parallel_batched_scan
@@ -145,6 +147,7 @@ def _get_scan_documents_thread_func(
     is_git_diff: bool,
     is_commit_range: bool,
     scan_parameters: dict,
+    prezipped: Optional['InMemoryZip'] = None,
 ) -> Callable[[list[Document]], tuple[str, CliError, LocalScanResult]]:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
@@ -164,9 +167,14 @@ def _get_scan_documents_thread_func(
 
         should_use_sync_flow = _should_use_sync_flow(command_scan_type, scan_type, sync_option)
 
+        # the single ZIP flow already built the archive to check that it fits; don't build it twice
+        zipped_documents = prezipped
+
         try:
-            logger.debug('Preparing local files, %s', {'batch_files_count': len(batch)})
-            zipped_documents = zip_documents(scan_type, batch)
+            if zipped_documents is None:
+                logger.debug('Preparing local files, %s', {'batch_files_count': len(batch)})
+                zipped_documents = zip_documents(scan_type, batch)
+
             zip_file_size = zipped_documents.size
             scan_result = _perform_scan(
                 cycode_client,
@@ -189,6 +197,9 @@ def _get_scan_documents_thread_func(
         except Exception as e:
             error = handle_scan_exception(ctx, e, return_exception=True)
             error_message = str(e)
+        finally:
+            if zipped_documents is not None:
+                zipped_documents.cleanup()
 
         if local_scan_result:
             detections_count = local_scan_result.detections_count
@@ -225,34 +236,77 @@ def _get_scan_documents_thread_func(
     return _scan_batch_thread_func
 
 
+def _log_selected_upload_mode(mode: str, reason: str, documents_count: int) -> None:
+    logger.debug(
+        'Selected upload mode, %s',
+        {
+            'mode': mode,
+            'reason': reason,
+            'documents_count': documents_count,
+            'max_files_count': consts.ZIP_MAX_FILES_COUNT,
+            'zip64_enabled': is_64bit(),
+        },
+    )
+
+
+def _exceeds_non_zip64_files_count(documents_to_scan: list[Document]) -> bool:
+    """Whether a single ZIP can't hold all the documents because ZIP64 is unavailable.
+
+    Without ZIP64 (32-bit interpreter) the archive is capped at 65,535 entries.
+    """
+    return not is_64bit() and len(documents_to_scan) > consts.ZIP_MAX_FILES_COUNT
+
+
 def _run_presigned_upload_scan(
-    scan_batch_thread_func: Callable,
-    scan_type: str,
+    ctx: typer.Context,
+    is_git_diff: bool,
+    is_commit_range: bool,
+    scan_parameters: dict,
     documents_to_scan: list[Document],
     progress_bar: 'BaseProgressBar',
     printer: 'ConsolePrinter',
 ) -> tuple:
-    try:
-        # Try to zip all documents as a single batch; ZipTooLargeError raised if it exceeds the scan type's limit
-        zip_documents(scan_type, documents_to_scan)
-        # It fits: skip batching and upload everything as one ZIP
+    scan_type = ctx.obj['scan_type']
+    documents_count = len(documents_to_scan)
+
+    def run_batched() -> tuple:
         return run_parallel_batched_scan(
-            scan_batch_thread_func,
+            _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters),
             scan_type,
             documents_to_scan,
             progress_bar=progress_bar,
-            skip_batching=True,
         )
-    except custom_exceptions.ZipTooLargeError:
+
+    if _exceeds_non_zip64_files_count(documents_to_scan):
+        # Don't waste time zipping documents we already know won't fit into a single ZIP
+        _log_selected_upload_mode('batched', 'files_count_exceeds_non_zip64_limit', documents_count)
+        return run_batched()
+
+    zipped_documents = None
+    try:
+        # Try to zip all documents as a single batch; ZipTooLargeError raised if it exceeds the scan type's limit
+        zipped_documents = zip_documents(scan_type, documents_to_scan)
+    except (custom_exceptions.ZipTooLargeError, zipfile.LargeZipFile):
+        # LargeZipFile is a safety net: the files count pre-check above should have caught it already
+        _log_selected_upload_mode('batched', 'zip_too_large', documents_count)
+        if zipped_documents is not None:
+            zipped_documents.cleanup()
+
         printer.print_warning(
             'The scan is too large to upload as a single file. This may result in corrupted scan results.'
         )
-        return run_parallel_batched_scan(
-            scan_batch_thread_func,
-            scan_type,
-            documents_to_scan,
-            progress_bar=progress_bar,
-        )
+        return run_batched()
+
+    # It fits: skip batching and upload everything as one ZIP. The archive we just built is the one
+    # that gets uploaded, so the scan doesn't pay for compressing every document twice
+    _log_selected_upload_mode('single_zip', 'fits_single_zip', documents_count)
+    return run_parallel_batched_scan(
+        _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters, zipped_documents),
+        scan_type,
+        documents_to_scan,
+        progress_bar=progress_bar,
+        skip_batching=True,
+    )
 
 
 def scan_documents(
@@ -277,18 +331,19 @@ def scan_documents(
         )
         return
 
-    scan_batch_thread_func = _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters)
-
     # Presigned single-file upload is async-only; a --sync scan must stay on the batched inline path
     # so it never builds one oversized zip to POST synchronously.
     should_use_sync_flow = _should_use_sync_flow(ctx.info_name, scan_type, ctx.obj['sync'])
     if should_use_presigned_upload(scan_type) and not should_use_sync_flow:
         errors, local_scan_results = _run_presigned_upload_scan(
-            scan_batch_thread_func, scan_type, documents_to_scan, progress_bar, printer
+            ctx, is_git_diff, is_commit_range, scan_parameters, documents_to_scan, progress_bar, printer
         )
     else:
         errors, local_scan_results = run_parallel_batched_scan(
-            scan_batch_thread_func, scan_type, documents_to_scan, progress_bar=progress_bar
+            _get_scan_documents_thread_func(ctx, is_git_diff, is_commit_range, scan_parameters),
+            scan_type,
+            documents_to_scan,
+            progress_bar=progress_bar,
         )
 
     try_set_aggregation_report_url_if_needed(ctx, scan_parameters, ctx.obj['client'], scan_type)
