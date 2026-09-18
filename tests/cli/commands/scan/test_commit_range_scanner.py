@@ -73,9 +73,7 @@ class TestScanLocalDiff:
         from cycode.cli.apps.scan.commit_range_scanner import scan_local_diff
 
         mock_handler = Mock()
-        with patch.dict(
-            commit_range_scanner._SCAN_TYPE_TO_LOCAL_DIFF_HANDLER, {consts.SECRET_SCAN_TYPE: mock_handler}
-        ):
+        with patch.dict(commit_range_scanner._SCAN_TYPE_TO_LOCAL_DIFF_HANDLER, {consts.SECRET_SCAN_TYPE: mock_handler}):
             mock_ctx = self._make_ctx(consts.SECRET_SCAN_TYPE)
             scan_local_diff(mock_ctx, repo_path='/repo', commit_rev='abc123', paths=['/repo/file.py'])
 

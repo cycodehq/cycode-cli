@@ -438,9 +438,7 @@ def _scan_sca_local_diff(
     )
 
     from_commit_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, from_commit_documents)
-    working_tree_documents = excluder.exclude_irrelevant_documents_to_scan(
-        consts.SCA_SCAN_TYPE, working_tree_documents
-    )
+    working_tree_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, working_tree_documents)
 
     is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
     from_commit_documents = filter_documents_with_cycodeignore(
