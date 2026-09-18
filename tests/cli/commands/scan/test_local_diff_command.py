@@ -119,7 +119,9 @@ class TestLocalDiffCommandPathResolution:
             assert result.exit_code == 0, result.output
             mock_scan.assert_called_once()
             _, kwargs = mock_scan.call_args
-            assert kwargs['paths'] == [os.path.join(temp_dir, 'sub', 'app.py')]
+            assert [os.path.realpath(p) for p in kwargs['paths']] == [
+                os.path.realpath(os.path.join(temp_dir, 'sub', 'app.py'))
+            ]
 
 
 class TestLocalDiffCommandFromSubdirectory:

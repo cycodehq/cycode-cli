@@ -1181,19 +1181,25 @@ class TestGetLocalDiffDocuments:
         return mock_progress_bar
 
     def test_combines_staged_and_unstaged_changes(self) -> None:
-        """A tracked file with both a staged and an unstaged edit should appear as a single diff/document."""
+        """A tracked file with both a staged and an unstaged edit should appear as a single diff/document.
+
+        Files are written with newline='' so the on-disk (and therefore committed) content is exactly
+        the LF bytes given, regardless of platform -- otherwise Python's default text-mode write
+        translates '\\n' to the OS line ending, and on Windows the resulting CRLF blob makes the
+        `from_docs[0].content == 'line1'` assertion below fail with a trailing '\\r'.
+        """
         with temporary_git_repository() as (temp_dir, repo):
             file_path = os.path.join(temp_dir, 'tracked.txt')
-            with open(file_path, 'w') as f:
+            with open(file_path, 'w', newline='') as f:
                 f.write('line1\n')
             repo.index.add(['tracked.txt'])
             repo.index.commit('initial')
 
-            with open(file_path, 'a') as f:
+            with open(file_path, 'a', newline='') as f:
                 f.write('staged\n')
             repo.index.add(['tracked.txt'])
 
-            with open(file_path, 'a') as f:
+            with open(file_path, 'a', newline='') as f:
                 f.write('unstaged\n')
 
             from_docs, work_docs, diff_docs = get_local_diff_documents(
