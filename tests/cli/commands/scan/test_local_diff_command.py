@@ -98,7 +98,7 @@ class TestLocalDiffCommandPathResolution:
     silently dropping untracked files from the scoped scan.
     """
 
-    def test_relative_path_argument_is_resolved_to_absolute(self) -> None:
+    def test_relative_path_argument_is_resolved_to_absolute(self, monkeypatch: pytest.MonkeyPatch) -> None:
         with temporary_git_repository() as (temp_dir, repo):
             os.makedirs(os.path.join(temp_dir, 'sub'))
             file_path = os.path.join(temp_dir, 'sub', 'app.py')
@@ -110,10 +110,12 @@ class TestLocalDiffCommandPathResolution:
             app = typer.Typer()
             app.command()(local_diff_command)
 
-            with (
-                patch('cycode.cli.apps.scan.local_diff.local_diff_command.scan_local_diff') as mock_scan,
-                patch('os.getcwd', return_value=temp_dir),
-            ):
+            # Actually chdir rather than patching os.getcwd(): on Windows/Python 3.9, Click's
+            # path resolution does not consistently go through the patched os.getcwd symbol,
+            # so the mock silently has no effect there and the test passes for the wrong reason
+            # (or, as happened in CI, resolves against the real process cwd instead).
+            monkeypatch.chdir(temp_dir)
+            with patch('cycode.cli.apps.scan.local_diff.local_diff_command.scan_local_diff') as mock_scan:
                 result = CliRunner().invoke(app, ['sub/app.py'], obj=MagicMock())
 
             assert result.exit_code == 0, result.output
@@ -127,7 +129,7 @@ class TestLocalDiffCommandPathResolution:
 class TestLocalDiffCommandFromSubdirectory:
     """End-to-end: invoking the command from a repo subdirectory must not fail."""
 
-    def test_scan_local_diff_called_with_repo_root_not_subdirectory(self) -> None:
+    def test_scan_local_diff_called_with_repo_root_not_subdirectory(self, monkeypatch: pytest.MonkeyPatch) -> None:
         with temporary_git_repository() as (temp_dir, repo):
             os.makedirs(os.path.join(temp_dir, 'sub'))
             file_path = os.path.join(temp_dir, 'sub', 'app.py')
@@ -139,11 +141,10 @@ class TestLocalDiffCommandFromSubdirectory:
             app = typer.Typer()
             app.command()(local_diff_command)
 
-            subdirectory = os.path.join(temp_dir, 'sub')
-            with (
-                patch('cycode.cli.apps.scan.local_diff.local_diff_command.scan_local_diff') as mock_scan,
-                patch('os.getcwd', return_value=subdirectory),
-            ):
+            # Actually chdir rather than patching os.getcwd() -- see the comment in
+            # TestLocalDiffCommandPathResolution for why the mock is unreliable on Windows.
+            monkeypatch.chdir(os.path.join(temp_dir, 'sub'))
+            with patch('cycode.cli.apps.scan.local_diff.local_diff_command.scan_local_diff') as mock_scan:
                 result = CliRunner().invoke(app, [], obj=MagicMock())
 
             assert result.exit_code == 0, result.output
