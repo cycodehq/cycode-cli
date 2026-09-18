@@ -99,6 +99,7 @@ class TestLocalDiffCommandPathResolution:
     """
 
     def test_relative_path_argument_is_resolved_to_absolute(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        original_cwd = os.getcwd()
         with temporary_git_repository() as (temp_dir, repo):
             os.makedirs(os.path.join(temp_dir, 'sub'))
             file_path = os.path.join(temp_dir, 'sub', 'app.py')
@@ -118,6 +119,12 @@ class TestLocalDiffCommandPathResolution:
             with patch('cycode.cli.apps.scan.local_diff.local_diff_command.scan_local_diff') as mock_scan:
                 result = CliRunner().invoke(app, ['sub/app.py'], obj=MagicMock())
 
+            # monkeypatch only restores the cwd at fixture teardown, which runs after this test
+            # function returns -- but temporary_git_repository()'s cleanup (below, at the end of
+            # this `with` block) runs now, inside the test. Windows can't delete a directory that
+            # is still the process's cwd, so we must chdir back out before that cleanup happens.
+            monkeypatch.chdir(original_cwd)
+
             assert result.exit_code == 0, result.output
             mock_scan.assert_called_once()
             _, kwargs = mock_scan.call_args
@@ -130,6 +137,7 @@ class TestLocalDiffCommandFromSubdirectory:
     """End-to-end: invoking the command from a repo subdirectory must not fail."""
 
     def test_scan_local_diff_called_with_repo_root_not_subdirectory(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        original_cwd = os.getcwd()
         with temporary_git_repository() as (temp_dir, repo):
             os.makedirs(os.path.join(temp_dir, 'sub'))
             file_path = os.path.join(temp_dir, 'sub', 'app.py')
@@ -146,6 +154,10 @@ class TestLocalDiffCommandFromSubdirectory:
             monkeypatch.chdir(os.path.join(temp_dir, 'sub'))
             with patch('cycode.cli.apps.scan.local_diff.local_diff_command.scan_local_diff') as mock_scan:
                 result = CliRunner().invoke(app, [], obj=MagicMock())
+
+            # See the matching comment in TestLocalDiffCommandPathResolution: must chdir back out
+            # before temporary_git_repository()'s cleanup runs, or Windows can't delete the dir.
+            monkeypatch.chdir(original_cwd)
 
             assert result.exit_code == 0, result.output
             mock_scan.assert_called_once()
