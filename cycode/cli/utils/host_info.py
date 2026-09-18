@@ -49,6 +49,11 @@ def _read_text_file(path: str) -> Optional[str]:
         return None
 
 
+def is_64bit() -> bool:
+    """Whether the running Python interpreter is 64-bit (not the OS)."""
+    return sys.maxsize > 2**32
+
+
 def get_hostname() -> Optional[str]:
     try:
         return socket.gethostname() or None

@@ -229,6 +229,12 @@ FILE_MAX_SIZE_LIMIT_IN_BYTES = 5000000
 PRESIGNED_LINK_UPLOADED_ZIP_MAX_SIZE_LIMIT_IN_BYTES = 5 * 1024 * 1024 * 1024  # 5 GB (S3 presigned POST limit)
 PRESIGNED_UPLOAD_SCAN_TYPES = {SAST_SCAN_TYPE, SECRET_SCAN_TYPE}
 
+# the non-ZIP64 central directory stores the entry count in 16 bits; ZIP64 (64-bit interpreters) lifts it
+ZIP_MAX_FILES_COUNT = 65_535
+
+# the ZIP is built in memory up to this size, and spilled to a temp file beyond it
+ZIP_SPOOL_MAX_SIZE_IN_BYTES = 64 * 1024 * 1024
+
 DEFAULT_ZIP_MAX_SIZE_LIMIT_IN_BYTES = 20 * 1024 * 1024
 ZIP_MAX_SIZE_LIMIT_IN_BYTES = {
     SCA_SCAN_TYPE: 200 * 1024 * 1024,
