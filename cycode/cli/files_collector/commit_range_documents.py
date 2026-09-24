@@ -457,6 +457,92 @@ def get_pre_commit_modified_documents(
     return git_head_documents, pre_committed_documents, diff_documents
 
 
+def _is_path_included(file_path: str, paths: Optional[list[str]]) -> bool:
+    if not paths:
+        return True
+
+    normalized_file_path = os.path.normpath(file_path)
+    for path in paths:
+        normalized_path = os.path.normpath(path)
+        if normalized_file_path == normalized_path or normalized_file_path.startswith(normalized_path + os.sep):
+            return True
+
+    return False
+
+
+def get_local_diff_documents(
+    progress_bar: 'BaseProgressBar',
+    progress_bar_section: 'ProgressBarSection',
+    repo_path: str,
+    commit_rev: str,
+    paths: Optional[list[str]] = None,
+) -> tuple[list[Document], list[Document], list[Document]]:
+    """Diffs `commit_rev` against the current working tree: staged, unstaged, and untracked changes.
+
+    Returns:
+        (from_commit_documents, working_tree_documents, diff_documents) - the same shape as
+        `get_pre_commit_modified_documents`, but compared against an arbitrary commit (not just HEAD)
+        and against the full working tree (not just the staged index), and including untracked files.
+    """
+    from_commit_documents = []
+    working_tree_documents = []
+    diff_documents = []
+
+    repo = git_proxy.get_repo(repo_path)
+
+    try:
+        diff_target = repo.commit(commit_rev)
+    except Exception as e:
+        # Repository has no commits yet; diff against the empty tree instead.
+        # (git_proxy.get_null_tree() is only a sentinel usable as the `other` side of a diff,
+        # so we resolve the well-known empty tree object itself to diff from.)
+        logger.debug(
+            'Could not resolve commit_rev, falling back to the empty tree, %s', {'commit_rev': commit_rev}, exc_info=e
+        )
+        diff_target = repo.tree(consts.GIT_EMPTY_TREE_OBJECT)
+
+    diff_index = diff_target.diff(None, create_patch=True, paths=paths or None)
+    progress_bar.set_section_length(progress_bar_section, len(diff_index))
+    for diff in diff_index:
+        progress_bar.update(progress_bar_section)
+
+        file_path = get_path_by_os(get_diff_file_path(diff, repo=repo))
+
+        diff_documents.append(
+            Document(
+                path=file_path,
+                content=get_diff_file_content(diff),
+                is_git_diff_format=True,
+            )
+        )
+
+        file_content = _get_file_content_from_commit_diff(repo, commit_rev, diff)
+        if file_content is not None:
+            from_commit_documents.append(Document(file_path, file_content))
+
+        if os.path.exists(file_path):
+            file_content = get_file_content(file_path)
+            if file_content:
+                working_tree_documents.append(Document(file_path, file_content))
+
+    for relative_path in repo.untracked_files if repo.working_tree_dir else []:
+        absolute_path = get_path_by_os(os.path.join(repo.working_tree_dir, relative_path))
+        if not _is_path_included(absolute_path, paths):
+            continue
+
+        file_content = get_file_content(absolute_path)
+        if not file_content:
+            continue
+
+        # A new, untracked file has no real diff to show against `commit_rev`; its full content
+        # stands in for both the "current" content and the diff channel (matches how `path`/
+        # `repository` scans already treat whole files: is_git_diff_format=False).
+        working_tree_documents.append(Document(absolute_path, file_content))
+        diff_documents.append(Document(absolute_path, file_content))
+
+    return from_commit_documents, working_tree_documents, diff_documents
+
+
 def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Parses a git commit range string and returns the full SHAs for the 'from' and 'to' commits.
     Also, it returns the separator in the commit range.

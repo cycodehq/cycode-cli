@@ -15,6 +15,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     calculate_pre_receive_commit_range,
     collect_commit_range_diff_documents,
     get_diff_file_path,
+    get_local_diff_documents,
     get_safe_head_reference_for_diff,
     get_staged_diff_index,
     parse_commit_range,
@@ -1167,3 +1168,172 @@ class TestCollectCommitRangeDiffDocuments:
             commit_range = a_commit.hexsha
             documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
             assert len(documents) == 2, f'Expected 2 documents from single commit A, got {len(documents)}'
+
+
+class TestGetLocalDiffDocuments:
+    """Test get_local_diff_documents: diffing a commit against the working directory."""
+
+    @staticmethod
+    def _mock_progress_bar() -> Mock:
+        mock_progress_bar = Mock()
+        mock_progress_bar.set_section_length = Mock()
+        mock_progress_bar.update = Mock()
+        return mock_progress_bar
+
+    def test_combines_staged_and_unstaged_changes(self) -> None:
+        """A tracked file with both a staged and an unstaged edit should appear as a single diff/document.
+
+        Files are written with newline='' so the on-disk (and therefore committed) content is exactly
+        the LF bytes given, regardless of platform -- otherwise Python's default text-mode write
+        translates '\\n' to the OS line ending, and on Windows the resulting CRLF blob makes the
+        `from_docs[0].content == 'line1'` assertion below fail with a trailing '\\r'.
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w', newline='') as f:
+                f.write('line1\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('initial')
+
+            with open(file_path, 'a', newline='') as f:
+                f.write('staged\n')
+            repo.index.add(['tracked.txt'])
+
+            with open(file_path, 'a', newline='') as f:
+                f.write('unstaged\n')
+
+            from_docs, work_docs, diff_docs = get_local_diff_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                commit_rev='HEAD',
+            )
+
+            assert len(from_docs) == 1
+            assert from_docs[0].content == 'line1'
+
+            assert len(work_docs) == 1
+            assert work_docs[0].content == 'line1\nstaged\nunstaged\n'
+
+            assert len(diff_docs) == 1
+            assert diff_docs[0].is_git_diff_format is True
+            assert '+staged' in diff_docs[0].content
+            assert '+unstaged' in diff_docs[0].content
+
+    def test_includes_untracked_files(self) -> None:
+        """A brand-new, never-added file should show up as full content in both channels."""
+        with temporary_git_repository() as (temp_dir, repo):
+            tracked_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(tracked_path, 'w') as f:
+                f.write('line1\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('initial')
+
+            untracked_path = os.path.join(temp_dir, 'new_secret.txt')
+            with open(untracked_path, 'w') as f:
+                f.write('super-secret-value\n')
+
+            from_docs, work_docs, diff_docs = get_local_diff_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                commit_rev='HEAD',
+            )
+
+            assert not any(doc.path == get_path_by_os(untracked_path) for doc in from_docs)
+
+            untracked_work_doc = next(doc for doc in work_docs if doc.path == get_path_by_os(untracked_path))
+            assert untracked_work_doc.content == 'super-secret-value\n'
+            assert untracked_work_doc.is_git_diff_format is False
+
+            untracked_diff_doc = next(doc for doc in diff_docs if doc.path == get_path_by_os(untracked_path))
+            assert untracked_diff_doc.content == 'super-secret-value\n'
+            assert untracked_diff_doc.is_git_diff_format is False
+
+    def test_scopes_to_requested_paths(self) -> None:
+        """Only files under the requested paths should be collected, tracked or untracked."""
+        with temporary_git_repository() as (temp_dir, repo):
+            os.makedirs(os.path.join(temp_dir, 'sub'))
+
+            included_path = os.path.join(temp_dir, 'sub', 'app.py')
+            excluded_path = os.path.join(temp_dir, 'excluded.py')
+            with open(included_path, 'w') as f:
+                f.write("print('old')\n")
+            with open(excluded_path, 'w') as f:
+                f.write("print('old')\n")
+            repo.index.add(['sub/app.py', 'excluded.py'])
+            repo.index.commit('initial')
+
+            with open(included_path, 'a') as f:
+                f.write("print('new')\n")
+            with open(excluded_path, 'a') as f:
+                f.write("print('new')\n")
+
+            untracked_included = os.path.join(temp_dir, 'sub', 'new_file.py')
+            untracked_excluded = os.path.join(temp_dir, 'new_file.py')
+            with open(untracked_included, 'w') as f:
+                f.write('secret\n')
+            with open(untracked_excluded, 'w') as f:
+                f.write('secret\n')
+
+            _from_docs, work_docs, diff_docs = get_local_diff_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                commit_rev='HEAD',
+                paths=[os.path.join(temp_dir, 'sub')],
+            )
+
+            diff_paths = {doc.path for doc in diff_docs}
+            work_paths = {doc.path for doc in work_docs}
+
+            assert diff_paths == {get_path_by_os(included_path), get_path_by_os(untracked_included)}
+            assert work_paths == {get_path_by_os(included_path), get_path_by_os(untracked_included)}
+
+    def test_uses_explicit_commit_rev_not_just_head(self) -> None:
+        """Diffing against an older commit should show changes made since that commit, not just since HEAD."""
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w') as f:
+                f.write('A\n')
+            repo.index.add(['tracked.txt'])
+            first_commit = repo.index.commit('A')
+
+            with open(file_path, 'a') as f:
+                f.write('B\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('B')
+
+            with open(file_path, 'a') as f:
+                f.write('unstaged-C\n')
+
+            _from_docs, _work_docs, diff_docs = get_local_diff_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                commit_rev=first_commit.hexsha,
+            )
+
+            assert len(diff_docs) == 1
+            assert '+B' in diff_docs[0].content
+            assert '+unstaged-C' in diff_docs[0].content
+
+    def test_empty_repository_falls_back_to_empty_tree(self) -> None:
+        """A repository with zero commits should treat all current content as new, not error out."""
+        with temporary_git_repository() as (temp_dir, _repo):
+            file_path = os.path.join(temp_dir, 'new_file.txt')
+            with open(file_path, 'w') as f:
+                f.write('brand-new-content\n')
+
+            from_docs, work_docs, diff_docs = get_local_diff_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                commit_rev='HEAD',
+            )
+
+            assert from_docs == []
+            assert len(work_docs) == 1
+            assert work_docs[0].content == 'brand-new-content\n'
+            assert len(diff_docs) == 1
+            assert diff_docs[0].content == 'brand-new-content\n'

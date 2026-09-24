@@ -72,6 +72,17 @@ def perform_sca_pre_hook_range_scan_actions(
     _add_ecosystem_related_files_if_exists(pre_committed_documents)
 
 
+def perform_sca_local_diff_scan_actions(
+    repo_path: str, from_commit_documents: list[Document], from_commit_rev: str, working_tree_documents: list[Document]
+) -> None:
+    """Same as `perform_sca_pre_hook_range_scan_actions`, but `from_commit_rev` can be any ref, not just HEAD."""
+    repo = git_proxy.get_repo(repo_path)
+    _add_ecosystem_related_files_if_exists(from_commit_documents, repo, from_commit_rev)
+    # working tree documents reflect the live filesystem (staged + unstaged + untracked), so their
+    # related project files must also be read from disk, not from a commit tree.
+    _add_ecosystem_related_files_if_exists(working_tree_documents)
+
+
 def _get_doc_ecosystem_related_project_files(
     doc: Document, documents: list[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
 ) -> list[Document]:

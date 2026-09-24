@@ -1,6 +1,7 @@
 import typer
 
 from cycode.cli.apps.scan.commit_history.commit_history_command import commit_history_command
+from cycode.cli.apps.scan.local_diff.local_diff_command import local_diff_command
 from cycode.cli.apps.scan.path.path_command import path_command
 from cycode.cli.apps.scan.pre_commit.pre_commit_command import pre_commit_command
 from cycode.cli.apps.scan.pre_push.pre_push_command import pre_push_command
@@ -26,6 +27,11 @@ app.command(name='repository', short_help='Scan the Git repository included file
 app.command(name='commit-history', short_help='Scan commit history or perform diff scanning between specific commits.')(
     commit_history_command
 )
+app.command(
+    name='local-diff',
+    short_help='Scan uncommitted changes (staged, unstaged, and untracked) against a commit. '
+    'Useful for IDE integrations.',
+)(local_diff_command)
 app.command(
     name='pre-commit',
     short_help='Use this command in pre-commit hook to scan any content that was not committed yet.',
