@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,
+    MALICIOUS_PACKAGE_POLICY_ID,
     PACKAGE_VULNERABILITY_POLICY_ID,
     UNMAINTAINED_PACKAGE_POLICY_ID,
 )
@@ -28,6 +29,7 @@ CODE_PROJECT_COLUMN = column_builder.build(name='Code Project', highlight=False)
 ECOSYSTEM_COLUMN = column_builder.build(name='Ecosystem', highlight=False)
 PACKAGE_COLUMN = column_builder.build(name='Package', highlight=False)
 CVE_COLUMNS = column_builder.build(name='CVE', highlight=False)
+ADVISORY_COLUMN = column_builder.build(name='Advisory', highlight=False)
 MAINTAINED_SCORE_COLUMN = column_builder.build(name='Maintained Score', highlight=False)
 DEPENDENCY_PATHS_COLUMN = column_builder.build(name='Dependency Paths')
 UPGRADE_COLUMN = column_builder.build(name='Upgrade')
@@ -59,6 +61,8 @@ class ScaTablePrinter(TablePrinterBase):
             return 'License Compliance'
         if policy_id == UNMAINTAINED_PACKAGE_POLICY_ID:
             return 'Unmaintained Packages'
+        if policy_id == MALICIOUS_PACKAGE_POLICY_ID:
+            return 'Malicious Packages'
 
         return 'Unknown'
 
@@ -72,6 +76,8 @@ class ScaTablePrinter(TablePrinterBase):
             table.add_column(LICENSE_COLUMN)
         elif policy_id == UNMAINTAINED_PACKAGE_POLICY_ID:
             table.add_column(MAINTAINED_SCORE_COLUMN)
+        elif policy_id == MALICIOUS_PACKAGE_POLICY_ID:
+            table.add_column(ADVISORY_COLUMN)
 
         if is_git_diff_based_scan(self.command_scan_type):
             table.add_column(REPOSITORY_COLUMN)
@@ -128,6 +134,7 @@ class ScaTablePrinter(TablePrinterBase):
         table.add_cell(UPGRADE_COLUMN, upgrade)
 
         table.add_cell(CVE_COLUMNS, detection_details.get('vulnerability_id'))
+        table.add_cell(ADVISORY_COLUMN, detection_details.get('threat_id') or 'N/A')
         table.add_cell(LICENSE_COLUMN, detection_details.get('license'))
 
         if detection.detection_type_id == UNMAINTAINED_PACKAGE_POLICY_ID:

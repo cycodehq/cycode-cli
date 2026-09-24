@@ -789,7 +789,7 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--show-secret BOOLEAN`                                    | Show secrets in plain text. See [Show/Hide Secrets](#showhide-secrets) section for more details.                                 |
 | `--soft-fail BOOLEAN`                                      | Run scan without failing, always return a non-error status code. See [Soft Fail](#soft-fail) section for more details.           |
 | `--severity-threshold [INFO\|LOW\|MEDIUM\|HIGH\|CRITICAL]` | Show only violations at the specified level or higher.                                                                           |
-| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`/`unmaintained-packages`). The default is all. |
+| `--sca-scan`                                               | Specify the SCA scan you wish to execute (`package-vulnerabilities`/`license-compliance`/`unmaintained-packages`/`malicious-packages`). The default is all. |
 | `--monitor`                                                | When specified, the scan results will be recorded in Cycode.                                                                     |
 | `--cycode-report`                                          | Display a link to the scan report in the Cycode platform in the console output.                                                  |
 | `--no-restore`                                             | When specified, Cycode will not run the restore command. This will scan direct dependencies ONLY!                                |
@@ -880,6 +880,22 @@ To scan only for unmaintained packages (packages whose [OpenSSF Scorecard](https
 In the previous example, if you wanted to only run an SCA scan on unmaintained packages, you could execute the following:
 
 `cycode scan -t sca --sca-scan unmaintained-packages repository ~/home/git/codebase`
+
+#### Malicious Packages Option
+
+> [!NOTE]
+> This option is only available to SCA scans.
+
+To scan only for malicious packages (dependencies that a security advisory has identified as malware rather than merely vulnerable), add the argument `--sca-scan malicious-packages` following the `-t sca` or `--scan-type sca` option.
+
+Malicious package violations are always reported as `Critical`, and carry no CVSS score and no fix version: the only remediation is removing the dependency.
+
+> [!NOTE]
+> Whether malicious packages are reported at all is controlled by your organization's policy. This option narrows what a scan reports; it cannot enable a policy that is turned off for your tenant.
+
+In the previous example, if you wanted to only run an SCA scan on malicious packages, you could execute the following:
+
+`cycode scan -t sca --sca-scan malicious-packages repository ~/home/git/codebase`
 
 #### Lock Restore Option
 
