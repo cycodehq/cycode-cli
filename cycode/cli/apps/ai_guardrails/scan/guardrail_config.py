@@ -37,17 +37,9 @@ _KNOWN_GUARDRAIL_KEYS = frozenset(
     )
 )
 
-# CLI --ide names to matrix column names; identity for names not listed.
-_AGENT_BY_IDE_NAME = {'claude-code': 'claude'}
-
 
 def get_config_cache_path() -> Path:
     return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / GUARDRAILS_CONFIG_FILE_NAME
-
-
-def agent_for_ide(ide_name: Optional[str]) -> str:
-    ide_name = (ide_name or '').lower()
-    return _AGENT_BY_IDE_NAME.get(ide_name, ide_name)
 
 
 def _default_sensitive_globs() -> list:
@@ -69,8 +61,9 @@ class GuardrailConfig:
         }
 
     def mode_for(self, guardrail_key: str, ide_name: Optional[str]) -> str:
+        """The platform keys the cells by our --ide names, so the lookup is direct."""
         agents = (self._guardrails.get(guardrail_key) or {}).get('agents') or {}
-        return str(agents.get(agent_for_ide(ide_name), GuardrailCellMode.REPORT.value)).lower()
+        return str(agents.get((ide_name or '').lower(), GuardrailCellMode.REPORT.value)).lower()
 
     def _modes_for_event(self, event_name: str, ide_name: Optional[str]) -> list:
         return [

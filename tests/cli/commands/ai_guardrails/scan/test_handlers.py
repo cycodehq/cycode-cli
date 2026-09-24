@@ -10,6 +10,7 @@ import typer
 from cycode.cli.apps.ai_guardrails.consts import GuardrailsMode
 from cycode.cli.apps.ai_guardrails.ides.base import DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.handlers import (
+    ScanOutcome,
     _perform_scan,
     _scan_path_for_secrets,
     _scan_text_for_secrets,
@@ -73,7 +74,7 @@ def test_handle_before_submit_prompt_no_secrets(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
     """Test that prompt with no secrets is allowed."""
-    mock_scan.return_value = (None, 'scan-id-123')
+    mock_scan.return_value = ScanOutcome(scan_id='scan-id-123')
 
     result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
@@ -91,7 +92,7 @@ def test_handle_before_submit_prompt_with_secrets_blocked(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
     """Test that prompt with secrets is blocked."""
-    mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-456')
+    mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-456', GuardrailsMode.BLOCK)
 
     result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
@@ -108,9 +109,9 @@ def test_handle_before_submit_prompt_with_secrets_blocked(
 def test_handle_before_submit_prompt_with_secrets_warned(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
-    """Test that prompt with secrets in warn mode is allowed."""
+    """Test that prompt with secrets under a Report verdict is allowed."""
     default_policy['prompt']['action'] = 'warn'
-    mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-789')
+    mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-789', GuardrailsMode.REPORT)
 
     result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
@@ -199,7 +200,7 @@ def test_handle_before_read_file_no_secrets(
 ) -> None:
     """Test that file with no secrets is allowed."""
     mock_is_denied.return_value = False
-    mock_scan.return_value = (None, 'scan-id-123')
+    mock_scan.return_value = ScanOutcome(scan_id='scan-id-123')
     payload = AIHookPayload(
         event_name='FileRead',
         ide_provider='cursor',
@@ -219,9 +220,9 @@ def test_handle_before_read_file_no_secrets(
 def test_handle_before_read_file_with_secrets(
     mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
-    """Test that file with secrets is blocked."""
+    """Test that file with secrets is blocked, and merely reported when the verdict says so."""
     mock_is_denied.return_value = False
-    mock_scan.return_value = ('Found 1 secret: password', 'scan-id-456')
+    mock_scan.return_value = ScanOutcome('Found 1 secret: password', 'scan-id-456', GuardrailsMode.BLOCK)
     payload = AIHookPayload(
         event_name='FileRead',
         ide_provider='cursor',
@@ -238,14 +239,14 @@ def test_handle_before_read_file_with_secrets(
     assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_FILE
     assert call_args.kwargs['file_path'] == '/path/to/file.txt'
 
-    # A block-mode path guardrail must not make a report-mode content scan block.
-    default_policy['file_read']['action'] = 'warn'
+    # A block-mode path guardrail must not make a Report verdict block; the developer is asked instead
     default_policy['file_read']['path_action'] = 'block'
+    mock_scan.return_value = ScanOutcome('Found 1 secret: password', 'scan-id-456', GuardrailsMode.REPORT)
 
     result = handle_before_read_file(mock_ctx, payload, default_policy)
 
     assert result.action == DecisionAction.ASK
-    assert mock_scan.call_args.kwargs['effective_mode'] == GuardrailsMode.REPORT
+    assert 'Found 1 secret: password' in result.user_message
     assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[2] == AIHookOutcome.WARNED
 
 
@@ -276,7 +277,7 @@ def test_handle_before_read_file_sensitive_path_warn_mode_scans_content(
 ) -> None:
     """Test that sensitive path in warn mode still scans file content and emits two events."""
     mock_is_denied.return_value = True
-    mock_scan.return_value = (None, 'scan-id-123')
+    mock_scan.return_value = ScanOutcome(scan_id='scan-id-123')
     default_policy['file_read']['path_action'] = 'warn'
     payload = AIHookPayload(
         event_name='FileRead',
@@ -307,7 +308,7 @@ def test_handle_before_read_file_sensitive_path_warn_mode_with_secrets(
 ) -> None:
     """Test that sensitive path in warn mode reports secrets and emits two events."""
     mock_is_denied.return_value = True
-    mock_scan.return_value = ('Found 1 secret: API key', 'scan-id-456')
+    mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-456', GuardrailsMode.REPORT)
     default_policy['file_read']['path_action'] = 'warn'
     default_policy['file_read']['action'] = 'warn'
     payload = AIHookPayload(
@@ -321,7 +322,7 @@ def test_handle_before_read_file_sensitive_path_warn_mode_with_secrets(
     mock_scan.assert_called_once()
     assert result.action == DecisionAction.ASK
     assert result.event_type == AiHookEventType.FILE_READ
-    assert 'Found 1 secret: API key' in result.user_message
+    assert '.env' in result.user_message
 
     assert mock_ctx.obj['ai_security_client'].create_event.call_count == 2
     first_event = mock_ctx.obj['ai_security_client'].create_event.call_args_list[0]
@@ -366,11 +367,9 @@ def test_scan_path_for_secrets_directory(
     """Test that _scan_path_for_secrets returns (None, None) for directories."""
     fs.create_dir('/path/to/some_directory')
 
-    result = _scan_path_for_secrets(
-        mock_ctx, '/path/to/some_directory', default_policy, payload=mock_payload, effective_mode=GuardrailsMode.BLOCK
-    )
+    result = _scan_path_for_secrets(mock_ctx, '/path/to/some_directory', default_policy, payload=mock_payload)
 
-    assert result == (None, None)
+    assert result == ScanOutcome()
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan')
@@ -386,17 +385,15 @@ def test_scan_path_for_secrets_skips_path_configured_in_exclusions(
     excluded_dir = os.path.abspath(os.path.join(os.sep, 'project', 'secrets'))
     file_path = os.path.join(excluded_dir, 'creds.env')
     fs.create_file(file_path, contents='password=hunter2')
-    mock_perform_scan.return_value = ('Cycode found 1 violations', 'scan-id-123')
+    mock_perform_scan.return_value = ScanOutcome('Cycode found 1 violations', 'scan-id-123')
 
     with patch(
         'cycode.cli.files_collector.file_excluder.configuration_manager.get_exclusions_by_scan_type',
         return_value={'paths': [excluded_dir]},
     ):
-        result = _scan_path_for_secrets(
-            mock_ctx, file_path, default_policy, payload=mock_payload, effective_mode=GuardrailsMode.BLOCK
-        )
+        result = _scan_path_for_secrets(mock_ctx, file_path, default_policy, payload=mock_payload)
 
-    assert result == (None, None)
+    assert result == ScanOutcome()
     mock_perform_scan.assert_not_called()
 
 
@@ -409,6 +406,7 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
         issue_detected=False,
         detections_count=1,
         relevant_detections_count=0,
+        verdict='Block',
     )
     document = Document(path='prompt-content.txt', content='some content', is_git_diff_format=False)
 
@@ -416,10 +414,11 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
         'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',
         return_value=lambda batch: ('scan-id-123', None, local_scan_result),
     ):
-        violation_summary, scan_id = _perform_scan(mock_ctx, [document], {}, timeout_seconds=5.0)
+        scan_outcome = _perform_scan(mock_ctx, [document], {}, timeout_seconds=5.0)
 
-    assert violation_summary is None
-    assert scan_id == 'scan-id-123'
+    assert scan_outcome.violation_summary is None
+    assert scan_outcome.scan_id == 'scan-id-123'
+    assert scan_outcome.verdict == GuardrailsMode.BLOCK
 
 
 def _local_scan_result_with_detections(*shas: str) -> LocalScanResult:
@@ -484,7 +483,7 @@ def test_handle_before_mcp_execution_no_secrets(
     mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
     """Test that MCP execution with no secrets is allowed."""
-    mock_scan.return_value = (None, 'scan-id-123')
+    mock_scan.return_value = ScanOutcome(scan_id='scan-id-123')
     payload = AIHookPayload(
         event_name='McpExecution',
         ide_provider='cursor',
@@ -504,7 +503,7 @@ def test_handle_before_mcp_execution_with_secrets_blocked(
     mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
     """Test that MCP execution with secrets is blocked."""
-    mock_scan.return_value = ('Found 1 secret: token', 'scan-id-456')
+    mock_scan.return_value = ScanOutcome('Found 1 secret: token', 'scan-id-456', GuardrailsMode.BLOCK)
     payload = AIHookPayload(
         event_name='McpExecution',
         ide_provider='cursor',
@@ -527,7 +526,7 @@ def test_handle_before_mcp_execution_with_secrets_warned(
     mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
     """Test that MCP execution with secrets in warn mode asks permission."""
-    mock_scan.return_value = ('Found 1 secret: token', 'scan-id-789')
+    mock_scan.return_value = ScanOutcome('Found 1 secret: token', 'scan-id-789', GuardrailsMode.REPORT)
     default_policy['mcp']['action'] = 'warn'
     payload = AIHookPayload(
         event_name='McpExecution',
@@ -563,13 +562,10 @@ def test_build_ai_guardrails_scan_parameters(
     """The built scan parameters embed the full hook context alongside the standard scan parameters."""
     mock_ctx.info_name = 'ai_guardrails'
 
-    params = build_ai_guardrails_scan_parameters(
-        mock_ctx, None, mock_payload, AiHookEventType.PROMPT, effective_mode=GuardrailsMode.REPORT
-    )
+    params = build_ai_guardrails_scan_parameters(mock_ctx, None, mock_payload, AiHookEventType.PROMPT)
 
     assert params['command_type'] == 'ai_guardrails'
     assert params['metadata']['ai_guardrails'] == {
-        'mode': 'report',
         'ide_provider': 'cursor',
         'detection_source': 'secrets_in_prompt',
         'device_id': 'SER-123',
@@ -590,7 +586,7 @@ def test_scan_text_for_secrets_injects_ai_guardrails_scan_parameter(
 ) -> None:
     """The scan parameters sent to the server include the ai_guardrails context."""
     mock_ctx.obj['progress_bar'] = MagicMock()
-    mock_perform_scan.return_value = (None, 'scan-id-123')
+    mock_perform_scan.return_value = ScanOutcome(scan_id='scan-id-123')
 
     _scan_text_for_secrets(
         mock_ctx,
@@ -598,11 +594,9 @@ def test_scan_text_for_secrets_injects_ai_guardrails_scan_parameter(
         1000,
         payload=mock_payload,
         event_type=AiHookEventType.PROMPT,
-        effective_mode=GuardrailsMode.REPORT,
     )
 
     ai_guardrails = mock_perform_scan.call_args.args[2]['metadata']['ai_guardrails']
-    assert ai_guardrails['mode'] == 'report'
     assert ai_guardrails['detection_source'] == 'secrets_in_prompt'
     assert ai_guardrails['conversation_id'] == 'test-conv-id'
     assert ai_guardrails['generation_id'] == 'test-gen-id'

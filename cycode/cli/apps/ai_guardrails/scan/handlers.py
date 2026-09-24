@@ -13,7 +13,7 @@ import os
 from dataclasses import dataclass
 from multiprocessing.pool import ThreadPool
 from multiprocessing.pool import TimeoutError as PoolTimeoutError
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable, NamedTuple, Optional
 
 import typer
 
@@ -45,12 +45,32 @@ logger = get_logger('AI Guardrails')
 HandlerFn = Callable[[typer.Context, AIHookPayload, dict], HookDecision]
 
 
+class ScanOutcome(NamedTuple):
+    """What one guardrail scan came back with; the verdict is the server's, which applied the tenant's floors."""
+
+    violation_summary: Optional[str] = None
+    scan_id: Optional[str] = None
+    verdict: Optional[GuardrailsMode] = None
+
+
+NO_SCAN = ScanOutcome()
+
+
+def _parse_verdict(verdict: Optional[str]) -> Optional[GuardrailsMode]:
+    """The server spells the verdict "Block"/"Report" and omits it when the scan found nothing to decide on."""
+    if not verdict:
+        return None
+    try:
+        return GuardrailsMode(verdict.lower())
+    except ValueError:
+        logger.debug('Ignoring unknown guardrail verdict, %s', {'verdict': verdict})
+        return None
+
+
 def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
     """Scan prompt text for secrets before it's sent to the AI model."""
     ai_client = ctx.obj['ai_security_client']
 
-    prompt_config = get_policy_value(policy, 'prompt', default={})
-    effective_mode = get_effective_mode(prompt_config)
     prompt = payload.prompt or ''
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
@@ -62,20 +82,20 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     error_message = None
 
     try:
-        violation_summary, scan_id = _scan_text_for_secrets(
+        scan_outcome = _scan_text_for_secrets(
             ctx,
             clipped,
             timeout_ms,
             payload=payload,
             event_type=AiHookEventType.PROMPT,
-            effective_mode=effective_mode,
         )
+        scan_id = scan_outcome.scan_id
 
-        if violation_summary:
+        if scan_outcome.violation_summary:
             block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.PROMPT]
-            if effective_mode == GuardrailsMode.BLOCK:
+            if scan_outcome.verdict == GuardrailsMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
-                user_message = f'Remove secrets before sending. {violation_summary}'
+                user_message = f'Remove secrets before sending. {scan_outcome.violation_summary}'
                 return HookDecision.deny(AiHookEventType.PROMPT, user_message)
             outcome = AIHookOutcome.WARNED
         return HookDecision.allow(AiHookEventType.PROMPT)
@@ -104,7 +124,6 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
     file_read_config = get_policy_value(policy, 'file_read', default={})
     file_path = payload.file_path or ''
     path_mode = get_effective_mode(file_read_config, action_key='path_action')
-    content_mode = get_effective_mode(file_read_config)
 
     scan_id = None
     block_reason = None
@@ -138,21 +157,20 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
                 outcome = AIHookOutcome.ALLOWED
 
         if get_policy_value(file_read_config, 'scan_content', default=True):
-            violation_summary, scan_id = _scan_path_for_secrets(
-                ctx, file_path, policy, payload=payload, effective_mode=content_mode
-            )
-            if violation_summary:
+            scan_outcome = _scan_path_for_secrets(ctx, file_path, policy, payload=payload)
+            scan_id = scan_outcome.scan_id
+            if scan_outcome.violation_summary:
                 block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.FILE_READ]
-                if content_mode == GuardrailsMode.BLOCK:
+                if scan_outcome.verdict == GuardrailsMode.BLOCK:
                     outcome = AIHookOutcome.BLOCKED
-                    user_message = f'Cycode blocked reading {file_path}. {violation_summary}'
+                    user_message = f'Cycode blocked reading {file_path}. {scan_outcome.violation_summary}'
                     return HookDecision.deny(
                         AiHookEventType.FILE_READ,
                         user_message,
                         'Secrets detected; do not send this file to the model.',
                     )
                 outcome = AIHookOutcome.WARNED
-                user_message = f'Cycode detected secrets in {file_path}. {violation_summary}'
+                user_message = f'Cycode detected secrets in {file_path}. {scan_outcome.violation_summary}'
                 return HookDecision.ask(
                     AiHookEventType.FILE_READ,
                     user_message,
@@ -192,10 +210,9 @@ class _ArgScanFeature:
     """Configuration for a "scan some text and decide" event.
 
     MCP execution and command exec share identical scan-and-decide logic;
-    only the policy key, event type, and user-facing messages differ.
+    only the event type and user-facing messages differ.
     """
 
-    policy_key: str  # 'mcp' or 'command_exec'
     event_type: AiHookEventType
     deny_message: Callable[[str], str]
     deny_agent_message: str
@@ -213,11 +230,9 @@ def _handle_arg_scan(
     """Shared scan + decision flow for MCP_EXECUTION and COMMAND_EXEC events."""
     ai_client = ctx.obj['ai_security_client']
 
-    feature_config = get_policy_value(policy, feature.policy_key, default={})
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
     clipped = truncate_utf8(scan_text, max_bytes)
-    effective_mode = get_effective_mode(feature_config)
 
     scan_id = None
     block_reason = None
@@ -225,27 +240,27 @@ def _handle_arg_scan(
     error_message = None
 
     try:
-        violation_summary, scan_id = _scan_text_for_secrets(
+        scan_outcome = _scan_text_for_secrets(
             ctx,
             clipped,
             timeout_ms,
             payload=payload,
             event_type=feature.event_type,
-            effective_mode=effective_mode,
         )
-        if violation_summary:
+        scan_id = scan_outcome.scan_id
+        if scan_outcome.violation_summary:
             block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[feature.event_type]
-            if effective_mode == GuardrailsMode.BLOCK:
+            if scan_outcome.verdict == GuardrailsMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
                 return HookDecision.deny(
                     feature.event_type,
-                    feature.deny_message(violation_summary),
+                    feature.deny_message(scan_outcome.violation_summary),
                     feature.deny_agent_message,
                 )
             outcome = AIHookOutcome.WARNED
             return HookDecision.ask(
                 feature.event_type,
-                feature.ask_message(violation_summary),
+                feature.ask_message(scan_outcome.violation_summary),
                 feature.ask_agent_message,
             )
 
@@ -278,7 +293,6 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         payload,
         policy,
         _ArgScanFeature(
-            policy_key='mcp',
             event_type=AiHookEventType.MCP_EXECUTION,
             deny_message=lambda v: f'Cycode blocked MCP tool call "{tool}". {v}',
             deny_agent_message='Do not pass secrets to tools. Use secret references (name/id) instead.',
@@ -329,11 +343,9 @@ def build_ai_guardrails_scan_parameters(
     paths: Optional[tuple[str, ...]],
     payload: AIHookPayload,
     event_type: AiHookEventType,
-    effective_mode: GuardrailsMode,
 ) -> dict:
     scan_parameters = get_scan_parameters(ctx, paths)
     scan_parameters.setdefault('metadata', {})['ai_guardrails'] = {
-        'mode': effective_mode.value,
         'ide_provider': payload.ide_provider,
         'detection_source': SECRETS_BLOCK_REASON_BY_EVENT_TYPE[event_type].value,
         'device_id': get_serial_number(),
@@ -360,13 +372,13 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
 
 def _perform_scan(
     ctx: typer.Context, documents: list[Document], scan_parameters: dict, timeout_seconds: float
-) -> tuple[Optional[str], Optional[str]]:
-    """Run a scan on documents, returning (violation_summary, scan_id).
+) -> ScanOutcome:
+    """Run a scan on documents.
 
     Raises on scan failure / timeout so the fail-open policy can take over.
     """
     if not documents:
-        return None, None
+        return NO_SCAN
 
     scan_batch_thread_func = _get_scan_documents_thread_func(
         ctx, is_git_diff=False, is_commit_range=False, scan_parameters=scan_parameters
@@ -377,7 +389,7 @@ def _perform_scan(
     with ThreadPool(processes=1) as pool:
         result = pool.apply_async(scan_batch_thread_func, (documents,))
         try:
-            scan_id, error, local_scan_result = result.get(timeout=timeout_seconds)
+            _, error, local_scan_result = result.get(timeout=timeout_seconds)
         except PoolTimeoutError:
             logger.debug('Scan timed out after %s seconds', timeout_seconds)
             raise RuntimeError(f'Scan timed out after {timeout_seconds} seconds') from None
@@ -387,15 +399,14 @@ def _perform_scan(
         raise RuntimeError(error.message)
 
     if not local_scan_result:
-        return None, None
+        return NO_SCAN
 
-    scan_id = local_scan_result.scan_id
-
-    if local_scan_result.issue_detected:
-        violation_summary = build_violation_summary([local_scan_result])
-        return violation_summary, scan_id
-
-    return None, scan_id
+    violation_summary = build_violation_summary([local_scan_result]) if local_scan_result.issue_detected else None
+    return ScanOutcome(
+        violation_summary=violation_summary,
+        scan_id=local_scan_result.scan_id,
+        verdict=_parse_verdict(local_scan_result.verdict),
+    )
 
 
 def _scan_text_for_secrets(
@@ -404,16 +415,15 @@ def _scan_text_for_secrets(
     timeout_ms: int,
     payload: AIHookPayload,
     event_type: AiHookEventType,
-    effective_mode: GuardrailsMode,
-) -> tuple[Optional[str], Optional[str]]:
+) -> ScanOutcome:
     """Scan text content for secrets using Cycode CLI."""
     if not text:
-        return None, None
+        return NO_SCAN
 
     document = Document(path='prompt-content.txt', content=text, is_git_diff_format=False)
     scan_ctx = _setup_scan_context(ctx)
     timeout_seconds = timeout_ms / 1000.0
-    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, None, payload, event_type, effective_mode)
+    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, None, payload, event_type)
     return _perform_scan(scan_ctx, [document], scan_parameters, timeout_seconds)
 
 
@@ -422,15 +432,14 @@ def _scan_path_for_secrets(
     file_path: str,
     policy: dict,
     payload: AIHookPayload,
-    effective_mode: GuardrailsMode,
-) -> tuple[Optional[str], Optional[str]]:
+) -> ScanOutcome:
     """Scan a file path for secrets."""
     if not file_path or not os.path.isfile(file_path):
-        return None, None
+        return NO_SCAN
 
     if is_path_configured_in_exclusions(str(ScanTypeOption.SECRET), os.path.abspath(file_path)):
         logger.debug('Skipping scan; the path is in the ignore paths list, %s', {'file_path': file_path})
-        return None, None
+        return NO_SCAN
 
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
 
@@ -442,7 +451,5 @@ def _scan_path_for_secrets(
 
     document = Document(path=os.path.basename(file_path), content=content, is_git_diff_format=False)
     scan_ctx = _setup_scan_context(ctx)
-    scan_parameters = build_ai_guardrails_scan_parameters(
-        scan_ctx, (file_path,), payload, AiHookEventType.FILE_READ, effective_mode
-    )
+    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, (file_path,), payload, AiHookEventType.FILE_READ)
     return _perform_scan(scan_ctx, [document], scan_parameters, timeout_seconds)
