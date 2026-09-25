@@ -16,6 +16,7 @@ from cycode.cli.apps.ai_guardrails.ides import codex as _codex_mod
 from cycode.cli.apps.ai_guardrails.ides import copilot as _copilot_mod
 from cycode.cli.apps.ai_guardrails.ides import cursor as _cursor_mod
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
+from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import McpServerStatuses
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
 
 
@@ -33,6 +34,15 @@ def mock_save_guardrail_config(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     save_mock = MagicMock(return_value=True)
     monkeypatch.setattr(_session_start_mod, 'save_guardrail_config', save_mock)
     monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=None))
+    return save_mock
+
+
+@pytest.fixture(autouse=True)
+def mock_save_mcp_server_statuses(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Keep tests hermetic: never read or write the real MCP server statuses cache."""
+    save_mock = MagicMock()
+    monkeypatch.setattr(_session_start_mod, 'save_mcp_server_statuses', save_mock)
+    monkeypatch.setattr(_session_start_mod, 'load_mcp_server_statuses', MagicMock(return_value=None))
     return save_mock
 
 
@@ -700,6 +710,133 @@ def test_fresh_guardrail_config_cache_skips_fetch(
 
     mock_ai_client.get_resolved_guardrails.assert_called_once()
     mock_save_guardrail_config.assert_called_once_with(mock_ai_client.get_resolved_guardrails.return_value, 'tenant-b')
+
+
+# MCP server statuses (unauthorized MCP server guardrail)
+
+
+def _guardrail_config_with_mcp_server(agents: dict) -> GuardrailConfig:
+    payload = {
+        'ttl_seconds': 600,
+        'guardrails': [
+            {
+                'key': 'unauthorized_mcp_server',
+                'event_type': 'McpExecution',
+                'agents': agents,
+                'settings': {'enforce_on': 'unauthorized'},
+            }
+        ],
+    }
+    return GuardrailConfig(payload=payload, fetched_at=time.time(), tenant_id='tenant-a')
+
+
+_SERVERS = [{'alias': 'github', 'normalized_id': 'pkg:gh', 'status': 'Unauthorized'}]
+
+
+@pytest.mark.parametrize(
+    'config',
+    [
+        None,
+        GuardrailConfig(payload={'guardrails': []}, fetched_at=time.time(), tenant_id='tenant-a'),
+        _guardrail_config_with_mcp_server({'cursor': 'Off', 'claude-code': 'Off'}),
+    ],
+)
+def test_mcp_server_statuses_not_fetched_while_the_guardrail_is_off(
+    config: object, monkeypatch: pytest.MonkeyPatch, mock_save_mcp_server_statuses: MagicMock
+) -> None:
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
+    ai_client = MagicMock()
+
+    _session_start_mod._sync_mcp_server_statuses(ai_client, 'tenant-a', force=True)
+
+    ai_client.get_mcp_server_statuses.assert_not_called()
+    mock_save_mcp_server_statuses.assert_not_called()
+
+
+def test_mcp_server_statuses_fetched_when_on_for_some_agent(
+    monkeypatch: pytest.MonkeyPatch, mock_save_mcp_server_statuses: MagicMock
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Off', 'claude-code': 'Report'})
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
+    ai_client = MagicMock()
+    ai_client.get_mcp_server_statuses.return_value = _SERVERS
+
+    _session_start_mod._sync_mcp_server_statuses(ai_client, 'tenant-a', force=False)
+
+    # Cached with the guardrail config's TTL.
+    mock_save_mcp_server_statuses.assert_called_once_with(_SERVERS, 'tenant-a', 600)
+
+
+def test_fresh_mcp_server_statuses_skip_the_fetch_unless_forced(
+    monkeypatch: pytest.MonkeyPatch, mock_save_mcp_server_statuses: MagicMock
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
+    cached = McpServerStatuses(servers=[], fetched_at=time.time(), tenant_id='tenant-a')
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
+    monkeypatch.setattr(_session_start_mod, 'load_mcp_server_statuses', MagicMock(return_value=cached))
+    ai_client = MagicMock()
+    ai_client.get_mcp_server_statuses.return_value = _SERVERS
+
+    _session_start_mod._sync_mcp_server_statuses(ai_client, 'tenant-a', force=False)
+    ai_client.get_mcp_server_statuses.assert_not_called()
+
+    # Another tenant's cache is refetched.
+    _session_start_mod._sync_mcp_server_statuses(ai_client, 'tenant-b', force=False)
+    assert ai_client.get_mcp_server_statuses.call_count == 1
+
+    # A just-reported session context may have brought new servers: refetch even when fresh.
+    _session_start_mod._sync_mcp_server_statuses(ai_client, 'tenant-a', force=True)
+    assert ai_client.get_mcp_server_statuses.call_count == 2
+
+
+def test_failed_mcp_server_statuses_fetch_keeps_the_cache(
+    monkeypatch: pytest.MonkeyPatch, mock_save_mcp_server_statuses: MagicMock
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
+    ai_client = MagicMock()
+    ai_client.get_mcp_server_statuses.return_value = None
+
+    _session_start_mod._sync_mcp_server_statuses(ai_client, 'tenant-a', force=True)
+
+    mock_save_mcp_server_statuses.assert_not_called()
+
+
+@patch.object(_session_start_mod, 'collect_all_session_contexts')
+@patch.object(_session_start_mod, 'get_ai_security_manager_client')
+@patch.object(_session_start_mod, 'get_authorization_info')
+def test_session_start_fetches_mcp_server_statuses_after_reporting_the_context(
+    mock_get_auth: MagicMock,
+    mock_get_client: MagicMock,
+    mock_collect: MagicMock,
+    mock_ctx: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_save_mcp_server_statuses: MagicMock,
+) -> None:
+    mock_get_auth.return_value = MagicMock(tenant_id='tenant-a')
+    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
+    # A fresh statuses cache: only the context report forces the refetch.
+    cached = McpServerStatuses(servers=[], fetched_at=time.time(), tenant_id='tenant-a')
+    monkeypatch.setattr(_session_start_mod, 'load_mcp_server_statuses', MagicMock(return_value=cached))
+    calls: list = []
+    ai_client = MagicMock()
+    ai_client.report_session_context.side_effect = lambda **_: calls.append('report') or True
+    ai_client.get_mcp_server_statuses.side_effect = lambda: calls.append('statuses') or _SERVERS
+    mock_get_client.return_value = ai_client
+
+    with patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-1'}))):
+        session_start_command(mock_ctx, ide='cursor')
+
+    assert calls == ['report', 'statuses']
+    mock_save_mcp_server_statuses.assert_called_once_with(_SERVERS, 'tenant-a', 600)
+
+    # The unchanged context is not re-reported, so the fresh cache is kept.
+    with patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-2'}))):
+        session_start_command(mock_ctx, ide='cursor')
+
+    assert calls == ['report', 'statuses']
 
 
 # Skills reporting

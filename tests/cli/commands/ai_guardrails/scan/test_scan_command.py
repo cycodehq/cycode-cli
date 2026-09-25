@@ -449,6 +449,55 @@ class TestSelfDetach:
         scan_command(mock_ctx, ide='cursor')
         mock_respawn.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ('mcp_server', 'expect_detach'),
+        [(None, True), ('off', True), ('report', True), ('block', False)],
+    )
+    def test_unauthorized_mcp_server_block_keeps_the_mcp_event_synchronous(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+        mcp_server: Optional[str],
+        expect_detach: bool,
+    ) -> None:
+        config = platform_config(mcp='report', mcp_server=mcp_server)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.MCP_EXECUTION))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=config)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value={'fail_open': True})
+
+        mocker.patch('sys.stdin', StringIO(json.dumps({'hook_event_name': 'beforeMCPExecution', 'tool_name': 't'})))
+        scan_command(mock_ctx, ide='cursor')
+
+        assert mock_respawn.called is expect_detach
+        assert handler.called is not expect_detach
+
+    def test_mcp_event_runs_when_only_the_server_check_is_on(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        mock_respawn: MagicMock,
+        not_detached: None,
+    ) -> None:
+        config = platform_config(mcp='off', mcp_server='block')
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.MCP_EXECUTION))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=config)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value={'fail_open': True})
+
+        mocker.patch('sys.stdin', StringIO(json.dumps({'hook_event_name': 'beforeMCPExecution', 'tool_name': 't'})))
+        scan_command(mock_ctx, ide='cursor')
+
+        handler.assert_called_once()
+        policy = handler.call_args.args[2]
+        assert policy['mcp']['scan_args'] is False
+        assert policy['mcp']['check_server'] is True
+        assert policy['mcp']['server_action'] == 'block'
+
     def test_failed_respawn_falls_back_to_synchronous_scan(
         self,
         mock_ctx: MagicMock,

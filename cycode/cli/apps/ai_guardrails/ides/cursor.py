@@ -64,6 +64,50 @@ def _load_cursor_mcp_config(config_path: Optional[Path] = None) -> Optional[dict
         return None
 
 
+def _cursor_mcp_config_paths(workspace_roots: object) -> list[Path]:
+    """The MCP configs a Cursor session may load servers from: each project's, then the user's."""
+    roots = workspace_roots if isinstance(workspace_roots, list) else []
+    paths = [Path(root) / _REPO_SUBDIR / _MCP_CONFIG_FILENAME for root in roots if isinstance(root, str) and root]
+    paths.append(_cursor_mcp_config_path())
+    return paths
+
+
+def _server_command_line(server: dict) -> Optional[str]:
+    command = server.get('command')
+    if not isinstance(command, str) or not command:
+        return None
+    args = server.get('args') if isinstance(server.get('args'), list) else []
+    return ' '.join([command, *(str(arg) for arg in args)])
+
+
+def _resolve_mcp_server_name(raw_payload: dict) -> Optional[str]:
+    """The ``mcp.json`` entry name of the server a beforeMCPExecution payload called.
+
+    Cursor identifies the server by its ``url`` (remote servers) or ``command`` (stdio servers)
+    rather than by the entry name the platform stores servers under, so look the entry up in the
+    MCP configs: a url matches exactly; a command matches the entry's command line (command + args),
+    or the entry name itself. Falls back to the raw ``command`` when no entry matches.
+    """
+    url = raw_payload.get('url')
+    command = raw_payload.get('command')
+    if not url and not command:
+        return None
+
+    for config_path in _cursor_mcp_config_paths(raw_payload.get('workspace_roots')):
+        servers = (_load_cursor_mcp_config(config_path) or {}).get('mcpServers')
+        if not isinstance(servers, dict):
+            continue
+        for name, server in servers.items():
+            if not isinstance(server, dict):
+                continue
+            if url and server.get('url') == url:
+                return name
+            if command and (command == _server_command_line(server) or command.lower() == str(name).lower()):
+                return name
+
+    return command
+
+
 class Cursor(IDE):
     name: ClassVar[str] = 'cursor'
     display_name: ClassVar[str] = 'Cursor'
@@ -95,7 +139,9 @@ class Cursor(IDE):
             ide_version=raw_payload.get('cursor_version'),
             prompt=raw_payload.get('prompt', ''),
             file_path=raw_payload.get('file_path') or raw_payload.get('path'),
-            mcp_server_name=raw_payload.get('command'),
+            mcp_server_name=(
+                _resolve_mcp_server_name(raw_payload) if canonical_event == AiHookEventType.MCP_EXECUTION else None
+            ),
             mcp_tool_name=raw_payload.get('tool_name') or raw_payload.get('tool'),
             mcp_arguments=(raw_payload.get('arguments') or raw_payload.get('tool_input') or raw_payload.get('input')),
         )
