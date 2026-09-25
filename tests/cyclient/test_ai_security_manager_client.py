@@ -74,3 +74,26 @@ def test_create_event_without_a_conversation_posts_nothing() -> None:
     client.create_event(AIHookPayload(event_name='Prompt'), AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
 
     http_client.post.assert_not_called()
+
+
+def test_get_mcp_server_statuses_returns_the_server_rows() -> None:
+    client, http_client = _build_client()
+    servers = [{'alias': 'github', 'normalized_id': 'pkg:gh', 'status': 'Unauthorized'}]
+    http_client.get.return_value.json.return_value = {'servers': servers}
+
+    assert client.get_mcp_server_statuses() == servers
+    http_client.get.assert_called_once_with('v4/ai-security/authorization/mcp/servers')
+
+
+def test_get_mcp_server_statuses_failure_returns_none() -> None:
+    client, http_client = _build_client()
+    http_client.get.side_effect = RuntimeError('boom')
+
+    assert client.get_mcp_server_statuses() is None
+
+
+def test_get_mcp_server_statuses_malformed_response_returns_none() -> None:
+    client, http_client = _build_client()
+    http_client.get.return_value.json.return_value = {'servers': {'github': 'Unauthorized'}}
+
+    assert client.get_mcp_server_statuses() is None

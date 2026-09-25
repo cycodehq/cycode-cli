@@ -82,7 +82,7 @@ def test_unknown_guardrail_keys_are_ignored() -> None:
     payload = _payload()
     # A future guardrail this CLI doesn't implement must never affect decisions (fail-open).
     payload['guardrails'].append(
-        {'key': 'unauthorized_mcp_server', 'event_type': 'McpExecution', 'agents': {'cursor': 'Block'}}
+        {'key': 'future_guardrail', 'event_type': 'McpExecution', 'agents': {'cursor': 'Block'}}
     )
     config = GuardrailConfig(payload=payload, fetched_at=time.time())
 
@@ -151,3 +151,71 @@ def test_apply_platform_config_sensitive_path_off_clears_globs() -> None:
 
     assert policy['file_read']['deny_globs'] == []
     assert policy['file_read']['scan_content'] is True
+
+
+# --- unauthorized MCP server guardrail ---
+
+
+def test_unauthorized_mcp_server_defaults_to_off() -> None:
+    # Unlike the other guardrails: a missing entry, or a missing agent cell, must not enable it.
+    missing_entry = _config()
+    assert missing_entry.mode_for('unauthorized_mcp_server', 'cursor') == 'off'
+    assert missing_entry.is_off_for_every_agent('unauthorized_mcp_server') is True
+
+    missing_cell = _config(mcp_server='Block')
+    assert missing_cell.mode_for('unauthorized_mcp_server', 'codex') == 'off'
+    assert missing_cell.can_event_block('McpExecution', 'codex') is False
+
+
+def test_unauthorized_mcp_server_block_makes_the_event_blockable() -> None:
+    config = _config(mcp_server='Block')
+
+    assert config.can_event_block('McpExecution', 'cursor') is True
+    assert config.is_off_for_every_agent('unauthorized_mcp_server') is False
+
+
+def test_mcp_event_is_off_only_when_both_mcp_guardrails_are_off() -> None:
+    assert _config(mcp='Off').is_event_off('McpExecution', 'cursor') is True
+    assert _config(mcp='Off', mcp_server='Off').is_event_off('McpExecution', 'cursor') is True
+    assert _config(mcp='Off', mcp_server='Report').is_event_off('McpExecution', 'cursor') is False
+
+
+@pytest.mark.parametrize(
+    ('enforce_on', 'expected'),
+    [
+        ('unauthorized', 'unauthorized'),
+        ('not_authorized', 'not_authorized'),
+        ('Not_Authorized', 'not_authorized'),
+        ('something_new', 'unauthorized'),
+        ('', 'unauthorized'),
+    ],
+)
+def test_mcp_server_enforce_on(enforce_on: str, expected: str) -> None:
+    assert _config(mcp_server='Report', enforce_on=enforce_on).mcp_server_enforce_on() == expected
+
+
+def test_apply_platform_config_without_cache_leaves_the_mcp_server_check_off() -> None:
+    policy: dict = {}
+
+    apply_platform_config(policy, None, 'cursor')
+
+    assert policy['mcp']['check_server'] is False
+    assert policy['mcp']['scan_args'] is True
+    assert policy['mcp']['server_enforce_on'] == 'unauthorized'
+
+
+def test_apply_platform_config_mcp_server_cells() -> None:
+    policy: dict = {}
+    apply_platform_config(policy, _config(mcp='Off', mcp_server='Block', enforce_on='not_authorized'), 'cursor')
+
+    assert policy['mcp']['scan_args'] is False
+    assert policy['mcp']['check_server'] is True
+    assert policy['mcp']['server_action'] == 'block'
+    assert policy['mcp']['server_enforce_on'] == 'not_authorized'
+
+    policy = {}
+    apply_platform_config(policy, _config(mcp_server='Report'), 'cursor')
+
+    assert policy['mcp']['check_server'] is True
+    assert policy['mcp']['server_action'] == 'warn'
+    assert policy['mcp']['action'] == 'warn'
