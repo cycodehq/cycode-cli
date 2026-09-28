@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock, patch
@@ -7,6 +8,7 @@ import typer
 
 from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import (
     NPM_LOCK_FILE_NAME,
+    NPM_SHRINKWRAP_FILE_NAME,
     RestoreNpmDependencies,
 )
 from cycode.cli.models import Document
@@ -159,3 +161,189 @@ class TestPrepareManifestFilePath:
     def test_non_package_json_path_returned_unchanged(self, restore_npm: RestoreNpmDependencies) -> None:
         path = str(Path('/path/to/'))
         assert restore_npm.prepare_manifest_file_path_for_command(path) == path
+
+
+class TestIsProjectInNpmWorkspace:
+    @staticmethod
+    def _member_document(member_dir: Path) -> Document:
+        manifest = member_dir / 'package.json'
+        return Document(str(manifest), manifest.read_text(), absolute_path=str(manifest))
+
+    @staticmethod
+    def _write_workspace_root(root: Path, *, lockfile_members: Optional[list] = None) -> None:
+        (root / 'package.json').write_text('{"name": "root", "workspaces": ["frontend"]}')
+        if lockfile_members is None:
+            return
+
+        packages = {'': {}}
+        for member in lockfile_members:
+            packages[member] = {}
+        (root / NPM_LOCK_FILE_NAME).write_text(json.dumps({'lockfileVersion': 3, 'packages': packages}))
+
+    def test_workspace_member_covered_by_the_root_lockfile_does_not_match(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """npm installs a workspace from the root lockfile, so a member lockfile is never used."""
+        self._write_workspace_root(tmp_path, lockfile_members=['frontend'])
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is False
+
+    def test_workspace_member_not_listed_in_the_root_lockfile_matches(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """The root lockfile covers other members, so this one still needs its own."""
+        self._write_workspace_root(tmp_path, lockfile_members=['other'])
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_workspace_root_without_a_lockfile_still_matches(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """Nothing covers the member yet, so the restore must still run."""
+        self._write_workspace_root(tmp_path)
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_nested_project_that_is_not_a_workspace_member_matches(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """A monorepo of independent packages: each one needs its own lockfile."""
+        (tmp_path / 'package.json').write_text('{"name": "outer"}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(json.dumps({'lockfileVersion': 3, 'packages': {'': {}}}))
+        member_dir = tmp_path / 'nested'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "nested"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_workspace_root_itself_still_matches(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
+        """The root owns the lockfile; try_restore_dependencies reads it instead of regenerating."""
+        self._write_workspace_root(tmp_path, lockfile_members=['frontend'])
+
+        manifest = tmp_path / 'package.json'
+        doc = Document(str(manifest), manifest.read_text(), absolute_path=str(manifest))
+
+        assert restore_npm.is_project(doc) is True
+
+    def test_root_lockfile_that_is_not_a_json_object_matches(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """A lockfile whose JSON root is not an object must not abort the scan."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["frontend"]}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text('[1, 2, 3]')
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_malformed_root_lockfile_matches(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
+        """Unparseable lockfile: fall back to generating rather than failing the scan."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["frontend"]}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text('this is not json')
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_workspace_member_covered_by_a_root_shrinkwrap_does_not_match(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """npm shrinkwrap just renames the lockfile, so it resolves the workspace the same way."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["frontend"]}')
+        (tmp_path / NPM_SHRINKWRAP_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'frontend': {}}})
+        )
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is False
+
+    def test_workspace_member_covered_by_a_lockfile_version_2_root_does_not_match(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """npm 7 writes lockfileVersion 2, which carries both "packages" and the legacy "dependencies"."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["frontend"]}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 2, 'packages': {'': {}, 'frontend': {}}, 'dependencies': {}})
+        )
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is False
+
+    def test_lockfile_version_1_root_still_matches(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
+        """Workspaces arrived in npm 7 with lockfileVersion 2, so a v1 lockfile never describes one."""
+        (tmp_path / 'package.json').write_text('{"name": "root"}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 1, 'dependencies': {'y18n': {'version': '5.0.0'}}})
+        )
+        member_dir = tmp_path / 'frontend'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "frontend"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_file_dependency_directory_still_matches(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
+        """npm records a file: target exactly like a workspace member, but only members resolve
+        through the root lockfile, so a file: target still needs its own."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "dependencies": {"local-lib": "file:local-lib"}}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'local-lib': {}}})
+        )
+        member_dir = tmp_path / 'local-lib'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "local-lib"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_workspace_glob_does_not_match_a_deeper_directory(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """A single star stops at a path separator, so packages/* must not claim packages/a/b."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/a/b': {}}})
+        )
+        member_dir = tmp_path / 'packages' / 'a' / 'b'
+        member_dir.mkdir(parents=True)
+        (member_dir / 'package.json').write_text('{"name": "deep"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is True
+
+    def test_workspace_glob_star_matches_a_direct_child(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/member': {}}})
+        )
+        member_dir = tmp_path / 'packages' / 'member'
+        member_dir.mkdir(parents=True)
+        (member_dir / 'package.json').write_text('{"name": "member"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is False
+
+    def test_workspaces_object_form_is_honoured(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
+        """npm also accepts {"workspaces": {"packages": [...]}}."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": {"packages": ["packages/member"]}}')
+        (tmp_path / NPM_LOCK_FILE_NAME).write_text(
+            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/member': {}}})
+        )
+        member_dir = tmp_path / 'packages' / 'member'
+        member_dir.mkdir(parents=True)
+        (member_dir / 'package.json').write_text('{"name": "member"}')
+
+        assert restore_npm.is_project(self._member_document(member_dir)) is False
