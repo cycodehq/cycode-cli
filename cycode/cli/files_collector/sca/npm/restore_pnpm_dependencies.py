@@ -5,6 +5,7 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
+from cycode.cli.files_collector.sca.npm.workspace import is_covered_workspace_member, scan_roots_from_context
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content
 from cycode.logger import get_logger
@@ -43,6 +44,9 @@ class RestorePnpmDependencies(BaseRestoreDependencies):
         manifest_dir = self.get_manifest_dir(document)
         if manifest_dir and (Path(manifest_dir) / PNPM_LOCK_FILE_NAME).is_file():
             return True
+
+        if is_covered_workspace_member(manifest_dir, document.path, scan_roots_from_context(self.ctx)):
+            return False
 
         return _indicates_pnpm(document.content)
 

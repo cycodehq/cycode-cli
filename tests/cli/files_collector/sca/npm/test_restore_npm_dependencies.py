@@ -60,6 +60,19 @@ class TestIsProject:
         doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
         assert restore_npm.is_project(doc) is False
 
+    def test_package_json_with_only_a_binary_bun_lock_still_matches(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """Bun restores only from a text bun.lock, so npm must stay the fallback for a Bun <1.2 project.
+
+        Excluding bun.lockb here would leave such a project with no handler at all and no collected
+        dependencies, which is worse than an npm-resolved lockfile.
+        """
+        (tmp_path / 'package.json').write_text('{"name": "test"}')
+        (tmp_path / 'bun.lockb').write_bytes(b'\x00bun-binary-lockfile')
+        doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
+        assert restore_npm.is_project(doc) is True
+
     def test_tsconfig_json_does_not_match(self, restore_npm: RestoreNpmDependencies) -> None:
         doc = Document('tsconfig.json', '{}')
         assert restore_npm.is_project(doc) is False
@@ -107,8 +120,20 @@ class TestGetLockFileName:
     def test_get_lock_file_name(self, restore_npm: RestoreNpmDependencies) -> None:
         assert restore_npm.get_lock_file_name() == NPM_LOCK_FILE_NAME
 
-    def test_get_lock_file_names_contains_only_npm_lock(self, restore_npm: RestoreNpmDependencies) -> None:
-        assert restore_npm.get_lock_file_names() == [NPM_LOCK_FILE_NAME]
+    def test_get_lock_file_names_contains_both_npm_lockfile_spellings(
+        self, restore_npm: RestoreNpmDependencies
+    ) -> None:
+        """A project may commit npm-shrinkwrap.json instead of package-lock.json; both must be honoured."""
+        assert restore_npm.get_lock_file_names() == [NPM_LOCK_FILE_NAME, NPM_SHRINKWRAP_FILE_NAME]
+
+    def test_restored_name_keeps_the_shrinkwrap_spelling(self, restore_npm: RestoreNpmDependencies) -> None:
+        """The collected document must report the file we actually read, not a renamed copy."""
+        path = str(Path('/repo/npm-shrinkwrap.json'))
+        assert restore_npm.get_restored_lock_file_name(path) == NPM_SHRINKWRAP_FILE_NAME
+
+    def test_restored_name_defaults_to_package_lock(self, restore_npm: RestoreNpmDependencies) -> None:
+        path = str(Path('/repo/package-lock.json'))
+        assert restore_npm.get_restored_lock_file_name(path) == NPM_LOCK_FILE_NAME
 
 
 _BASE_MODULE = 'cycode.cli.files_collector.sca.base_restore_dependencies'
@@ -136,6 +161,24 @@ class TestCleanup:
 
         assert result is not None
         assert not lock_path.exists(), f'{NPM_LOCK_FILE_NAME} must be deleted after restore'
+
+    def test_committed_shrinkwrap_is_used_instead_of_regenerating(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """A project may ship npm-shrinkwrap.json; regenerating would re-resolve it against the registry."""
+        (tmp_path / 'package.json').write_text('{"name": "test"}')
+        shrinkwrap_path = tmp_path / NPM_SHRINKWRAP_FILE_NAME
+        shrinkwrap_path.write_text('{"lockfileVersion": 3, "packages": {"": {}}}')
+        doc = Document(str(tmp_path / 'package.json'), '{"name": "test"}', absolute_path=str(tmp_path / 'package.json'))
+
+        with patch(f'{_BASE_MODULE}.execute_commands') as mock_execute:
+            result = restore_npm.try_restore_dependencies(doc)
+
+        mock_execute.assert_not_called()
+        assert result is not None
+        assert result.content == shrinkwrap_path.read_text()
+        assert Path(result.path).name == NPM_SHRINKWRAP_FILE_NAME
+        assert shrinkwrap_path.exists(), 'A committed lockfile must not be deleted'
 
     def test_preexisting_lockfile_is_not_deleted(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "test"}')

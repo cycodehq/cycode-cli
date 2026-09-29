@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import click
@@ -5,7 +7,11 @@ import pytest
 import typer
 
 from cycode.cli.exceptions.custom_exceptions import FileCollectionError
-from cycode.cli.files_collector.sca.sca_file_collector import _try_restore_dependencies
+from cycode.cli.files_collector.sca.npm import workspace
+from cycode.cli.files_collector.sca.sca_file_collector import (
+    _add_dependencies_tree_documents,
+    _try_restore_dependencies,
+)
 from cycode.cli.models import Document
 
 
@@ -77,3 +83,26 @@ class TestTryRestoreDependencies:
 
         assert result is not None
         assert result.content == ''
+
+
+class TestNpmWorkspaceCacheLifetime:
+    def test_each_scan_starts_with_a_cleared_npm_workspace_cache(self, tmp_path: Path) -> None:
+        """The cache memoises root lockfiles by path; a later scan must not inherit a previous scan's view."""
+        root_manifest = tmp_path / 'package.json'
+        root_manifest.write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        lock_file = tmp_path / 'package-lock.json'
+        lock_file.write_text(json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/other': {}}}))
+
+        member_dir = tmp_path / 'packages' / 'app'
+        member_dir.mkdir(parents=True)
+        manifest = member_dir / 'package.json'
+        manifest.write_text('{"name": "app"}')
+
+        assert workspace.find_covering_workspace(str(member_dir)) is None
+
+        lock_file.write_text(json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/app': {}}}))
+
+        ctx = _make_ctx()
+        _add_dependencies_tree_documents(ctx, [Document(str(manifest), manifest.read_text())])
+
+        assert workspace.find_covering_workspace(str(member_dir)) is not None
