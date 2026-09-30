@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Optional
 
-import typer
 import yaml
 
 from cycode.cli.utils.path_utils import get_absolute_path, is_sub_path
@@ -62,6 +61,7 @@ _PNPM_LOCKFILE_ROOT_IMPORTER = '.'
 _NODE_MODULES_SEPARATOR = 'node_modules/'
 _GIT_DIR_NAME = '.git'
 _NEGATION_PREFIX = '!'
+_YAML_COMMENT_PREFIX = '#'
 
 _FileStamp = tuple[str, int, int]
 
@@ -89,31 +89,6 @@ def clear_cache() -> None:
     _workspace_patterns_cache.clear()
     _workspace_pattern_regex_cache.clear()
     _reported_unscanned_roots.clear()
-
-
-def _as_scan_root(value: object) -> Optional[str]:
-    if isinstance(value, (str, os.PathLike)):
-        return os.fspath(value) or None
-
-    return None
-
-
-def scan_roots_from_context(ctx: typer.Context) -> tuple:
-    params = getattr(ctx, 'params', None)
-    if not isinstance(params, dict):
-        return ()
-
-    roots = []
-
-    single_root = _as_scan_root(params.get('path'))
-    if single_root:
-        roots.append(single_root)
-
-    paths = params.get('paths')
-    if isinstance(paths, (list, tuple)):
-        roots.extend(root for root in (_as_scan_root(entry) for entry in paths) if root)
-
-    return tuple(dict.fromkeys(roots))
 
 
 def _resolved_path(path: object) -> str:
@@ -280,6 +255,9 @@ def _read_pnpm_importers_section(lock_file: Path) -> str:
             if line.startswith(f'{_PNPM_LOCKFILE_IMPORTERS_SECTION}:'):
                 inside = True
                 section.append(line)
+            continue
+
+        if line.startswith(_YAML_COMMENT_PREFIX):
             continue
 
         if line and not line[0].isspace():

@@ -9,10 +9,9 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     MANIFEST_FILE_NAME,
     YARN_LOCK_FILE_NAME,
     is_covered_workspace_member,
-    scan_roots_from_context,
 )
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_scan_roots_from_context
 from cycode.logger import get_logger
 
 logger = get_logger('Yarn Restore Dependencies')
@@ -49,7 +48,7 @@ class RestoreYarnDependencies(BaseRestoreDependencies):
         if manifest_dir and (Path(manifest_dir) / YARN_LOCK_FILE_NAME).is_file():
             return True
 
-        if is_covered_workspace_member(manifest_dir, document.path, scan_roots_from_context(self.ctx)):
+        if is_covered_workspace_member(manifest_dir, document.path, get_scan_roots_from_context(self.ctx)):
             return False
 
         return _indicates_yarn(document.content)

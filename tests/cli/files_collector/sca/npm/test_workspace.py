@@ -15,9 +15,9 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     clear_cache,
     find_covering_workspace,
     is_covered_workspace_member,
-    scan_roots_from_context,
 )
 from cycode.cli.models import Document
+from cycode.cli.utils.path_utils import get_scan_roots_from_context
 
 
 @pytest.fixture(autouse=True)
@@ -674,21 +674,21 @@ class TestScanRootsFromContext:
         ],
     )
     def test_path_objects_are_accepted(self, command: str, params: dict) -> None:
-        assert scan_roots_from_context(self._ctx(params)) == (str(Path('/repo/member')),), command
+        assert get_scan_roots_from_context(self._ctx(params)) == (str(Path('/repo/member')),), command
 
     def test_strings_are_still_accepted(self) -> None:
-        assert scan_roots_from_context(self._ctx({'path': '/repo/member'})) == ('/repo/member',)
+        assert get_scan_roots_from_context(self._ctx({'path': '/repo/member'})) == ('/repo/member',)
 
     def test_every_scanned_path_is_returned(self) -> None:
         """cycode scan path ./a ./b scans both, so both must count as scan roots."""
         params = {'paths': [Path('/repo/a'), Path('/repo/b')]}
 
-        assert scan_roots_from_context(self._ctx(params)) == (str(Path('/repo/a')), str(Path('/repo/b')))
+        assert get_scan_roots_from_context(self._ctx(params)) == (str(Path('/repo/a')), str(Path('/repo/b')))
 
     def test_empty_and_missing_params_are_safe(self) -> None:
-        assert scan_roots_from_context(self._ctx({})) == ()
-        assert scan_roots_from_context(self._ctx({'path': None, 'paths': None})) == ()
-        assert scan_roots_from_context(MagicMock(spec=typer.Context)) == ()
+        assert get_scan_roots_from_context(self._ctx({})) == ()
+        assert get_scan_roots_from_context(self._ctx({'path': None, 'paths': None})) == ()
+        assert get_scan_roots_from_context(MagicMock(spec=typer.Context)) == ()
 
 
 class TestSymlinkedScanRoot:
@@ -773,3 +773,59 @@ class TestPnpmLockfileMembership:
         member_dir = _write_member(tmp_path, 'packages/app')
 
         assert find_covering_workspace(str(member_dir)) is None
+
+
+class TestPnpmImportersSlicing:
+    """The importers block is sliced by line, so anything that looks like a top-level key matters."""
+
+    @staticmethod
+    def _members(tmp_path: Path, lockfile_text: str) -> frozenset:
+        lock_file = tmp_path / 'pnpm-lock.yaml'
+        lock_file.write_text(lockfile_text)
+        return workspace._pnpm_lockfile_member_names(lock_file)
+
+    def test_a_comment_at_column_zero_does_not_end_the_block(self, tmp_path: Path) -> None:
+        """Truncating here would drop every later member and hand a pnpm project to npm."""
+        text = (
+            "lockfileVersion: '9.0'\n"
+            'importers:\n'
+            '  .:\n'
+            '    dependencies: {}\n'
+            '# a comment written by hand\n'
+            '  packages/app:\n'
+            '    dependencies: {}\n'
+            'packages: {}\n'
+        )
+
+        assert self._members(tmp_path, text) == frozenset({'packages/app'})
+
+    def test_a_real_top_level_key_still_ends_the_block(self, tmp_path: Path) -> None:
+        text = (
+            "lockfileVersion: '9.0'\n"
+            'importers:\n'
+            '  packages/app:\n'
+            '    dependencies: {}\n'
+            'packages:\n'
+            '  not-a-member@1.0.0:\n'
+            '    resolution: {integrity: sha512-x}\n'
+        )
+
+        assert self._members(tmp_path, text) == frozenset({'packages/app'})
+
+    @pytest.mark.parametrize(
+        ('label', 'text', 'expected'),
+        [
+            ('flow style', "lockfileVersion: '9.0'\nimporters: {.: {}, packages/app: {}}\n", {'packages/app'}),
+            (
+                'crlf',
+                "lockfileVersion: '9.0'\r\nimporters:\r\n  packages/app:\r\n    dependencies: {}\r\n",
+                {'packages/app'},
+            ),
+            ('dot slash prefix', "lockfileVersion: '9.0'\nimporters:\n  ./packages/app: {}\n", {'packages/app'}),
+            ('no trailing newline', "lockfileVersion: '9.0'\nimporters:\n  packages/app: {}", {'packages/app'}),
+            ('no importers', "lockfileVersion: '9.0'\npackages: {}\n", set()),
+            ('root importer only', "lockfileVersion: '9.0'\nimporters:\n  .: {}\n", set()),
+        ],
+    )
+    def test_lockfile_shapes(self, tmp_path: Path, label: str, text: str, expected: set) -> None:
+        assert self._members(tmp_path, text) == frozenset(expected), label

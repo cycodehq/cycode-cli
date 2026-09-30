@@ -12,9 +12,9 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     PNPM_LOCK_FILE_NAME,
     YARN_LOCK_FILE_NAME,
     is_covered_workspace_member,
-    scan_roots_from_context,
 )
 from cycode.cli.models import Document
+from cycode.cli.utils.path_utils import get_scan_roots_from_context
 from cycode.logger import get_logger
 
 logger = get_logger('NPM Restore Dependencies')
@@ -58,7 +58,7 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
                 )
                 return False
 
-        return not is_covered_workspace_member(manifest_dir, document.path, scan_roots_from_context(self.ctx))
+        return not is_covered_workspace_member(manifest_dir, document.path, get_scan_roots_from_context(self.ctx))
 
     def get_commands(self, manifest_file_path: str) -> list[list[str]]:
         return [

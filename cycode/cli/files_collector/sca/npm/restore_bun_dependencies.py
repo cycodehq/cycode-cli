@@ -10,10 +10,9 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     BUN_LOCK_FILE_NAME,
     MANIFEST_FILE_NAME,
     is_covered_workspace_member,
-    scan_roots_from_context,
 )
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_scan_roots_from_context
 from cycode.cli.utils.shell_executor import shell
 from cycode.logger import get_logger
 
@@ -66,7 +65,7 @@ class RestoreBunDependencies(BaseRestoreDependencies):
         if manifest_dir and (Path(manifest_dir) / BUN_LOCK_FILE_NAME).is_file():
             return True
 
-        if is_covered_workspace_member(manifest_dir, document.path, scan_roots_from_context(self.ctx)):
+        if is_covered_workspace_member(manifest_dir, document.path, get_scan_roots_from_context(self.ctx)):
             return False
 
         return _indicates_bun(document.content)
