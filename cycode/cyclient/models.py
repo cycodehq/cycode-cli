@@ -76,6 +76,7 @@ class ZippedFileScanResult(Schema):
         report_url: Optional[str] = None,
         scan_id: Optional[str] = None,
         err: Optional[str] = None,
+        verdict: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.did_detect = did_detect
@@ -83,6 +84,7 @@ class ZippedFileScanResult(Schema):
         self.scan_id = scan_id
         self.report_url = report_url
         self.err = err
+        self.verdict = verdict
 
 
 class ScanResult(Schema):
@@ -506,6 +508,7 @@ class DetectionRuleSchema(Schema):
 class ScanResultsSyncFlow:
     id: str
     detection_messages: list[dict]
+    verdict: Optional[str] = None
 
 
 class ScanResultsSyncFlowSchema(Schema):
@@ -514,6 +517,7 @@ class ScanResultsSyncFlowSchema(Schema):
 
     id = fields.String()
     detection_messages = fields.List(fields.Dict())
+    verdict = fields.String(allow_none=True, load_default=None)
 
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> ScanResultsSyncFlow:

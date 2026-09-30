@@ -79,6 +79,7 @@ def create_local_scan_result(
         issue_detected=len(relevant_document_detections_list) > 0,
         detections_count=detections_count,
         relevant_detections_count=relevant_detections_count,
+        verdict=scan_result.verdict,
     )
 
 
@@ -170,6 +171,7 @@ def get_sync_scan_result(scan_type: str, scan_results: 'ScanResultsSyncFlow') ->
         did_detect=True,
         detections_per_file=_map_detections_per_file_and_commit_id(scan_type, scan_results.detection_messages),
         scan_id=scan_results.id,
+        verdict=scan_results.verdict,
     )
 
 

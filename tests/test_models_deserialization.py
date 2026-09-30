@@ -401,6 +401,10 @@ def test_scan_results_sync_flow_schema_load() -> None:
     assert isinstance(result, ScanResultsSyncFlow)
     assert result.id == 'sync-123'
     assert len(result.detection_messages) == 2
+    assert result.verdict is None
+
+    raw['verdict'] = 'Block'
+    assert ScanResultsSyncFlowSchema().load(raw).verdict == 'Block'
 
 
 # --- SupportedModulesPreferencesSchema ---
