@@ -240,30 +240,30 @@ def _npm_lockfile_member_names(lock_file: Path) -> frozenset:
 
 def _read_pnpm_importers_section(lock_file: Path) -> str:
     """Slice out the top-level importers block so a large lockfile is not parsed in full."""
-    try:
-        text = lock_file.read_text(encoding='UTF-8')
-    except FileNotFoundError:
-        return ''
-    except OSError as e:
-        logger.debug('Could not read a pnpm lockfile, %s', {'path': str(lock_file), 'error': e})
-        return ''
-
     section = []
     inside = False
-    for line in text.splitlines():
-        if not inside:
-            if line.startswith(f'{_PNPM_LOCKFILE_IMPORTERS_SECTION}:'):
-                inside = True
+    try:
+        with lock_file.open(encoding='UTF-8') as lock_file_lines:
+            for raw_line in lock_file_lines:
+                line = raw_line.rstrip('\n').rstrip('\r')
+                if not inside:
+                    if line.startswith(f'{_PNPM_LOCKFILE_IMPORTERS_SECTION}:'):
+                        inside = True
+                        section.append(line)
+                    continue
+
+                if line.startswith(_YAML_COMMENT_PREFIX):
+                    continue
+
+                if line and not line[0].isspace():
+                    break
+
                 section.append(line)
-            continue
-
-        if line.startswith(_YAML_COMMENT_PREFIX):
-            continue
-
-        if line and not line[0].isspace():
-            break
-
-        section.append(line)
+    except FileNotFoundError:
+        return ''
+    except (OSError, ValueError) as e:
+        logger.debug('Could not read a pnpm lockfile, %s', {'path': str(lock_file), 'error': e})
+        return ''
 
     return '\n'.join(section)
 
@@ -325,12 +325,26 @@ def _lockfile_member_names(lock_file: Path, package_manager: str) -> frozenset:
     return member_names
 
 
+def _scan_root_directories(scan_roots: tuple) -> list:
+    """The directory each scanned path stands for; scanning a file scans its directory."""
+    directories = []
+    for scan_root in scan_roots:
+        resolved = _resolved_path(scan_root)
+        if os.path.isfile(resolved):
+            resolved = os.path.dirname(resolved)
+
+        if resolved:
+            directories.append(resolved)
+
+    return directories
+
+
 def _containing_scan_roots(manifest_dir: Path, scan_roots: tuple) -> list:
     resolved_manifest_dir = _resolved_path(manifest_dir)
     return [
-        Path(_resolved_path(scan_root))
-        for scan_root in scan_roots
-        if is_sub_path(_resolved_path(scan_root), resolved_manifest_dir)
+        Path(directory)
+        for directory in _scan_root_directories(scan_roots)
+        if is_sub_path(directory, resolved_manifest_dir)
     ]
 
 
@@ -342,6 +356,9 @@ def _resolve_walk_boundary(manifest_dir: Path, scan_roots: tuple) -> Optional[Pa
     containing = _containing_scan_roots(manifest_dir, scan_roots)
     if containing:
         return min(containing, key=lambda scan_root: len(scan_root.parts))
+
+    if scan_roots:
+        return manifest_dir
 
     return None
 
@@ -388,11 +405,13 @@ def find_covering_workspace(manifest_dir: Optional[str], scan_roots: tuple = ())
 
 
 def _is_inside_scanned_paths(scan_roots: tuple, root_dir: Path) -> bool:
-    if not scan_roots:
+    directories = _scan_root_directories(scan_roots)
+    if not directories:
+        logger.debug('No scanned paths in context; treating the workspace root as scanned, %s', {'root': str(root_dir)})
         return True
 
     resolved_root_dir = _resolved_path(root_dir)
-    return any(is_sub_path(_resolved_path(scan_root), resolved_root_dir) for scan_root in scan_roots)
+    return any(is_sub_path(directory, resolved_root_dir) for directory in directories)
 
 
 def is_covered_workspace_member(manifest_dir: Optional[str], document_path: str, scan_roots: tuple = ()) -> bool:
@@ -413,9 +432,10 @@ def is_covered_workspace_member(manifest_dir: Optional[str], document_path: str,
     if report_key not in _reported_unscanned_roots:
         _reported_unscanned_roots.add(report_key)
         logger.warning(
-            'Skipping restore for a workspace member whose root is outside the scanned path. '
-            'Scan the workspace root to collect its dependencies, %s',
+            'The workspace root lockfile is outside the scanned path and will not be collected, '
+            'so this member is restored on its own. Scan the workspace root for the versions it '
+            'actually installs, %s',
             details,
         )
 
-    return True
+    return False

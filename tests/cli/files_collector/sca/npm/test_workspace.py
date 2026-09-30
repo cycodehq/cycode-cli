@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 from pathlib import Path
@@ -27,6 +28,21 @@ def _clear_workspace_cache() -> None:
 
 
 _WORKSPACE_LOGGER_NAME = 'SCA NPM Workspace'
+
+
+@contextlib.contextmanager
+def _counting_lines(handle: object, consumed: list) -> object:
+    """Yields the handle's lines while recording how many bytes the caller actually consumed."""
+
+    def lines() -> object:
+        for line in handle:
+            consumed.append(len(line))
+            yield line
+
+    try:
+        yield lines()
+    finally:
+        handle.close()
 
 
 def _write_member(root: Path, relative_dir: str, name: str = 'member') -> Path:
@@ -292,10 +308,14 @@ class TestWorkspaceRootWalk:
 
 
 class TestIsCoveredWorkspaceMember:
-    def test_warns_when_the_workspace_root_sits_outside_the_scanned_path(
+    def test_a_root_outside_the_scanned_path_is_not_coverage(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Scanning only the member folder collects nothing for it, so the skip must be visible."""
+        """The root lockfile will not be collected, so treating it as coverage yields no data at all.
+
+        Scanning only the member folder used to report clean with nothing but a log line to say why.
+        Restoring the member gives versions that may drift from the root, which still beats silence.
+        """
         (tmp_path / '.git').mkdir()
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
         _write_npm_lockfile(tmp_path, ['packages/app'])
@@ -304,7 +324,7 @@ class TestIsCoveredWorkspaceMember:
         with caplog.at_level(logging.WARNING, logger=_WORKSPACE_LOGGER_NAME):
             covered = is_covered_workspace_member(str(member_dir), 'packages/app/package.json', (str(member_dir),))
 
-        assert covered is True
+        assert covered is False
         assert 'outside the scanned path' in caplog.text
 
     def test_does_not_warn_when_the_workspace_root_is_scanned_too(
@@ -448,8 +468,8 @@ class TestNoHandlerClaimsACoveredMember:
 
         assert self._claimants(tmp_path, member_dir) == ['npm']
 
-    def test_scanning_only_the_member_folder_still_declines(self, tmp_path: Path) -> None:
-        """The workspace root is outside the scanned path, but generating a member lockfile is still wrong."""
+    def test_scanning_only_the_member_folder_still_collects_something(self, tmp_path: Path) -> None:
+        """Nothing else in this scan carries the member's dependencies, so a handler must take it."""
         (tmp_path / '.git').mkdir()
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
         (tmp_path / 'yarn.lock').write_text('# yarn lockfile v1\n')
@@ -459,6 +479,22 @@ class TestNoHandlerClaimsACoveredMember:
         ctx = MagicMock(spec=typer.Context)
         ctx.obj = {'monitor': False}
         ctx.params = {'path': str(member_dir)}
+        document = Document(str(manifest), manifest.read_text(), absolute_path=str(manifest))
+
+        npm = RestoreNpmDependencies(ctx, is_git_diff=False, command_timeout=30)
+        assert npm.is_project(document) is True
+
+    def test_scanning_the_workspace_root_still_skips_the_member(self, tmp_path: Path) -> None:
+        """The root lockfile is collected by this scan, so the member must not be restored as well."""
+        (tmp_path / '.git').mkdir()
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'yarn.lock').write_text('# yarn lockfile v1\n')
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        manifest = member_dir / 'package.json'
+        ctx = MagicMock(spec=typer.Context)
+        ctx.obj = {'monitor': False}
+        ctx.params = {'paths': [tmp_path]}
         document = Document(str(manifest), manifest.read_text(), absolute_path=str(manifest))
 
         npm = RestoreNpmDependencies(ctx, is_git_diff=False, command_timeout=30)
@@ -829,3 +865,91 @@ class TestPnpmImportersSlicing:
     )
     def test_lockfile_shapes(self, tmp_path: Path, label: str, text: str, expected: set) -> None:
         assert self._members(tmp_path, text) == frozenset(expected), label
+
+    def test_a_huge_packages_block_is_never_read(self, tmp_path: Path) -> None:
+        """Reading the whole lockfile would undo the point of slicing out importers."""
+        lock_file = tmp_path / 'pnpm-lock.yaml'
+        lines = ["lockfileVersion: '9.0'", 'importers:', '  packages/app:', '    dependencies: {}', 'packages:']
+        lines += [f'  dep{index}@1.0.0: {{resolution: {{integrity: sha512-x}}}}' for index in range(50000)]
+        lock_file.write_text('\n'.join(lines))
+
+        consumed = []
+        real_open = Path.open
+
+        def counting_open(path: Path, *args: object, **kwargs: object) -> object:
+            handle = real_open(path, *args, **kwargs)
+            if path != lock_file:
+                return handle
+
+            return _counting_lines(handle, consumed)
+
+        Path.open = counting_open
+        try:
+            section = workspace._read_pnpm_importers_section(lock_file)
+        finally:
+            Path.open = real_open
+
+        assert 'packages/app' in section
+        assert sum(consumed) < lock_file.stat().st_size / 10, (
+            f'read {sum(consumed)} of {lock_file.stat().st_size} bytes; the packages block should stop the read'
+        )
+
+
+class TestWalkNeverEscapesTheScannedTree:
+    """Without a .git ancestor the walk must still stop somewhere inside what was scanned."""
+
+    def test_a_file_scan_root_stands_for_its_directory(self, tmp_path: Path) -> None:
+        """cycode scan path .../package.json scans that file; the directory is what contains the member."""
+        checkout = tmp_path / 'checkout'
+        member_dir = _write_member(checkout, 'packages/app')
+
+        (tmp_path / 'package.json').write_text('{"name": "stray", "workspaces": ["**"]}')
+        _write_npm_lockfile(tmp_path, ['checkout/packages/app'])
+
+        scanned_file = member_dir / 'package.json'
+
+        assert find_covering_workspace(str(member_dir), (str(scanned_file),)) is None
+
+    def test_an_unrelated_ancestor_manifest_cannot_cover_a_member(self, tmp_path: Path) -> None:
+        """A stray manifest above the scanned tree must never suppress a project inside it."""
+        checkout = tmp_path / 'checkout'
+        member_dir = _write_member(checkout, 'packages/app')
+
+        (tmp_path / 'package.json').write_text('{"name": "stray", "workspaces": ["**"]}')
+        _write_npm_lockfile(tmp_path, ['checkout/packages/app'])
+
+        assert find_covering_workspace(str(member_dir), (str(checkout),)) is None
+
+    def test_a_workspace_root_inside_the_scanned_tree_is_still_found(self, tmp_path: Path) -> None:
+        """Bounding the walk must not stop it before the real root."""
+        checkout = tmp_path / 'checkout'
+        checkout.mkdir()
+        (checkout / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        _write_npm_lockfile(checkout, ['packages/app'])
+        member_dir = _write_member(checkout, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir), (str(checkout),)) is not None
+
+    def test_a_scan_root_that_does_not_contain_the_member_stops_the_walk(self, tmp_path: Path) -> None:
+        """Known scan roots that are unrelated to this manifest must not license a walk to /."""
+        elsewhere = tmp_path / 'elsewhere'
+        elsewhere.mkdir()
+        member_dir = _write_member(tmp_path / 'checkout', 'packages/app')
+
+        (tmp_path / 'package.json').write_text('{"name": "stray", "workspaces": ["**"]}')
+        _write_npm_lockfile(tmp_path, ['checkout/packages/app'])
+
+        assert find_covering_workspace(str(member_dir), (str(elsewhere),)) is None
+
+    def test_the_containment_check_also_treats_a_file_as_its_directory(self, tmp_path: Path) -> None:
+        """Scanning the root's own package.json means the root lockfile is collected, so the member is covered."""
+        (tmp_path / '.git').mkdir()
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        _write_npm_lockfile(tmp_path, ['packages/app'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        covered = is_covered_workspace_member(
+            str(member_dir), 'packages/app/package.json', (str(tmp_path / 'package.json'),)
+        )
+
+        assert covered is True
