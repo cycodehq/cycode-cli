@@ -135,6 +135,67 @@ class TestPreCommitCommandPathResolution:
             ]
 
 
+class TestPreCommitCommandPathContainment:
+    """--path must be validated against the repo root using normalized (realpath) forms.
+
+    Regression test: CI on windows-latest surfaced a false-positive rejection here. GitPython's
+    `working_tree_dir` can come back in Windows' 8.3 short-name form (e.g. `RUNNE~1`), while
+    Click's `resolve_path=True` expands `--path` to the long form -- an in-repo path then looks
+    like it's outside the repo under a naive string comparison. Reproduced here in a way that
+    doesn't depend on Windows-only short names: repo_path is returned with an unresolved `..`
+    segment, which only a realpath-normalized comparison sees through.
+    """
+
+    def test_unresolved_repo_root_form_does_not_reject_an_in_repo_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        original_cwd = os.getcwd()
+        with temporary_git_repository() as (temp_dir, repo):
+            os.makedirs(os.path.join(temp_dir, 'sub'))
+            file_path = os.path.join(temp_dir, 'sub', 'app.py')
+            with open(file_path, 'w') as f:
+                f.write('content')
+            repo.index.add(['sub/app.py'])
+            repo.index.commit('initial')
+
+            app = typer.Typer()
+            app.command()(pre_commit_command)
+
+            monkeypatch.chdir(temp_dir)
+            unresolved_repo_path = os.path.join(temp_dir, 'sub', '..')
+            with (
+                patch(
+                    'cycode.cli.apps.scan.pre_commit.pre_commit_command._resolve_repo_root',
+                    return_value=unresolved_repo_path,
+                ),
+                patch('cycode.cli.apps.scan.pre_commit.pre_commit_command.scan_pre_commit') as mock_scan,
+            ):
+                result = CliRunner().invoke(app, ['--path', 'sub/app.py'], obj=MagicMock())
+            monkeypatch.chdir(original_cwd)
+
+            assert result.exit_code == 0, result.output
+            mock_scan.assert_called_once()
+
+    def test_path_outside_repo_raises_scan_path_outside_repository_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        original_cwd = os.getcwd()
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'file.txt')
+            with open(file_path, 'w') as f:
+                f.write('content')
+            repo.index.add(['file.txt'])
+            repo.index.commit('initial')
+
+            with tempfile.TemporaryDirectory() as outside_dir:
+                app = typer.Typer()
+                app.command()(pre_commit_command)
+
+                monkeypatch.chdir(temp_dir)
+                with patch('cycode.cli.apps.scan.pre_commit.pre_commit_command.scan_pre_commit') as mock_scan:
+                    result = CliRunner().invoke(app, ['--path', os.path.join(outside_dir, 'file.txt')], obj=MagicMock())
+                monkeypatch.chdir(original_cwd)
+
+                assert result.exit_code == 0, result.output
+                mock_scan.assert_not_called()
+
+
 class TestPreCommitCommandFromSubdirectory:
     """End-to-end: invoking the command from a repo subdirectory must not fail."""
 

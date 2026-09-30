@@ -80,8 +80,12 @@ def pre_commit_command(
         repo_path = _resolve_repo_root(os.getcwd())
         _validate_base_ref(repo_path, base_ref)
         str_paths = [str(path) for path in paths] if paths else None
+        # realpath both sides: repo_path (from GitPython) and str_path (from Click's
+        # resolve_path=True) can disagree on 8.3 short-name vs long-name form on Windows,
+        # which would otherwise make an in-repo path look like it's outside the repo.
+        repo_path_real = os.path.realpath(repo_path)
         for str_path in str_paths or []:
-            if os.path.commonpath([repo_path, str_path]) != repo_path:
+            if os.path.commonpath([repo_path_real, os.path.realpath(str_path)]) != repo_path_real:
                 raise ScanPathOutsideRepositoryError(str_path, repo_path)
     except Exception as e:
         handle_scan_exception(ctx, e)
