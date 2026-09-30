@@ -4,8 +4,13 @@ import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies
 from cycode.cli.files_collector.sca.npm.workspace import (
+    BUN_LOCK_FILE_NAME,
+    DENO_LOCK_FILE_NAME,
+    MANIFEST_FILE_NAME,
     NPM_LOCK_FILE_NAME,
     NPM_SHRINKWRAP_FILE_NAME,
+    PNPM_LOCK_FILE_NAME,
+    YARN_LOCK_FILE_NAME,
     is_covered_workspace_member,
     scan_roots_from_context,
 )
@@ -14,11 +19,9 @@ from cycode.logger import get_logger
 
 logger = get_logger('NPM Restore Dependencies')
 
-NPM_MANIFEST_FILE_NAME = 'package.json'
-# These lockfiles indicate another package manager owns the project — NPM should not run.
-# bun.lockb is deliberately absent: Bun only restores from a text bun.lock, so excluding it
-# here would leave a Bun <1.2 project with no handler at all.
-_ALTERNATIVE_LOCK_FILES = ('yarn.lock', 'pnpm-lock.yaml', 'deno.lock', 'bun.lock')
+NPM_MANIFEST_FILE_NAME = MANIFEST_FILE_NAME
+# These lockfiles indicate another package manager owns the project — NPM should not run
+_ALTERNATIVE_LOCK_FILES = (YARN_LOCK_FILE_NAME, PNPM_LOCK_FILE_NAME, DENO_LOCK_FILE_NAME, BUN_LOCK_FILE_NAME)
 
 
 class RestoreNpmDependencies(BaseRestoreDependencies):

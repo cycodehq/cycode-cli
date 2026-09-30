@@ -5,15 +5,19 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
-from cycode.cli.files_collector.sca.npm.workspace import is_covered_workspace_member, scan_roots_from_context
+from cycode.cli.files_collector.sca.npm.workspace import (
+    MANIFEST_FILE_NAME,
+    YARN_LOCK_FILE_NAME,
+    is_covered_workspace_member,
+    scan_roots_from_context,
+)
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content
 from cycode.logger import get_logger
 
 logger = get_logger('Yarn Restore Dependencies')
 
-YARN_MANIFEST_FILE_NAME = 'package.json'
-YARN_LOCK_FILE_NAME = 'yarn.lock'
+YARN_MANIFEST_FILE_NAME = MANIFEST_FILE_NAME
 
 
 def _indicates_yarn(package_json_content: Optional[str]) -> bool:

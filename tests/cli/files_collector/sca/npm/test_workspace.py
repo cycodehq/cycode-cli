@@ -571,3 +571,75 @@ class TestLogNoise:
             find_covering_workspace(str(member_dir), (str(tmp_path),))
 
         assert 'Could not read' in caplog.text
+
+
+class TestFileNamesHaveASingleSource:
+    """workspace.py owns every file name in the npm module.
+
+    Each handler previously declared its own copy, so the workspace coverage table and the
+    handler that consumes it could drift apart over time without anything failing.
+    """
+
+    def test_each_handler_reuses_the_shared_name(self) -> None:
+        from cycode.cli.files_collector.sca.npm import (
+            restore_bun_dependencies,
+            restore_deno_dependencies,
+            restore_npm_dependencies,
+            restore_pnpm_dependencies,
+            restore_yarn_dependencies,
+        )
+
+        assert restore_yarn_dependencies.YARN_LOCK_FILE_NAME is workspace.YARN_LOCK_FILE_NAME
+        assert restore_pnpm_dependencies.PNPM_LOCK_FILE_NAME is workspace.PNPM_LOCK_FILE_NAME
+        assert restore_bun_dependencies.BUN_LOCK_FILE_NAME is workspace.BUN_LOCK_FILE_NAME
+        assert restore_deno_dependencies.DENO_LOCK_FILE_NAME is workspace.DENO_LOCK_FILE_NAME
+        assert restore_npm_dependencies.NPM_LOCK_FILE_NAME is workspace.NPM_LOCK_FILE_NAME
+        assert restore_npm_dependencies.NPM_SHRINKWRAP_FILE_NAME is workspace.NPM_SHRINKWRAP_FILE_NAME
+
+        for module in (
+            restore_npm_dependencies.NPM_MANIFEST_FILE_NAME,
+            restore_yarn_dependencies.YARN_MANIFEST_FILE_NAME,
+            restore_pnpm_dependencies.PNPM_MANIFEST_FILE_NAME,
+            restore_bun_dependencies.BUN_MANIFEST_FILE_NAME,
+        ):
+            assert module is workspace.MANIFEST_FILE_NAME
+
+    def test_every_name_is_declared_only_in_workspace(self) -> None:
+        """A new literal anywhere else in the module reintroduces exactly the drift this prevents."""
+        module_dir = Path(workspace.__file__).parent
+        names = (
+            'package.json',
+            'package-lock.json',
+            'npm-shrinkwrap.json',
+            'yarn.lock',
+            'pnpm-lock.yaml',
+            'pnpm-workspace.yaml',
+            'bun.lock',
+            'bun.lockb',
+            'deno.lock',
+        )
+
+        offenders = {}
+        for source in module_dir.glob('*.py'):
+            if source.name == 'workspace.py':
+                continue
+
+            text = source.read_text(encoding='UTF-8')
+            declared = [name for name in names if f"'{name}'" in text]
+            if declared:
+                offenders[source.name] = declared
+
+        assert offenders == {}, f'file names must come from workspace.py, but found literals in: {offenders}'
+
+    def test_the_alternative_lockfiles_come_from_the_shared_table(self) -> None:
+        """npm declines a project owned by another package manager; bun.lockb is the deliberate exception."""
+        from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import _ALTERNATIVE_LOCK_FILES
+
+        non_npm_names = {
+            root_lock_file.file_name
+            for root_lock_file in workspace.ROOT_LOCK_FILES
+            if root_lock_file.package_manager != workspace.NPM_PACKAGE_MANAGER
+        }
+
+        assert set(_ALTERNATIVE_LOCK_FILES) <= non_npm_names
+        assert non_npm_names - set(_ALTERNATIVE_LOCK_FILES) == {workspace.BUN_BINARY_LOCK_FILE_NAME}
