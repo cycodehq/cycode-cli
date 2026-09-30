@@ -6,6 +6,7 @@ import typer
 
 from cycode.cli import consts
 from cycode.cli.apps.scan.commit_range_scanner import scan_pre_commit
+from cycode.cli.exceptions.custom_exceptions import ScanPathOutsideRepositoryError, UnresolvedGitRefError
 from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.logger import logger
 from cycode.cli.utils.git_proxy import git_proxy
@@ -41,7 +42,7 @@ def _validate_base_ref(repo_path: str, base_ref: str) -> None:
     try:
         repo.commit(base_ref)
     except Exception as e:
-        raise typer.BadParameter(f'Could not resolve git ref: {base_ref!r}', param_hint='--base-ref') from e
+        raise UnresolvedGitRefError(base_ref) from e
 
 
 def pre_commit_command(
@@ -78,8 +79,10 @@ def pre_commit_command(
     try:
         repo_path = _resolve_repo_root(os.getcwd())
         _validate_base_ref(repo_path, base_ref)
-    except typer.BadParameter:
-        raise
+        str_paths = [str(path) for path in paths] if paths else None
+        for str_path in str_paths or []:
+            if os.path.commonpath([repo_path, str_path]) != repo_path:
+                raise ScanPathOutsideRepositoryError(str_path, repo_path)
     except Exception as e:
         handle_scan_exception(ctx, e)
         return
@@ -88,7 +91,6 @@ def pre_commit_command(
     progress_bar.start()
 
     try:
-        str_paths = [str(path) for path in paths] if paths else None
         scan_pre_commit(ctx, repo_path, base_ref=base_ref, include_unstaged=include_unstaged, paths=str_paths)
     except Exception as e:
         handle_scan_exception(ctx, e)

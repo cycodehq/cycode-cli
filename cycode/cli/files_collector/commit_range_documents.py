@@ -15,7 +15,7 @@ from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
-    from git import Diff, DiffIndex, Repo
+    from git import Blob, Diff, DiffIndex, Repo
 
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
@@ -178,6 +178,20 @@ def _get_oldest_unupdated_commit_for_branch(repo: 'Repo', commit: str) -> Option
 def _get_file_content_from_commit_diff(repo: 'Repo', commit: str, diff: 'Diff') -> Optional[str]:
     file_path = get_diff_file_path(diff, relative=True)
     return get_file_content_from_commit_path(repo, commit, file_path)
+
+
+def _get_blob_content(blob: Optional['Blob']) -> Optional[str]:
+    """Read a diff-side blob's content in-process, with no subprocess spawn.
+
+    `diff.a_blob`/`diff.b_blob` already hold whatever git loaded to compute the patch, so this is
+    the same content `git show <ref>:<path>` would return -- for every `Diffable.diff()` variant
+    (`index.diff(HEAD, R=True)`, `commit.diff()`, `commit.diff(None)`), `a_blob` is exactly the
+    "before" side, and it's `None` precisely when the file didn't exist there (e.g. diffed against
+    the empty tree for a brand-new repo/file) -- verified against a scratch repo for each variant.
+    """
+    if blob is None:
+        return None
+    return blob.data_stream.read().decode('UTF-8', errors='replace')
 
 
 def get_commit_range_modified_documents(
@@ -426,6 +440,7 @@ def get_pre_commit_modified_documents(
     base_ref: str = consts.GIT_HEAD_COMMIT_REV,
     include_unstaged: bool = False,
     paths: Optional[list[str]] = None,
+    collect_file_contents: bool = True,
 ) -> tuple[list[Document], list[Document], list[Document]]:
     """Diffs `base_ref` against the staged index (default) or the full working tree.
 
@@ -435,12 +450,18 @@ def get_pre_commit_modified_documents(
         include_unstaged: If False (default), diffs the staged index only -- this is the exact
             pre-commit hook flow. If True, diffs the full working tree (staged + unstaged).
         paths: Optional pathspec to scope the diff to.
+        collect_file_contents: If False, skip building `from_ref_documents`/`working_copy_documents`
+            entirely -- only `diff_documents` (the patch itself) is produced. The secret scan path
+            only ever uses `diff_documents`, so this avoids a disk read per changed file (and,
+            before the `a_blob` fix below, a subprocess spawn per file) that it would otherwise
+            discard immediately. Defaults to True so existing callers (SCA/SAST) are unaffected.
 
     Returns:
         (from_ref_documents, working_copy_documents, diff_documents). `from_ref_documents` holds
-        each changed file's content at `base_ref` (skipped if it didn't exist there);
+        each changed file's content at `base_ref` (skipped if it didn't exist there, or was empty);
         `working_copy_documents` holds each changed file's current on-disk content (skipped if
-        the file no longer exists); `diff_documents` holds the unified diff per changed file.
+        the file no longer exists, or is empty); `diff_documents` holds the unified diff per
+        changed file.
     """
     from_ref_documents = []
     working_copy_documents = []
@@ -453,7 +474,7 @@ def get_pre_commit_modified_documents(
         # HEAD (or the empty tree in a brand-new repo), via get_staged_diff_index()'s proven
         # R-flag handling. Keeping this as its own branch (rather than folding it into the
         # `diff_target.diff(...)` calls below) means this default, most-used path can't regress.
-        resolved_ref, diff_index = get_staged_diff_index(repo, paths=paths)
+        _, diff_index = get_staged_diff_index(repo, paths=paths)
     else:
         try:
             diff_target = repo.commit(base_ref)
@@ -466,7 +487,6 @@ def get_pre_commit_modified_documents(
             )
             diff_target = repo.tree(consts.GIT_EMPTY_TREE_OBJECT)
 
-        resolved_ref = base_ref
         if include_unstaged:
             diff_index = diff_target.diff(None, create_patch=True, paths=paths or None)
         else:
@@ -490,8 +510,17 @@ def get_pre_commit_modified_documents(
             )
         )
 
-        file_content = _get_file_content_from_commit_diff(repo, resolved_ref, diff)
-        if file_content is not None:
+        if not collect_file_contents:
+            continue
+
+        # `a_blob` is exactly the content at `base_ref` -- see `_get_blob_content`'s docstring.
+        # Deliberately `if file_content:` (skip empty string) rather than `is not None`: this
+        # matches the working_copy branch immediately below, treating an empty file the same as
+        # a nonexistent one. `get_commit_range_modified_documents` uses `is not None` instead, but
+        # for a different reason (there, `None` only ever means "no such commit"); don't "fix"
+        # this one to match it.
+        file_content = _get_blob_content(diff.a_blob)
+        if file_content:
             from_ref_documents.append(Document(file_path, file_content))
 
         if os.path.exists(file_path):

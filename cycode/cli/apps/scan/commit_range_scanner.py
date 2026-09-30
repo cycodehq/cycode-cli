@@ -369,6 +369,9 @@ def _scan_secret_pre_commit(
     include_unstaged: bool = False,
     paths: Optional[list[str]] = None,
 ) -> None:
+    # collect_file_contents=False: the secret scan only ever uses diff_documents below, so skip
+    # building from_ref_documents/working_copy_documents (a disk read per changed file it would
+    # otherwise discard immediately).
     _from_ref_documents, _working_copy_documents, diff_documents = get_pre_commit_modified_documents(
         progress_bar=ctx.obj['progress_bar'],
         progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
@@ -376,6 +379,7 @@ def _scan_secret_pre_commit(
         base_ref=base_ref,
         include_unstaged=include_unstaged,
         paths=paths,
+        collect_file_contents=False,
     )
 
     diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SECRET_SCAN_TYPE, diff_documents)

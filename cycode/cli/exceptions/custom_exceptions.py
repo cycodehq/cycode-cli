@@ -98,6 +98,25 @@ class TfplanKeyError(CycodeError):
         return f'Error occurred while parsing terraform plan file. Path: {self.file_path}'
 
 
+class ScanPathOutsideRepositoryError(CycodeError):
+    def __init__(self, path: str, repo_path: str) -> None:
+        self.path = path
+        self.repo_path = repo_path
+        super().__init__()
+
+    def __str__(self) -> str:
+        return f'The path {self.path!r} is outside the repository {self.repo_path!r}'
+
+
+class UnresolvedGitRefError(CycodeError):
+    def __init__(self, ref: str) -> None:
+        self.ref = ref
+        super().__init__()
+
+    def __str__(self) -> str:
+        return f'Could not resolve git ref: {self.ref!r}'
+
+
 _SSL_ERROR_CA_BUNDLE_HINT = (
     'set the REQUESTS_CA_BUNDLE (or CURL_CA_BUNDLE) environment variable to the path of a valid .pem or similar'
 )

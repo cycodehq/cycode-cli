@@ -1248,7 +1248,7 @@ class TestGetPreCommitModifiedDocuments:
             )
 
             assert len(from_docs) == 1
-            assert from_docs[0].content == 'line1'
+            assert from_docs[0].content == 'line1\n'
 
             assert len(work_docs) == 1
             assert work_docs[0].content == 'line1\nstaged\nunstaged\n'
@@ -1285,7 +1285,7 @@ class TestGetPreCommitModifiedDocuments:
             )
 
             assert len(from_docs) == 1
-            assert from_docs[0].content == 'line1'
+            assert from_docs[0].content == 'line1\n'
 
             assert len(work_docs) == 1
             assert work_docs[0].content == 'line1\nstaged\nunstaged\n'

@@ -14,6 +14,7 @@ from cycode.cli.apps.scan.pre_commit.pre_commit_command import (
     _validate_base_ref,
     pre_commit_command,
 )
+from cycode.cli.exceptions.custom_exceptions import UnresolvedGitRefError
 
 
 @contextmanager
@@ -37,7 +38,7 @@ class TestValidateBaseRef:
 
             _validate_base_ref(temp_dir, 'HEAD')
 
-    def test_invalid_base_ref_raises_bad_parameter(self) -> None:
+    def test_invalid_base_ref_raises_unresolved_git_ref_error(self) -> None:
         with temporary_git_repository() as (temp_dir, repo):
             file_path = os.path.join(temp_dir, 'file.txt')
             with open(file_path, 'w') as f:
@@ -45,7 +46,7 @@ class TestValidateBaseRef:
             repo.index.add(['file.txt'])
             repo.index.commit('initial')
 
-            with pytest.raises(typer.BadParameter):
+            with pytest.raises(UnresolvedGitRefError):
                 _validate_base_ref(temp_dir, 'not-a-real-ref')
 
     def test_empty_repository_with_default_head_does_not_raise(self) -> None:
@@ -92,11 +93,11 @@ class TestResolveRepoRoot:
 class TestPreCommitCommandPathResolution:
     """A relative --path value must reach scan_pre_commit already resolved to absolute.
 
-    Regression test: get_pre_commit_modified_documents compares an always-absolute path
-    (derived from the repo's working tree) against the raw `paths` strings. Without
-    `resolve_path=True` on the CLI option, a relative path (the natural way to invoke this,
-    e.g. `--path sub/app.py` from the repo root) would never match, silently dropping files
-    from the scoped scan.
+    Regression test: `paths` is handed to git as a pathspec, and git resolves relative
+    pathspecs against the repo root -- not the process cwd. Invoking from a subdirectory
+    (`--path app.py` from inside `sub/`) would therefore target `<root>/app.py` instead
+    of `<root>/sub/app.py`, silently scanning the wrong file or nothing at all.
+    `resolve_path=True` pins the path to the caller's cwd before git ever sees it.
     """
 
     def test_relative_path_option_is_resolved_to_absolute(self, monkeypatch: pytest.MonkeyPatch) -> None:
