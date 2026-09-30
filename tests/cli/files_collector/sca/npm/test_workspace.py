@@ -15,6 +15,7 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     clear_cache,
     find_covering_workspace,
     is_covered_workspace_member,
+    scan_roots_from_context,
 )
 from cycode.cli.models import Document
 
@@ -33,6 +34,15 @@ def _write_member(root: Path, relative_dir: str, name: str = 'member') -> Path:
     member_dir.mkdir(parents=True, exist_ok=True)
     (member_dir / 'package.json').write_text(json.dumps({'name': name}))
     return member_dir
+
+
+def _write_pnpm_lockfile(root: Path, members: list) -> None:
+    lines = ["lockfileVersion: '9.0'", 'importers:', '  .:', '    dependencies: {}']
+    for member in members:
+        lines.append(f'  {member}:')
+        lines.append('    dependencies: {}')
+    lines.append('packages: {}')
+    (root / 'pnpm-lock.yaml').write_text('\n'.join(lines) + '\n')
 
 
 def _write_npm_lockfile(root: Path, members: list, file_name: str = 'package-lock.json') -> None:
@@ -135,7 +145,7 @@ class TestNonNpmWorkspaceCoverage:
         """pnpm lists members in pnpm-workspace.yaml, so the package.json "workspaces" field is absent."""
         (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
         (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
-        (tmp_path / 'pnpm-lock.yaml').write_text("lockfileVersion: '9.0'\n")
+        _write_pnpm_lockfile(tmp_path, ['packages/app'])
         member_dir = _write_member(tmp_path, 'packages/app')
 
         coverage = find_covering_workspace(str(member_dir))
@@ -399,7 +409,7 @@ class TestNoHandlerClaimsACoveredMember:
     def test_no_handler_claims_a_member_of_a_pnpm_workspace_declared_in_yaml(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
         (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
-        (tmp_path / 'pnpm-lock.yaml').write_text("lockfileVersion: '9.0'\n")
+        _write_pnpm_lockfile(tmp_path, ['packages/app'])
         member_dir = _write_member(tmp_path, 'packages/app')
 
         assert self._claimants(tmp_path, member_dir) == []
@@ -643,3 +653,123 @@ class TestFileNamesHaveASingleSource:
 
         assert set(_ALTERNATIVE_LOCK_FILES) <= non_npm_names
         assert non_npm_names - set(_ALTERNATIVE_LOCK_FILES) == {workspace.BUN_BINARY_LOCK_FILE_NAME}
+
+
+class TestScanRootsFromContext:
+    """Typer delivers Path objects, so a str-only filter silently discards every real scan root."""
+
+    @staticmethod
+    def _ctx(params: dict) -> typer.Context:
+        ctx = MagicMock(spec=typer.Context)
+        ctx.params = params
+        return ctx
+
+    @pytest.mark.parametrize(
+        ('command', 'params'),
+        [
+            ('scan path', {'paths': [Path('/repo/member')]}),
+            ('scan path (tuple)', {'paths': (Path('/repo/member'),)}),
+            ('scan repository', {'path': Path('/repo/member')}),
+            ('report sbom path', {'path': Path('/repo/member')}),
+        ],
+    )
+    def test_path_objects_are_accepted(self, command: str, params: dict) -> None:
+        assert scan_roots_from_context(self._ctx(params)) == (str(Path('/repo/member')),), command
+
+    def test_strings_are_still_accepted(self) -> None:
+        assert scan_roots_from_context(self._ctx({'path': '/repo/member'})) == ('/repo/member',)
+
+    def test_every_scanned_path_is_returned(self) -> None:
+        """cycode scan path ./a ./b scans both, so both must count as scan roots."""
+        params = {'paths': [Path('/repo/a'), Path('/repo/b')]}
+
+        assert scan_roots_from_context(self._ctx(params)) == (str(Path('/repo/a')), str(Path('/repo/b')))
+
+    def test_empty_and_missing_params_are_safe(self) -> None:
+        assert scan_roots_from_context(self._ctx({})) == ()
+        assert scan_roots_from_context(self._ctx({'path': None, 'paths': None})) == ()
+        assert scan_roots_from_context(MagicMock(spec=typer.Context)) == ()
+
+
+class TestSymlinkedScanRoot:
+    def test_a_scan_root_reached_through_a_symlink_is_recognised(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """typer resolves the scan root but the walk does not, so both sides must be resolved.
+
+        On macOS /tmp and /var are symlinks, so this is the ordinary case rather than an exotic one.
+        """
+        real_repo = tmp_path / 'real'
+        real_repo.mkdir()
+        (real_repo / '.git').mkdir()
+        (real_repo / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        _write_npm_lockfile(real_repo, ['packages/app'])
+        member_dir = _write_member(real_repo, 'packages/app')
+
+        linked_repo = tmp_path / 'link'
+        linked_repo.symlink_to(real_repo)
+
+        with caplog.at_level(logging.WARNING, logger=_WORKSPACE_LOGGER_NAME):
+            covered = is_covered_workspace_member(str(member_dir), 'packages/app/package.json', (str(linked_repo),))
+
+        assert covered is True
+        assert 'outside the scanned path' not in caplog.text
+
+
+class TestPnpmLockfileMembership:
+    """pnpm records its members under importers:, so a stale lockfile must not claim coverage."""
+
+    def test_a_member_listed_in_importers_is_covered(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
+        (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
+        _write_pnpm_lockfile(tmp_path, ['packages/app'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        coverage = find_covering_workspace(str(member_dir))
+
+        assert coverage is not None
+        assert coverage.package_manager == 'pnpm'
+
+    def test_a_member_missing_from_a_stale_lockfile_is_not_covered(self, tmp_path: Path) -> None:
+        """Declared in pnpm-workspace.yaml but never installed: the lockfile cannot resolve it."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
+        (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
+        _write_pnpm_lockfile(tmp_path, ['packages/other'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+    def test_the_root_importer_is_not_a_member(self, tmp_path: Path) -> None:
+        """pnpm keys the workspace root as '.', which must never match a member path."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
+        (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "."\n')
+        _write_pnpm_lockfile(tmp_path, [])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+    def test_only_the_importers_block_is_parsed(self, tmp_path: Path) -> None:
+        """A large packages: block must not be parsed just to read the member list."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
+        (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
+
+        lines = ["lockfileVersion: '9.0'", 'importers:', '  .:', '    dependencies: {}']
+        lines += ['  packages/app:', '    dependencies: {}', 'packages:']
+        lines += [f'  dep{index}@1.0.0: {{resolution: {{integrity: sha512-x}}}}' for index in range(2000)]
+        (tmp_path / 'pnpm-lock.yaml').write_text('\n'.join(lines) + '\n')
+
+        section = workspace._read_pnpm_importers_section(tmp_path / 'pnpm-lock.yaml')
+
+        assert 'packages/app' in section
+        assert 'dep0@1.0.0' not in section
+
+        member_dir = _write_member(tmp_path, 'packages/app')
+        assert find_covering_workspace(str(member_dir)) is not None
+
+    def test_a_malformed_importers_block_is_not_coverage(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
+        (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
+        (tmp_path / 'pnpm-lock.yaml').write_text("lockfileVersion: '9.0'\nimporters:\n  [unclosed\n")
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None

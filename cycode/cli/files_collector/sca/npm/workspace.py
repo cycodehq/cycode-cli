@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Optional
@@ -46,7 +47,7 @@ ROOT_LOCK_FILES = (
     RootLockFile(NPM_PACKAGE_MANAGER, NPM_LOCK_FILE_NAME, MANIFEST_DECLARED, True),
     RootLockFile(NPM_PACKAGE_MANAGER, NPM_SHRINKWRAP_FILE_NAME, MANIFEST_DECLARED, True),
     RootLockFile(YARN_PACKAGE_MANAGER, YARN_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
-    RootLockFile(PNPM_PACKAGE_MANAGER, PNPM_LOCK_FILE_NAME, PNPM_WORKSPACE_DECLARED, False),
+    RootLockFile(PNPM_PACKAGE_MANAGER, PNPM_LOCK_FILE_NAME, PNPM_WORKSPACE_DECLARED, True),
     RootLockFile(BUN_PACKAGE_MANAGER, BUN_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
     RootLockFile(BUN_PACKAGE_MANAGER, BUN_BINARY_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
     RootLockFile(DENO_PACKAGE_MANAGER, DENO_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
@@ -56,6 +57,8 @@ _LOCKFILE_PACKAGES_SECTION = 'packages'
 _MANIFEST_WORKSPACES_SECTION = 'workspaces'
 _MANIFEST_WORKSPACE_PACKAGES_SECTION = 'packages'
 _PNPM_WORKSPACE_PACKAGES_SECTION = 'packages'
+_PNPM_LOCKFILE_IMPORTERS_SECTION = 'importers'
+_PNPM_LOCKFILE_ROOT_IMPORTER = '.'
 _NODE_MODULES_SEPARATOR = 'node_modules/'
 _GIT_DIR_NAME = '.git'
 _NEGATION_PREFIX = '!'
@@ -75,17 +78,24 @@ class _WorkspacePatterns(NamedTuple):
 
 _EMPTY_WORKSPACE_PATTERNS = _WorkspacePatterns((), ())
 
-_npm_member_names_cache: dict[_FileStamp, frozenset[str]] = {}
+_member_names_cache: dict[_FileStamp, frozenset[str]] = {}
 _workspace_patterns_cache: dict[_FileStamp, _WorkspacePatterns] = {}
 _workspace_pattern_regex_cache: dict[str, 're.Pattern[str]'] = {}
 _reported_unscanned_roots: set = set()
 
 
 def clear_cache() -> None:
-    _npm_member_names_cache.clear()
+    _member_names_cache.clear()
     _workspace_patterns_cache.clear()
     _workspace_pattern_regex_cache.clear()
     _reported_unscanned_roots.clear()
+
+
+def _as_scan_root(value: object) -> Optional[str]:
+    if isinstance(value, (str, os.PathLike)):
+        return os.fspath(value) or None
+
+    return None
 
 
 def scan_roots_from_context(ctx: typer.Context) -> tuple:
@@ -93,15 +103,21 @@ def scan_roots_from_context(ctx: typer.Context) -> tuple:
     if not isinstance(params, dict):
         return ()
 
-    path = params.get('path')
-    if isinstance(path, str) and path:
-        return (path,)
+    roots = []
+
+    single_root = _as_scan_root(params.get('path'))
+    if single_root:
+        roots.append(single_root)
 
     paths = params.get('paths')
     if isinstance(paths, (list, tuple)):
-        return tuple(entry for entry in paths if isinstance(entry, str) and entry)
+        roots.extend(root for root in (_as_scan_root(entry) for entry in paths) if root)
 
-    return ()
+    return tuple(dict.fromkeys(roots))
+
+
+def _resolved_path(path: object) -> str:
+    return os.path.realpath(get_absolute_path(str(path)))
 
 
 def _file_stamp(path: Path) -> Optional[_FileStamp]:
@@ -239,32 +255,104 @@ def _declares_workspace_member(root_dir: Path, member_path: str, declared_in: st
 
 
 def _npm_lockfile_member_names(lock_file: Path) -> frozenset:
+    content = _read_json_object(lock_file)
+    packages = content.get(_LOCKFILE_PACKAGES_SECTION) if content is not None else None
+    if not isinstance(packages, dict):
+        return frozenset()
+
+    return frozenset(name for name in packages if name and _NODE_MODULES_SEPARATOR not in name)
+
+
+def _read_pnpm_importers_section(lock_file: Path) -> str:
+    """Slice out the top-level importers block so a large lockfile is not parsed in full."""
+    try:
+        text = lock_file.read_text(encoding='UTF-8')
+    except FileNotFoundError:
+        return ''
+    except OSError as e:
+        logger.debug('Could not read a pnpm lockfile, %s', {'path': str(lock_file), 'error': e})
+        return ''
+
+    section = []
+    inside = False
+    for line in text.splitlines():
+        if not inside:
+            if line.startswith(f'{_PNPM_LOCKFILE_IMPORTERS_SECTION}:'):
+                inside = True
+                section.append(line)
+            continue
+
+        if line and not line[0].isspace():
+            break
+
+        section.append(line)
+
+    return '\n'.join(section)
+
+
+def _pnpm_lockfile_member_names(lock_file: Path) -> frozenset:
+    section = _read_pnpm_importers_section(lock_file)
+    if not section:
+        return frozenset()
+
+    try:
+        content = yaml.safe_load(section)
+    except (ValueError, yaml.YAMLError) as e:
+        logger.debug('Could not read a pnpm lockfile, %s', {'path': str(lock_file), 'error': e})
+        return frozenset()
+
+    importers = content.get(_PNPM_LOCKFILE_IMPORTERS_SECTION) if isinstance(content, dict) else None
+    if not isinstance(importers, dict):
+        return frozenset()
+
+    member_names = set()
+    for name in importers:
+        if not isinstance(name, str):
+            continue
+
+        normalized = _normalize_member_path(name)
+        if normalized:
+            member_names.add(normalized)
+
+    return frozenset(member_names)
+
+
+def _normalize_member_path(member_path: str) -> Optional[str]:
+    normalized = member_path.strip()
+    if normalized.startswith('./'):
+        normalized = normalized[2:]
+
+    normalized = normalized.rstrip('/')
+    if not normalized or normalized == _PNPM_LOCKFILE_ROOT_IMPORTER:
+        return None
+
+    return normalized
+
+
+def _lockfile_member_names(lock_file: Path, package_manager: str) -> frozenset:
     stamp = _file_stamp(lock_file)
     if stamp is None:
         return frozenset()
 
-    cached = _npm_member_names_cache.get(stamp)
+    cached = _member_names_cache.get(stamp)
     if cached is not None:
         return cached
 
-    content = _read_json_object(lock_file)
-    packages = content.get(_LOCKFILE_PACKAGES_SECTION) if content is not None else None
-    member_names = (
-        frozenset(name for name in packages if name and _NODE_MODULES_SEPARATOR not in name)
-        if isinstance(packages, dict)
-        else frozenset()
-    )
+    if package_manager == PNPM_PACKAGE_MANAGER:
+        member_names = _pnpm_lockfile_member_names(lock_file)
+    else:
+        member_names = _npm_lockfile_member_names(lock_file)
 
-    _npm_member_names_cache[stamp] = member_names
+    _member_names_cache[stamp] = member_names
     return member_names
 
 
 def _containing_scan_roots(manifest_dir: Path, scan_roots: tuple) -> list:
-    absolute_manifest_dir = get_absolute_path(str(manifest_dir))
+    resolved_manifest_dir = _resolved_path(manifest_dir)
     return [
-        Path(get_absolute_path(scan_root))
+        Path(_resolved_path(scan_root))
         for scan_root in scan_roots
-        if is_sub_path(get_absolute_path(scan_root), absolute_manifest_dir)
+        if is_sub_path(_resolved_path(scan_root), resolved_manifest_dir)
     ]
 
 
@@ -282,13 +370,13 @@ def _resolve_walk_boundary(manifest_dir: Path, scan_roots: tuple) -> Optional[Pa
 
 def _workspace_root_candidates(manifest_dir: Path, scan_roots: tuple) -> 'Iterator[Path]':
     boundary = _resolve_walk_boundary(manifest_dir, scan_roots)
-    absolute_boundary = get_absolute_path(str(boundary)) if boundary is not None else None
-    if absolute_boundary == get_absolute_path(str(manifest_dir)):
+    resolved_boundary = _resolved_path(boundary) if boundary is not None else None
+    if resolved_boundary == _resolved_path(manifest_dir):
         return
 
     for root_dir in manifest_dir.parents:
         yield root_dir
-        if absolute_boundary is not None and get_absolute_path(str(root_dir)) == absolute_boundary:
+        if resolved_boundary is not None and _resolved_path(root_dir) == resolved_boundary:
             return
 
 
@@ -304,7 +392,9 @@ def _find_covering_workspace(manifest_dir: Path, scan_roots: tuple) -> Optional[
             if not _declares_workspace_member(root_dir, member_path, root_lock_file.declared_in):
                 continue
 
-            if root_lock_file.requires_lockfile_membership and member_path not in _npm_lockfile_member_names(lock_file):
+            if root_lock_file.requires_lockfile_membership and member_path not in _lockfile_member_names(
+                lock_file, root_lock_file.package_manager
+            ):
                 continue
 
             return WorkspaceCoverage(root_lock_file.package_manager, lock_file)
@@ -323,8 +413,8 @@ def _is_inside_scanned_paths(scan_roots: tuple, root_dir: Path) -> bool:
     if not scan_roots:
         return True
 
-    absolute_root_dir = get_absolute_path(str(root_dir))
-    return any(is_sub_path(get_absolute_path(scan_root), absolute_root_dir) for scan_root in scan_roots)
+    resolved_root_dir = _resolved_path(root_dir)
+    return any(is_sub_path(_resolved_path(scan_root), resolved_root_dir) for scan_root in scan_roots)
 
 
 def is_covered_workspace_member(manifest_dir: Optional[str], document_path: str, scan_roots: tuple = ()) -> bool:
