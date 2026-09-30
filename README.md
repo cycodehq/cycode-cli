@@ -47,10 +47,9 @@ This guide walks you through both installation and usage.
             1. [Terraform Plan Scan](#terraform-plan-scan)
         4. [Commit History Scan](#commit-history-scan)
             1. [Commit Range Option (Diff Scanning)](#commit-range-option-diff-scanning)
-        5. [Local Diff Scan](#local-diff-scan)
-            1. [What Gets Scanned](#what-gets-scanned)
-        6. [Pre-Commit Scan](#pre-commit-scan)
-        7. [Pre-Push Scan](#pre-push-scan)
+        5. [Pre-Commit Scan](#pre-commit-scan)
+            1. [Local Diff Scanning (IDE Integrations)](#local-diff-scanning-ide-integrations)
+        6. [Pre-Push Scan](#pre-push-scan)
     2. [Scan Results](#scan-results)
         1. [Show/Hide Secrets](#showhide-secrets)
         2. [Soft Fail](#soft-fail)
@@ -800,13 +799,12 @@ The Cycode CLI application offers several types of scans so that you can choose 
 | `--maven-settings-file`                                    | For Maven only, allows using a custom [settings.xml](https://maven.apache.org/settings.html) file when scanning for dependencies |
 | `--help`                                                   | Show options for given command.                                                                                                  |
 
-| Command                                | Description                                                                 |
-|-----------------------------------------|-----------------------------------------------------------------------------|
-| [commit-history](#commit-history-scan) | Scan commit history or perform diff scanning between specific commits       |
-| [local-diff](#local-diff-scan)         | Scan uncommitted changes (staged, unstaged, and untracked) against a commit |
-| [path](#path-scan)                     | Scan the files in the path supplied in the command                         |
-| [pre-commit](#pre-commit-scan)         | Use this command to scan the content that was not committed yet            |
-| [repository](#repository-scan)         | Scan git repository including its history                                  |
+| Command                                | Description                                                                                       |
+|-----------------------------------------|----------------------------------------------------------------------------------------------------|
+| [commit-history](#commit-history-scan) | Scan commit history or perform diff scanning between specific commits                              |
+| [path](#path-scan)                     | Scan the files in the path supplied in the command                                                |
+| [pre-commit](#pre-commit-scan)         | Scan content that was not committed yet; also supports local diff scanning via flags (IDE-friendly) |
+| [repository](#repository-scan)         | Scan git repository including its history                                                         |
 
 ### Options
 
@@ -1078,56 +1076,6 @@ cycode scan commit-history -r HEAD~3..HEAD ~/home/git/codebase
 > [!TIP]
 > For CI/CD pipelines, you can use environment variables like `${{ github.event.pull_request.base.sha }}..${{ github.sha }}` (GitHub Actions) or `$CI_MERGE_REQUEST_TARGET_BRANCH_SHA..$CI_COMMIT_SHA` (GitLab CI) to scan only PR/MR changes.
 
-### Local Diff Scan
-
-> [!NOTE]
-> Local Diff Scan is not available for IaC scans.
-
-A local diff scan compares a commit (by default, `HEAD`) against your current working directory — including staged changes, unstaged edits, and files you haven't added to Git yet. Unlike Pre-Commit Scan, which only looks at staged changes, and Commit History Scan, which compares two existing commits, Local Diff Scan reflects exactly what's currently on disk. This makes it well suited for IDE integrations and other tools that need continuous, real-time feedback as you work.
-
-To execute a local diff scan, run:
-
-`cycode scan local-diff`
-
-By default, this compares your working directory against `HEAD`. To compare against a different commit, branch, or tag, use the `--commit` (`-c`) option:
-
-`cycode scan local-diff --commit main`
-
-You can also scope the scan to one or more specific files or directories — useful for scanning only the file currently open in an editor:
-
-`cycode scan local-diff path/to/file.py`
-
-The following options are available for use with this command:
-
-| Option              | Description                                                                       |
-|---------------------|------------------------------------------------------------------------------------|
-| `[PATHS]...`        | Optional paths to scope the diff scan to; defaults to the entire working directory |
-| `-c, --commit TEXT` | Git ref (commit, branch, or tag) to diff against; defaults to `HEAD`               |
-
-#### What Gets Scanned
-
-Local Diff Scan collects:
-- **Staged changes** – content added with `git add`
-- **Unstaged changes** – edits to tracked files that haven't been staged yet
-- **Untracked files** – new files that haven't been added to Git at all
-
-#### Local Diff Scanning Examples
-
-**Scan everything currently changed against the last commit:**
-```bash
-cycode scan local-diff
-```
-
-**Scan changes against a specific commit or branch:**
-```bash
-cycode scan local-diff --commit main
-```
-
-**Scan only a specific file (e.g., the file currently open in your IDE):**
-```bash
-cycode scan local-diff src/app.py
-```
-
 ### Pre-Commit Scan
 
 A pre-commit scan automatically identifies any issues before you commit changes to your repository. There is no need to manually execute this scan; configure the pre-commit hook as detailed under the Installation section of this guide.
@@ -1136,6 +1084,36 @@ After installing the pre-commit hook, you may occasionally wish to skip scanning
 
 ```bash
 SKIP=cycode git commit -m <your commit message>`
+```
+
+The following options are available for use with this command:
+
+| Option                | Description                                                                                                        |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------|
+| `-b, --base-ref TEXT` | Git ref (commit, branch, or tag) to diff against; defaults to `HEAD`, matching the pre-commit hook behavior          |
+| `--include-unstaged`  | Also scan unstaged changes to tracked files, not just what is staged; off by default                                |
+| `--path PATH`         | Optional path(s) to scope the diff scan to; repeatable; defaults to the entire working directory                    |
+
+#### Local Diff Scanning (IDE Integrations)
+
+`--base-ref` and `--include-unstaged` turn `pre-commit` into a general-purpose **local diff scan**: comparing any commit (default `HEAD`) against your current working directory — including edits that aren't staged yet. This is intended for IDE plugins and other tools that need continuous, real-time feedback as you work, rather than the git hook flow. Combined with `--include-unstaged`, `--path` lets an IDE scope the scan to just the file currently open in the editor.
+
+> [!NOTE]
+> Local diff scanning (via these flags) is not available for IaC scans.
+
+**Scan everything currently changed (staged + unstaged) against the last commit:**
+```bash
+cycode scan pre-commit --include-unstaged
+```
+
+**Scan changes against a specific commit or branch:**
+```bash
+cycode scan pre-commit --include-unstaged --base-ref main
+```
+
+**Scan only a specific file (e.g., the file currently open in your IDE):**
+```bash
+cycode scan pre-commit --include-unstaged --path src/app.py
 ```
 
 ### Pre-Push Scan
