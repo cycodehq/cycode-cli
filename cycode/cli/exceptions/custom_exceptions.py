@@ -80,6 +80,11 @@ class FileCollectionError(CycodeError):
         return self.error_message
 
 
+class PrePushInputNotFoundError(CycodeError):
+    def __str__(self) -> str:
+        return 'Neither git pre-push input nor pre-commit framework push details were found'
+
+
 class AuthProcessError(CycodeError):
     def __init__(self, error_message: str) -> None:
         self.error_message = error_message
