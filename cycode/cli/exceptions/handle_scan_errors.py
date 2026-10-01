@@ -40,6 +40,12 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
             message='File collection failed. '
             'Use --no-restore to skip dependency restoration, or fix the underlying issue.',
         ),
+        custom_exceptions.PrePushInputNotFoundError: CliError(
+            soft_fail=False,
+            code='pre_push_input_not_found',
+            message='Could not determine which commits are being pushed, so nothing was scanned. '
+            'Run this command from a git pre-push hook',
+        ),
         custom_exceptions.TfplanKeyError: CliError(
             soft_fail=True,
             code='key_error',

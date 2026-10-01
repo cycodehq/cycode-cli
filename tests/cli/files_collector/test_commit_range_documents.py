@@ -15,6 +15,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     calculate_pre_receive_commit_range,
     collect_commit_range_diff_documents,
     get_diff_file_path,
+    get_pre_commit_framework_push_range,
     get_pre_commit_modified_documents,
     get_safe_head_reference_for_diff,
     get_staged_diff_index,
@@ -781,6 +782,34 @@ class TestCalculatePrePushCommitRange:
         assert result is None
 
 
+class TestGetPreCommitFrameworkPushRange:
+    """Test the push range resolution from the env vars the pre-commit framework passes to pre-push hooks."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for env_var_name in (
+            consts.PRE_COMMIT_FROM_REF_ENV_VAR_NAME,
+            consts.PRE_COMMIT_TO_REF_ENV_VAR_NAME,
+            consts.PRE_COMMIT_REMOTE_BRANCH_ENV_VAR_NAME,
+        ):
+            monkeypatch.delenv(env_var_name, raising=False)
+
+    def test_returns_range_from_refs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(consts.PRE_COMMIT_FROM_REF_ENV_VAR_NAME, DUMMY_SHA_A)
+        monkeypatch.setenv(consts.PRE_COMMIT_TO_REF_ENV_VAR_NAME, DUMMY_SHA_B)
+        monkeypatch.setenv(consts.PRE_COMMIT_REMOTE_BRANCH_ENV_VAR_NAME, 'refs/heads/main')
+
+        assert get_pre_commit_framework_push_range() == f'{DUMMY_SHA_A}..{DUMMY_SHA_B}'
+
+    def test_returns_all_commits_when_only_branches_are_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(consts.PRE_COMMIT_REMOTE_BRANCH_ENV_VAR_NAME, 'refs/heads/main')
+
+        assert get_pre_commit_framework_push_range() == consts.COMMIT_RANGE_ALL_COMMITS
+
+    def test_returns_none_without_env_vars(self) -> None:
+        assert get_pre_commit_framework_push_range() is None
+
+
 class TestPrePushHookIntegration:
     """Integration tests for pre-push hook functionality."""
 
@@ -1168,6 +1197,42 @@ class TestCollectCommitRangeDiffDocuments:
             commit_range = a_commit.hexsha
             documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, commit_range)
             assert len(documents) == 2, f'Expected 2 documents from single commit A, got {len(documents)}'
+
+    def test_collect_all_commits_includes_root_commit(self) -> None:
+        """Test that '--all' (a push to an empty remote) collects the root commit too."""
+        with temporary_git_repository() as (temp_dir, repo):
+            with open(os.path.join(temp_dir, 'creds.txt'), 'w') as f:
+                f.write('secret')
+            repo.index.add(['creds.txt'])
+            root_commit = repo.index.commit('root')
+
+            mock_ctx = Mock()
+            mock_ctx.obj = {'progress_bar': Mock()}
+
+            documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, consts.COMMIT_RANGE_ALL_COMMITS)
+            assert [doc.unique_id for doc in documents] == [root_commit.hexsha]
+            # the root commit's files must be reported as added, otherwise their secrets are dropped as removed
+            assert '+secret' in documents[0].content
+            assert '-secret' not in documents[0].content
+
+    def test_collect_reports_added_lines_for_child_commit(self) -> None:
+        with temporary_git_repository() as (temp_dir, repo):
+            with open(os.path.join(temp_dir, 'a.txt'), 'w') as f:
+                f.write('root')
+            repo.index.add(['a.txt'])
+            root_commit = repo.index.commit('root')
+
+            with open(os.path.join(temp_dir, 'creds.txt'), 'w') as f:
+                f.write('secret')
+            repo.index.add(['creds.txt'])
+            repo.index.commit('child')
+
+            mock_ctx = Mock()
+            mock_ctx.obj = {'progress_bar': Mock()}
+
+            documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, f'{root_commit.hexsha}..HEAD')
+            assert len(documents) == 1
+            assert '+secret' in documents[0].content
 
 
 class TestGetPreCommitModifiedDocuments:

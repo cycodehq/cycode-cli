@@ -86,7 +86,11 @@ def collect_commit_range_diff_documents(
 
     repo = git_proxy.get_repo(path)
 
-    normalized_commit_range = normalize_commit_range(commit_range, path)
+    if commit_range == consts.COMMIT_RANGE_ALL_COMMITS:
+        # everything reachable from HEAD, including the root commit
+        normalized_commit_range = consts.GIT_HEAD_COMMIT_REV
+    else:
+        normalized_commit_range = normalize_commit_range(commit_range, path)
 
     total_commits_count = int(repo.git.rev_list('--count', normalized_commit_range))
     logger.debug(
@@ -105,8 +109,10 @@ def collect_commit_range_diff_documents(
 
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
-        parent = commit.parents[0] if commit.parents else git_proxy.get_null_tree()
-        diff_index = commit.diff(parent, create_patch=True, R=True)
+        if commit.parents:
+            diff_index = commit.diff(commit.parents[0], create_patch=True, R=True)
+        else:
+            diff_index = commit.diff(git_proxy.get_null_tree(), create_patch=True)
         for diff in diff_index:
             commit_documents_to_scan.append(
                 Document(
@@ -277,6 +283,31 @@ def parse_pre_push_input() -> Optional[str]:
 
     # each line represents a branch push request, handle the first one only
     return pre_push_input.splitlines()[0]
+
+
+def is_invoked_by_pre_commit_framework() -> bool:
+    return os.getenv(consts.PRE_COMMIT_FRAMEWORK_ENV_VAR_NAME) == '1'
+
+
+def get_pre_commit_framework_push_range() -> Optional[str]:
+    """Get the commit range to scan when invoked as a pre-push hook by the pre-commit framework.
+
+    The pre-commit framework reads git's pre-push stdin itself and never forwards it to hooks.
+    Instead, it exposes the already resolved push details via environment variables.
+
+    Returns:
+        Commit range string for scanning, or None if not invoked by the pre-commit framework
+    """
+    from_ref = os.getenv(consts.PRE_COMMIT_FROM_REF_ENV_VAR_NAME)
+    to_ref = os.getenv(consts.PRE_COMMIT_TO_REF_ENV_VAR_NAME)
+    if from_ref and to_ref:
+        return f'{from_ref}..{to_ref}'
+
+    # the framework omits the refs when the pushed history includes the root commit
+    if os.getenv(consts.PRE_COMMIT_REMOTE_BRANCH_ENV_VAR_NAME):
+        return consts.COMMIT_RANGE_ALL_COMMITS
+
+    return None
 
 
 def _read_hook_input_from_stdin() -> str:
