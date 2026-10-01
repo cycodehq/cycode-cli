@@ -38,12 +38,15 @@ def test_concat_unique_id_keeps_server_and_share_for_unc_path() -> None:
         ('./repo/creds.txt', 'repo/creds.txt'),
         ('repo/creds.txt', 'repo/creds.txt'),
         ('', ''),
-        # a colon is a legal character in a posix file name and must not be read as a drive
-        ('x:y/creds.txt', 'x:y/creds.txt'),
     ],
 )
-def test_normalize_file_path_on_posix(path: str, expected: str) -> None:
+def test_normalize_file_path(path: str, expected: str) -> None:
     assert normalize_file_path(path) == expected
+
+
+def test_normalize_file_path_keeps_colon_in_posix_name() -> None:
+    # a colon is a legal character in a posix file name and must not be read as a drive
+    assert str(PurePosixPath(*_to_relative_posix_parts('x:y/creds.txt', OperatingSystem.LINUX))) == 'x:y/creds.txt'
 
 
 @pytest.mark.parametrize(
