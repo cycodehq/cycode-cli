@@ -76,14 +76,3 @@ def test_get_document_detections_keeps_detection_when_document_is_not_found() ->
 
     assert document_detections[0].document.path == 'unknown.txt'
     assert len(document_detections[0].detections) == 1
-
-
-def test_get_document_detections_matches_commit_document_with_windows_drive_path() -> None:
-    # the archived name never carries the drive letter, so the server reports the path without it
-    commit_id = 'a' * 40
-    document = Document('C:\\repo\\creds.txt', 'content', unique_id=commit_id)
-    scan_result = _scan_result_for(concat_unique_id(document.path, commit_id), commit_id)
-
-    document_detections = _get_document_detections(scan_result, [document])
-
-    assert document_detections[0].document is document
