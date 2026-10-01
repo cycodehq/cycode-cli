@@ -18,6 +18,7 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     find_covering_workspace,
     is_covered_workspace_member,
 )
+from cycode.cli.files_collector.sca.npm.workspace import resolvers as workspace_resolvers
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_scan_roots_from_context
 
@@ -391,17 +392,17 @@ class TestCaching:
         member_dirs = [_write_member(tmp_path, member) for member in members]
 
         parsed_paths = []
-        original_read_json_object = workspace._read_json_object
+        original_read_json_object = workspace_resolvers.read_json_object
 
         def counting_read_json_object(path: Path) -> object:
             parsed_paths.append(str(path))
             return original_read_json_object(path)
 
-        workspace._read_json_object = counting_read_json_object
+        workspace_resolvers.read_json_object = counting_read_json_object
         try:
             coverages = [find_covering_workspace(str(member_dir)) for member_dir in member_dirs]
         finally:
-            workspace._read_json_object = original_read_json_object
+            workspace_resolvers.read_json_object = original_read_json_object
 
         assert all(coverage is not None for coverage in coverages)
         assert parsed_paths.count(str(tmp_path / 'package-lock.json')) == 1
@@ -686,7 +687,7 @@ class TestFileNamesHaveASingleSource:
 
     def test_every_name_is_declared_only_in_workspace(self) -> None:
         """A new literal anywhere else in the module reintroduces exactly the drift this prevents."""
-        module_dir = Path(workspace.__file__).parent
+        module_dir = Path(workspace.__file__).parent.parent
         names = (
             'package.json',
             'package-lock.json',
@@ -699,17 +700,18 @@ class TestFileNamesHaveASingleSource:
             'deno.lock',
         )
 
+        single_source = Path(workspace.__file__).parent / 'names.py'
         offenders = {}
-        for source in module_dir.glob('*.py'):
-            if source.name == 'workspace.py':
+        for source in sorted(module_dir.rglob('*.py')):
+            if source == single_source:
                 continue
 
             text = source.read_text(encoding='UTF-8')
             declared = [name for name in names if f"'{name}'" in text]
             if declared:
-                offenders[source.name] = declared
+                offenders[str(source.relative_to(module_dir))] = declared
 
-        assert offenders == {}, f'file names must come from workspace.py, but found literals in: {offenders}'
+        assert offenders == {}, f'file names must come from workspace/names.py, but found literals in: {offenders}'
 
     def test_the_alternative_lockfiles_come_from_the_shared_table(self) -> None:
         """npm declines a project owned by another package manager; bun.lockb is the deliberate exception."""
@@ -829,7 +831,7 @@ class TestPnpmLockfileMembership:
         lines += [f'  dep{index}@1.0.0: {{resolution: {{integrity: sha512-x}}}}' for index in range(2000)]
         (tmp_path / 'pnpm-lock.yaml').write_text('\n'.join(lines) + '\n')
 
-        section = workspace._read_pnpm_importers_section(tmp_path / 'pnpm-lock.yaml')
+        section = workspace_resolvers._read_pnpm_importers_section(tmp_path / 'pnpm-lock.yaml')
 
         assert 'packages/app' in section
         assert 'dep0@1.0.0' not in section
@@ -853,7 +855,7 @@ class TestPnpmImportersSlicing:
     def _members(tmp_path: Path, lockfile_text: str) -> frozenset:
         lock_file = tmp_path / 'pnpm-lock.yaml'
         lock_file.write_text(lockfile_text)
-        return workspace._pnpm_lockfile_member_names(lock_file)
+        return workspace_resolvers._pnpm_lockfile_member_names(lock_file)
 
     def test_a_comment_at_column_zero_does_not_end_the_block(self, tmp_path: Path) -> None:
         """Truncating here would drop every later member and hand a pnpm project to npm."""
@@ -921,7 +923,7 @@ class TestPnpmImportersSlicing:
 
         Path.open = counting_open
         try:
-            section = workspace._read_pnpm_importers_section(lock_file)
+            section = workspace_resolvers._read_pnpm_importers_section(lock_file)
         finally:
             Path.open = real_open
 
@@ -1036,7 +1038,7 @@ class TestYarnLockfileMembership:
             '  resolution: "@scope/common@workspace:packages/common"\n'
         )
 
-        assert workspace._yarn_lockfile_member_names(tmp_path / 'yarn.lock') == frozenset(
+        assert workspace_resolvers._yarn_lockfile_member_names(tmp_path / 'yarn.lock') == frozenset(
             {'packages/app', 'packages/common'}
         )
 
@@ -1133,18 +1135,18 @@ class TestMemberResolvers:
         lock_file = tmp_path / 'package-lock.json'
 
         reads = []
-        original = workspace._read_json_object
+        original = workspace_resolvers.read_json_object
 
         def counting(path: Path) -> object:
             reads.append(str(path))
             return original(path)
 
-        workspace._read_json_object = counting
+        workspace_resolvers.read_json_object = counting
         try:
             first = resolver.resolve(lock_file)
             second = resolver.resolve(lock_file)
         finally:
-            workspace._read_json_object = original
+            workspace_resolvers.read_json_object = original
 
         assert first == second == frozenset({'packages/app'})
         assert reads.count(str(lock_file)) == 1
