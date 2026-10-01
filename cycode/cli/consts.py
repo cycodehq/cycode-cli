@@ -1,6 +1,26 @@
+import sys
+from enum import Enum
+
 PROGRAM_NAME = 'cycode'
 APP_NAME = 'CycodeCLI'
 CLI_CONTEXT_SETTINGS = {'terminal_width': 10**9, 'max_content_width': 10**9, 'help_option_names': ['-h', '--help']}
+
+
+class OperatingSystem(str, Enum):
+    WINDOWS = 'windows'
+    MACOS = 'macos'
+    LINUX = 'linux'
+
+
+def _detect_operating_system() -> OperatingSystem:
+    if sys.platform == 'win32':
+        return OperatingSystem.WINDOWS
+    if sys.platform == 'darwin':
+        return OperatingSystem.MACOS
+    return OperatingSystem.LINUX
+
+
+OPERATING_SYSTEM = _detect_operating_system()
 
 PRE_COMMIT_COMMAND_SCAN_TYPE = 'pre-commit'
 PRE_COMMIT_COMMAND_SCAN_TYPE_OLD = 'pre_commit'

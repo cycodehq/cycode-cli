@@ -2,10 +2,12 @@ import json
 import os
 import tempfile
 from functools import cache
+from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from typing import TYPE_CHECKING, AnyStr, Optional, Union
 
 import typer
 
+from cycode.cli.consts import OPERATING_SYSTEM, OperatingSystem
 from cycode.cli.logger import logger
 from cycode.cli.utils.binary_utils import is_binary_string
 
@@ -125,12 +127,29 @@ def change_filename_extension(filename: str, extension: str) -> str:
     return f'{base_name}.{extension}'
 
 
-def concat_unique_id(filename: str, unique_id: str) -> str:
-    if filename.startswith(os.sep):
-        # remove leading slash to join the path correctly
-        filename = filename[len(os.sep) :]
+def _to_relative_posix_parts(path: str, operating_system: OperatingSystem = OPERATING_SYSTEM) -> tuple[str, ...]:
+    """Split a path into OS-agnostic components: drop the root, keep the UNC server and share.
 
-    return os.path.join(unique_id, filename)
+    The archive entry name is read back by the server as ``<unique id>/<path>``, so it must use forward slashes
+    and must never start with a root. The flavor comes from the running OS rather than from the path itself, so
+    a colon in a POSIX file name is not mistaken for a drive letter.
+    """
+    pure: PurePath = PureWindowsPath(path) if operating_system is OperatingSystem.WINDOWS else PurePosixPath(path)
+    if not pure.anchor:
+        return pure.parts
+
+    # the anchor is 'C:\\', '/' or '\\\\server\\share\\': keep the names it carries, drop the drive and separators
+    anchor_parts = tuple(p for p in pure.anchor.replace('\\', '/').split('/') if p and not p.endswith(':'))
+    return anchor_parts + pure.parts[1:]
+
+
+def concat_unique_id(filename: str, unique_id: str) -> str:
+    """Prefix the file name with the unique id (e.g. a commit SHA) to build the name of the archive entry.
+
+    The server reads the unique id back from the first path component, so the file name must become relative
+    before joining; otherwise the prefix is lost and a Windows drive letter is reported as the commit id.
+    """
+    return str(PurePosixPath(unique_id, *_to_relative_posix_parts(filename)))
 
 
 def get_path_from_context(ctx: typer.Context) -> Optional[str]:
@@ -141,8 +160,6 @@ def get_path_from_context(ctx: typer.Context) -> Optional[str]:
 
 
 def normalize_file_path(path: str) -> str:
-    if path.startswith('/'):
-        return path[1:]
-    if path.startswith('./'):
-        return path[2:]
-    return path
+    """Make a path comparable with the file name the server reports back: no drive, no root, forward slashes."""
+    parts = _to_relative_posix_parts(path)
+    return str(PurePosixPath(*parts)) if parts else ''
