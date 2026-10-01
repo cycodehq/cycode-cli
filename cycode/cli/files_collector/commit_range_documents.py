@@ -15,7 +15,7 @@ from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.logger import get_logger
 
 if TYPE_CHECKING:
-    from git import Diff, DiffIndex, Repo
+    from git import Blob, Diff, DiffIndex, Repo
 
     from cycode.cli.utils.progress_bar import BaseProgressBar, ProgressBarSection
 
@@ -47,7 +47,7 @@ def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
         return consts.GIT_EMPTY_TREE_OBJECT
 
 
-def get_staged_diff_index(repo: 'Repo') -> tuple[str, 'DiffIndex']:
+def get_staged_diff_index(repo: 'Repo', paths: Optional[list[str]] = None) -> tuple[str, 'DiffIndex']:
     """Diff the index against HEAD, or against the empty tree in repositories with no commits.
 
     GitPython only inverts the `R` flag for HEAD, so `R` must be off for the empty tree to keep
@@ -55,13 +55,14 @@ def get_staged_diff_index(repo: 'Repo') -> tuple[str, 'DiffIndex']:
 
     Args:
         repo: Git repository object
+        paths: Optional pathspec to scope the diff to
 
     Returns:
         The reference that was diffed against, and the resulting diff index
     """
     head_reference = get_safe_head_reference_for_diff(repo)
     reverse = head_reference == consts.GIT_HEAD_COMMIT_REV
-    return head_reference, repo.index.diff(head_reference, create_patch=True, R=reverse)
+    return head_reference, repo.index.diff(head_reference, create_patch=True, R=reverse, paths=paths or None)
 
 
 def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: Optional[int]) -> bool:
@@ -183,6 +184,20 @@ def _get_oldest_unupdated_commit_for_branch(repo: 'Repo', commit: str) -> Option
 def _get_file_content_from_commit_diff(repo: 'Repo', commit: str, diff: 'Diff') -> Optional[str]:
     file_path = get_diff_file_path(diff, relative=True)
     return get_file_content_from_commit_path(repo, commit, file_path)
+
+
+def _get_blob_content(blob: Optional['Blob']) -> Optional[str]:
+    """Read a diff-side blob's content in-process, with no subprocess spawn.
+
+    `diff.a_blob`/`diff.b_blob` already hold whatever git loaded to compute the patch, so this is
+    the same content `git show <ref>:<path>` would return -- for every `Diffable.diff()` variant
+    (`index.diff(HEAD, R=True)`, `commit.diff()`, `commit.diff(None)`), `a_blob` is exactly the
+    "before" side, and it's `None` precisely when the file didn't exist there (e.g. diffed against
+    the empty tree for a brand-new repo/file) -- verified against a scratch repo for each variant.
+    """
+    if blob is None:
+        return None
+    return blob.data_stream.read().decode('UTF-8', errors='replace')
 
 
 def get_commit_range_modified_documents(
@@ -453,13 +468,65 @@ def get_pre_commit_modified_documents(
     progress_bar: 'BaseProgressBar',
     progress_bar_section: 'ProgressBarSection',
     repo_path: str,
+    base_ref: str = consts.GIT_HEAD_COMMIT_REV,
+    include_unstaged: bool = False,
+    paths: Optional[list[str]] = None,
+    collect_file_contents: bool = True,
 ) -> tuple[list[Document], list[Document], list[Document]]:
-    git_head_documents = []
-    pre_committed_documents = []
+    """Diffs `base_ref` against the staged index (default) or the full working tree.
+
+    Args:
+        base_ref: Git ref to diff against. Defaults to HEAD, matching the pre-commit hook's
+            historical behavior exactly.
+        include_unstaged: If False (default), diffs the staged index only -- this is the exact
+            pre-commit hook flow. If True, diffs the full working tree (staged + unstaged).
+        paths: Optional pathspec to scope the diff to.
+        collect_file_contents: If False, skip building `from_ref_documents`/`working_copy_documents`
+            entirely -- only `diff_documents` (the patch itself) is produced. The secret scan path
+            only ever uses `diff_documents`, so this avoids a disk read per changed file (and,
+            before the `a_blob` fix below, a subprocess spawn per file) that it would otherwise
+            discard immediately. Defaults to True so existing callers (SCA/SAST) are unaffected.
+
+    Returns:
+        (from_ref_documents, working_copy_documents, diff_documents). `from_ref_documents` holds
+        each changed file's content at `base_ref` (skipped if it didn't exist there, or was empty);
+        `working_copy_documents` holds each changed file's current on-disk content (skipped if
+        the file no longer exists, or is empty); `diff_documents` holds the unified diff per
+        changed file.
+    """
+    from_ref_documents = []
+    working_copy_documents = []
     diff_documents = []
 
     repo = git_proxy.get_repo(repo_path)
-    head_reference, diff_index = get_staged_diff_index(repo)
+
+    if base_ref == consts.GIT_HEAD_COMMIT_REV and not include_unstaged:
+        # The exact pre-commit hook flow, byte-for-byte unchanged: diff the staged index against
+        # HEAD (or the empty tree in a brand-new repo), via get_staged_diff_index()'s proven
+        # R-flag handling. Keeping this as its own branch (rather than folding it into the
+        # `diff_target.diff(...)` calls below) means this default, most-used path can't regress.
+        _, diff_index = get_staged_diff_index(repo, paths=paths)
+    else:
+        try:
+            diff_target = repo.commit(base_ref)
+        except Exception as e:
+            # Repository has no commits yet, or base_ref doesn't resolve; diff against the empty
+            # tree instead. (git_proxy.get_null_tree() is only a sentinel usable as the `other`
+            # side of a diff, so we resolve the well-known empty tree object itself to diff from.)
+            logger.debug(
+                'Could not resolve base_ref, falling back to the empty tree, %s', {'base_ref': base_ref}, exc_info=e
+            )
+            diff_target = repo.tree(consts.GIT_EMPTY_TREE_OBJECT)
+
+        if include_unstaged:
+            diff_index = diff_target.diff(None, create_patch=True, paths=paths or None)
+        else:
+            # `Diffable.diff()` defaults `other` to the staged index, so omitting it here diffs
+            # `base_ref` against the index only -- the same "staged changes against an arbitrary
+            # ref" semantics as `git diff --cached <base_ref>`, verified to produce identical,
+            # correctly-directed patches.
+            diff_index = diff_target.diff(create_patch=True, paths=paths or None)
+
     progress_bar.set_section_length(progress_bar_section, len(diff_index))
     for diff in diff_index:
         progress_bar.update(progress_bar_section)
@@ -474,18 +541,25 @@ def get_pre_commit_modified_documents(
             )
         )
 
-        # Only get file content from HEAD if HEAD exists (not the empty tree hash)
-        if head_reference == consts.GIT_HEAD_COMMIT_REV:
-            file_content = _get_file_content_from_commit_diff(repo, head_reference, diff)
-            if file_content:
-                git_head_documents.append(Document(file_path, file_content))
+        if not collect_file_contents:
+            continue
+
+        # `a_blob` is exactly the content at `base_ref` -- see `_get_blob_content`'s docstring.
+        # Deliberately `if file_content:` (skip empty string) rather than `is not None`: this
+        # matches the working_copy branch immediately below, treating an empty file the same as
+        # a nonexistent one. `get_commit_range_modified_documents` uses `is not None` instead, but
+        # for a different reason (there, `None` only ever means "no such commit"); don't "fix"
+        # this one to match it.
+        file_content = _get_blob_content(diff.a_blob)
+        if file_content:
+            from_ref_documents.append(Document(file_path, file_content))
 
         if os.path.exists(file_path):
             file_content = get_file_content(file_path)
             if file_content:
-                pre_committed_documents.append(Document(file_path, file_content))
+                working_copy_documents.append(Document(file_path, file_content))
 
-    return git_head_documents, pre_committed_documents, diff_documents
+    return from_ref_documents, working_copy_documents, diff_documents
 
 
 def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Optional[str], Optional[str]]:

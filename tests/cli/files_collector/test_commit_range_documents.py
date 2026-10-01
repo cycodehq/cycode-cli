@@ -16,6 +16,7 @@ from cycode.cli.files_collector.commit_range_documents import (
     collect_commit_range_diff_documents,
     get_diff_file_path,
     get_pre_commit_framework_push_range,
+    get_pre_commit_modified_documents,
     get_safe_head_reference_for_diff,
     get_staged_diff_index,
     parse_commit_range,
@@ -1232,3 +1233,253 @@ class TestCollectCommitRangeDiffDocuments:
             documents = collect_commit_range_diff_documents(mock_ctx, temp_dir, f'{root_commit.hexsha}..HEAD')
             assert len(documents) == 1
             assert '+secret' in documents[0].content
+
+
+class TestGetPreCommitModifiedDocuments:
+    """Test get_pre_commit_modified_documents across its (base_ref, include_unstaged) combinations."""
+
+    @staticmethod
+    def _mock_progress_bar() -> Mock:
+        mock_progress_bar = Mock()
+        mock_progress_bar.set_section_length = Mock()
+        mock_progress_bar.update = Mock()
+        return mock_progress_bar
+
+    def test_default_call_matches_default_arguments(self) -> None:
+        """Regression-critical: calling with no base_ref/include_unstaged/paths at all (the exact
+        pre-commit hook invocation) must behave identically to passing the documented defaults.
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w') as f:
+                f.write('line1\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('initial')
+
+            with open(file_path, 'a') as f:
+                f.write('staged\n')
+            repo.index.add(['tracked.txt'])
+
+            no_args_result = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+            )
+            explicit_defaults_result = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                base_ref='HEAD',
+                include_unstaged=False,
+                paths=None,
+            )
+
+            no_args_contents = [(d.path, d.content, d.is_git_diff_format) for docs in no_args_result for d in docs]
+            explicit_contents = [
+                (d.path, d.content, d.is_git_diff_format) for docs in explicit_defaults_result for d in docs
+            ]
+            assert no_args_contents == explicit_contents
+
+    def test_default_staged_only_ignores_unstaged_changes(self) -> None:
+        """The default (include_unstaged=False) diff/patch channel must only ever reflect staged
+        content, matching today's pre-commit hook behavior exactly -- an unstaged edit on top must
+        not leak into `diff_docs`. `work_docs` always reflects the live on-disk file regardless of
+        staging state (true both before and after this change -- it's a plain file read, with no
+        awareness of the index), so it legitimately includes the unstaged line too.
+
+        Files are written with newline='' so the on-disk (and therefore committed) content is
+        exactly the LF bytes given, regardless of platform -- otherwise Python's default text-mode
+        write translates '\\n' to the OS line ending, and on Windows the resulting CRLF blob makes
+        the `from_docs[0].content == 'line1\\n'` assertion below fail with a trailing '\\r'.
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w', newline='') as f:
+                f.write('line1\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('initial')
+
+            with open(file_path, 'a', newline='') as f:
+                f.write('staged\n')
+            repo.index.add(['tracked.txt'])
+
+            with open(file_path, 'a', newline='') as f:
+                f.write('unstaged\n')
+
+            from_docs, work_docs, diff_docs = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+            )
+
+            assert len(from_docs) == 1
+            assert from_docs[0].content == 'line1\n'
+
+            assert len(work_docs) == 1
+            assert work_docs[0].content == 'line1\nstaged\nunstaged\n'
+
+            assert len(diff_docs) == 1
+            assert diff_docs[0].is_git_diff_format is True
+            assert '+staged' in diff_docs[0].content
+            assert '+unstaged' not in diff_docs[0].content
+
+    def test_include_unstaged_combines_staged_and_unstaged_changes(self) -> None:
+        """A tracked file with both a staged and an unstaged edit should appear as a single diff/document
+        once include_unstaged=True. Files use newline='' -- see the comment in
+        test_default_staged_only_ignores_unstaged_changes for why.
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w', newline='') as f:
+                f.write('line1\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('initial')
+
+            with open(file_path, 'a', newline='') as f:
+                f.write('staged\n')
+            repo.index.add(['tracked.txt'])
+
+            with open(file_path, 'a', newline='') as f:
+                f.write('unstaged\n')
+
+            from_docs, work_docs, diff_docs = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                include_unstaged=True,
+            )
+
+            assert len(from_docs) == 1
+            assert from_docs[0].content == 'line1\n'
+
+            assert len(work_docs) == 1
+            assert work_docs[0].content == 'line1\nstaged\nunstaged\n'
+
+            assert len(diff_docs) == 1
+            assert diff_docs[0].is_git_diff_format is True
+            assert '+staged' in diff_docs[0].content
+            assert '+unstaged' in diff_docs[0].content
+
+    def test_scopes_to_requested_paths(self) -> None:
+        """Only files under the requested paths should be collected."""
+        with temporary_git_repository() as (temp_dir, repo):
+            os.makedirs(os.path.join(temp_dir, 'sub'))
+
+            included_path = os.path.join(temp_dir, 'sub', 'app.py')
+            excluded_path = os.path.join(temp_dir, 'excluded.py')
+            with open(included_path, 'w') as f:
+                f.write("print('old')\n")
+            with open(excluded_path, 'w') as f:
+                f.write("print('old')\n")
+            repo.index.add(['sub/app.py', 'excluded.py'])
+            repo.index.commit('initial')
+
+            with open(included_path, 'a') as f:
+                f.write("print('new')\n")
+            with open(excluded_path, 'a') as f:
+                f.write("print('new')\n")
+            repo.index.add(['sub/app.py', 'excluded.py'])
+
+            _from_docs, work_docs, diff_docs = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                paths=[os.path.join(temp_dir, 'sub')],
+            )
+
+            diff_paths = {doc.path for doc in diff_docs}
+            work_paths = {doc.path for doc in work_docs}
+
+            assert diff_paths == {get_path_by_os(included_path)}
+            assert work_paths == {get_path_by_os(included_path)}
+
+    def test_include_unstaged_uses_explicit_base_ref_not_just_head(self) -> None:
+        """Diffing against an older ref should show changes made since that ref, not just since HEAD."""
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w') as f:
+                f.write('A\n')
+            repo.index.add(['tracked.txt'])
+            first_commit = repo.index.commit('A')
+
+            with open(file_path, 'a') as f:
+                f.write('B\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('B')
+
+            with open(file_path, 'a') as f:
+                f.write('unstaged-C\n')
+
+            _from_docs, _work_docs, diff_docs = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                base_ref=first_commit.hexsha,
+                include_unstaged=True,
+            )
+
+            assert len(diff_docs) == 1
+            assert '+B' in diff_docs[0].content
+            assert '+unstaged-C' in diff_docs[0].content
+
+    def test_staged_only_against_non_head_base_ref_shows_correct_diff_direction(self) -> None:
+        """The new combination: staged-only (include_unstaged=False) diffed against an older ref.
+
+        Verifies GitPython's Diffable.diff() defaulting `other` to the index produces the same,
+        correctly-directed patch as `git diff --cached <base_ref>` -- this is the one code path
+        with no prior coverage (see plan: verified manually against raw git before implementing).
+        """
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'tracked.txt')
+            with open(file_path, 'w') as f:
+                f.write('A\n')
+            repo.index.add(['tracked.txt'])
+            first_commit = repo.index.commit('A')
+
+            with open(file_path, 'a') as f:
+                f.write('B\n')
+            repo.index.add(['tracked.txt'])
+            repo.index.commit('B')
+
+            with open(file_path, 'a') as f:
+                f.write('staged-C\n')
+            repo.index.add(['tracked.txt'])
+
+            with open(file_path, 'a') as f:
+                f.write('unstaged-D\n')
+
+            _from_docs, _work_docs, diff_docs = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+                base_ref=first_commit.hexsha,
+                include_unstaged=False,
+            )
+
+            assert len(diff_docs) == 1
+            assert diff_docs[0].content.count('+B') == 1
+            assert diff_docs[0].content.count('+staged-C') == 1
+            assert 'unstaged-D' not in diff_docs[0].content
+            # every changed line must be an addition, never a removal, for this pure-append history
+            assert '-A' not in diff_docs[0].content
+            assert '-B' not in diff_docs[0].content
+
+    def test_empty_repository_falls_back_to_empty_tree(self) -> None:
+        """A repository with zero commits should treat all staged content as new, not error out."""
+        with temporary_git_repository() as (temp_dir, repo):
+            file_path = os.path.join(temp_dir, 'new_file.txt')
+            with open(file_path, 'w') as f:
+                f.write('brand-new-content\n')
+            repo.index.add(['new_file.txt'])
+
+            from_docs, work_docs, diff_docs = get_pre_commit_modified_documents(
+                progress_bar=self._mock_progress_bar(),
+                progress_bar_section='prepare',
+                repo_path=temp_dir,
+            )
+
+            assert from_docs == []
+            assert len(work_docs) == 1
+            assert work_docs[0].content == 'brand-new-content\n'
+            assert len(diff_docs) == 1
+            assert '+brand-new-content' in diff_docs[0].content

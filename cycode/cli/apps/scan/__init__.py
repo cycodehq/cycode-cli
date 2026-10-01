@@ -28,7 +28,8 @@ app.command(name='commit-history', short_help='Scan commit history or perform di
 )
 app.command(
     name='pre-commit',
-    short_help='Use this command in pre-commit hook to scan any content that was not committed yet.',
+    short_help='Use this command in pre-commit hook to scan any content that was not committed yet. '
+    'Also supports IDE-style local diff scanning via --base-ref/--include-unstaged/--path.',
     rich_help_panel=_AUTOMATION_COMMANDS_RICH_HELP_PANEL,
 )(pre_commit_command)
 app.command(

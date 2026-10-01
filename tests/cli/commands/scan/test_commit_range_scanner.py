@@ -47,3 +47,60 @@ def test_commit_range_scan_falls_back_to_api_when_presigned_upload_raises_wrappe
     mock_v4_async.assert_called_once()
     mock_async.assert_called_once()
     mock_handle_exception.assert_not_called()
+
+
+class TestScanPreCommit:
+    """Test the scan_pre_commit dispatcher, including the folded-in local-diff-style flags."""
+
+    def _make_ctx(self, scan_type: str) -> MagicMock:
+        mock_ctx = MagicMock()
+        mock_ctx.obj = {'scan_type': scan_type, 'progress_bar': MagicMock()}
+        return mock_ctx
+
+    def test_unsupported_scan_type_raises(self) -> None:
+        import click
+        import pytest
+
+        from cycode.cli.apps.scan.commit_range_scanner import scan_pre_commit
+
+        mock_ctx = self._make_ctx(consts.IAC_SCAN_TYPE)
+
+        with pytest.raises(click.ClickException, match='IAC'):
+            scan_pre_commit(mock_ctx, repo_path='/repo')
+
+    def test_dispatches_secret_scan_type_with_default_args(self) -> None:
+        from cycode.cli.apps.scan import commit_range_scanner
+        from cycode.cli.apps.scan.commit_range_scanner import scan_pre_commit
+
+        mock_handler = Mock()
+        with patch.dict(commit_range_scanner._SCAN_TYPE_TO_PRE_COMMIT_HANDLER, {consts.SECRET_SCAN_TYPE: mock_handler}):
+            mock_ctx = self._make_ctx(consts.SECRET_SCAN_TYPE)
+            scan_pre_commit(mock_ctx, repo_path='/repo')
+
+        mock_handler.assert_called_once_with(mock_ctx, '/repo', base_ref='HEAD', include_unstaged=False, paths=None)
+
+    def test_dispatches_sca_scan_type_with_folded_in_flags(self) -> None:
+        from cycode.cli.apps.scan import commit_range_scanner
+        from cycode.cli.apps.scan.commit_range_scanner import scan_pre_commit
+
+        mock_handler = Mock()
+        with patch.dict(commit_range_scanner._SCAN_TYPE_TO_PRE_COMMIT_HANDLER, {consts.SCA_SCAN_TYPE: mock_handler}):
+            mock_ctx = self._make_ctx(consts.SCA_SCAN_TYPE)
+            scan_pre_commit(
+                mock_ctx, repo_path='/repo', base_ref='abc123', include_unstaged=True, paths=['/repo/file.py']
+            )
+
+        mock_handler.assert_called_once_with(
+            mock_ctx, '/repo', base_ref='abc123', include_unstaged=True, paths=['/repo/file.py']
+        )
+
+    def test_dispatches_sast_scan_type(self) -> None:
+        from cycode.cli.apps.scan import commit_range_scanner
+        from cycode.cli.apps.scan.commit_range_scanner import scan_pre_commit
+
+        mock_handler = Mock()
+        with patch.dict(commit_range_scanner._SCAN_TYPE_TO_PRE_COMMIT_HANDLER, {consts.SAST_SCAN_TYPE: mock_handler}):
+            mock_ctx = self._make_ctx(consts.SAST_SCAN_TYPE)
+            scan_pre_commit(mock_ctx, repo_path='/repo')
+
+        mock_handler.assert_called_once_with(mock_ctx, '/repo', base_ref='HEAD', include_unstaged=False, paths=None)

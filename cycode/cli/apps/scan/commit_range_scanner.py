@@ -24,10 +24,7 @@ from cycode.cli.exceptions.handle_scan_errors import handle_scan_exception
 from cycode.cli.files_collector.commit_range_documents import (
     collect_commit_range_diff_documents,
     get_commit_range_modified_documents,
-    get_diff_file_content,
-    get_diff_file_path,
     get_pre_commit_modified_documents,
-    get_staged_diff_index,
     parse_commit_range,
 )
 from cycode.cli.files_collector.documents_walk_ignore import filter_documents_with_cycodeignore
@@ -35,12 +32,10 @@ from cycode.cli.files_collector.file_excluder import excluder
 from cycode.cli.files_collector.models.in_memory_zip import InMemoryZip
 from cycode.cli.files_collector.sca.sca_file_collector import (
     perform_sca_pre_commit_range_scan_actions,
-    perform_sca_pre_hook_range_scan_actions,
+    perform_sca_pre_commit_scan_actions,
 )
 from cycode.cli.files_collector.zip_documents import zip_documents
 from cycode.cli.models import Document
-from cycode.cli.utils.git_proxy import git_proxy
-from cycode.cli.utils.path_utils import get_path_by_os
 from cycode.cli.utils.progress_bar import ScanProgressBarSection
 from cycode.cli.utils.scan_utils import (
     generate_unique_scan_id,
@@ -329,84 +324,103 @@ def scan_commit_range(ctx: typer.Context, repo_path: str, commit_range: str, **k
     _SCAN_TYPE_TO_COMMIT_RANGE_HANDLER[scan_type](ctx, repo_path, commit_range, **kwargs)
 
 
-def _scan_sca_pre_commit(ctx: typer.Context, repo_path: str) -> None:
-    scan_parameters = get_scan_parameters(ctx)
+def _scan_sca_pre_commit(
+    ctx: typer.Context,
+    repo_path: str,
+    base_ref: str = consts.GIT_HEAD_COMMIT_REV,
+    include_unstaged: bool = False,
+    paths: Optional[list[str]] = None,
+) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
-    git_head_documents, pre_committed_documents, _ = get_pre_commit_modified_documents(
+    from_ref_documents, working_copy_documents, _diff_documents = get_pre_commit_modified_documents(
         progress_bar=ctx.obj['progress_bar'],
         progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
         repo_path=repo_path,
+        base_ref=base_ref,
+        include_unstaged=include_unstaged,
+        paths=paths,
     )
 
-    git_head_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, git_head_documents)
-    pre_committed_documents = excluder.exclude_irrelevant_documents_to_scan(
-        consts.SCA_SCAN_TYPE, pre_committed_documents
-    )
+    from_ref_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, from_ref_documents)
+    working_copy_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SCA_SCAN_TYPE, working_copy_documents)
 
     is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
-    git_head_documents = filter_documents_with_cycodeignore(git_head_documents, repo_path, is_cycodeignore_allowed)
-    pre_committed_documents = filter_documents_with_cycodeignore(
-        pre_committed_documents, repo_path, is_cycodeignore_allowed
+    from_ref_documents = filter_documents_with_cycodeignore(from_ref_documents, repo_path, is_cycodeignore_allowed)
+    working_copy_documents = filter_documents_with_cycodeignore(
+        working_copy_documents, repo_path, is_cycodeignore_allowed
     )
 
-    perform_sca_pre_hook_range_scan_actions(repo_path, git_head_documents, pre_committed_documents)
+    perform_sca_pre_commit_scan_actions(repo_path, from_ref_documents, base_ref, working_copy_documents)
 
     _scan_commit_range_documents(
         ctx,
-        git_head_documents,
-        pre_committed_documents,
+        from_ref_documents,
+        working_copy_documents,
         scan_parameters,
         configuration_manager.get_sca_pre_commit_timeout_in_seconds(),
     )
 
 
-def _scan_secret_pre_commit(ctx: typer.Context, repo_path: str) -> None:
-    progress_bar = ctx.obj['progress_bar']
-    repo = git_proxy.get_repo(repo_path)
-    _, diff_index = get_staged_diff_index(repo)
-
-    progress_bar.set_section_length(ScanProgressBarSection.PREPARE_LOCAL_FILES, len(diff_index))
-
-    documents_to_scan = []
-    for diff in diff_index:
-        progress_bar.update(ScanProgressBarSection.PREPARE_LOCAL_FILES)
-        documents_to_scan.append(
-            Document(
-                get_path_by_os(get_diff_file_path(diff, repo=repo)),
-                get_diff_file_content(diff),
-                is_git_diff_format=True,
-            )
-        )
-
-    documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(consts.SECRET_SCAN_TYPE, documents_to_scan)
-
-    is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
-    documents_to_scan = filter_documents_with_cycodeignore(documents_to_scan, repo_path, is_cycodeignore_allowed)
-
-    scan_documents(ctx, documents_to_scan, get_scan_parameters(ctx), is_git_diff=True)
-
-
-def _scan_sast_pre_commit(ctx: typer.Context, repo_path: str, **_) -> None:
-    scan_parameters = get_scan_parameters(ctx, (repo_path,))
-
-    _, pre_committed_documents, diff_documents = get_pre_commit_modified_documents(
+def _scan_secret_pre_commit(
+    ctx: typer.Context,
+    repo_path: str,
+    base_ref: str = consts.GIT_HEAD_COMMIT_REV,
+    include_unstaged: bool = False,
+    paths: Optional[list[str]] = None,
+) -> None:
+    # collect_file_contents=False: the secret scan only ever uses diff_documents below, so skip
+    # building from_ref_documents/working_copy_documents (a disk read per changed file it would
+    # otherwise discard immediately).
+    _from_ref_documents, _working_copy_documents, diff_documents = get_pre_commit_modified_documents(
         progress_bar=ctx.obj['progress_bar'],
         progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
         repo_path=repo_path,
+        base_ref=base_ref,
+        include_unstaged=include_unstaged,
+        paths=paths,
+        collect_file_contents=False,
     )
 
-    pre_committed_documents = excluder.exclude_irrelevant_documents_to_scan(
-        consts.SAST_SCAN_TYPE, pre_committed_documents
+    diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SECRET_SCAN_TYPE, diff_documents)
+
+    is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
+    diff_documents = filter_documents_with_cycodeignore(diff_documents, repo_path, is_cycodeignore_allowed)
+
+    scan_documents(ctx, diff_documents, get_scan_parameters(ctx, (repo_path,)), is_git_diff=True)
+
+
+def _scan_sast_pre_commit(
+    ctx: typer.Context,
+    repo_path: str,
+    base_ref: str = consts.GIT_HEAD_COMMIT_REV,
+    include_unstaged: bool = False,
+    paths: Optional[list[str]] = None,
+    **_,
+) -> None:
+    scan_parameters = get_scan_parameters(ctx, (repo_path,))
+
+    _from_ref_documents, working_copy_documents, diff_documents = get_pre_commit_modified_documents(
+        progress_bar=ctx.obj['progress_bar'],
+        progress_bar_section=ScanProgressBarSection.PREPARE_LOCAL_FILES,
+        repo_path=repo_path,
+        base_ref=base_ref,
+        include_unstaged=include_unstaged,
+        paths=paths,
+    )
+
+    working_copy_documents = excluder.exclude_irrelevant_documents_to_scan(
+        consts.SAST_SCAN_TYPE, working_copy_documents
     )
     diff_documents = excluder.exclude_irrelevant_documents_to_scan(consts.SAST_SCAN_TYPE, diff_documents)
 
     is_cycodeignore_allowed = is_cycodeignore_allowed_by_scan_config(ctx)
-    pre_committed_documents = filter_documents_with_cycodeignore(
-        pre_committed_documents, repo_path, is_cycodeignore_allowed
+    working_copy_documents = filter_documents_with_cycodeignore(
+        working_copy_documents, repo_path, is_cycodeignore_allowed
     )
     diff_documents = filter_documents_with_cycodeignore(diff_documents, repo_path, is_cycodeignore_allowed)
 
-    _scan_commit_range_documents(ctx, pre_committed_documents, diff_documents, scan_parameters=scan_parameters)
+    _scan_commit_range_documents(ctx, working_copy_documents, diff_documents, scan_parameters=scan_parameters)
 
 
 _SCAN_TYPE_TO_PRE_COMMIT_HANDLER = {
@@ -416,10 +430,18 @@ _SCAN_TYPE_TO_PRE_COMMIT_HANDLER = {
 }
 
 
-def scan_pre_commit(ctx: typer.Context, repo_path: str) -> None:
+def scan_pre_commit(
+    ctx: typer.Context,
+    repo_path: str,
+    base_ref: str = consts.GIT_HEAD_COMMIT_REV,
+    include_unstaged: bool = False,
+    paths: Optional[list[str]] = None,
+) -> None:
     scan_type = ctx.obj['scan_type']
     if scan_type not in _SCAN_TYPE_TO_PRE_COMMIT_HANDLER:
         raise click.ClickException(f'Pre-commit scanning for {scan_type.upper()} is not supported')
 
-    _SCAN_TYPE_TO_PRE_COMMIT_HANDLER[scan_type](ctx, repo_path)
+    _SCAN_TYPE_TO_PRE_COMMIT_HANDLER[scan_type](
+        ctx, repo_path, base_ref=base_ref, include_unstaged=include_unstaged, paths=paths
+    )
     logger.debug('Pre-commit scan completed successfully')

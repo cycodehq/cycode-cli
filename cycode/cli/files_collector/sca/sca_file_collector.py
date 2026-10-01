@@ -64,12 +64,19 @@ def perform_sca_pre_commit_range_scan_actions(
     _add_ecosystem_related_files_if_exists(to_commit_documents, repo, to_commit_rev)
 
 
-def perform_sca_pre_hook_range_scan_actions(
-    repo_path: str, git_head_documents: list[Document], pre_committed_documents: list[Document]
+def perform_sca_pre_commit_scan_actions(
+    repo_path: str, from_ref_documents: list[Document], base_ref: str, working_copy_documents: list[Document]
 ) -> None:
+    """Add ecosystem-related project files for a pre-commit-style scan (staged-index-or-working-tree vs `base_ref`).
+
+    `base_ref` can be any ref, not just HEAD -- covers both the default pre-commit hook flow and
+    the opt-in `--base-ref`/`--include-unstaged` flags.
+    """
     repo = git_proxy.get_repo(repo_path)
-    _add_ecosystem_related_files_if_exists(git_head_documents, repo, consts.GIT_HEAD_COMMIT_REV)
-    _add_ecosystem_related_files_if_exists(pre_committed_documents)
+    _add_ecosystem_related_files_if_exists(from_ref_documents, repo, base_ref)
+    # working copy documents reflect the live filesystem (staged, or staged+unstaged), so their
+    # related project files must also be read from disk, not from a commit tree.
+    _add_ecosystem_related_files_if_exists(working_copy_documents)
 
 
 def _get_doc_ecosystem_related_project_files(

@@ -60,6 +60,16 @@ def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exceptio
             message='The path you supplied does not correlate to a Git repository. '
             'If you still wish to scan this path, use: `cycode scan path <path>`',
         ),
+        custom_exceptions.ScanPathOutsideRepositoryError: CliError(
+            soft_fail=False,
+            code='invalid_scan_path_error',
+            message=f'\n{err!s}\n--path must point to a location inside the scanned repository',
+        ),
+        custom_exceptions.UnresolvedGitRefError: CliError(
+            soft_fail=False,
+            code='invalid_git_ref_error',
+            message=f'\n{err!s}\nPass a commit, branch, or tag that exists in this repository',
+        ),
     }
 
     return handle_errors(ctx, err, errors, return_exception=return_exception)
