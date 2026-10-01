@@ -7,7 +7,7 @@ from cycode.cli import consts
 from cycode.cli.apps.scan.aggregation_report import try_get_aggregation_report_url_if_needed
 from cycode.cli.apps.scan.detection_excluder import exclude_irrelevant_document_detections
 from cycode.cli.models import Document, DocumentDetections, LocalScanResult
-from cycode.cli.utils.path_utils import concat_unique_id, get_path_by_os, normalize_file_path
+from cycode.cli.utils.path_utils import concat_unique_id, normalize_file_path
 from cycode.cyclient.models import (
     Detection,
     DetectionSchema,
@@ -49,7 +49,7 @@ def _get_document_detections(
 
     document_detections = []
     for detections_per_file in scan_result.detections_per_file:
-        file_name = get_path_by_os(detections_per_file.file_name)
+        file_name = detections_per_file.file_name
         commit_id = detections_per_file.commit_id
 
         logger.debug(
