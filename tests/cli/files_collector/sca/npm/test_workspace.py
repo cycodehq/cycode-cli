@@ -2,6 +2,7 @@ import contextlib
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
@@ -61,6 +62,11 @@ def _write_pnpm_lockfile(root: Path, members: list) -> None:
     (root / 'pnpm-lock.yaml').write_text('\n'.join(lines) + '\n')
 
 
+def _write_yarn_classic_lockfile(root: Path) -> None:
+    """Classic yarn records no members, so a root carrying it falls back to the manifest globs."""
+    (root / 'yarn.lock').write_text('# yarn lockfile v1\n')
+
+
 def _write_npm_lockfile(root: Path, members: list, file_name: str = 'package-lock.json') -> None:
     packages = {'': {'name': 'root'}}
     for member in members:
@@ -99,13 +105,17 @@ class TestNpmWorkspaceCoverage:
 
         assert find_covering_workspace(str(member_dir)) is None
 
-    def test_file_dependency_target_is_not_a_member(self, tmp_path: Path) -> None:
-        """npm records a file: target exactly like a member, but it does not resolve through the root lockfile."""
+    def test_a_file_dependency_target_is_covered(self, tmp_path: Path) -> None:
+        """The root lockfile resolves a file: target's dependencies exactly as it does a member's.
+
+        Verified against npm 11: both get a packages entry and their ranges pinned under the root
+        node_modules, so generating a second lockfile inside the target can only drift from it.
+        """
         (tmp_path / 'package.json').write_text('{"name": "root", "dependencies": {"lib": "file:lib"}}')
         _write_npm_lockfile(tmp_path, ['lib'])
         member_dir = _write_member(tmp_path, 'lib')
 
-        assert find_covering_workspace(str(member_dir)) is None
+        assert find_covering_workspace(str(member_dir)) is not None
 
     def test_lockfile_version_1_root_is_not_coverage(self, tmp_path: Path) -> None:
         """Workspaces arrived in npm 7 with lockfileVersion 2, so a v1 lockfile never describes one."""
@@ -188,28 +198,54 @@ class TestNonNpmWorkspaceCoverage:
 class TestWorkspacePatternMatching:
     def test_single_star_stops_at_a_path_separator(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
-        _write_npm_lockfile(tmp_path, ['packages/a/b'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/a/b')
 
         assert find_covering_workspace(str(member_dir)) is None
 
     def test_double_star_crosses_a_path_separator(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/**"]}')
-        _write_npm_lockfile(tmp_path, ['packages/a/b'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/a/b')
 
         assert find_covering_workspace(str(member_dir)) is not None
 
+    @pytest.mark.parametrize(
+        ('pattern', 'member_path', 'matches'),
+        [
+            # a trailing globstar covers the directory itself, because workspace discovery globs
+            # <pattern>/package.json and ** spans zero or more segments
+            ('src/app/**', 'src/app', True),
+            ('src/app/**', 'src/app/nested', True),
+            ('src/app/**', 'src/apple', False),
+            ('packages/**', 'packages', True),
+            ('packages/**', 'packages/a/b', True),
+            ('packages/*', 'packages/a', True),
+            ('packages/*', 'packages/a/b', False),
+            ('**/src/test/**', 'src/test', True),
+            ('**/src/test/**', 'a/src/test/b', True),
+        ],
+    )
+    def test_globstar_spans_zero_or_more_segments(
+        self, tmp_path: Path, pattern: str, member_path: str, matches: bool
+    ) -> None:
+        """pnpm records src/app as a member of src/app/**, so the separator cannot be mandatory."""
+        (tmp_path / 'package.json').write_text(json.dumps({'name': 'root', 'workspaces': [pattern]}))
+        _write_yarn_classic_lockfile(tmp_path)
+        member_dir = _write_member(tmp_path, member_path)
+
+        assert (find_covering_workspace(str(member_dir)) is not None) is matches
+
     def test_workspaces_object_form_is_honoured(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": {"packages": ["packages/*"]}}')
-        _write_npm_lockfile(tmp_path, ['packages/app'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/app')
 
         assert find_covering_workspace(str(member_dir)) is not None
 
     def test_leading_dot_slash_and_trailing_slash_are_normalized(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["./packages/app/"]}')
-        _write_npm_lockfile(tmp_path, ['packages/app'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/app')
 
         assert find_covering_workspace(str(member_dir)) is not None
@@ -219,7 +255,7 @@ class TestWorkspacePatternMatching:
         (tmp_path / 'package.json').write_text(
             '{"name": "root", "workspaces": ["packages/*", "!packages/legacy"]}',
         )
-        _write_npm_lockfile(tmp_path, ['packages/legacy'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/legacy')
 
         assert find_covering_workspace(str(member_dir)) is None
@@ -228,14 +264,14 @@ class TestWorkspacePatternMatching:
         (tmp_path / 'package.json').write_text(
             '{"name": "root", "workspaces": ["packages/*", "!packages/legacy"]}',
         )
-        _write_npm_lockfile(tmp_path, ['packages/app'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/app')
 
         assert find_covering_workspace(str(member_dir)) is not None
 
     def test_non_string_workspace_entries_are_ignored(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": [null, 7, "packages/*"]}')
-        _write_npm_lockfile(tmp_path, ['packages/app'])
+        _write_yarn_classic_lockfile(tmp_path)
         member_dir = _write_member(tmp_path, 'packages/app')
 
         assert find_covering_workspace(str(member_dir)) is not None
@@ -369,7 +405,6 @@ class TestCaching:
 
         assert all(coverage is not None for coverage in coverages)
         assert parsed_paths.count(str(tmp_path / 'package-lock.json')) == 1
-        assert parsed_paths.count(str(tmp_path / 'package.json')) == 1
 
     def test_clearing_the_cache_picks_up_an_edited_lockfile(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
@@ -426,7 +461,7 @@ class TestNoHandlerClaimsACoveredMember:
 
         assert self._claimants(tmp_path, member_dir) == []
 
-    def test_no_handler_claims_a_member_of_a_pnpm_workspace_declared_in_yaml(self, tmp_path: Path) -> None:
+    def test_no_handler_claims_a_member_of_a_pnpm_workspace(self, tmp_path: Path) -> None:
         (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
         (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
         _write_pnpm_lockfile(tmp_path, ['packages/app'])
@@ -608,9 +643,8 @@ class TestLogNoise:
 
     def test_a_genuine_parse_failure_is_still_logged(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Silencing the expected absences must not also silence a real malformed file."""
-        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
-        (tmp_path / 'pnpm-workspace.yaml').write_text('packages: [unclosed\n  - "oops"\n')
-        (tmp_path / 'pnpm-lock.yaml').write_text("lockfileVersion: '9.0'\n")
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'package-lock.json').write_text('this is not json')
         member_dir = _write_member(tmp_path, 'packages/app')
 
         with caplog.at_level(logging.DEBUG, logger=_WORKSPACE_LOGGER_NAME):
@@ -682,9 +716,10 @@ class TestFileNamesHaveASingleSource:
         from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import _ALTERNATIVE_LOCK_FILES
 
         non_npm_names = {
-            root_lock_file.file_name
-            for root_lock_file in workspace.ROOT_LOCK_FILES
-            if root_lock_file.package_manager != workspace.NPM_PACKAGE_MANAGER
+            lock_file_name
+            for resolver in workspace.MEMBER_RESOLVERS
+            if resolver.package_manager != workspace.NPM_PACKAGE_MANAGER
+            for lock_file_name in resolver.lock_file_names
         }
 
         assert set(_ALTERNATIVE_LOCK_FILES) <= non_npm_names
@@ -859,12 +894,13 @@ class TestPnpmImportersSlicing:
             ),
             ('dot slash prefix', "lockfileVersion: '9.0'\nimporters:\n  ./packages/app: {}\n", {'packages/app'}),
             ('no trailing newline', "lockfileVersion: '9.0'\nimporters:\n  packages/app: {}", {'packages/app'}),
-            ('no importers', "lockfileVersion: '9.0'\npackages: {}\n", set()),
-            ('root importer only', "lockfileVersion: '9.0'\nimporters:\n  .: {}\n", set()),
+            ('no importers', "lockfileVersion: '9.0'\npackages: {}\n", None),
+            ('root importer only', "lockfileVersion: '9.0'\nimporters:\n  .: {}\n", None),
         ],
     )
-    def test_lockfile_shapes(self, tmp_path: Path, label: str, text: str, expected: set) -> None:
-        assert self._members(tmp_path, text) == frozenset(expected), label
+    def test_lockfile_shapes(self, tmp_path: Path, label: str, text: str, expected: Optional[set]) -> None:
+        got = self._members(tmp_path, text)
+        assert got == (None if expected is None else frozenset(expected)), label
 
     def test_a_huge_packages_block_is_never_read(self, tmp_path: Path) -> None:
         """Reading the whole lockfile would undo the point of slicing out importers."""
@@ -953,3 +989,162 @@ class TestWalkNeverEscapesTheScannedTree:
         )
 
         assert covered is True
+
+
+class TestYarnLockfileMembership:
+    """Yarn berry names its members; classic yarn does not, and only then do the globs apply."""
+
+    @staticmethod
+    def _write_berry_lockfile(root: Path, members: list) -> None:
+        lines = ['__metadata:', '  version: 8', '', '"root@workspace:.":', '  resolution: "root@workspace:."', '']
+        for member in members:
+            lines += [
+                f'"@scope/{Path(member).name}@workspace:{member}":',
+                f'  resolution: "@scope/{Path(member).name}@workspace:{member}"',
+                '',
+            ]
+        (root / 'yarn.lock').write_text('\n'.join(lines))
+
+    def test_a_member_named_by_a_berry_lockfile_is_covered(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        self._write_berry_lockfile(tmp_path, ['packages/app'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        coverage = find_covering_workspace(str(member_dir))
+
+        assert coverage is not None
+        assert coverage.package_manager == 'yarn'
+
+    def test_a_member_missing_from_a_stale_berry_lockfile_is_not_covered(self, tmp_path: Path) -> None:
+        """The globs would claim it, but berry records what it installed and this is not in it."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        self._write_berry_lockfile(tmp_path, ['packages/other'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+    def test_a_workspace_range_is_not_mistaken_for_a_member_path(self, tmp_path: Path) -> None:
+        """Berry writes sibling dependencies as workspace:^ or workspace:*, which are ranges, not paths."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'yarn.lock').write_text(
+            '__metadata:\n  version: 8\n\n'
+            '"@scope/app@workspace:packages/app":\n'
+            '  resolution: "@scope/app@workspace:packages/app"\n'
+            '  dependencies:\n'
+            '    "@scope/common": "workspace:^"\n\n'
+            '"@scope/common@workspace:*, @scope/common@workspace:packages/common":\n'
+            '  resolution: "@scope/common@workspace:packages/common"\n'
+        )
+
+        assert workspace._yarn_lockfile_member_names(tmp_path / 'yarn.lock') == frozenset(
+            {'packages/app', 'packages/common'}
+        )
+
+    def test_classic_yarn_falls_back_to_the_manifest_globs(self, tmp_path: Path) -> None:
+        """A v1 lockfile is flat, so the workspaces field is the only remaining source."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        _write_yarn_classic_lockfile(tmp_path)
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        coverage = find_covering_workspace(str(member_dir))
+
+        assert coverage is not None
+        assert coverage.package_manager == 'yarn'
+
+    def test_the_berry_root_importer_is_not_a_member(self, tmp_path: Path) -> None:
+        """root@workspace:. and the @workspace:* self-reference must never match a member path."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'yarn.lock').write_text(
+            '__metadata:\n  version: 8\n\n"root@workspace:*, root@workspace:.":\n  resolution: "root@workspace:."\n'
+        )
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+
+class TestLockfileIsTheAuthority:
+    """Where a lockfile can name its members, the workspaces globs are not consulted at all."""
+
+    def test_an_npm_member_is_covered_without_any_workspaces_field(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root"}')
+        _write_npm_lockfile(tmp_path, ['packages/app'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is not None
+
+    def test_a_pnpm_member_is_covered_without_pnpm_workspace_yaml(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "private": true}')
+        _write_pnpm_lockfile(tmp_path, ['packages/app'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is not None
+
+    def test_globs_cannot_rescue_a_member_the_npm_lockfile_omits(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        _write_npm_lockfile(tmp_path, ['packages/other'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+    def test_a_version_1_lockfile_is_not_a_workspace_root(self, tmp_path: Path) -> None:
+        """Workspaces arrived with npm 7 and lockfileVersion 2, so v1 can never resolve a member."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'package-lock.json').write_text(json.dumps({'lockfileVersion': 1, 'dependencies': {}}))
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+
+class TestMemberResolvers:
+    """Each resolver owns its lockfile format and what its silence means."""
+
+    def test_every_resolver_declares_what_it_handles(self) -> None:
+        for resolver in workspace.MEMBER_RESOLVERS:
+            assert resolver.package_manager, type(resolver).__name__
+            assert resolver.lock_file_names, type(resolver).__name__
+
+    def test_no_lockfile_is_claimed_by_two_resolvers(self) -> None:
+        """Precedence is the resolver order, so a name appearing twice would be ambiguous."""
+        seen = [name for resolver in workspace.MEMBER_RESOLVERS for name in resolver.lock_file_names]
+
+        assert len(seen) == len(set(seen)), seen
+
+    @pytest.mark.parametrize(
+        ('package_manager', 'may_use_globs'),
+        [('npm', False), ('pnpm', False), ('yarn', True), ('bun', True), ('deno', True)],
+    )
+    def test_only_the_blind_formats_may_fall_back_to_globs(self, package_manager: str, may_use_globs: bool) -> None:
+        """npm and pnpm always name their members, so their silence means "not a workspace"."""
+        resolver = next(r for r in workspace.MEMBER_RESOLVERS if r.package_manager == package_manager)
+
+        assert resolver.may_use_workspace_globs is may_use_globs
+
+    def test_an_opaque_resolver_never_names_members(self, tmp_path: Path) -> None:
+        resolver = next(r for r in workspace.MEMBER_RESOLVERS if r.package_manager == 'deno')
+        lock_file = tmp_path / 'deno.lock'
+        lock_file.write_text('{"version": "4"}')
+
+        assert resolver.resolve(lock_file) is None
+
+    def test_the_base_class_caches_so_a_root_is_parsed_once(self, tmp_path: Path) -> None:
+        """resolve() is the template method; subclasses only parse."""
+        resolver = next(r for r in workspace.MEMBER_RESOLVERS if r.package_manager == 'npm')
+        _write_npm_lockfile(tmp_path, ['packages/app'])
+        lock_file = tmp_path / 'package-lock.json'
+
+        reads = []
+        original = workspace._read_json_object
+
+        def counting(path: Path) -> object:
+            reads.append(str(path))
+            return original(path)
+
+        workspace._read_json_object = counting
+        try:
+            first = resolver.resolve(lock_file)
+            second = resolver.resolve(lock_file)
+        finally:
+            workspace._read_json_object = original
+
+        assert first == second == frozenset({'packages/app'})
+        assert reads.count(str(lock_file)) == 1

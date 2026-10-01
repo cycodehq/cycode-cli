@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Optional
 
@@ -14,8 +15,8 @@ if TYPE_CHECKING:
 
 logger = get_logger('SCA NPM Workspace')
 
+
 MANIFEST_FILE_NAME = 'package.json'
-PNPM_WORKSPACE_FILE_NAME = 'pnpm-workspace.yaml'
 
 NPM_PACKAGE_MANAGER = 'npm'
 YARN_PACKAGE_MANAGER = 'yarn'
@@ -31,64 +32,10 @@ BUN_LOCK_FILE_NAME = 'bun.lock'
 BUN_BINARY_LOCK_FILE_NAME = 'bun.lockb'
 DENO_LOCK_FILE_NAME = 'deno.lock'
 
-MANIFEST_DECLARED = 'manifest'
-PNPM_WORKSPACE_DECLARED = 'pnpm-workspace'
 
-
-class RootLockFile(NamedTuple):
-    package_manager: str
-    file_name: str
-    declared_in: str
-    requires_lockfile_membership: bool
-
-
-ROOT_LOCK_FILES = (
-    RootLockFile(NPM_PACKAGE_MANAGER, NPM_LOCK_FILE_NAME, MANIFEST_DECLARED, True),
-    RootLockFile(NPM_PACKAGE_MANAGER, NPM_SHRINKWRAP_FILE_NAME, MANIFEST_DECLARED, True),
-    RootLockFile(YARN_PACKAGE_MANAGER, YARN_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
-    RootLockFile(PNPM_PACKAGE_MANAGER, PNPM_LOCK_FILE_NAME, PNPM_WORKSPACE_DECLARED, True),
-    RootLockFile(BUN_PACKAGE_MANAGER, BUN_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
-    RootLockFile(BUN_PACKAGE_MANAGER, BUN_BINARY_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
-    RootLockFile(DENO_PACKAGE_MANAGER, DENO_LOCK_FILE_NAME, MANIFEST_DECLARED, False),
-)
-
-_LOCKFILE_PACKAGES_SECTION = 'packages'
-_MANIFEST_WORKSPACES_SECTION = 'workspaces'
-_MANIFEST_WORKSPACE_PACKAGES_SECTION = 'packages'
-_PNPM_WORKSPACE_PACKAGES_SECTION = 'packages'
-_PNPM_LOCKFILE_IMPORTERS_SECTION = 'importers'
-_PNPM_LOCKFILE_ROOT_IMPORTER = '.'
-_NODE_MODULES_SEPARATOR = 'node_modules/'
-_GIT_DIR_NAME = '.git'
-_NEGATION_PREFIX = '!'
-_YAML_COMMENT_PREFIX = '#'
+logger = get_logger('SCA NPM Workspace')
 
 _FileStamp = tuple[str, int, int]
-
-
-class WorkspaceCoverage(NamedTuple):
-    package_manager: str
-    lock_file: Path
-
-
-class _WorkspacePatterns(NamedTuple):
-    included: tuple[str, ...]
-    excluded: tuple[str, ...]
-
-
-_EMPTY_WORKSPACE_PATTERNS = _WorkspacePatterns((), ())
-
-_member_names_cache: dict[_FileStamp, frozenset[str]] = {}
-_workspace_patterns_cache: dict[_FileStamp, _WorkspacePatterns] = {}
-_workspace_pattern_regex_cache: dict[str, 're.Pattern[str]'] = {}
-_reported_unscanned_roots: set = set()
-
-
-def clear_cache() -> None:
-    _member_names_cache.clear()
-    _workspace_patterns_cache.clear()
-    _workspace_pattern_regex_cache.clear()
-    _reported_unscanned_roots.clear()
 
 
 def _resolved_path(path: object) -> str:
@@ -116,23 +63,25 @@ def _read_json_object(path: Path) -> Optional[dict]:
     return content if isinstance(content, dict) else None
 
 
-def _read_yaml_object(path: Path) -> Optional[dict]:
-    try:
-        content = yaml.safe_load(path.read_text(encoding='UTF-8'))
-    except FileNotFoundError:
-        return None
-    except (OSError, ValueError, yaml.YAMLError) as e:
-        logger.debug('Could not read a pnpm workspace file, %s', {'path': str(path), 'error': e})
-        return None
-
-    return content if isinstance(content, dict) else None
+_MANIFEST_WORKSPACES_SECTION = 'workspaces'
+_MANIFEST_WORKSPACE_PACKAGES_SECTION = 'packages'
+_NEGATION_PREFIX = '!'
+_GLOBSTAR_SUFFIX = '/**'
+_GLOBSTAR_PREFIX = '**/'
 
 
-def _compile_workspace_pattern(pattern: str) -> 're.Pattern[str]':
-    compiled = _workspace_pattern_regex_cache.get(pattern)
-    if compiled is not None:
-        return compiled
+class _WorkspacePatterns(NamedTuple):
+    included: tuple[str, ...]
+    excluded: tuple[str, ...]
 
+
+_EMPTY_WORKSPACE_PATTERNS = _WorkspacePatterns((), ())
+
+_workspace_patterns_cache: dict[_FileStamp, _WorkspacePatterns] = {}
+_workspace_pattern_regex_cache: dict[str, 're.Pattern[str]'] = {}
+
+
+def _workspace_pattern_body(pattern: str) -> str:
     parts = []
     index = 0
     while index < len(pattern):
@@ -150,7 +99,37 @@ def _compile_workspace_pattern(pattern: str) -> 're.Pattern[str]':
             parts.append(re.escape(character))
             index += 1
 
-    compiled = re.compile(''.join(parts))
+    return ''.join(parts)
+
+
+def _compile_workspace_pattern(pattern: str) -> 're.Pattern[str]':
+    """Translate a workspace glob, where ** spans zero or more path segments.
+
+    Workspace members are discovered by globbing <pattern>/package.json, so src/app/**
+    matches src/app itself as well as anything beneath it. pnpm records exactly that in its
+    lockfile importers, and treating the trailing separator as mandatory would miss the member.
+    """
+    compiled = _workspace_pattern_regex_cache.get(pattern)
+    if compiled is not None:
+        return compiled
+
+    body = pattern
+    matches_anything_below = body.endswith(_GLOBSTAR_SUFFIX)
+    if matches_anything_below:
+        body = body[: -len(_GLOBSTAR_SUFFIX)]
+
+    matches_anything_above = body.startswith(_GLOBSTAR_PREFIX)
+    if matches_anything_above:
+        body = body[len(_GLOBSTAR_PREFIX) :]
+
+    expression = ''
+    if matches_anything_above:
+        expression += '(?:.*/)?'
+    expression += _workspace_pattern_body(body)
+    if matches_anything_below:
+        expression += '(?:/.*)?'
+
+    compiled = re.compile(expression)
     _workspace_pattern_regex_cache[pattern] = compiled
     return compiled
 
@@ -198,42 +177,43 @@ def _read_manifest_workspace_patterns(root_dir: Path) -> _WorkspacePatterns:
     return patterns
 
 
-def _read_pnpm_workspace_patterns(root_dir: Path) -> _WorkspacePatterns:
-    pnpm_workspace = root_dir / PNPM_WORKSPACE_FILE_NAME
-    stamp = _file_stamp(pnpm_workspace)
-    if stamp is None:
-        return _EMPTY_WORKSPACE_PATTERNS
-
-    cached = _workspace_patterns_cache.get(stamp)
-    if cached is not None:
-        return cached
-
-    content = _read_yaml_object(pnpm_workspace)
-    packages = content.get(_PNPM_WORKSPACE_PACKAGES_SECTION) if content is not None else None
-
-    declared = [entry for entry in packages if isinstance(entry, str)] if isinstance(packages, list) else []
-    patterns = _split_workspace_patterns(declared)
-    _workspace_patterns_cache[stamp] = patterns
-    return patterns
-
-
-def _declares_workspace_member(root_dir: Path, member_path: str, declared_in: str) -> bool:
-    if declared_in == PNPM_WORKSPACE_DECLARED:
-        patterns = _read_pnpm_workspace_patterns(root_dir)
-    else:
-        patterns = _read_manifest_workspace_patterns(root_dir)
-
+def _declares_workspace_member(root_dir: Path, member_path: str) -> bool:
+    patterns = _read_manifest_workspace_patterns(root_dir)
     if not any(_compile_workspace_pattern(pattern).fullmatch(member_path) for pattern in patterns.included):
         return False
 
     return not any(_compile_workspace_pattern(pattern).fullmatch(member_path) for pattern in patterns.excluded)
 
 
-def _npm_lockfile_member_names(lock_file: Path) -> frozenset:
+_LOCKFILE_PACKAGES_SECTION = 'packages'
+_NODE_MODULES_SEPARATOR = 'node_modules/'
+_PNPM_LOCKFILE_IMPORTERS_SECTION = 'importers'
+_PNPM_LOCKFILE_ROOT_IMPORTER = '.'
+_YAML_COMMENT_PREFIX = '#'
+_YARN_BERRY_MARKER = '__metadata'
+_YARN_RESOLUTION_PREFIX = 'resolution:'
+_YARN_WORKSPACE_PROTOCOL = re.compile(r'@workspace:([^"\',\s]+)')
+
+_member_names_cache: dict[_FileStamp, Optional[frozenset[str]]] = {}
+
+
+def _normalize_member_path(member_path: str) -> Optional[str]:
+    normalized = member_path.strip()
+    if normalized.startswith('./'):
+        normalized = normalized[2:]
+
+    normalized = normalized.rstrip('/')
+    if not normalized or normalized == _PNPM_LOCKFILE_ROOT_IMPORTER:
+        return None
+
+    return normalized
+
+
+def _npm_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
     content = _read_json_object(lock_file)
     packages = content.get(_LOCKFILE_PACKAGES_SECTION) if content is not None else None
     if not isinstance(packages, dict):
-        return frozenset()
+        return None
 
     return frozenset(name for name in packages if name and _NODE_MODULES_SEPARATOR not in name)
 
@@ -268,20 +248,20 @@ def _read_pnpm_importers_section(lock_file: Path) -> str:
     return '\n'.join(section)
 
 
-def _pnpm_lockfile_member_names(lock_file: Path) -> frozenset:
+def _pnpm_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
     section = _read_pnpm_importers_section(lock_file)
     if not section:
-        return frozenset()
+        return None
 
     try:
         content = yaml.safe_load(section)
     except (ValueError, yaml.YAMLError) as e:
         logger.debug('Could not read a pnpm lockfile, %s', {'path': str(lock_file), 'error': e})
-        return frozenset()
+        return None
 
     importers = content.get(_PNPM_LOCKFILE_IMPORTERS_SECTION) if isinstance(content, dict) else None
     if not isinstance(importers, dict):
-        return frozenset()
+        return None
 
     member_names = set()
     for name in importers:
@@ -292,37 +272,153 @@ def _pnpm_lockfile_member_names(lock_file: Path) -> frozenset:
         if normalized:
             member_names.add(normalized)
 
+    # a lockfile whose only importer is the root describes a single package, not a workspace
+    return frozenset(member_names) or None
+
+
+def _yarn_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
+    """Yarn berry records every member as "<name>@workspace:<path>"; classic yarn records nothing."""
+    try:
+        text = lock_file.read_text(encoding='UTF-8', errors='replace')
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as e:
+        logger.debug('Could not read a yarn lockfile, %s', {'path': str(lock_file), 'error': e})
+        return None
+
+    if _YARN_BERRY_MARKER not in text:
+        return None  # classic: flat, so the manifest globs are the only remaining source
+
+    member_names = set()
+    for line in text.splitlines():
+        # every entry carries a resolution naming its real path; the dependency entries carry
+        # ranges instead (workspace:^, workspace:*), which are not paths
+        if not line.strip().startswith(_YARN_RESOLUTION_PREFIX):
+            continue
+
+        for declared_path in _YARN_WORKSPACE_PROTOCOL.findall(line):
+            normalized = _normalize_member_path(declared_path)
+            if normalized:
+                member_names.add(normalized)
+
+    # berry always records what it installed, so an empty result means this is not a workspace
     return frozenset(member_names)
 
 
-def _normalize_member_path(member_path: str) -> Optional[str]:
-    normalized = member_path.strip()
-    if normalized.startswith('./'):
-        normalized = normalized[2:]
+class WorkspaceMemberResolver(ABC):
+    """Reads, from one root lockfile, the member directories that lockfile resolves."""
 
-    normalized = normalized.rstrip('/')
-    if not normalized or normalized == _PNPM_LOCKFILE_ROOT_IMPORTER:
+    @property
+    @abstractmethod
+    def package_manager(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def lock_file_names(self) -> tuple: ...
+
+    @property
+    def may_use_workspace_globs(self) -> bool:
+        """Whether an unanswerable lockfile may defer to the manifest's workspaces globs.
+
+        False means the silence is itself an answer: a v1 package-lock predates workspaces, so
+        its root is simply not one. True means the format has workspaces but does not record
+        them, leaving the globs as the only remaining source.
+        """
+        return False
+
+    def resolve(self, lock_file: Path) -> Optional[frozenset]:
+        """Member paths this lockfile resolves, or None when it cannot name them.
+
+        Caches on the file's identity so one scan parses each root lockfile once.
+        """
+        stamp = _file_stamp(lock_file)
+        if stamp is None:
+            return None
+
+        if stamp in _member_names_cache:
+            return _member_names_cache[stamp]
+
+        member_names = self._read_member_names(lock_file)
+        _member_names_cache[stamp] = member_names
+        return member_names
+
+    @abstractmethod
+    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]: ...
+
+
+class NpmLockfileResolver(WorkspaceMemberResolver):
+    package_manager = NPM_PACKAGE_MANAGER
+    lock_file_names = (NPM_LOCK_FILE_NAME, NPM_SHRINKWRAP_FILE_NAME)
+
+    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+        return _npm_lockfile_member_names(lock_file)
+
+
+class PnpmLockfileResolver(WorkspaceMemberResolver):
+    package_manager = PNPM_PACKAGE_MANAGER
+    lock_file_names = (PNPM_LOCK_FILE_NAME,)
+
+    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+        return _pnpm_lockfile_member_names(lock_file)
+
+
+class YarnLockfileResolver(WorkspaceMemberResolver):
+    """Berry names every member; classic is flat and names none, so only classic needs the globs."""
+
+    package_manager = YARN_PACKAGE_MANAGER
+    lock_file_names = (YARN_LOCK_FILE_NAME,)
+    may_use_workspace_globs = True
+
+    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+        return _yarn_lockfile_member_names(lock_file)
+
+
+class OpaqueLockfileResolver(WorkspaceMemberResolver):
+    """A lockfile we cannot read members from at all, so the manifest globs decide."""
+
+    may_use_workspace_globs = True
+
+    def __init__(self, package_manager: str, lock_file_names: tuple) -> None:
+        self._package_manager = package_manager
+        self._lock_file_names = lock_file_names
+
+    @property
+    def package_manager(self) -> str:
+        return self._package_manager
+
+    @property
+    def lock_file_names(self) -> tuple:
+        return self._lock_file_names
+
+    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
         return None
 
-    return normalized
+
+# Order is precedence: the first lockfile that resolves the member wins.
+MEMBER_RESOLVERS = (
+    NpmLockfileResolver(),
+    YarnLockfileResolver(),
+    PnpmLockfileResolver(),
+    OpaqueLockfileResolver(BUN_PACKAGE_MANAGER, (BUN_LOCK_FILE_NAME, BUN_BINARY_LOCK_FILE_NAME)),
+    OpaqueLockfileResolver(DENO_PACKAGE_MANAGER, (DENO_LOCK_FILE_NAME,)),
+)
 
 
-def _lockfile_member_names(lock_file: Path, package_manager: str) -> frozenset:
-    stamp = _file_stamp(lock_file)
-    if stamp is None:
-        return frozenset()
+_GIT_DIR_NAME = '.git'
 
-    cached = _member_names_cache.get(stamp)
-    if cached is not None:
-        return cached
+_reported_unscanned_roots: set = set()
 
-    if package_manager == PNPM_PACKAGE_MANAGER:
-        member_names = _pnpm_lockfile_member_names(lock_file)
-    else:
-        member_names = _npm_lockfile_member_names(lock_file)
 
-    _member_names_cache[stamp] = member_names
-    return member_names
+def clear_cache() -> None:
+    _member_names_cache.clear()
+    _workspace_patterns_cache.clear()
+    _workspace_pattern_regex_cache.clear()
+    _reported_unscanned_roots.clear()
+
+
+class WorkspaceCoverage(NamedTuple):
+    package_manager: str
+    lock_file: Path
 
 
 def _scan_root_directories(scan_roots: tuple) -> list:
@@ -379,20 +475,20 @@ def _find_covering_workspace(manifest_dir: Path, scan_roots: tuple) -> Optional[
     for root_dir in _workspace_root_candidates(manifest_dir, scan_roots):
         member_path = manifest_dir.relative_to(root_dir).as_posix()
 
-        for root_lock_file in ROOT_LOCK_FILES:
-            lock_file = root_dir / root_lock_file.file_name
-            if not lock_file.is_file():
-                continue
+        for resolver in MEMBER_RESOLVERS:
+            for lock_file_name in resolver.lock_file_names:
+                lock_file = root_dir / lock_file_name
+                if not lock_file.is_file():
+                    continue
 
-            if not _declares_workspace_member(root_dir, member_path, root_lock_file.declared_in):
-                continue
+                member_names = resolver.resolve(lock_file)
+                if member_names is not None:
+                    if member_path in member_names:
+                        return WorkspaceCoverage(resolver.package_manager, lock_file)
+                    continue
 
-            if root_lock_file.requires_lockfile_membership and member_path not in _lockfile_member_names(
-                lock_file, root_lock_file.package_manager
-            ):
-                continue
-
-            return WorkspaceCoverage(root_lock_file.package_manager, lock_file)
+                if resolver.may_use_workspace_globs and _declares_workspace_member(root_dir, member_path):
+                    return WorkspaceCoverage(resolver.package_manager, lock_file)
 
     return None
 

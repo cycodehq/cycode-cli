@@ -339,9 +339,10 @@ class TestIsProjectInNpmWorkspace:
 
         assert restore_npm.is_project(self._member_document(member_dir)) is True
 
-    def test_file_dependency_directory_still_matches(self, restore_npm: RestoreNpmDependencies, tmp_path: Path) -> None:
-        """npm records a file: target exactly like a workspace member, but only members resolve
-        through the root lockfile, so a file: target still needs its own."""
+    def test_file_dependency_directory_does_not_match(
+        self, restore_npm: RestoreNpmDependencies, tmp_path: Path
+    ) -> None:
+        """The root lockfile resolves a file: target's dependencies, so a second lockfile would only drift."""
         (tmp_path / 'package.json').write_text('{"name": "root", "dependencies": {"local-lib": "file:local-lib"}}')
         (tmp_path / NPM_LOCK_FILE_NAME).write_text(
             json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'local-lib': {}}})
@@ -350,15 +351,15 @@ class TestIsProjectInNpmWorkspace:
         member_dir.mkdir()
         (member_dir / 'package.json').write_text('{"name": "local-lib"}')
 
-        assert restore_npm.is_project(self._member_document(member_dir)) is True
+        assert restore_npm.is_project(self._member_document(member_dir)) is False
 
-    def test_workspace_glob_does_not_match_a_deeper_directory(
+    def test_a_member_absent_from_the_root_lockfile_still_matches(
         self, restore_npm: RestoreNpmDependencies, tmp_path: Path
     ) -> None:
-        """A single star stops at a path separator, so packages/* must not claim packages/a/b."""
+        """The lockfile names what it resolves; a directory it omits still needs its own lockfile."""
         (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
         (tmp_path / NPM_LOCK_FILE_NAME).write_text(
-            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/a/b': {}}})
+            json.dumps({'lockfileVersion': 3, 'packages': {'': {}, 'packages/other': {}}})
         )
         member_dir = tmp_path / 'packages' / 'a' / 'b'
         member_dir.mkdir(parents=True)
