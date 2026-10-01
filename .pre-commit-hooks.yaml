@@ -23,6 +23,8 @@
   entry: cycode
   args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'secret', 'pre-push' ]
   stages: [pre-push]
+  always_run: true
+  pass_filenames: false
 - id: cycode-sca-pre-push
   name: Cycode SCA pre-push defender
   language: python
@@ -30,6 +32,8 @@
   entry: cycode
   args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sca', 'pre-push' ]
   stages: [pre-push]
+  always_run: true
+  pass_filenames: false
 - id: cycode-sast-pre-push
   name: Cycode SAST pre-push defender
   language: python
@@ -37,3 +41,5 @@
   entry: cycode
   args: [ '-o', 'text', '--no-progress-meter', 'scan', '-t', 'sast', 'pre-push' ]
   stages: [pre-push]
+  always_run: true
+  pass_filenames: false

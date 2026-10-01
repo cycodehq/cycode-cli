@@ -258,7 +258,7 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.5.0
+        rev: v3.25.0
         hooks:
           - id: cycode
             stages: [pre-commit]
@@ -269,7 +269,7 @@ Perform the following steps to install the pre-commit hook:
     ```yaml
     repos:
       - repo: https://github.com/cycodehq/cycode-cli
-        rev: v3.5.0
+        rev: v3.25.0
         hooks:
           - id: cycode
             stages: [pre-commit]
@@ -308,7 +308,7 @@ To install the pre-push hook in addition to or instead of the pre-commit hook:
    ```yaml
    repos:
      - repo: https://github.com/cycodehq/cycode-cli
-       rev: v3.5.0
+       rev: v3.25.0
        hooks:
          - id: cycode-pre-push
            stages: [pre-push]
@@ -1109,7 +1109,7 @@ To set up the pre-push hook using the pre-commit framework:
    ```yaml
    repos:
      - repo: https://github.com/cycodehq/cycode-cli
-       rev: v3.5.0
+       rev: v3.25.0
        hooks:
          - id: cycode-pre-push
            stages: [pre-push]
@@ -1120,7 +1120,7 @@ To set up the pre-push hook using the pre-commit framework:
    ```yaml
    repos:
      - repo: https://github.com/cycodehq/cycode-cli
-       rev: v3.5.0
+       rev: v3.25.0
        hooks:
          - id: cycode-pre-push          # Secrets scan
            stages: [pre-push]
@@ -1146,16 +1146,15 @@ To set up the pre-push hook using the pre-commit framework:
 
 #### How Pre-Push Scanning Works
 
-The pre-push hook:
-- Receives information about what commits are being pushed
-- Calculates the appropriate commit range to scan
-- For new branches: scans all commits from the merge base with the default branch
-- For existing branches: scans only the new commits since the last push
-- Runs the same comprehensive scanning as other Cycode scan modes
+The hook scans every commit being pushed, one commit at a time, so a secret added in one commit and removed in a later one is still caught. When installed through the pre-commit framework, the pushed range is taken from the framework: new commits since the remote branch for existing branches, and the commits not yet on the remote for new branches (all commits when pushing to an empty remote). When run from a hand-written `.git/hooks/pre-push`, the range is read from git's hook input, and new branches are scanned from their merge base with the default branch (see below).
+
+Pushes with nothing to scan, such as tags, branch deletions, and up-to-date pushes, pass without a scan. If the hook cannot determine what is being pushed, it fails and blocks the push instead of passing silently.
+
+The Cycode pre-push hooks set `always_run: true` and `pass_filenames: false`, because the scan covers the pushed commits rather than a list of files. Without `always_run`, the pre-commit framework skips the hook when the pushed commits add up to no changed files, such as a secret added in one commit and deleted in the next. Without `pass_filenames: false`, the framework passes changed file names the scan does not use, and on large pushes it splits them into batches and runs the full scan once per batch. If you define the hook yourself (for example, as a `repo: local` hook), set both options.
 
 #### Smart Default Branch Detection
 
-The pre-push hook intelligently detects the default branch for merge base calculation using this priority order:
+When run from a hand-written hook, the pre-push scan detects the default branch for merge base calculation using this priority order:
 
 1. **Environment Variable**: `CYCODE_DEFAULT_BRANCH` - allows manual override
 2. **Git Remote HEAD**: Uses `git symbolic-ref refs/remotes/origin/HEAD` to detect the actual remote default branch

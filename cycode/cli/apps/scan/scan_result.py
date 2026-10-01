@@ -7,7 +7,7 @@ from cycode.cli import consts
 from cycode.cli.apps.scan.aggregation_report import try_get_aggregation_report_url_if_needed
 from cycode.cli.apps.scan.detection_excluder import exclude_irrelevant_document_detections
 from cycode.cli.models import Document, DocumentDetections, LocalScanResult
-from cycode.cli.utils.path_utils import get_path_by_os, normalize_file_path
+from cycode.cli.utils.path_utils import concat_unique_id, get_path_by_os, normalize_file_path
 from cycode.cyclient.models import (
     Detection,
     DetectionSchema,
@@ -28,8 +28,15 @@ logger = get_logger('Scan Results')
 def _get_document_by_file_name(
     documents: list[Document], file_name: str, unique_id: Optional[str] = None
 ) -> Optional[Document]:
+    normalized_file_name = normalize_file_path(file_name)
     for document in documents:
-        if normalize_file_path(document.path) == normalize_file_path(file_name) and document.unique_id == unique_id:
+        if normalize_file_path(document.path) == normalized_file_name and document.unique_id == unique_id:
+            return document
+
+        if (
+            document.unique_id
+            and normalize_file_path(concat_unique_id(document.path, document.unique_id)) == normalized_file_name
+        ):
             return document
 
     return None
@@ -50,6 +57,10 @@ def _get_document_detections(
         )
 
         document = _get_document_by_file_name(documents_to_scan, file_name, commit_id)
+        if document is None:
+            logger.debug('Failed to find the document of the violated file, %s', {'file_name': file_name})
+            document = Document(file_name, '', unique_id=commit_id)
+
         document_detections.append(DocumentDetections(document=document, detections=detections_per_file.detections))
 
     return document_detections

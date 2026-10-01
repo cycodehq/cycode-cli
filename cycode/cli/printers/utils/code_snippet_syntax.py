@@ -89,7 +89,8 @@ def _get_code_snippet_syntax_from_git_diff(
     detection_position = detection_details.get('start_position', -1)
     violation_length = detection_details.get('length', -1)
 
-    line_content = document.content.splitlines()[detection_line]
+    document_content_lines = document.content.splitlines()
+    line_content = document_content_lines[detection_line] if 0 <= detection_line < len(document_content_lines) else ''
     detection_position_in_line = get_position_in_line(document.content, detection_position)
     if scan_type == consts.SECRET_SCAN_TYPE and obfuscate:
         violation = line_content[detection_position_in_line : detection_position_in_line + violation_length]
