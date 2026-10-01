@@ -40,6 +40,7 @@ class BlockReason(StrEnum):
     SECRETS_IN_FILE = 'secrets_in_file'
     SECRETS_IN_MCP_ARGS = 'secrets_in_mcp_args'
     SENSITIVE_PATH = 'sensitive_path'
+    UNAUTHORIZED_MCP_SERVER = 'unauthorized_mcp_server'
     SCAN_FAILURE = 'scan_failure'
 
 

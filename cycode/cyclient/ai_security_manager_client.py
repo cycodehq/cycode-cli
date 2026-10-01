@@ -19,6 +19,7 @@ class AISecurityManagerClient:
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
     _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
     _RESOLVED_GUARDRAILS_PATH = 'v4/ai-security/guardrails/resolved'
+    _MCP_SERVER_STATUSES_PATH = 'v4/ai-security/authorization/mcp/servers'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -101,6 +102,21 @@ class AISecurityManagerClient:
             return response.json()
         except Exception as e:
             logger.debug('Failed to fetch resolved guardrail config', exc_info=e)
+            return None
+
+    def get_mcp_server_statuses(self) -> Optional[list]:
+        """Fetch the authorization status of every MCP server on the caller's devices.
+
+        Returns the ``[{alias, normalized_id, status}]`` rows, or None when the fetch failed.
+        """
+        try:
+            response = self.client.get(self._build_endpoint_path(self._MCP_SERVER_STATUSES_PATH))
+            servers = response.json().get('servers')
+            if not isinstance(servers, list):
+                raise ValueError('servers is not a list')
+            return servers
+        except Exception as e:
+            logger.debug('Failed to fetch MCP server statuses', exc_info=e)
             return None
 
     def report_session_context(

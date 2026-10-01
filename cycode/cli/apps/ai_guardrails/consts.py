@@ -34,6 +34,13 @@ class GuardrailCellMode(str, Enum):
     BLOCK = GuardrailsMode.BLOCK.value
 
 
+class McpServerEnforceOn(str, Enum):
+    """Which MCP servers the unauthorized MCP server guardrail enforces on (its `enforce_on` setting)."""
+
+    UNAUTHORIZED = 'unauthorized'  # only servers explicitly marked Unauthorized
+    NOT_AUTHORIZED = 'not_authorized'  # strict: anything that isn't Authorized, servers ASM hasn't seen included
+
+
 # Base CLI commands invoked from installed hooks. IDE classes append --ide flags
 # (and any other suffix) on top of these.
 CYCODE_SCAN_PROMPT_COMMAND = 'cycode ai-guardrails scan'
