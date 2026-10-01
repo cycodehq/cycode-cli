@@ -1,4 +1,5 @@
 import json
+import ntpath
 import os
 import tempfile
 from functools import cache
@@ -125,12 +126,25 @@ def change_filename_extension(filename: str, extension: str) -> str:
     return f'{base_name}.{extension}'
 
 
-def concat_unique_id(filename: str, unique_id: str) -> str:
-    if filename.startswith(os.sep):
-        # remove leading slash to join the path correctly
-        filename = filename[len(os.sep) :]
+def _strip_path_anchor(path: str) -> str:
+    """Drop the drive (``C:``, ``\\\\server\\share``) and the leading separators so the path becomes relative.
 
-    return os.path.join(unique_id, filename)
+    ``os.path.join(prefix, path)`` throws the prefix away when ``path`` is absolute. On POSIX only a leading
+    slash makes a path absolute, but on Windows a drive letter does too, and ``C:\\repo\\file`` doesn't start
+    with a separator. ``ntpath.splitdrive`` is used on every OS so the behavior is the same everywhere
+    (on POSIX it is a no-op for anything that doesn't look like ``X:``).
+    """
+    _, path = ntpath.splitdrive(path)
+    return path.lstrip('/\\')
+
+
+def concat_unique_id(filename: str, unique_id: str) -> str:
+    """Prefix the file name with the unique id (e.g. a commit SHA) to build the name of the archive entry.
+
+    The server reads the unique id back from the first path component, so the file name must become relative
+    before joining; otherwise the prefix is lost and a Windows drive letter is reported as the commit id.
+    """
+    return os.path.join(unique_id, _strip_path_anchor(filename))
 
 
 def get_path_from_context(ctx: typer.Context) -> Optional[str]:
@@ -141,8 +155,7 @@ def get_path_from_context(ctx: typer.Context) -> Optional[str]:
 
 
 def normalize_file_path(path: str) -> str:
-    if path.startswith('/'):
-        return path[1:]
-    if path.startswith('./'):
+    """Make a path comparable with the file name the server reports back: no drive, no root, no leading ``./``."""
+    if path.startswith(('./', '.\\')):
         return path[2:]
-    return path
+    return _strip_path_anchor(path)
