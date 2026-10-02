@@ -34,6 +34,9 @@ class RestoreNpmDependencies(BaseRestoreDependencies):
         Yarn and pnpm projects are handled by their dedicated handlers, which run before
         this one in the handler list. This handler is the npm fallback.
 
+        A manifest is also declined when a lockfile further up already resolves it, whichever
+        package manager wrote that lockfile; see the workspace package for how that is decided.
+
         NOTE: this guard only excludes a project when an alternative lockfile is *physically
         present on disk*. It does not inspect the `packageManager`/`engines` signal in
         package.json. So a project that declares e.g. `packageManager: "bun@..."` (or pnpm)

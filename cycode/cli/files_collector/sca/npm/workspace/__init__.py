@@ -15,17 +15,12 @@ from cycode.cli.files_collector.sca.npm.workspace.coverage import (
 from cycode.cli.files_collector.sca.npm.workspace.names import (
     BUN_BINARY_LOCK_FILE_NAME,
     BUN_LOCK_FILE_NAME,
-    BUN_PACKAGE_MANAGER,
     DENO_LOCK_FILE_NAME,
-    DENO_PACKAGE_MANAGER,
     MANIFEST_FILE_NAME,
     NPM_LOCK_FILE_NAME,
-    NPM_PACKAGE_MANAGER,
     NPM_SHRINKWRAP_FILE_NAME,
     PNPM_LOCK_FILE_NAME,
-    PNPM_PACKAGE_MANAGER,
     YARN_LOCK_FILE_NAME,
-    YARN_PACKAGE_MANAGER,
 )
 from cycode.cli.files_collector.sca.npm.workspace.resolvers import MEMBER_RESOLVERS
 
@@ -40,18 +35,13 @@ def clear_cache() -> None:
 __all__ = [
     'BUN_BINARY_LOCK_FILE_NAME',
     'BUN_LOCK_FILE_NAME',
-    'BUN_PACKAGE_MANAGER',
     'DENO_LOCK_FILE_NAME',
-    'DENO_PACKAGE_MANAGER',
     'MANIFEST_FILE_NAME',
     'MEMBER_RESOLVERS',
     'NPM_LOCK_FILE_NAME',
-    'NPM_PACKAGE_MANAGER',
     'NPM_SHRINKWRAP_FILE_NAME',
     'PNPM_LOCK_FILE_NAME',
-    'PNPM_PACKAGE_MANAGER',
     'YARN_LOCK_FILE_NAME',
-    'YARN_PACKAGE_MANAGER',
     'WorkspaceCoverage',
     'clear_cache',
     'find_covering_workspace',

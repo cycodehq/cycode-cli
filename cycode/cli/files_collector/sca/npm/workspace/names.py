@@ -6,7 +6,6 @@ NPM_PACKAGE_MANAGER = 'npm'
 YARN_PACKAGE_MANAGER = 'yarn'
 PNPM_PACKAGE_MANAGER = 'pnpm'
 BUN_PACKAGE_MANAGER = 'bun'
-DENO_PACKAGE_MANAGER = 'deno'
 
 NPM_LOCK_FILE_NAME = 'package-lock.json'
 NPM_SHRINKWRAP_FILE_NAME = 'npm-shrinkwrap.json'
