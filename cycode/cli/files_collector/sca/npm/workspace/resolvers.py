@@ -5,6 +5,7 @@ None means the format cannot name its members at all, and only then does may_use
 decide whether the manifest globs get a say.
 """
 
+import json
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -17,8 +18,6 @@ from cycode.cli.files_collector.sca.npm.workspace.names import (
     BUN_BINARY_LOCK_FILE_NAME,
     BUN_LOCK_FILE_NAME,
     BUN_PACKAGE_MANAGER,
-    DENO_LOCK_FILE_NAME,
-    DENO_PACKAGE_MANAGER,
     NPM_LOCK_FILE_NAME,
     NPM_PACKAGE_MANAGER,
     NPM_SHRINKWRAP_FILE_NAME,
@@ -36,6 +35,8 @@ _YAML_COMMENT_PREFIX = '#'
 _YARN_BERRY_MARKER = '__metadata'
 _YARN_RESOLUTION_PREFIX = 'resolution:'
 _YARN_WORKSPACE_PROTOCOL = re.compile(r'@workspace:([^"\',\s]+)')
+_BUN_LOCKFILE_WORKSPACES_SECTION = 'workspaces'
+_TRAILING_COMMA = re.compile(r',(\s*[}\]])')
 
 _member_names_cache: dict[FileStamp, Optional[frozenset[str]]] = {}
 
@@ -121,6 +122,33 @@ def _pnpm_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
 
     # a lockfile whose only importer is the root describes a single package, not a workspace
     return frozenset(member_names) or None
+
+
+def _bun_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
+    """bun.lock is JSON with trailing commas, and names its members under "workspaces"."""
+    try:
+        text = lock_file.read_text(encoding='UTF-8')
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as e:
+        logger.debug('Could not read a bun lockfile, %s', {'path': str(lock_file), 'error': e})
+        return None
+
+    try:
+        content = json.loads(text)
+    except ValueError:
+        try:
+            content = json.loads(_TRAILING_COMMA.sub(r'\1', text))
+        except ValueError as e:
+            logger.debug('Could not read a bun lockfile, %s', {'path': str(lock_file), 'error': e})
+            return None
+
+    workspaces = content.get(_BUN_LOCKFILE_WORKSPACES_SECTION) if isinstance(content, dict) else None
+    if not isinstance(workspaces, dict):
+        return None
+
+    member_names = {normalized for normalized in map(_normalize_member_path, workspaces) if normalized}
+    return frozenset(member_names)
 
 
 def _yarn_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
@@ -220,6 +248,16 @@ class YarnLockfileResolver(WorkspaceMemberResolver):
         return _yarn_lockfile_member_names(lock_file)
 
 
+class BunLockfileResolver(WorkspaceMemberResolver):
+    """Only the text bun.lock names members; the binary bun.lockb is handled as opaque."""
+
+    package_manager = BUN_PACKAGE_MANAGER
+    lock_file_names = (BUN_LOCK_FILE_NAME,)
+
+    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+        return _bun_lockfile_member_names(lock_file)
+
+
 class OpaqueLockfileResolver(WorkspaceMemberResolver):
     """A lockfile we cannot read members from at all, so the manifest globs decide."""
 
@@ -242,10 +280,15 @@ class OpaqueLockfileResolver(WorkspaceMemberResolver):
 
 
 # Order is precedence: the first lockfile that resolves the member wins.
+#
+# deno.lock is deliberately absent. The glob fallback reads the manifest's workspaces field,
+# which deno does not use - it declares members in deno.json - so a match there would be
+# meaningless. A deno.lock beside a manifest still stops the npm fallback, through the
+# alternative-lockfile guard in the npm handler.
 MEMBER_RESOLVERS = (
     NpmLockfileResolver(),
     YarnLockfileResolver(),
     PnpmLockfileResolver(),
-    OpaqueLockfileResolver(BUN_PACKAGE_MANAGER, (BUN_LOCK_FILE_NAME, BUN_BINARY_LOCK_FILE_NAME)),
-    OpaqueLockfileResolver(DENO_PACKAGE_MANAGER, (DENO_LOCK_FILE_NAME,)),
+    BunLockfileResolver(),
+    OpaqueLockfileResolver(BUN_PACKAGE_MANAGER, (BUN_BINARY_LOCK_FILE_NAME,)),
 )

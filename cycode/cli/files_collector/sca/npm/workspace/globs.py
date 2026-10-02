@@ -4,7 +4,8 @@ Only reached for lockfiles that cannot name their own members: classic yarn.lock
 binary bun.lockb. Every other format answers from the lockfile itself.
 """
 
-import re
+import fnmatch
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -14,8 +15,8 @@ from cycode.cli.files_collector.sca.npm.workspace.names import MANIFEST_FILE_NAM
 _MANIFEST_WORKSPACES_SECTION = 'workspaces'
 _MANIFEST_WORKSPACE_PACKAGES_SECTION = 'packages'
 _NEGATION_PREFIX = '!'
-_GLOBSTAR_SUFFIX = '/**'
-_GLOBSTAR_PREFIX = '**/'
+_GLOBSTAR = '**'
+_SEGMENT_MATCH_CACHE_SIZE = 4096
 
 
 class _WorkspacePatterns(NamedTuple):
@@ -26,65 +27,42 @@ class _WorkspacePatterns(NamedTuple):
 _EMPTY_WORKSPACE_PATTERNS = _WorkspacePatterns((), ())
 
 _workspace_patterns_cache: dict[FileStamp, _WorkspacePatterns] = {}
-_workspace_pattern_regex_cache: dict[str, 're.Pattern[str]'] = {}
 
 
 def clear_cache() -> None:
     _workspace_patterns_cache.clear()
-    _workspace_pattern_regex_cache.clear()
 
 
-def _workspace_pattern_body(pattern: str) -> str:
-    parts = []
-    index = 0
-    while index < len(pattern):
-        character = pattern[index]
-        if character == '*' and pattern[index + 1 : index + 2] == '*':
-            parts.append('.*')
-            index += 2
-        elif character == '*':
-            parts.append('[^/]*')
-            index += 1
-        elif character == '?':
-            parts.append('[^/]')
-            index += 1
-        else:
-            parts.append(re.escape(character))
-            index += 1
+def _matches_workspace_pattern(pattern: str, member_path: str) -> bool:
+    """Match a workspace glob against a member path, one path segment at a time.
 
-    return ''.join(parts)
-
-
-def _compile_workspace_pattern(pattern: str) -> 're.Pattern[str]':
-    """Translate a workspace glob, where ** spans zero or more path segments.
-
-    Workspace members are discovered by globbing <pattern>/package.json, so src/app/**
-    matches src/app itself as well as anything beneath it. pnpm records exactly that in its
-    lockfile importers, and treating the trailing separator as mandatory would miss the member.
+    fnmatch is wrong for a whole path because its * crosses a separator, but inside one
+    segment there is no separator, so it is exactly right there - and it brings character
+    classes with it. Only ** needs handling here, because only ** spans segments.
     """
-    compiled = _workspace_pattern_regex_cache.get(pattern)
-    if compiled is not None:
-        return compiled
+    return _match_segments(tuple(pattern.split('/')), tuple(member_path.split('/')))
 
-    body = pattern
-    matches_anything_below = body.endswith(_GLOBSTAR_SUFFIX)
-    if matches_anything_below:
-        body = body[: -len(_GLOBSTAR_SUFFIX)]
 
-    matches_anything_above = body.startswith(_GLOBSTAR_PREFIX)
-    if matches_anything_above:
-        body = body[len(_GLOBSTAR_PREFIX) :]
+@lru_cache(maxsize=_SEGMENT_MATCH_CACHE_SIZE)
+def _match_segments(pattern_segments: tuple, path_segments: tuple) -> bool:
+    """Memoised so that several ** in one pattern cannot make this exponential.
 
-    expression = ''
-    if matches_anything_above:
-        expression += '(?:.*/)?'
-    expression += _workspace_pattern_body(body)
-    if matches_anything_below:
-        expression += '(?:/.*)?'
+    Each ** tries every split of the remaining path, so without memoisation a pattern such as
+    **/**/**/x against a deep tree multiplies out. The arguments are plain tuples of strings,
+    so a result can never go stale.
+    """
+    if not pattern_segments:
+        return not path_segments
 
-    compiled = re.compile(expression)
-    _workspace_pattern_regex_cache[pattern] = compiled
-    return compiled
+    head, rest = pattern_segments[0], pattern_segments[1:]
+    if head == _GLOBSTAR:
+        # ** spans zero or more segments, and spanning zero is what makes dir/** match dir
+        return any(_match_segments(rest, path_segments[index:]) for index in range(len(path_segments) + 1))
+
+    if not path_segments:
+        return False
+
+    return fnmatch.fnmatchcase(path_segments[0], head) and _match_segments(rest, path_segments[1:])
 
 
 def _split_workspace_patterns(declared: list) -> _WorkspacePatterns:
@@ -132,7 +110,7 @@ def _read_manifest_workspace_patterns(root_dir: Path) -> _WorkspacePatterns:
 
 def declares_workspace_member(root_dir: Path, member_path: str) -> bool:
     patterns = _read_manifest_workspace_patterns(root_dir)
-    if not any(_compile_workspace_pattern(pattern).fullmatch(member_path) for pattern in patterns.included):
+    if not any(_matches_workspace_pattern(pattern, member_path) for pattern in patterns.included):
         return False
 
-    return not any(_compile_workspace_pattern(pattern).fullmatch(member_path) for pattern in patterns.excluded)
+    return not any(_matches_workspace_pattern(pattern, member_path) for pattern in patterns.excluded)

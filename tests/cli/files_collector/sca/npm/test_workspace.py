@@ -1,6 +1,7 @@
 import contextlib
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock
@@ -18,6 +19,7 @@ from cycode.cli.files_collector.sca.npm.workspace import (
     find_covering_workspace,
     is_covered_workspace_member,
 )
+from cycode.cli.files_collector.sca.npm.workspace import globs as workspace_globs
 from cycode.cli.files_collector.sca.npm.workspace import resolvers as workspace_resolvers
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_scan_roots_from_context
@@ -140,8 +142,7 @@ class TestNonNpmWorkspaceCoverage:
         ('lock_file_name', 'lock_file_content', 'expected_package_manager'),
         [
             ('yarn.lock', '# yarn lockfile v1\n', 'yarn'),
-            ('bun.lock', '{"lockfileVersion": 1}', 'bun'),
-            ('deno.lock', '{"version": "4"}', 'deno'),
+            ('bun.lock', '{"lockfileVersion": 1, "workspaces": {"": {}, "packages/app": {}}}', 'bun'),
         ],
     )
     def test_member_covered_by_a_root_lockfile_of_another_package_manager(
@@ -449,7 +450,7 @@ class TestNoHandlerClaimsACoveredMember:
         ('lock_file_name', 'lock_file_content'),
         [
             ('yarn.lock', '# yarn lockfile v1\n'),
-            ('bun.lock', '{"lockfileVersion": 1}'),
+            ('bun.lock', '{"lockfileVersion": 1, "workspaces": {"": {}, "packages/app": {}}}'),
             ('bun.lockb', '\x00binary'),
         ],
     )
@@ -713,19 +714,21 @@ class TestFileNamesHaveASingleSource:
 
         assert offenders == {}, f'file names must come from workspace/names.py, but found literals in: {offenders}'
 
-    def test_the_alternative_lockfiles_come_from_the_shared_table(self) -> None:
-        """npm declines a project owned by another package manager; bun.lockb is the deliberate exception."""
+    def test_the_alternative_lockfiles_are_the_shared_names(self) -> None:
+        """A lockfile beside the manifest means another package manager owns it, so npm declines.
+
+        bun.lockb is the deliberate exception: Bun restores only from a text bun.lock, so
+        excluding it here would leave a Bun <1.2 project with no handler at all.
+        """
         from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import _ALTERNATIVE_LOCK_FILES
 
-        non_npm_names = {
-            lock_file_name
-            for resolver in workspace.MEMBER_RESOLVERS
-            if resolver.package_manager != workspace.NPM_PACKAGE_MANAGER
-            for lock_file_name in resolver.lock_file_names
+        assert set(_ALTERNATIVE_LOCK_FILES) == {
+            workspace.YARN_LOCK_FILE_NAME,
+            workspace.PNPM_LOCK_FILE_NAME,
+            workspace.DENO_LOCK_FILE_NAME,
+            workspace.BUN_LOCK_FILE_NAME,
         }
-
-        assert set(_ALTERNATIVE_LOCK_FILES) <= non_npm_names
-        assert non_npm_names - set(_ALTERNATIVE_LOCK_FILES) == {workspace.BUN_BINARY_LOCK_FILE_NAME}
+        assert workspace.BUN_BINARY_LOCK_FILE_NAME not in _ALTERNATIVE_LOCK_FILES
 
 
 class TestScanRootsFromContext:
@@ -1112,19 +1115,27 @@ class TestMemberResolvers:
         assert len(seen) == len(set(seen)), seen
 
     @pytest.mark.parametrize(
-        ('package_manager', 'may_use_globs'),
-        [('npm', False), ('pnpm', False), ('yarn', True), ('bun', True), ('deno', True)],
+        ('lock_file_name', 'may_use_globs'),
+        [
+            ('package-lock.json', False),
+            ('npm-shrinkwrap.json', False),
+            ('pnpm-lock.yaml', False),
+            ('bun.lock', False),
+            # only these two cannot name their members: a classic yarn.lock is flat, and
+            # bun.lockb is binary
+            ('yarn.lock', True),
+            ('bun.lockb', True),
+        ],
     )
-    def test_only_the_blind_formats_may_fall_back_to_globs(self, package_manager: str, may_use_globs: bool) -> None:
-        """npm and pnpm always name their members, so their silence means "not a workspace"."""
-        resolver = next(r for r in workspace.MEMBER_RESOLVERS if r.package_manager == package_manager)
+    def test_only_the_blind_formats_may_fall_back_to_globs(self, lock_file_name: str, may_use_globs: bool) -> None:
+        resolver = next(r for r in workspace.MEMBER_RESOLVERS if lock_file_name in r.lock_file_names)
 
         assert resolver.may_use_workspace_globs is may_use_globs
 
     def test_an_opaque_resolver_never_names_members(self, tmp_path: Path) -> None:
-        resolver = next(r for r in workspace.MEMBER_RESOLVERS if r.package_manager == 'deno')
-        lock_file = tmp_path / 'deno.lock'
-        lock_file.write_text('{"version": "4"}')
+        resolver = next(r for r in workspace.MEMBER_RESOLVERS if 'bun.lockb' in r.lock_file_names)
+        lock_file = tmp_path / 'bun.lockb'
+        lock_file.write_bytes(b'\x00binary')
 
         assert resolver.resolve(lock_file) is None
 
@@ -1150,3 +1161,116 @@ class TestMemberResolvers:
 
         assert first == second == frozenset({'packages/app'})
         assert reads.count(str(lock_file)) == 1
+
+
+class TestGlobsMatchYarnsBehaviour:
+    """Patterns measured against yarn 1.22, the implementation the globs exist to mirror.
+
+    Yarn uses micromatch. Braces and extglobs are not supported here; both fail as a miss,
+    which means the member is restored rather than silently dropped.
+    """
+
+    MEMBERS = ('packages/alpha', 'packages/beta', 'packages/a1', 'packages/deep/nested', 'packages')
+
+    def _covered(self, tmp_path: Path, pattern: str) -> set:
+        (tmp_path / 'package.json').write_text(json.dumps({'name': 'root', 'workspaces': [pattern]}))
+        _write_yarn_classic_lockfile(tmp_path)
+        covered = set()
+        for member in self.MEMBERS:
+            _write_member(tmp_path, member)
+            clear_cache()
+            if find_covering_workspace(str(tmp_path / member)) is not None:
+                covered.add(member)
+        return covered
+
+    @pytest.mark.parametrize(
+        ('pattern', 'expected'),
+        [
+            ('packages/*', {'packages/alpha', 'packages/beta', 'packages/a1'}),
+            # ** spans zero segments too, which is why yarn counts the directory itself
+            ('packages/**', {'packages/alpha', 'packages/beta', 'packages/a1', 'packages/deep/nested', 'packages'}),
+            ('packages/a?pha', {'packages/alpha'}),
+            ('packages/alpha', {'packages/alpha'}),
+            ('packages/[ab]*', {'packages/alpha', 'packages/beta', 'packages/a1'}),
+        ],
+    )
+    def test_patterns_resolve_as_yarn_resolves_them(self, tmp_path: Path, pattern: str, expected: set) -> None:
+        assert self._covered(tmp_path, pattern) == expected
+
+    @pytest.mark.parametrize('pattern', ['packages/{alpha,beta}', 'packages/+(alpha|beta)'])
+    def test_unsupported_syntax_misses_rather_than_over_matches(self, tmp_path: Path, pattern: str) -> None:
+        """Yarn would match these. Missing them restores the member, which loses nothing."""
+        assert self._covered(tmp_path, pattern) == set()
+
+
+class TestBunLockfileMembership:
+    """bun.lock names its members, so bun no longer depends on the globs."""
+
+    @staticmethod
+    def _write_bun_lockfile(root: Path, members: list, trailing_commas: bool = True) -> None:
+        entries = ''.join(f'        "{member}": {{}},\n' for member in members)
+        comma = ',' if trailing_commas else ''
+        (root / 'bun.lock').write_text(
+            '{\n    "lockfileVersion": 1,\n    "workspaces": {\n        "": {},\n'
+            f'{entries}'
+            f'    }}{comma}\n}}\n'.replace(f'}}{comma}\n}}', '}\n}')
+        )
+
+    def test_a_member_named_by_bun_lock_is_covered(self, tmp_path: Path) -> None:
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        self._write_bun_lockfile(tmp_path, ['packages/app'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        coverage = find_covering_workspace(str(member_dir))
+
+        assert coverage is not None
+        assert coverage.package_manager == 'bun'
+
+    def test_trailing_commas_are_tolerated(self, tmp_path: Path) -> None:
+        """bun writes JSON with trailing commas, which strict json.loads rejects."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'bun.lock').write_text(
+            '{\n  "lockfileVersion": 1,\n  "workspaces": {\n    "": {\n      "name": "root",\n    },\n'
+            '    "packages/app": {\n      "name": "app",\n    },\n  },\n}\n'
+        )
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is not None
+
+    def test_a_member_missing_from_bun_lock_is_not_covered(self, tmp_path: Path) -> None:
+        """The globs would claim it, but bun records what it installed and this is not in it."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        self._write_bun_lockfile(tmp_path, ['packages/other'])
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        assert find_covering_workspace(str(member_dir)) is None
+
+    def test_the_binary_lockfile_still_falls_back_to_globs(self, tmp_path: Path) -> None:
+        """bun.lockb cannot be read, so the manifest globs remain the only source."""
+        (tmp_path / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        (tmp_path / 'bun.lockb').write_bytes(b'\x00binary')
+        member_dir = _write_member(tmp_path, 'packages/app')
+
+        coverage = find_covering_workspace(str(member_dir))
+
+        assert coverage is not None
+        assert coverage.package_manager == 'bun'
+
+
+class TestGlobMatchingIsBounded:
+    def test_many_globstars_do_not_blow_up(self) -> None:
+        """Each ** tries every split of the remaining path, so this must stay memoised.
+
+        A manifest in a scanned repository chooses these patterns, so an unbounded matcher
+        would let a crafted package.json stall the scan.
+        """
+        deep = '/'.join(f'd{index}' for index in range(20)) + '/leaf'
+        pattern = '/'.join(['**'] * 20) + '/nomatch'
+
+        started = time.perf_counter()
+        assert workspace_globs._matches_workspace_pattern(pattern, deep) is False
+        assert time.perf_counter() - started < 1.0
+
+    def test_a_globstar_only_pattern_still_matches_everything(self) -> None:
+        assert workspace_globs._matches_workspace_pattern('**', 'a/b/c') is True
+        assert workspace_globs._matches_workspace_pattern('**', 'a') is True
