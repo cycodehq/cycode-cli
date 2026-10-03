@@ -5,14 +5,18 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
+from cycode.cli.files_collector.sca.npm.workspace import (
+    MANIFEST_FILE_NAME,
+    PNPM_LOCK_FILE_NAME,
+    is_covered_workspace_member,
+)
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_scan_roots_from_context
 from cycode.logger import get_logger
 
 logger = get_logger('Pnpm Restore Dependencies')
 
-PNPM_MANIFEST_FILE_NAME = 'package.json'
-PNPM_LOCK_FILE_NAME = 'pnpm-lock.yaml'
+PNPM_MANIFEST_FILE_NAME = MANIFEST_FILE_NAME
 
 
 def _indicates_pnpm(package_json_content: Optional[str]) -> bool:
@@ -43,6 +47,9 @@ class RestorePnpmDependencies(BaseRestoreDependencies):
         manifest_dir = self.get_manifest_dir(document)
         if manifest_dir and (Path(manifest_dir) / PNPM_LOCK_FILE_NAME).is_file():
             return True
+
+        if is_covered_workspace_member(manifest_dir, document.path, get_scan_roots_from_context(self.ctx)):
+            return False
 
         return _indicates_pnpm(document.content)
 
