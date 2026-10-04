@@ -1,5 +1,6 @@
 import types
 from abc import ABC, abstractmethod
+from functools import cache
 from typing import TYPE_CHECKING, Optional
 
 _GIT_ERROR_MESSAGE = """
@@ -10,17 +11,22 @@ You can help Cycode CLI to locate the Git executable
 by setting the GIT_PYTHON_GIT_EXECUTABLE=<path/to/git> environment variable.
 """.strip().replace('\n', ' ')
 
-try:
-    import git
-except ImportError:
-    git = None
-
 if TYPE_CHECKING:
     from git import PathLike, Repo
 
 
 class GitProxyError(Exception):
     pass
+
+
+# GitPython runs `git version` on import, so it is imported on first use rather than at CLI startup
+@cache
+def _import_git() -> Optional[types.ModuleType]:
+    try:
+        import git
+    except ImportError:
+        return None
+    return git
 
 
 class _AbstractGitProxy(ABC):
@@ -52,46 +58,54 @@ class _DummyGitProxy(_AbstractGitProxy):
 
 
 class _GitProxy(_AbstractGitProxy):
+    def __init__(self, git_module: types.ModuleType) -> None:
+        self._git = git_module
+
     def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
-        return git.Repo(path, *args, **kwargs)
+        return self._git.Repo(path, *args, **kwargs)
 
     def get_null_tree(self) -> object:
-        return git.NULL_TREE
+        return self._git.NULL_TREE
 
     def get_invalid_git_repository_error(self) -> type[BaseException]:
-        return git.InvalidGitRepositoryError
+        return self._git.InvalidGitRepositoryError
 
     def get_git_command_error(self) -> type[BaseException]:
-        return git.GitCommandError
+        return self._git.GitCommandError
 
 
 def get_git_proxy(git_module: Optional[types.ModuleType]) -> _AbstractGitProxy:
-    return _GitProxy() if git_module else _DummyGitProxy()
+    return _GitProxy(git_module) if git_module else _DummyGitProxy()
 
 
 class GitProxyManager(_AbstractGitProxy):
     """We are using this manager for easy unit testing and mocking of the git module."""
 
     def __init__(self) -> None:
-        self._git_proxy = get_git_proxy(git)
+        self._git_proxy: Optional[_AbstractGitProxy] = None
+
+    def _get_git_proxy(self) -> _AbstractGitProxy:
+        if self._git_proxy is None:
+            self._git_proxy = get_git_proxy(_import_git())
+        return self._git_proxy
 
     def _set_dummy_git_proxy(self) -> None:
         self._git_proxy = _DummyGitProxy()
 
     def _set_git_proxy(self) -> None:
-        self._git_proxy = _GitProxy()
+        self._git_proxy = _GitProxy(_import_git())
 
     def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
-        return self._git_proxy.get_repo(path, *args, **kwargs)
+        return self._get_git_proxy().get_repo(path, *args, **kwargs)
 
     def get_null_tree(self) -> object:
-        return self._git_proxy.get_null_tree()
+        return self._get_git_proxy().get_null_tree()
 
     def get_invalid_git_repository_error(self) -> type[BaseException]:
-        return self._git_proxy.get_invalid_git_repository_error()
+        return self._get_git_proxy().get_invalid_git_repository_error()
 
     def get_git_command_error(self) -> type[BaseException]:
-        return self._git_proxy.get_git_command_error()
+        return self._get_git_proxy().get_git_command_error()
 
 
 git_proxy = GitProxyManager()
