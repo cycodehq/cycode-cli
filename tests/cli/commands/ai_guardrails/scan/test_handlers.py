@@ -17,7 +17,6 @@ from cycode.cli.apps.ai_guardrails.scan.handlers import (
     _scan_path_for_secrets,
     _scan_text_for_secrets,
     build_ai_guardrails_scan_parameters,
-    get_effective_mode,
     handle_before_mcp_execution,
     handle_before_read_file,
     handle_before_submit_prompt,
@@ -340,7 +339,9 @@ def test_scan_path_for_secrets_directory(
     """Test that _scan_path_for_secrets returns (None, None) for directories."""
     fs.create_dir('/path/to/some_directory')
 
-    result = _scan_path_for_secrets(mock_ctx, '/path/to/some_directory', default_policy, payload=mock_payload)
+    result = _scan_path_for_secrets(
+        mock_ctx, '/path/to/some_directory', default_policy, payload=mock_payload, guardrail=BlockReason.SECRETS_IN_FILE
+    )
 
     assert result == ScanOutcome()
 
@@ -364,7 +365,9 @@ def test_scan_path_for_secrets_skips_path_configured_in_exclusions(
         'cycode.cli.files_collector.file_excluder.configuration_manager.get_exclusions_by_scan_type',
         return_value={'paths': [excluded_dir]},
     ):
-        result = _scan_path_for_secrets(mock_ctx, file_path, default_policy, payload=mock_payload)
+        result = _scan_path_for_secrets(
+            mock_ctx, file_path, default_policy, payload=mock_payload, guardrail=BlockReason.SECRETS_IN_FILE
+        )
 
     assert result == ScanOutcome()
     mock_perform_scan.assert_not_called()
@@ -553,16 +556,6 @@ def test_handle_before_mcp_execution_with_secrets_warned(
     assert call_args.args[2] == AIHookOutcome.WARNED
 
 
-def test_get_effective_mode_reads_the_guardrails_action() -> None:
-    assert get_effective_mode({'action': 'block'}) == GuardrailsMode.BLOCK
-    assert get_effective_mode({'action': 'warn'}) == GuardrailsMode.REPORT
-    assert get_effective_mode({}) == GuardrailsMode.BLOCK
-    # A feature may carry more than one action; the caller picks which cell to read.
-    feature = {'action': 'warn', 'path_action': 'block'}
-    assert get_effective_mode(feature) == GuardrailsMode.REPORT
-    assert get_effective_mode(feature, action_key='path_action') == GuardrailsMode.BLOCK
-
-
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.get_serial_number', return_value='SER-123')
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.get_hostname', return_value='test-host')
 def test_build_ai_guardrails_scan_parameters(
@@ -571,7 +564,7 @@ def test_build_ai_guardrails_scan_parameters(
     """The built scan parameters embed the full hook context alongside the standard scan parameters."""
     mock_ctx.info_name = 'ai_guardrails'
 
-    params = build_ai_guardrails_scan_parameters(mock_ctx, None, mock_payload, AiHookEventType.PROMPT)
+    params = build_ai_guardrails_scan_parameters(mock_ctx, None, mock_payload, BlockReason.SECRETS_IN_PROMPT)
 
     assert params['command_type'] == 'ai_guardrails'
     assert params['metadata']['ai_guardrails'] == {
@@ -597,9 +590,7 @@ def test_build_ai_guardrails_scan_parameters_names_the_given_guardrail(
     """A sensitive-path scan is labelled with its own guardrail, so the server applies its floors."""
     mock_ctx.info_name = 'ai_guardrails'
 
-    params = build_ai_guardrails_scan_parameters(
-        mock_ctx, None, mock_payload, AiHookEventType.FILE_READ, BlockReason.SENSITIVE_PATH
-    )
+    params = build_ai_guardrails_scan_parameters(mock_ctx, None, mock_payload, BlockReason.SENSITIVE_PATH)
 
     assert params['metadata']['ai_guardrails']['detection_source'] == 'sensitive_path'
 
@@ -617,7 +608,7 @@ def test_scan_text_for_secrets_injects_ai_guardrails_scan_parameter(
         'some text',
         1000,
         payload=mock_payload,
-        event_type=AiHookEventType.PROMPT,
+        guardrail=BlockReason.SECRETS_IN_PROMPT,
     )
 
     ai_guardrails = mock_perform_scan.call_args.args[2]['metadata']['ai_guardrails']

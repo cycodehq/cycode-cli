@@ -125,7 +125,6 @@ def test_apply_platform_config_sensitive_path_block_keeps_its_globs_and_content_
     apply_platform_config(policy, config, 'cursor')
     assert policy['file_read']['action'] == 'warn'
     assert policy['file_read']['deny_globs'] == config.sensitive_globs()
-    assert 'path_action' not in policy['file_read']
 
 
 def test_apply_platform_config_off_cells_disable_subfeatures() -> None:
