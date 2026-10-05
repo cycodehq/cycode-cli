@@ -6,15 +6,19 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
+from cycode.cli.files_collector.sca.npm.workspace import (
+    BUN_LOCK_FILE_NAME,
+    MANIFEST_FILE_NAME,
+    is_covered_workspace_member,
+)
 from cycode.cli.models import Document
-from cycode.cli.utils.path_utils import get_file_content
+from cycode.cli.utils.path_utils import get_file_content, get_scan_roots_from_context
 from cycode.cli.utils.shell_executor import shell
 from cycode.logger import get_logger
 
 logger = get_logger('Bun Restore Dependencies')
 
-BUN_MANIFEST_FILE_NAME = 'package.json'
-BUN_LOCK_FILE_NAME = 'bun.lock'
+BUN_MANIFEST_FILE_NAME = MANIFEST_FILE_NAME
 
 # Only Bun >=1.2 produces the text-based `bun.lock` lockfile that we parse.
 # Older Bun versions emit a binary `bun.lockb`, which is not supported.
@@ -60,6 +64,9 @@ class RestoreBunDependencies(BaseRestoreDependencies):
         manifest_dir = self.get_manifest_dir(document)
         if manifest_dir and (Path(manifest_dir) / BUN_LOCK_FILE_NAME).is_file():
             return True
+
+        if is_covered_workspace_member(manifest_dir, document.path, get_scan_roots_from_context(self.ctx)):
+            return False
 
         return _indicates_bun(document.content)
 

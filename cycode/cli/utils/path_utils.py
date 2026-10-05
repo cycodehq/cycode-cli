@@ -152,11 +152,38 @@ def concat_unique_id(filename: str, unique_id: str) -> str:
     return str(PurePosixPath(unique_id, *_to_relative_posix_parts(filename)))
 
 
+def _as_scan_root(value: object) -> Optional[str]:
+    if isinstance(value, (str, os.PathLike)):
+        return os.fspath(value) or None
+
+    return None
+
+
+def get_scan_roots_from_context(ctx: typer.Context) -> tuple[str, ...]:
+    """Every path the user asked to scan, in the order they were given.
+
+    Typer declares these arguments as Path, so callers must not assume str.
+    """
+    params = getattr(ctx, 'params', None)
+    if not isinstance(params, dict):
+        return ()
+
+    scan_roots = []
+
+    single_root = _as_scan_root(params.get('path'))
+    if single_root:
+        scan_roots.append(single_root)
+
+    paths = params.get('paths')
+    if isinstance(paths, (list, tuple)):
+        scan_roots.extend(root for root in (_as_scan_root(entry) for entry in paths) if root)
+
+    return tuple(dict.fromkeys(scan_roots))
+
+
 def get_path_from_context(ctx: typer.Context) -> Optional[str]:
-    path = ctx.params.get('path')
-    if path is None and 'paths' in ctx.params:
-        path = ctx.params['paths'][0]
-    return path
+    scan_roots = get_scan_roots_from_context(ctx)
+    return scan_roots[0] if scan_roots else None
 
 
 def normalize_file_path(path: str) -> str:

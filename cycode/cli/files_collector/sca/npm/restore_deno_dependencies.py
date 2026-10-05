@@ -4,6 +4,7 @@ from typing import Optional
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
+from cycode.cli.files_collector.sca.npm.workspace import DENO_LOCK_FILE_NAME
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content
 from cycode.logger import get_logger
@@ -11,7 +12,6 @@ from cycode.logger import get_logger
 logger = get_logger('Deno Restore Dependencies')
 
 DENO_MANIFEST_FILE_NAMES = ('deno.json', 'deno.jsonc')
-DENO_LOCK_FILE_NAME = 'deno.lock'
 
 
 class RestoreDenoDependencies(BaseRestoreDependencies):
