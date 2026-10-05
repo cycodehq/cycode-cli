@@ -1,3 +1,4 @@
+import importlib
 import re
 from unittest.mock import patch
 
@@ -9,6 +10,9 @@ from typer.testing import CliRunner
 from cycode.cli.app import app
 from cycode.cli.apps.scan.scan_command import scan_command_result_callback
 from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, SCAN_ERROR_STATUS_CODE
+
+# The scan package re-exports a function named scan_command, which shadows the submodule on attribute lookup
+_scan_command_module = importlib.import_module('cycode.cli.apps.scan.scan_command')
 
 
 def _strip_ansi(text: str) -> str:
@@ -56,7 +60,7 @@ class TestScanCommand:
             captured.update(ctx.obj)
             raise typer.Exit(0)
 
-        with patch('cycode.cli.apps.scan.scan_command.get_scan_cycode_client', side_effect=_capture_ctx_and_stop):
+        with patch.object(_scan_command_module, 'get_scan_cycode_client', side_effect=_capture_ctx_and_stop):
             CliRunner().invoke(app, ['scan', '-t', 'sca', *args, 'path', '.'])
 
         assert captured['stop_on_error'] is expected
