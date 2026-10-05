@@ -265,6 +265,60 @@ class TestCopilotPayloadRouting:
         assert json.loads(capsys.readouterr().out) == {}
 
 
+class TestCodexMcpResponses:
+    """Codex PreToolUse responses for MCP calls through scan_command."""
+
+    _PAYLOAD = {  # noqa: RUF012
+        'hook_event_name': 'PreToolUse',
+        'session_id': 'session-123',
+        'turn_id': 'turn-1',
+        'tool_name': 'mcp__grafana__query_loki_logs',
+        'tool_input': {'logql': '{app="api"}'},
+    }
+
+    def test_permitted_mcp_call_returns_empty_response(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_scan_command_deps: dict[str, MagicMock],
+    ) -> None:
+        """Older Codex runtimes reject permissionDecision "allow" as unsupported
+        and report a failed hook on every MCP call - allow must be empty."""
+        mocker.patch('sys.stdin', StringIO(json.dumps(self._PAYLOAD)))
+        mock_scan_command_deps['load_policy'].return_value = {'fail_open': True}
+        mock_scan_command_deps['get_handler'].return_value = MagicMock(
+            return_value=HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+        )
+
+        scan_command(mock_ctx, ide='codex')
+
+        assert json.loads(capsys.readouterr().out) == {}
+
+    def test_blocked_mcp_call_returns_deny_with_reason(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        mock_scan_command_deps: dict[str, MagicMock],
+    ) -> None:
+        mocker.patch('sys.stdin', StringIO(json.dumps(self._PAYLOAD)))
+        mock_scan_command_deps['load_policy'].return_value = {'fail_open': True}
+        mock_scan_command_deps['get_handler'].return_value = MagicMock(
+            return_value=HookDecision.deny(AiHookEventType.MCP_EXECUTION, 'Secret detected in MCP arguments')
+        )
+
+        scan_command(mock_ctx, ide='codex')
+
+        assert json.loads(capsys.readouterr().out) == {
+            'hookSpecificOutput': {
+                'hookEventName': 'PreToolUse',
+                'permissionDecision': 'deny',
+                'permissionDecisionReason': 'Secret detected in MCP arguments',
+            }
+        }
+
+
 class TestSelfDetach:
     """Report-mode scans respawn detached and release the IDE immediately."""
 
