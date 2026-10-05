@@ -15,6 +15,7 @@ from cycode.cli.files_collector.sca.npm.restore_deno_dependencies import Restore
 from cycode.cli.files_collector.sca.npm.restore_npm_dependencies import RestoreNpmDependencies
 from cycode.cli.files_collector.sca.npm.restore_pnpm_dependencies import RestorePnpmDependencies
 from cycode.cli.files_collector.sca.npm.restore_yarn_dependencies import RestoreYarnDependencies
+from cycode.cli.files_collector.sca.npm.workspace import clear_cache as clear_npm_workspace_cache
 from cycode.cli.files_collector.sca.nuget.restore_nuget_dependencies import RestoreNugetDependencies
 from cycode.cli.files_collector.sca.php.restore_composer_dependencies import RestoreComposerDependencies
 from cycode.cli.files_collector.sca.python.restore_pip_dependencies import RestorePipDependencies
@@ -185,6 +186,8 @@ def _add_dependencies_tree_documents(
         'Adding dependencies tree documents, %s',
         {'documents_count': len(documents_to_scan), 'is_git_diff': is_git_diff},
     )
+
+    clear_npm_workspace_cache()
 
     documents_to_add: dict[str, Document] = {document.path: document for document in documents_to_scan}
     restore_dependencies_list = _get_restore_handlers(ctx, is_git_diff)

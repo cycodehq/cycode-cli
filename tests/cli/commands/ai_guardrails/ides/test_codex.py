@@ -97,7 +97,8 @@ def test_build_prompt_responses() -> None:
 def test_build_mcp_execution_allow_and_deny() -> None:
     codex = Codex()
     allow = codex.build_hook_response(HookDecision.allow(AiHookEventType.MCP_EXECUTION))
-    assert allow == {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'allow'}}
+    # Explicit permissionDecision "allow" is rejected by older Codex runtimes.
+    assert allow == {}
 
     deny = codex.build_hook_response(HookDecision.deny(AiHookEventType.MCP_EXECUTION, 'secret in args!'))
     assert deny == {

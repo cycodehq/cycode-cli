@@ -203,3 +203,64 @@ class TestCleanup:
 
         assert result is not None
         assert lock_path.exists(), f'Pre-existing {BUN_LOCK_FILE_NAME} must not be deleted'
+
+
+class TestIsProjectInWorkspace:
+    """A bun workspace keeps the only lockfile at the root, so the member folder holds just a manifest."""
+
+    @staticmethod
+    def _member_document(member_dir: Path) -> Document:
+        manifest = member_dir / 'package.json'
+        return Document(str(manifest), manifest.read_text(), absolute_path=str(manifest))
+
+    @staticmethod
+    def _write_workspace_root(root: Path, *, with_lockfile: bool = True) -> None:
+        (root / 'package.json').write_text('{"name": "root", "workspaces": ["packages/*"]}')
+        if with_lockfile:
+            (root / 'bun.lock').write_text('{"lockfileVersion": 1}')
+
+    def test_member_covered_by_the_root_lockfile_does_not_match(
+        self, restore_bun: RestoreBunDependencies, tmp_path: Path
+    ) -> None:
+        """The root lockfile resolves the member, so restoring it separately would be wrong."""
+        self._write_workspace_root(tmp_path)
+        member_dir = tmp_path / 'packages' / 'app'
+        member_dir.mkdir(parents=True)
+        (member_dir / 'package.json').write_text('{"name": "app"}')
+
+        assert restore_bun.is_project(self._member_document(member_dir)) is False
+
+    def test_member_of_a_workspace_without_a_lockfile_falls_back_to_the_signal(
+        self, restore_bun: RestoreBunDependencies, tmp_path: Path
+    ) -> None:
+        """Nothing resolves the member yet, so the packageManager signal still decides."""
+        self._write_workspace_root(tmp_path, with_lockfile=False)
+        member_dir = tmp_path / 'packages' / 'app'
+        member_dir.mkdir(parents=True)
+        (member_dir / 'package.json').write_text('{"name": "app", "packageManager": "bun@1.2.3"}')
+
+        assert restore_bun.is_project(self._member_document(member_dir)) is True
+
+    def test_member_with_its_own_lockfile_still_matches(
+        self, restore_bun: RestoreBunDependencies, tmp_path: Path
+    ) -> None:
+        """A lockfile inside the member is authoritative for that member."""
+        self._write_workspace_root(tmp_path)
+        member_dir = tmp_path / 'packages' / 'app'
+        member_dir.mkdir(parents=True)
+        (member_dir / 'package.json').write_text('{"name": "app"}')
+        (member_dir / 'bun.lock').write_text('{"lockfileVersion": 1}')
+
+        assert restore_bun.is_project(self._member_document(member_dir)) is True
+
+    def test_nested_package_that_is_not_a_workspace_member_still_matches(
+        self, restore_bun: RestoreBunDependencies, tmp_path: Path
+    ) -> None:
+        """Without a matching workspaces pattern the root lockfile does not resolve this package."""
+        (tmp_path / 'package.json').write_text('{"name": "root"}')
+        (tmp_path / 'bun.lock').write_text('{"lockfileVersion": 1}')
+        member_dir = tmp_path / 'nested'
+        member_dir.mkdir()
+        (member_dir / 'package.json').write_text('{"name": "nested", "packageManager": "bun@1.2.3"}')
+
+        assert restore_bun.is_project(self._member_document(member_dir)) is True
