@@ -119,7 +119,7 @@ def test_apply_platform_config_block_cell_sets_block_action() -> None:
 
 
 def test_apply_platform_config_sensitive_path_block_keeps_its_globs_and_content_action() -> None:
-    # The sensitive-path cell travels with its scan (the server's verdict), so it never sets the content action.
+    # The sensitive-path mode never sets the content action.
     policy: dict = {}
     config = _config(file_read='Report', sensitive_path='Block')
     apply_platform_config(policy, config, 'cursor')

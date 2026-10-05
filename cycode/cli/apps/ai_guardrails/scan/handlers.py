@@ -112,12 +112,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
 
 
 def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
-    """Scan the file content for secrets, judged by the sensitive-path guardrail when the path is sensitive.
-
-    A sensitive path is scanned under its own guardrail, so the server applies the sensitive-path
-    floors and per-agent mode to the secrets it finds - the same verdict rule as the secret
-    guardrails. Every other file falls to the secrets-in-file guardrail.
-    """
+    """Scan the file for secrets under the sensitive-path or secrets-in-file guardrail."""
     ai_client = ctx.obj['ai_security_client']
 
     file_path = payload.file_path or ''
@@ -305,7 +300,7 @@ def build_ai_guardrails_scan_parameters(
     payload: AIHookPayload,
     guardrail: BlockReason,
 ) -> dict:
-    """The scan parameters; `guardrail` travels as detection_source and picks the floors the server applies."""
+    """`guardrail` is sent as detection_source and picks the server's floors."""
     scan_parameters = get_scan_parameters(ctx, paths)
     scan_parameters.setdefault('metadata', {})['ai_guardrails'] = {
         'ide_provider': payload.ide_provider,
@@ -387,7 +382,7 @@ def _scan_text_for_secrets(
     payload: AIHookPayload,
     guardrail: BlockReason,
 ) -> ScanOutcome:
-    """Scan text content for secrets, judged by `guardrail`'s floors."""
+    """Scan text for secrets."""
     if not text:
         return NO_SCAN
 
@@ -405,7 +400,7 @@ def _scan_path_for_secrets(
     payload: AIHookPayload,
     guardrail: BlockReason,
 ) -> ScanOutcome:
-    """Scan a file path for secrets, judged by `guardrail`'s floors."""
+    """Scan a file for secrets."""
     if not file_path or not os.path.isfile(file_path):
         return NO_SCAN
 

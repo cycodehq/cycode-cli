@@ -100,10 +100,8 @@ def apply_platform_config(policy: dict, config: Optional[GuardrailConfig], ide_n
 
     The platform is the only mode source: no cache (cold start) means the built-in defaults -
     Report everywhere with the default globs - which equal an unconfigured tenant's platform
-    config, so behaviour is uniform either way. The two FileRead guardrails keep independent modes:
-    a sensitive path is scanned under its own guardrail, so the server's verdict carries the
-    sensitive-path cell, and only its Off (no globs) lands here. An all-Off event never reaches
-    here at all: scan_command skips it.
+    config, so behaviour is uniform either way. The sensitive-path mode comes back in the server's
+    verdict. An all-Off event never reaches here at all: scan_command skips it.
     """
 
     def cell(guardrail_key: str) -> str:

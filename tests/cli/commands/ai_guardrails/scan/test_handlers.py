@@ -164,7 +164,7 @@ def test_handle_before_submit_prompt_scan_failure_fail_closed(
 def test_handle_before_read_file_sensitive_path_blocked_by_verdict(
     mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
-    """A sensitive path is scanned under its own guardrail, and blocked when the verdict says so."""
+    """A Block verdict blocks a sensitive path."""
     mock_is_denied.return_value = True
     mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-456', GuardrailsMode.BLOCK)
     payload = AIHookPayload(
@@ -234,7 +234,7 @@ def test_handle_before_read_file_with_secrets(
     assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_FILE
     assert call_args.kwargs['file_path'] == '/path/to/file.txt'
 
-    # A Report verdict never blocks; the developer is asked instead
+    # A Report verdict asks instead
     mock_scan.return_value = ScanOutcome('Found 1 secret: password', 'scan-id-456', GuardrailsMode.REPORT)
 
     result = handle_before_read_file(mock_ctx, payload, default_policy)
@@ -269,7 +269,7 @@ def test_handle_before_read_file_scan_disabled(
 def test_handle_before_read_file_sensitive_path_report_verdict_asks(
     mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
-    """Secrets under the sensitive-path block floor are reported and the developer is asked."""
+    """A Report verdict asks."""
     mock_is_denied.return_value = True
     mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-456', GuardrailsMode.REPORT)
     payload = AIHookPayload(
@@ -293,7 +293,7 @@ def test_handle_before_read_file_sensitive_path_report_verdict_asks(
 def test_handle_before_read_file_sensitive_path_without_secrets_is_allowed(
     mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
-    """Like the secret guardrails, a sensitive path with nothing found is allowed and not flagged."""
+    """No secrets means allowed."""
     mock_is_denied.return_value = True
     mock_scan.return_value = ScanOutcome(scan_id='scan-id-123')
     payload = AIHookPayload(
@@ -317,7 +317,7 @@ def test_handle_before_read_file_sensitive_path_without_secrets_is_allowed(
 def test_handle_before_read_file_sensitive_path_scans_with_content_scan_off(
     mock_scan: MagicMock, mock_is_denied: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:
-    """Secrets-in-file being Off does not switch off the sensitive-path guardrail's own scan."""
+    """Secrets-in-file Off still scans sensitive paths."""
     mock_is_denied.return_value = True
     mock_scan.return_value = ScanOutcome(scan_id='scan-id-123')
     default_policy['file_read']['scan_content'] = False
@@ -587,7 +587,7 @@ def test_build_ai_guardrails_scan_parameters(
 def test_build_ai_guardrails_scan_parameters_names_the_given_guardrail(
     mock_hostname: MagicMock, mock_serial: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload
 ) -> None:
-    """A sensitive-path scan is labelled with its own guardrail, so the server applies its floors."""
+    """The guardrail becomes the detection_source."""
     mock_ctx.info_name = 'ai_guardrails'
 
     params = build_ai_guardrails_scan_parameters(mock_ctx, None, mock_payload, BlockReason.SENSITIVE_PATH)
