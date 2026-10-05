@@ -426,7 +426,6 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
     assert scan_outcome.violation_summary is None
     assert scan_outcome.scan_id == 'scan-id-123'
     assert scan_outcome.verdict == GuardrailsMode.BLOCK
-    # A multiprocessing lock spawns a resource_tracker that inherits the hook's stdout and outlives the CLI
     mock_semlock_init.assert_not_called()
 
 

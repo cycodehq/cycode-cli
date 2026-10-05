@@ -369,6 +369,13 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
     return ctx
 
 
+def _run_scan(scan_func: Callable, documents: list[Document], scan_result: dict[str, Any]) -> None:
+    try:
+        scan_result['value'] = scan_func(documents)
+    except BaseException as e:
+        scan_result['error'] = e
+
+
 def _perform_scan(
     ctx: typer.Context, documents: list[Document], scan_parameters: dict, timeout_seconds: float
 ) -> ScanOutcome:
@@ -383,18 +390,8 @@ def _perform_scan(
         ctx, is_git_diff=False, is_commit_range=False, scan_parameters=scan_parameters
     )
 
-    # Not multiprocessing's ThreadPool: its lock spawns a resource_tracker process that inherits the hook's stdout
-    # and outlives the CLI, so the IDE sees exit before EOF and rejects the verdict. Not ThreadPoolExecutor either:
-    # its workers are joined at interpreter exit, so a hung scan would outlive the timeout. A daemon thread is neither.
     scan_result: dict[str, Any] = {}
-
-    def run_scan() -> None:
-        try:
-            scan_result['value'] = scan_batch_thread_func(documents)
-        except BaseException as e:
-            scan_result['error'] = e
-
-    scan_thread = threading.Thread(target=run_scan, daemon=True)
+    scan_thread = threading.Thread(target=_run_scan, args=(scan_batch_thread_func, documents, scan_result), daemon=True)
     scan_thread.start()
     scan_thread.join(timeout_seconds)
     if scan_thread.is_alive():
