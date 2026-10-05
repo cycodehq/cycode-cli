@@ -1,6 +1,8 @@
 """Tests for AI guardrails handlers."""
 
 import os
+import threading
+from multiprocessing import synchronize
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -410,15 +412,51 @@ def test_perform_scan_no_violation_when_all_detections_excluded(mock_ctx: MagicM
     )
     document = Document(path='prompt-content.txt', content='some content', is_git_diff_format=False)
 
-    with patch(
-        'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',
-        return_value=lambda batch: ('scan-id-123', None, local_scan_result),
+    with (
+        patch(
+            'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',
+            return_value=lambda batch: ('scan-id-123', None, local_scan_result),
+        ),
+        patch.object(
+            synchronize.SemLock, '__init__', autospec=True, side_effect=synchronize.SemLock.__init__
+        ) as mock_semlock_init,
     ):
         scan_outcome = _perform_scan(mock_ctx, [document], {}, timeout_seconds=5.0)
 
     assert scan_outcome.violation_summary is None
     assert scan_outcome.scan_id == 'scan-id-123'
     assert scan_outcome.verdict == GuardrailsMode.BLOCK
+    mock_semlock_init.assert_not_called()
+
+
+def test_perform_scan_raises_on_timeout_and_on_scan_exception(mock_ctx: MagicMock) -> None:
+    document = Document(path='prompt-content.txt', content='some content', is_git_diff_format=False)
+    release_hung_scan = threading.Event()
+
+    def hung_scan(_: list[Document]) -> None:
+        release_hung_scan.wait()
+
+    def crashing_scan(_: list[Document]) -> None:
+        raise ValueError('boom')
+
+    try:
+        with (
+            patch(
+                'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func', return_value=hung_scan
+            ),
+            pytest.raises(RuntimeError, match='Scan timed out'),
+        ):
+            _perform_scan(mock_ctx, [document], {}, timeout_seconds=0.05)
+    finally:
+        release_hung_scan.set()
+
+    with (
+        patch(
+            'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func', return_value=crashing_scan
+        ),
+        pytest.raises(ValueError, match='boom'),
+    ):
+        _perform_scan(mock_ctx, [document], {}, timeout_seconds=5.0)
 
 
 def _local_scan_result_with_detections(*shas: str) -> LocalScanResult:

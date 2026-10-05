@@ -10,10 +10,9 @@ touching any handler in this module.
 
 import json
 import os
+import threading
 from dataclasses import dataclass
-from multiprocessing.pool import ThreadPool
-from multiprocessing.pool import TimeoutError as PoolTimeoutError
-from typing import TYPE_CHECKING, Callable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
 import typer
 
@@ -370,6 +369,13 @@ def _setup_scan_context(ctx: typer.Context) -> typer.Context:
     return ctx
 
 
+def _run_scan(scan_func: Callable, documents: list[Document], scan_result: dict[str, Any]) -> None:
+    try:
+        scan_result['value'] = scan_func(documents)
+    except BaseException as e:
+        scan_result['error'] = e
+
+
 def _perform_scan(
     ctx: typer.Context, documents: list[Document], scan_parameters: dict, timeout_seconds: float
 ) -> ScanOutcome:
@@ -384,15 +390,17 @@ def _perform_scan(
         ctx, is_git_diff=False, is_commit_range=False, scan_parameters=scan_parameters
     )
 
-    # Use ThreadPool.apply_async with timeout to abort if scan takes too long
-    # This uses the same ThreadPool mechanism as run_parallel_batched_scan but with timeout support
-    with ThreadPool(processes=1) as pool:
-        result = pool.apply_async(scan_batch_thread_func, (documents,))
-        try:
-            _, error, local_scan_result = result.get(timeout=timeout_seconds)
-        except PoolTimeoutError:
-            logger.debug('Scan timed out after %s seconds', timeout_seconds)
-            raise RuntimeError(f'Scan timed out after {timeout_seconds} seconds') from None
+    scan_result: dict[str, Any] = {}
+    scan_thread = threading.Thread(target=_run_scan, args=(scan_batch_thread_func, documents, scan_result), daemon=True)
+    scan_thread.start()
+    scan_thread.join(timeout_seconds)
+    if scan_thread.is_alive():
+        logger.debug('Scan timed out after %s seconds', timeout_seconds)
+        raise RuntimeError(f'Scan timed out after {timeout_seconds} seconds')
+    if 'error' in scan_result:
+        raise scan_result['error']
+
+    _, error, local_scan_result = scan_result['value']
 
     # Check if scan failed - raise exception to trigger fail_open policy
     if error:
