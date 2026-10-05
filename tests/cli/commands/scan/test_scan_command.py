@@ -11,7 +11,6 @@ from cycode.cli.app import app
 from cycode.cli.apps.scan.scan_command import scan_command_result_callback
 from cycode.cli.consts import ISSUE_DETECTED_STATUS_CODE, NO_ISSUES_STATUS_CODE, SCAN_ERROR_STATUS_CODE
 
-# The scan package re-exports a function named scan_command, which shadows the submodule on attribute lookup
 _scan_command_module = importlib.import_module('cycode.cli.apps.scan.scan_command')
 
 
