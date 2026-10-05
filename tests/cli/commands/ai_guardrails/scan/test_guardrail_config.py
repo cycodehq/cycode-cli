@@ -105,7 +105,6 @@ def test_apply_platform_config_without_cache_uses_report_defaults() -> None:
 
     assert policy['prompt']['action'] == 'warn'
     assert policy['file_read']['action'] == 'warn'
-    assert policy['file_read']['path_action'] == 'warn'
     assert policy['mcp']['action'] == 'warn'
     assert policy['file_read']['deny_globs'] == DEFAULT_SENSITIVE_PATH_GLOBS
 
@@ -119,17 +118,14 @@ def test_apply_platform_config_block_cell_sets_block_action() -> None:
     assert policy['mcp']['action'] == 'warn'
 
 
-def test_apply_platform_config_file_read_cells_keep_independent_actions() -> None:
-    # Content scan and sensitive path share the FileRead event but are separate matrix cells.
+def test_apply_platform_config_sensitive_path_block_keeps_its_globs_and_content_action() -> None:
+    # The sensitive-path cell travels with its scan (the server's verdict), so it never sets the content action.
     policy: dict = {}
-    apply_platform_config(policy, _config(file_read='Block', sensitive_path='Report'), 'cursor')
-    assert policy['file_read']['action'] == 'block'
-    assert policy['file_read']['path_action'] == 'warn'
-
-    policy = {}
-    apply_platform_config(policy, _config(file_read='Report', sensitive_path='Block'), 'cursor')
+    config = _config(file_read='Report', sensitive_path='Block')
+    apply_platform_config(policy, config, 'cursor')
     assert policy['file_read']['action'] == 'warn'
-    assert policy['file_read']['path_action'] == 'block'
+    assert policy['file_read']['deny_globs'] == config.sensitive_globs()
+    assert 'path_action' not in policy['file_read']
 
 
 def test_apply_platform_config_off_cells_disable_subfeatures() -> None:

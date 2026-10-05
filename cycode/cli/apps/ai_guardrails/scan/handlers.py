@@ -117,12 +117,16 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
 
 
 def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
-    """Block sensitive paths and scan file content for secrets."""
+    """Scan the file content for secrets, judged by the sensitive-path guardrail when the path is sensitive.
+
+    A sensitive path is scanned under its own guardrail, so the server applies the sensitive-path
+    floors and per-agent mode to the secrets it finds - the same verdict rule as the secret
+    guardrails. Every other file falls to the secrets-in-file guardrail.
+    """
     ai_client = ctx.obj['ai_security_client']
 
     file_read_config = get_policy_value(policy, 'file_read', default={})
     file_path = payload.file_path or ''
-    path_mode = get_effective_mode(file_read_config, action_key='path_action')
 
     scan_id = None
     block_reason = None
@@ -130,61 +134,36 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
     error_message = None
 
     try:
-        is_sensitive_path = is_denied_path(file_path, policy)
-        if is_sensitive_path:
-            block_reason = BlockReason.SENSITIVE_PATH
-            if path_mode == GuardrailsMode.BLOCK:
-                outcome = AIHookOutcome.BLOCKED
-                user_message = f'Cycode blocked sending {file_path} to the AI (sensitive path policy).'
-                return HookDecision.deny(
-                    AiHookEventType.FILE_READ,
-                    user_message,
-                    'This file path is classified as sensitive; do not read/send it to the model.',
-                )
-            # Warn mode: if content scan is enabled, emit a separate event for the
-            # sensitive path so the finally block can independently track the scan result.
-            outcome = AIHookOutcome.WARNED
-            if get_policy_value(file_read_config, 'scan_content', default=True):
-                ai_client.create_event(
-                    payload,
-                    AiHookEventType.FILE_READ,
-                    outcome,
-                    block_reason=BlockReason.SENSITIVE_PATH,
-                    file_path=payload.file_path,
-                )
-                block_reason = None
-                outcome = AIHookOutcome.ALLOWED
+        if is_denied_path(file_path, policy):
+            guardrail = BlockReason.SENSITIVE_PATH
+        elif get_policy_value(file_read_config, 'scan_content', default=True):
+            guardrail = BlockReason.SECRETS_IN_FILE
+        else:
+            return HookDecision.allow(AiHookEventType.FILE_READ)
 
-        if get_policy_value(file_read_config, 'scan_content', default=True):
-            scan_outcome = _scan_path_for_secrets(ctx, file_path, policy, payload=payload)
-            scan_id = scan_outcome.scan_id
-            if scan_outcome.violation_summary:
-                block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.FILE_READ]
-                if scan_outcome.verdict == GuardrailsMode.BLOCK:
-                    outcome = AIHookOutcome.BLOCKED
-                    user_message = f'Cycode blocked reading {file_path}. {scan_outcome.violation_summary}'
-                    return HookDecision.deny(
-                        AiHookEventType.FILE_READ,
-                        user_message,
-                        'Secrets detected; do not send this file to the model.',
-                    )
-                outcome = AIHookOutcome.WARNED
-                user_message = f'Cycode detected secrets in {file_path}. {scan_outcome.violation_summary}'
-                return HookDecision.ask(
-                    AiHookEventType.FILE_READ,
-                    user_message,
-                    'Possible secrets detected; proceed with caution.',
-                )
+        scan_outcome = _scan_path_for_secrets(ctx, file_path, policy, payload=payload, guardrail=guardrail)
+        scan_id = scan_outcome.scan_id
+        if not scan_outcome.violation_summary:
+            return HookDecision.allow(AiHookEventType.FILE_READ)
 
-        if is_sensitive_path:
-            user_message = f'Cycode flagged {file_path} as sensitive. Allow reading?'
-            return HookDecision.ask(
+        block_reason = guardrail
+        subject = f'the sensitive file {file_path}' if guardrail == BlockReason.SENSITIVE_PATH else file_path
+        if scan_outcome.verdict == GuardrailsMode.BLOCK:
+            outcome = AIHookOutcome.BLOCKED
+            user_message = f'Cycode blocked reading {subject}. {scan_outcome.violation_summary}'
+            return HookDecision.deny(
                 AiHookEventType.FILE_READ,
                 user_message,
-                'This file path is classified as sensitive; proceed with caution.',
+                'Secrets detected; do not send this file to the model.',
             )
 
-        return HookDecision.allow(AiHookEventType.FILE_READ)
+        outcome = AIHookOutcome.WARNED
+        user_message = f'Cycode detected secrets in {subject}. {scan_outcome.violation_summary}'
+        return HookDecision.ask(
+            AiHookEventType.FILE_READ,
+            user_message,
+            'Possible secrets detected; proceed with caution.',
+        )
     except Exception as e:
         outcome = (
             AIHookOutcome.ALLOWED if get_policy_value(policy, 'fail_open', default=True) else AIHookOutcome.BLOCKED
@@ -342,11 +321,13 @@ def build_ai_guardrails_scan_parameters(
     paths: Optional[tuple[str, ...]],
     payload: AIHookPayload,
     event_type: AiHookEventType,
+    guardrail: Optional[BlockReason] = None,
 ) -> dict:
+    """The scan parameters; `guardrail` (default: the event's secrets guardrail) picks the floors the server applies."""
     scan_parameters = get_scan_parameters(ctx, paths)
     scan_parameters.setdefault('metadata', {})['ai_guardrails'] = {
         'ide_provider': payload.ide_provider,
-        'detection_source': SECRETS_BLOCK_REASON_BY_EVENT_TYPE[event_type].value,
+        'detection_source': (guardrail or SECRETS_BLOCK_REASON_BY_EVENT_TYPE[event_type]).value,
         'device_id': get_serial_number(),
         'device_hostname': get_hostname(),
         'conversation_id': payload.conversation_id,
@@ -440,8 +421,9 @@ def _scan_path_for_secrets(
     file_path: str,
     policy: dict,
     payload: AIHookPayload,
+    guardrail: BlockReason = BlockReason.SECRETS_IN_FILE,
 ) -> ScanOutcome:
-    """Scan a file path for secrets."""
+    """Scan a file path for secrets, judged by `guardrail`'s floors."""
     if not file_path or not os.path.isfile(file_path):
         return NO_SCAN
 
@@ -459,5 +441,7 @@ def _scan_path_for_secrets(
 
     document = Document(path=os.path.basename(file_path), content=content, is_git_diff_format=False)
     scan_ctx = _setup_scan_context(ctx)
-    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, (file_path,), payload, AiHookEventType.FILE_READ)
+    scan_parameters = build_ai_guardrails_scan_parameters(
+        scan_ctx, (file_path,), payload, AiHookEventType.FILE_READ, guardrail
+    )
     return _perform_scan(scan_ctx, [document], scan_parameters, timeout_seconds)
