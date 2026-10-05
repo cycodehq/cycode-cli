@@ -269,21 +269,18 @@ class Codex(IDE):
         )
 
     def build_hook_response(self, decision: HookDecision) -> dict:
-        # Codex accepts the same hook response shapes as Claude Code:
-        #  - PROMPT: empty for allow, {"decision": "block", "reason": ...} for deny
-        #  - PreToolUse: hookSpecificOutput.permissionDecision
+        # Codex hook response shapes:
+        #  - allow: empty (no objection). Older Codex runtimes reject an explicit
+        #    PreToolUse permissionDecision "allow" as unsupported and report a
+        #    failed hook on every call, so never send it.
+        #  - PROMPT deny: {"decision": "block", "reason": ...}
+        #  - PreToolUse deny: hookSpecificOutput.permissionDecision
+        if decision.action == DecisionAction.ALLOW:
+            return {}
+
         if decision.event_type == AiHookEventType.PROMPT:
-            if decision.action == DecisionAction.ALLOW:
-                return {}
             return {'decision': 'block', 'reason': decision.user_message or ''}
 
-        if decision.action == DecisionAction.ALLOW:
-            return {
-                'hookSpecificOutput': {
-                    'hookEventName': 'PreToolUse',
-                    'permissionDecision': 'allow',
-                }
-            }
         return {
             'hookSpecificOutput': {
                 'hookEventName': 'PreToolUse',
