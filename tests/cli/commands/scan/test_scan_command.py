@@ -1,4 +1,5 @@
 import re
+from unittest.mock import patch
 
 import click
 import pytest
@@ -46,6 +47,19 @@ class TestScanCommand:
         result = CliRunner().invoke(app, ['scan', '-t', 'iac', '--help'])
         assert result.exit_code == 0
         assert 'Error' not in result.output
+
+    @pytest.mark.parametrize(('args', 'expected'), [(['--stop-on-error'], True), ([], False)])
+    def test_stop_on_error_kept_in_context(self, args: list, expected: bool) -> None:
+        captured = {}
+
+        def _capture_ctx_and_stop(ctx: typer.Context) -> None:
+            captured.update(ctx.obj)
+            raise typer.Exit(0)
+
+        with patch('cycode.cli.apps.scan.scan_command.get_scan_cycode_client', side_effect=_capture_ctx_and_stop):
+            CliRunner().invoke(app, ['scan', '-t', 'sca', *args, 'path', '.'])
+
+        assert captured['stop_on_error'] is expected
 
 
 class TestScanCommandResultCallback:

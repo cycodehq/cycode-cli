@@ -161,13 +161,12 @@ def scan_command(
 
     ctx.obj['show_secret'] = show_secret
     ctx.obj['soft_fail'] = soft_fail
-    ctx.obj['stop_on_error'] = stop_on_error
     ctx.obj['scan_type'] = scan_type
     ctx.obj['sync'] = sync
     ctx.obj['severity_threshold'] = severity_threshold
     ctx.obj['monitor'] = monitor
     ctx.obj['report'] = report
-    apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file)
+    apply_sca_restore_options_to_context(ctx, no_restore, gradle_all_sub_projects, maven_settings_file, stop_on_error)
 
     scan_client = get_scan_cycode_client(ctx)
     ctx.obj['client'] = scan_client
