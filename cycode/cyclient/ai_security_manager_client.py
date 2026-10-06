@@ -1,6 +1,6 @@
 """Client for AI Security Manager service."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cyclient.cycode_client_base import CycodeClientBase
@@ -12,6 +12,10 @@ if TYPE_CHECKING:
     from cycode.cyclient.ai_security_manager_service_config import AISecurityManagerServiceConfigBase
 
 
+class McpServerStatusesResponse(NamedTuple):
+    servers: list  # [{alias, normalized_id, status}]
+
+
 class AISecurityManagerClient:
     """Client for interacting with AI Security Manager service."""
 
@@ -19,6 +23,7 @@ class AISecurityManagerClient:
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
     _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
     _RESOLVED_GUARDRAILS_PATH = 'v4/ai-security/guardrails/resolved'
+    _MCP_SERVER_STATUSES_PATH = 'v4/ai-security/authorization/mcp/servers'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -101,6 +106,18 @@ class AISecurityManagerClient:
             return response.json()
         except Exception as e:
             logger.debug('Failed to fetch resolved guardrail config', exc_info=e)
+            return None
+
+    def get_mcp_server_statuses(self) -> Optional[McpServerStatusesResponse]:
+        try:
+            response = self.client.get(self._build_endpoint_path(self._MCP_SERVER_STATUSES_PATH))
+            body = response.json()
+            servers = body.get('servers')
+            if not isinstance(servers, list):
+                raise ValueError('servers is not a list')
+            return McpServerStatusesResponse(servers=servers)
+        except Exception as e:
+            logger.debug('Failed to fetch MCP server statuses', exc_info=e)
             return None
 
     def report_session_context(

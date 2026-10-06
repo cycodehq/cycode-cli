@@ -49,7 +49,8 @@ def test_parse_file_read_payload() -> None:
     assert unified.file_path == '/path/to/secret.env'
 
 
-def test_parse_mcp_execution_payload() -> None:
+def test_parse_mcp_execution_payload(fs: FakeFilesystem) -> None:
+    # No MCP config on disk: the raw command is kept as the server name.
     args: dict[str, Any] = {'resource_type': 'merge_request', 'parent_id': 'org/repo', 'resource_id': '4'}
     unified = Cursor().parse_hook_payload(
         {
@@ -64,6 +65,72 @@ def test_parse_mcp_execution_payload() -> None:
     assert unified.mcp_server_name == 'GitLab'
     assert unified.mcp_tool_name == 'discussion_list'
     assert unified.mcp_arguments == args
+
+
+def _write_mcp_config(fs: FakeFilesystem, path: Path, servers: dict) -> None:
+    fs.create_file(str(path), contents=json.dumps({'mcpServers': servers}))
+
+
+def _parse_mcp(**fields: Any) -> Any:
+    return Cursor().parse_hook_payload({'hook_event_name': 'beforeMCPExecution', 'tool_name': 't', **fields})
+
+
+_USER_MCP_CONFIG = Path.home() / '.cursor' / 'mcp.json'
+
+
+def test_mcp_server_name_resolved_by_url(fs: FakeFilesystem) -> None:
+    _write_mcp_config(
+        fs,
+        _USER_MCP_CONFIG,
+        {'notion': {'url': 'https://mcp.notion.com/mcp'}, 'other': {'url': 'https://example.com/mcp'}},
+    )
+
+    assert _parse_mcp(url='https://mcp.notion.com/mcp').mcp_server_name == 'notion'
+
+
+def test_mcp_server_name_resolved_by_command_line(fs: FakeFilesystem) -> None:
+    _write_mcp_config(
+        fs,
+        _USER_MCP_CONFIG,
+        {
+            'filesystem': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-filesystem']},
+            'github': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github']},
+            'local-db': {'command': '/usr/local/bin/db-mcp'},
+        },
+    )
+
+    assert _parse_mcp(command='npx -y @modelcontextprotocol/server-github').mcp_server_name == 'github'
+    assert _parse_mcp(command='/usr/local/bin/db-mcp').mcp_server_name == 'local-db'
+
+
+def test_mcp_server_name_resolved_by_entry_name(fs: FakeFilesystem) -> None:
+    _write_mcp_config(fs, _USER_MCP_CONFIG, {'gitlab': {'command': '/opt/homebrew/bin/gitlab-mcp'}})
+
+    assert _parse_mcp(command='GitLab').mcp_server_name == 'gitlab'
+
+
+def test_mcp_server_name_prefers_the_project_config(fs: FakeFilesystem) -> None:
+    _write_mcp_config(fs, _USER_MCP_CONFIG, {'user-notion': {'url': 'https://mcp.notion.com/mcp'}})
+    _write_mcp_config(
+        fs, Path('/work/repo/.cursor/mcp.json'), {'project-notion': {'url': 'https://mcp.notion.com/mcp'}}
+    )
+
+    unified = _parse_mcp(url='https://mcp.notion.com/mcp', workspace_roots=['/work/repo'])
+
+    assert unified.mcp_server_name == 'project-notion'
+
+
+def test_mcp_server_name_without_a_matching_entry_falls_back(fs: FakeFilesystem) -> None:
+    _write_mcp_config(fs, _USER_MCP_CONFIG, {'notion': {'url': 'https://mcp.notion.com/mcp'}})
+
+    assert _parse_mcp(command='npx some-unknown-server').mcp_server_name == 'npx some-unknown-server'
+    assert _parse_mcp(url='https://unknown.example.com/mcp').mcp_server_name is None
+
+
+def test_mcp_server_name_with_a_corrupt_config_falls_back(fs: FakeFilesystem) -> None:
+    fs.create_file(str(_USER_MCP_CONFIG), contents='not json {')
+
+    assert _parse_mcp(command='GitLab').mcp_server_name == 'GitLab'
 
 
 def test_parse_alternative_field_names() -> None:
