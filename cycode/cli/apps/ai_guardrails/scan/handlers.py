@@ -327,10 +327,14 @@ def _check_mcp_server_authorization(payload: AIHookPayload, policy: dict) -> _Pr
         return None
 
     status = statuses.status_of(server_name)
-    if not is_enforced(status):
+    treat_unreviewed = statuses.treat_unreviewed_as_unauthorized
+    if not is_enforced(status, treat_unreviewed):
         return None
 
-    logger.debug('MCP server is not authorized, %s', {'mcp_server_name': server_name, 'status': status})
+    logger.debug(
+        'MCP server is not authorized, %s',
+        {'mcp_server_name': server_name, 'status': status, 'treat_unreviewed': treat_unreviewed},
+    )
     return _PreScanFinding(
         block_reason=BlockReason.UNAUTHORIZED_MCP_SERVER,
         mode=get_effective_mode(mcp_config, action_key='server_action'),

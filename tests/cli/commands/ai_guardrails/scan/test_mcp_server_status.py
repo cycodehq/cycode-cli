@@ -57,16 +57,20 @@ def test_parse_status_is_case_insensitive_and_unknown_reads_unreviewed(
 
 
 @pytest.mark.parametrize(
-    ('status', 'expected'),
+    ('status', 'treat_unreviewed', 'expected'),
     [
-        (_UNAUTHORIZED, True),
-        (_UNREVIEWED, False),
-        (_AUTHORIZED, False),
-        (None, False),
+        (_UNAUTHORIZED, False, True),
+        (_UNREVIEWED, False, False),
+        (_AUTHORIZED, False, False),
+        (None, False, False),
+        (_UNAUTHORIZED, True, True),
+        (_UNREVIEWED, True, True),
+        (None, True, True),
+        (_AUTHORIZED, True, False),
     ],
 )
-def test_is_enforced(status: McpServerAuthorizationStatus | None, expected: bool) -> None:
-    assert is_enforced(status) is expected
+def test_is_enforced(status: McpServerAuthorizationStatus | None, treat_unreviewed: bool, expected: bool) -> None:
+    assert is_enforced(status, treat_unreviewed) is expected
 
 
 def test_status_of_is_case_insensitive() -> None:
@@ -103,6 +107,31 @@ def test_save_and_load_round_trip() -> None:
     assert statuses.servers == [McpServerStatus('github', 'pkg:gh', _UNAUTHORIZED)]
     assert statuses.tenant_id == 'tenant-a'
     assert statuses.ttl_seconds == 60
+    assert statuses.treat_unreviewed_as_unauthorized is False
+
+
+def test_save_and_load_round_trip_keeps_the_strict_mode_flag() -> None:
+    save_mcp_server_statuses([], 'tenant-a', ttl_seconds=60, treat_unreviewed_as_unauthorized=True)
+
+    statuses = load_mcp_server_statuses()
+
+    assert statuses is not None
+    assert statuses.treat_unreviewed_as_unauthorized is True
+    content = json.loads(get_mcp_server_statuses_cache_path().read_text())
+    assert content['should_treat_unreviewed_as_unauthorized'] is True
+
+
+@pytest.mark.parametrize('flag', [None, 'true', 1])
+def test_cache_without_a_valid_strict_mode_flag_loads_as_not_strict(flag: object, fs: FakeFilesystem) -> None:
+    content = {'fetched_at': time.time(), 'tenant_id': 'tenant-a', 'ttl_seconds': 60, 'servers': []}
+    if flag is not None:
+        content['should_treat_unreviewed_as_unauthorized'] = flag
+    fs.create_file(str(get_mcp_server_statuses_cache_path()), contents=json.dumps(content))
+
+    statuses = load_mcp_server_statuses()
+
+    assert statuses is not None
+    assert statuses.treat_unreviewed_as_unauthorized is False
 
 
 def test_saved_cache_keeps_the_file_format() -> None:
@@ -110,7 +139,13 @@ def test_saved_cache_keeps_the_file_format() -> None:
 
     content = json.loads(get_mcp_server_statuses_cache_path().read_text(encoding='UTF-8'))
 
-    assert set(content) == {'servers', 'fetched_at', 'tenant_id', 'ttl_seconds'}
+    assert set(content) == {
+        'servers',
+        'fetched_at',
+        'tenant_id',
+        'ttl_seconds',
+        'should_treat_unreviewed_as_unauthorized',
+    }
     assert content['servers'] == [{'alias': 'github', 'normalized_id': 'pkg:gh', 'status': 'Unauthorized'}]
 
 

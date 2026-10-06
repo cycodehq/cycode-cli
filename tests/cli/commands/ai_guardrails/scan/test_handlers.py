@@ -603,9 +603,9 @@ def _mcp_payload(server: str | None = 'github') -> AIHookPayload:
     )
 
 
-def _cached_statuses(*rows: tuple[str, str]) -> McpServerStatuses:
+def _cached_statuses(*rows: tuple[str, str], treat_unreviewed: bool = False) -> McpServerStatuses:
     servers = [McpServerStatus(alias=a, status=McpServerAuthorizationStatus.parse(s)) for a, s in rows]
-    return McpServerStatuses(servers=servers, fetched_at=time.time())
+    return McpServerStatuses(servers=servers, fetched_at=time.time(), treat_unreviewed_as_unauthorized=treat_unreviewed)
 
 
 def _reported_event(mock_ctx: MagicMock) -> tuple[AIHookOutcome, BlockReason | None]:
@@ -663,16 +663,20 @@ def test_unauthorized_mcp_server_report_then_secret_block_takes_over(
 
 
 @pytest.mark.parametrize(
-    ('rows', 'server', 'expected_action'),
+    ('rows', 'treat_unreviewed', 'server', 'expected_action'),
     [
-        # Only explicitly Unauthorized servers are enforced.
-        ((('github', 'Unreviewed'),), 'github', DecisionAction.ALLOW),
-        ((('github', 'Authorized'),), 'github', DecisionAction.ALLOW),
-        ((), 'github', DecisionAction.ALLOW),
+        # Default policy: only explicitly Unauthorized servers.
+        ((('github', 'Unreviewed'),), False, 'github', DecisionAction.ALLOW),
+        ((('github', 'Authorized'),), False, 'github', DecisionAction.ALLOW),
+        ((), False, 'github', DecisionAction.ALLOW),
+        # Strict: anything not Authorized, a server the platform never saw included.
+        ((('github', 'Unreviewed'),), True, 'github', DecisionAction.DENY),
+        ((), True, 'github', DecisionAction.DENY),
+        ((('github', 'Authorized'),), True, 'github', DecisionAction.ALLOW),
         # One alias, several servers: the most restrictive status wins.
-        ((('github', 'Authorized'), ('GitHub', 'Unauthorized')), 'github', DecisionAction.DENY),
-        # No server name to check: fail open.
-        ((('github', 'Unauthorized'),), None, DecisionAction.ALLOW),
+        ((('github', 'Authorized'), ('GitHub', 'Unauthorized')), False, 'github', DecisionAction.DENY),
+        # No server name to check: fail open, even in strict mode.
+        ((), True, None, DecisionAction.ALLOW),
     ],
 )
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets', return_value=ScanOutcome())
@@ -683,10 +687,11 @@ def test_unauthorized_mcp_server_enforcement(
     mock_ctx: MagicMock,
     default_policy: dict[str, Any],
     rows: tuple,
+    treat_unreviewed: bool,
     server: str | None,
     expected_action: DecisionAction,
 ) -> None:
-    mock_statuses.return_value = _cached_statuses(*rows)
+    mock_statuses.return_value = _cached_statuses(*rows, treat_unreviewed=treat_unreviewed)
     policy = _server_check_policy(default_policy)
 
     result = handle_before_mcp_execution(mock_ctx, _mcp_payload(server), policy)

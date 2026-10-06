@@ -129,7 +129,9 @@ def _report_session_context(
         _save_report_cache(digest, tenant_id)
         if response.mcp_servers is not None:
             ttl_seconds = config.ttl_seconds if config is not None else DEFAULT_TTL_SECONDS
-            save_mcp_server_statuses(response.mcp_servers, tenant_id, ttl_seconds)
+            save_mcp_server_statuses(
+                response.mcp_servers, tenant_id, ttl_seconds, response.should_treat_unreviewed_as_unauthorized
+            )
             logger.debug('MCP server statuses cache updated')
     except Exception as e:
         logger.debug('Failed to report session context', exc_info=e)

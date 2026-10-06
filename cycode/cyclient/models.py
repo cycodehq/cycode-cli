@@ -601,6 +601,13 @@ class McpServerAuthorizationStatusField(fields.Field):
         return McpServerAuthorizationStatus.parse(None if value is missing else value)
 
 
+class TrueOnlyBoolean(fields.Boolean):
+    """Anything but a literal true reads as False, so a malformed flag never tightens enforcement."""
+
+    def deserialize(self, value: object, *_, **__) -> bool:
+        return value is True
+
+
 @dataclass
 class McpServerStatus:
     alias: str | None = None
@@ -625,6 +632,8 @@ class McpServerStatusSchema(Schema):
 class SessionContextResponse:
     # None when the response carries no (or malformed) MCP server statuses.
     mcp_servers: list[McpServerStatus] | None = None
+    # Strict mode: Unreviewed servers count as Unauthorized.
+    should_treat_unreviewed_as_unauthorized: bool = False
 
 
 class SessionContextResponseSchema(Schema):
@@ -632,6 +641,7 @@ class SessionContextResponseSchema(Schema):
         unknown = EXCLUDE
 
     mcp_servers = fields.List(fields.Nested(McpServerStatusSchema), allow_none=True, load_default=None)
+    should_treat_unreviewed_as_unauthorized = TrueOnlyBoolean()
 
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> SessionContextResponse:

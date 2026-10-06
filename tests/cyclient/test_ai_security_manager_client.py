@@ -7,6 +7,8 @@ from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutc
 from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
 from cycode.cyclient.models import McpServerAuthorizationStatus, McpServerStatus
 
+_MISSING = object()
+
 
 def _build_client() -> tuple[AISecurityManagerClient, MagicMock]:
     http_client = MagicMock()
@@ -97,6 +99,30 @@ def test_report_session_context_returns_the_mcp_server_statuses() -> None:
         McpServerStatus('notion', 'pkg:notion', McpServerAuthorizationStatus.UNREVIEWED),
     ]
     assert http_client.post.call_args.args[0] == 'v4/ai-security/interactions/session-context'
+
+
+@pytest.mark.parametrize(
+    ('flag', 'expected'),
+    [
+        (True, True),
+        (False, False),
+        (None, False),
+        ('true', False),
+        (_MISSING, False),
+    ],
+)
+def test_report_session_context_returns_the_strict_mode_flag(flag: object, expected: bool) -> None:
+    client, http_client = _build_client()
+    body: dict = {'mcp_servers': [{'alias': 'github', 'normalized_id': 'pkg:gh', 'status': 'Unauthorized'}]}
+    if flag is not _MISSING:
+        body['should_treat_unreviewed_as_unauthorized'] = flag
+    http_client.post.return_value.json.return_value = body
+
+    response = client.report_session_context(hostname='host')
+
+    assert response is not None
+    assert response.mcp_servers == [McpServerStatus('github', 'pkg:gh', McpServerAuthorizationStatus.UNAUTHORIZED)]
+    assert response.should_treat_unreviewed_as_unauthorized is expected
 
 
 def test_report_session_context_failure_returns_none() -> None:
