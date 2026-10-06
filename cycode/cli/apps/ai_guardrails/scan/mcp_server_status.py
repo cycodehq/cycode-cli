@@ -6,7 +6,7 @@ An absent or corrupt cache means no status is known, so the guardrail fails open
 import json
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import NamedTuple, Optional
@@ -68,16 +68,16 @@ class McpServerMatch(NamedTuple):
 
 @dataclass
 class McpServerStatuses:
-    servers: list
+    servers: InitVar[list]
     fetched_at: float
     tenant_id: Optional[str] = None
     ttl_seconds: float = DEFAULT_TTL_SECONDS
     _by_alias: dict = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, servers: list) -> None:
         # The platform matches aliases case-insensitively, so the CLI does too.
         self._by_alias = {}
-        for server in self.servers:
+        for server in servers:
             if not isinstance(server, dict) or not server.get('alias'):
                 continue
             alias = str(server['alias'])
