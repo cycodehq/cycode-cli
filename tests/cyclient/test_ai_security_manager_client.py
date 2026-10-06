@@ -85,7 +85,7 @@ def test_get_mcp_server_statuses_returns_the_rows() -> None:
 
     assert response is not None
     assert response.servers == servers
-    http_client.get.assert_called_once_with('v4/ai-security/authorization/mcp/servers')
+    http_client.get.assert_called_once_with('v4/ai-security/authorization/mcp-servers')
 
 
 def test_get_mcp_server_statuses_failure_returns_none() -> None:

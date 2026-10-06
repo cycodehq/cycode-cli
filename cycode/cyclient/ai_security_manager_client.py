@@ -23,7 +23,7 @@ class AISecurityManagerClient:
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
     _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
     _RESOLVED_GUARDRAILS_PATH = 'v4/ai-security/guardrails/resolved'
-    _MCP_SERVER_STATUSES_PATH = 'v4/ai-security/authorization/mcp/servers'
+    _MCP_SERVER_STATUSES_PATH = 'v4/ai-security/authorization/mcp-servers'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
