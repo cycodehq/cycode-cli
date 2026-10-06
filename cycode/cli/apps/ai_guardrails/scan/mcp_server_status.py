@@ -41,9 +41,9 @@ def get_mcp_server_statuses_cache_path() -> Path:
 
 def is_enforced(status: McpServerAuthorizationStatus | None, treat_unreviewed: bool) -> bool:
     """``status`` is None when the platform never saw the server."""
-    if status == McpServerAuthorizationStatus.UNAUTHORIZED:
-        return True
-    return treat_unreviewed and status != McpServerAuthorizationStatus.AUTHORIZED
+    if treat_unreviewed:
+        return status != McpServerAuthorizationStatus.AUTHORIZED
+    return status == McpServerAuthorizationStatus.UNAUTHORIZED
 
 
 @dataclass
