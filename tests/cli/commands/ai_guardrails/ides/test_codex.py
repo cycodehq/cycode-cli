@@ -70,6 +70,55 @@ def test_parse_mcp_execution_payload() -> None:
     assert unified.mcp_arguments == args
 
 
+_CODEX_HOME = '/dummy/codex-home'
+
+
+def _parse_mcp(tool_name: str) -> tuple:
+    unified = Codex().parse_hook_payload({'hook_event_name': 'PreToolUse', 'tool_name': tool_name})
+    return unified.mcp_server_name, unified.mcp_tool_name
+
+
+@pytest.fixture
+def codex_servers(fs: FakeFilesystem, monkeypatch: pytest.MonkeyPatch) -> FakeFilesystem:
+    monkeypatch.setenv('CODEX_HOME', _CODEX_HOME)
+    fs.create_file(
+        f'{_CODEX_HOME}/config.toml',
+        contents=(
+            '[mcp_servers.my-server]\ncommand = "a"\n'
+            '[mcp_servers."docs.example.com"]\ncommand = "b"\n'
+            '[mcp_servers.a__b]\ncommand = "c"\n'
+            '[mcp_servers.a]\ncommand = "d"\n'
+            '[plugins."demo@market"]\nenabled = true\n'
+        ),
+    )
+    plugin_dir = Path(f'{_CODEX_HOME}/plugins/cache/market/demo/abc123')
+    fs.create_file(plugin_dir / '.codex-plugin' / 'plugin.json', contents=json.dumps({'mcpServers': '.mcp.json'}))
+    fs.create_file(plugin_dir / '.mcp.json', contents=json.dumps({'mcpServers': {'plugin-srv': {'command': 'e'}}}))
+    return fs
+
+
+@pytest.mark.parametrize(
+    ('tool_name', 'expected'),
+    [
+        ('mcp__my_server__list', ('my-server', 'list')),
+        ('mcp__docs_example_com__search', ('docs.example.com', 'search')),
+        ('mcp__plugin_srv__run', ('plugin-srv', 'run')),
+        ('mcp__my_server_0123456789ab__list', ('my-server', 'list')),
+        ('mcp__a__b__tool', ('a__b', 'tool')),
+        ('mcp__a__tool', ('a', 'tool')),
+        ('mcp__unknown__tool', ('unknown', 'tool')),
+    ],
+)
+def test_parse_mcp_resolves_codex_server_name(codex_servers: FakeFilesystem, tool_name: str, expected: tuple) -> None:
+    assert _parse_mcp(tool_name) == expected
+
+
+def test_parse_non_mcp_event_reads_no_codex_config() -> None:
+    with patch('cycode.cli.apps.ai_guardrails.ides.codex._load_codex_config') as load_config:
+        Codex().parse_hook_payload({'hook_event_name': 'UserPromptSubmit', 'prompt': 'hi'})
+    load_config.assert_not_called()
+
+
 def test_parse_unknown_event_falls_through() -> None:
     unified = Codex().parse_hook_payload({'hook_event_name': 'Stop'})
     assert unified.event_name == 'Stop'
