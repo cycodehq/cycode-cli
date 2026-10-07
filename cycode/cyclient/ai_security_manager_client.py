@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from cycode.cyclient.ai_security_manager_service_config import AISecurityManagerServiceConfigBase
 
 
-class McpServerStatusesResponse(NamedTuple):
-    servers: list  # [{alias, normalized_id, status}]
+class SessionContextResponse(NamedTuple):
+    mcp_servers: Optional[list]  # [{alias, normalized_id, status}]; None when missing or malformed
 
 
 class AISecurityManagerClient:
@@ -23,7 +23,6 @@ class AISecurityManagerClient:
     _EVENTS_PATH = 'v4/ai-security/interactions/events'
     _SESSION_CONTEXT_PATH = 'v4/ai-security/interactions/session-context'
     _RESOLVED_GUARDRAILS_PATH = 'v4/ai-security/guardrails/resolved'
-    _MCP_SERVER_STATUSES_PATH = 'v4/ai-security/authorization/mcp-servers'
 
     def __init__(self, client: CycodeClientBase, service_config: 'AISecurityManagerServiceConfigBase') -> None:
         self.client = client
@@ -108,18 +107,6 @@ class AISecurityManagerClient:
             logger.debug('Failed to fetch resolved guardrail config', exc_info=e)
             return None
 
-    def get_mcp_server_statuses(self) -> Optional[McpServerStatusesResponse]:
-        try:
-            response = self.client.get(self._build_endpoint_path(self._MCP_SERVER_STATUSES_PATH))
-            body = response.json()
-            servers = body.get('servers')
-            if not isinstance(servers, list):
-                raise ValueError('servers is not a list')
-            return McpServerStatusesResponse(servers=servers)
-        except Exception as e:
-            logger.debug('Failed to fetch MCP server statuses', exc_info=e)
-            return None
-
     def report_session_context(
         self,
         hostname: Optional[str] = None,
@@ -131,8 +118,8 @@ class AISecurityManagerClient:
         enabled_plugins: Optional[dict] = None,
         skill_files: Optional[list[dict]] = None,
         user_email: Optional[str] = None,
-    ) -> bool:
-        """Report session context to the backend. Returns whether the report was accepted."""
+    ) -> Optional[SessionContextResponse]:
+        """Report session context to the backend. Returns None when the report was not accepted."""
         body: dict = {
             'hostname': hostname,
             'platform_name': platform_name,
@@ -146,9 +133,17 @@ class AISecurityManagerClient:
         }
 
         try:
-            self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
-            return True
+            response = self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
         except Exception as e:
             logger.debug('Failed to report session context', exc_info=e)
             # Don't fail the session if reporting fails
-            return False
+            return None
+
+        try:
+            mcp_servers = response.json().get('mcp_servers')
+            if not isinstance(mcp_servers, list):
+                raise ValueError('mcp_servers is not a list')
+        except Exception as e:
+            logger.debug('Failed to parse the session context response', exc_info=e)
+            mcp_servers = None
+        return SessionContextResponse(mcp_servers=mcp_servers)

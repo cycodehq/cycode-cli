@@ -16,6 +16,7 @@ from cycode.cli.apps.ai_guardrails.ides import (
     get_ide,
 )
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import (
+    DEFAULT_TTL_SECONDS,
     GuardrailConfig,
     load_guardrail_config,
     save_guardrail_config,
@@ -83,16 +84,24 @@ def _save_report_cache(digest: str, tenant_id: Optional[str]) -> None:
         logger.debug('Failed to write session context cache', exc_info=e)
 
 
+def _needs_mcp_server_statuses(config: Optional[GuardrailConfig], tenant_id: Optional[str]) -> bool:
+    if config is None or config.is_off_for_every_agent(BlockReason.UNAUTHORIZED_MCP_SERVER):
+        return False
+    cached = load_mcp_server_statuses()
+    return cached is None or cached.needs_refresh(tenant_id)
+
+
 def _report_session_context(
     ai_client: 'AISecurityManagerClient',
     user_email: Optional[str],
     tenant_id: Optional[str],
-) -> bool:
+    config: Optional[GuardrailConfig],
+) -> None:
     """Report the device + cross-IDE session context to the AI security manager. Never raises.
 
     The device context is always reported. MCP configs and skills are collected from every
     registered IDE, not just the triggering one. Unchanged payloads are skipped via a hash cache
-    until the TTL expires.
+    until the TTL expires, unless the MCP server statuses the response carries are needed.
     """
     try:
         config_files_by_ide, enabled_plugins = collect_all_session_contexts()
@@ -112,16 +121,21 @@ def _report_session_context(
         }
 
         digest = _session_context_digest(report)
-        if _should_skip_report(digest, tenant_id):
+        if _should_skip_report(digest, tenant_id) and not _needs_mcp_server_statuses(config, tenant_id):
             logger.debug('Session context unchanged; skipping report')
-            return False
+            return
 
-        if ai_client.report_session_context(**report):
-            _save_report_cache(digest, tenant_id)
-            return True
+        response = ai_client.report_session_context(**report)
+        if response is None:
+            return
+
+        _save_report_cache(digest, tenant_id)
+        if response.mcp_servers is not None:
+            ttl_seconds = config.ttl_seconds if config is not None else DEFAULT_TTL_SECONDS
+            save_mcp_server_statuses(response.mcp_servers, tenant_id, ttl_seconds)
+            logger.debug('MCP server statuses cache updated')
     except Exception as e:
         logger.debug('Failed to report session context', exc_info=e)
-    return False
 
 
 def session_start_command(
@@ -177,14 +191,11 @@ def session_start_command(
     except Exception as e:
         logger.debug('Failed to create conversation during session start', exc_info=e)
 
-    # Report session context (device + cross-IDE MCP servers and plugins)
-    context_reported = _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id)
-
     # SessionStart precedes the first prompt hook in every IDE, so scans normally find a cache.
     config = _sync_guardrail_config(ai_client, auth_info.tenant_id)
 
-    # After the report, so the statuses cover the MCP configs the platform just ingested.
-    _sync_mcp_server_statuses(ai_client, config, auth_info.tenant_id, force=context_reported)
+    # Report session context (device + cross-IDE MCP servers and plugins)
+    _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id, config)
 
 
 def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Optional[str]) -> Optional[GuardrailConfig]:
@@ -205,22 +216,3 @@ def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Opti
     save_guardrail_config(resolved, tenant_id)
     logger.debug('Guardrail config cache updated')
     return GuardrailConfig(payload=resolved, fetched_at=time.time(), tenant_id=tenant_id)
-
-
-def _sync_mcp_server_statuses(
-    ai_client: 'AISecurityManagerClient', config: Optional[GuardrailConfig], tenant_id: Optional[str], force: bool
-) -> None:
-    """``force``: a just-reported session context may have brought servers the cache doesn't cover."""
-    if config is None or config.is_off_for_every_agent(BlockReason.UNAUTHORIZED_MCP_SERVER):
-        logger.debug('Unauthorized MCP server guardrail is off, skipping MCP server statuses fetch')
-        return
-
-    cached = load_mcp_server_statuses()
-    if not force and cached is not None and not cached.needs_refresh(tenant_id):
-        logger.debug('MCP server statuses cache is fresh, skipping fetch')
-        return
-
-    response = ai_client.get_mcp_server_statuses()
-    if response is not None:
-        save_mcp_server_statuses(response.servers, tenant_id, config.ttl_seconds)
-        logger.debug('MCP server statuses cache updated')
