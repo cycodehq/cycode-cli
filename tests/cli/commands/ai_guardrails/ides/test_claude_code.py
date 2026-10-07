@@ -406,8 +406,8 @@ def test_session_context_no_config() -> None:
         patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_config', return_value=None),
         patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings', return_value=None),
     ):
-        global_config_file, plugins = ClaudeCode().get_session_context()
-    assert global_config_file is None
+        global_config_files, plugins = ClaudeCode().get_session_context()
+    assert global_config_files == []
     assert plugins == {}
 
 

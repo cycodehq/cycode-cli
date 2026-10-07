@@ -125,12 +125,13 @@ def test_build_session_payload_tags_ide(ide: IDE) -> None:
 
 
 def test_get_session_context_returns_pair(ide: IDE) -> None:
-    """Session context must be a ``(global_config_file, plugins)`` pair.
+    """Session context must be a ``(global_config_files, plugins)`` pair.
 
-    ``global_config_file`` is ``None`` or a ``{"path", "content"}`` dict; ``plugins`` is a dict.
+    ``global_config_files`` is a list of ``{"path", "content"}`` dicts; ``plugins`` is a dict.
     """
-    global_config_file, plugins = ide.get_session_context()
-    assert global_config_file is None or isinstance(global_config_file, dict)
+    global_config_files, plugins = ide.get_session_context()
+    assert isinstance(global_config_files, list)
+    assert all(isinstance(f, dict) for f in global_config_files)
     assert isinstance(plugins, dict)
 
 

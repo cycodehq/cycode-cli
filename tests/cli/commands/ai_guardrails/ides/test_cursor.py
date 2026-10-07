@@ -203,24 +203,26 @@ def test_session_payload_carries_cursor_fields() -> None:
 
 
 def test_session_context_loads_mcp_servers() -> None:
-    """Cursor wraps ~/.cursor/mcp.json into a global_config_file."""
+    """Cursor wraps ~/.cursor/mcp.json into a global config file."""
     mcp_servers = {'github': {'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github']}}
 
     with patch('cycode.cli.apps.ai_guardrails.ides.cursor._load_cursor_mcp_config') as load:
         load.return_value = {'mcpServers': mcp_servers}
-        global_config_file, plugins = Cursor().get_session_context()
+        global_config_files, plugins = Cursor().get_session_context()
 
-    assert global_config_file == {
-        'path': str(Path.home() / '.cursor' / 'mcp.json'),
-        'content': json.dumps({'mcpServers': mcp_servers}),
-    }
+    assert global_config_files == [
+        {
+            'path': str(Path.home() / '.cursor' / 'mcp.json'),
+            'content': json.dumps({'mcpServers': mcp_servers}),
+        }
+    ]
     assert plugins == {}
 
 
 def test_session_context_no_config_returns_empty() -> None:
     with patch('cycode.cli.apps.ai_guardrails.ides.cursor._load_cursor_mcp_config', return_value=None):
-        global_config_file, plugins = Cursor().get_session_context()
-    assert global_config_file is None
+        global_config_files, plugins = Cursor().get_session_context()
+    assert global_config_files == []
     assert plugins == {}
 
 

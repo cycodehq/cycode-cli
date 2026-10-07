@@ -278,7 +278,7 @@ def test_reports_cross_ide_session_context(
     cursor_file = {'path': '/home/u/.cursor/mcp.json', 'content': '{"mcpServers": {}}'}
     claude_file = {'path': '/home/u/.claude.json', 'content': '{"mcpServers": {}}'}
     plugins = {'dummy-plugin@dummy-marketplace': {'enabled': True}}
-    mock_collect.return_value = ({'cursor': cursor_file, 'claude-code': claude_file}, plugins)
+    mock_collect.return_value = ([cursor_file, claude_file], plugins)
 
     payload = {'session_id': 'session-123'}
 
@@ -314,7 +314,7 @@ def test_no_mcp_anywhere_still_reports_device(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({}, {})
+    mock_collect.return_value = ([], {})
 
     payload = {'session_id': 'session-123'}
 
@@ -496,7 +496,7 @@ def test_unchanged_context_skips_second_report(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
     _run_session_start(mock_ctx, {'session_id': 'session-2'})
@@ -518,10 +518,10 @@ def test_changed_context_resends(
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
 
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c1'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c1'}], {})
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
 
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c2'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c2'}], {})
     _run_session_start(mock_ctx, {'session_id': 'session-2'})
 
     assert mock_ai_client.report_session_context.call_count == 2
@@ -539,7 +539,7 @@ def test_tenant_change_resends(
     """Re-authenticating against a different tenant must re-send the same inventory."""
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
@@ -564,7 +564,7 @@ def test_failed_report_is_not_cached(
     mock_ai_client = MagicMock()
     mock_ai_client.report_session_context.return_value = None
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
     _run_session_start(mock_ctx, {'session_id': 'session-2'})
@@ -585,7 +585,7 @@ def test_expired_ttl_resends(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
 
@@ -609,10 +609,10 @@ def test_collect_all_session_contexts_merges_plugins_first_wins() -> None:
     codex_plugin = {'enabled': True, 'version': '2.0.0'}
 
     with (
-        patch.object(IDES['cursor'], 'get_session_context', return_value=(None, {})),
-        patch.object(IDES['claude-code'], 'get_session_context', return_value=(None, {'plug@m': claude_plugin})),
-        patch.object(IDES['codex'], 'get_session_context', return_value=(None, {'plug@m': codex_plugin})),
-        patch.object(IDES['copilot'], 'get_session_context', return_value=(None, {})),
+        patch.object(IDES['cursor'], 'get_session_context', return_value=([], {})),
+        patch.object(IDES['claude-code'], 'get_session_context', return_value=([], {'plug@m': claude_plugin})),
+        patch.object(IDES['codex'], 'get_session_context', return_value=([], {'plug@m': codex_plugin})),
+        patch.object(IDES['copilot'], 'get_session_context', return_value=([], {})),
     ):
         _, plugins = collect_all_session_contexts()
 
@@ -750,7 +750,7 @@ def _run_with_config(
         patch.object(
             _session_start_mod,
             'collect_all_session_contexts',
-            return_value=({'cursor': {'path': '/p', 'content': 'c'}}, {}),
+            return_value=([{'path': '/p', 'content': 'c'}], {}),
         ),
         patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-1'}))),
     ):
@@ -861,7 +861,7 @@ def test_reports_skill_files(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({}, {})
+    mock_collect.return_value = ([], {})
     content = '---\nname: dummy-skill\n---\nBody.\n'
     skill_file = _write_claude_skill(isolated_home, 'dummy-skill', content)
     skills = [{'path': str(skill_file), 'content': content}]
@@ -900,7 +900,7 @@ def test_editing_a_skill_re_reports(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({}, {})
+    mock_collect.return_value = ([], {})
     payload = json.dumps({'session_id': 'session-123'})
 
     _write_claude_skill(isolated_home, 'dummy-skill', 'first')

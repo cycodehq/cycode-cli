@@ -9,7 +9,7 @@ from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
-    build_global_config_file,
+    build_global_config_files,
     load_plugin_json,
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
@@ -434,14 +434,14 @@ class ClaudeCode(IDE):
         config = load_claude_config()
         return _email_from_config(config) if config else None
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
+    def get_session_context(self) -> tuple[list[dict], dict]:
         config = load_claude_config()
-        global_config_file = build_global_config_file(_CLAUDE_CONFIG_PATH, get_mcp_servers(config)) if config else None
+        global_config_files = build_global_config_files(_CLAUDE_CONFIG_PATH, get_mcp_servers(config)) if config else []
 
         settings = load_claude_settings()
         enriched_plugins = resolve_plugins(settings) if settings else {}
 
-        return global_config_file, enriched_plugins
+        return global_config_files, enriched_plugins
 
     def get_skills(self) -> list[dict]:
         return walk_skill_dirs(_claude_skills_dir())

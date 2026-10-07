@@ -176,19 +176,19 @@ class IDE(ABC):
         """
         return None
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
-        """Return ``(global_config_file, enabled_plugins)`` for session-context reporting.
+    def get_session_context(self) -> tuple[list[dict], dict]:
+        """Return ``(global_config_files, enabled_plugins)`` for session-context reporting.
 
-        ``global_config_file`` is the IDE's global (non-plugin) MCP config as
-        ``{"path": <full path>, "content": <normalized {"mcpServers": ...} JSON>}``,
-        or ``None`` when there is no global MCP config. ``enabled_plugins`` maps each
-        enabled plugin key to its metadata (including its own ``mcp_config_file``
-        content and ``mcp_config_file_path``).
+        ``global_config_files`` are the IDE's global (non-plugin) MCP configs, each as
+        ``{"path": <full path>, "content": <normalized {"mcpServers": ...} JSON>}``;
+        empty when there is none. ``enabled_plugins`` maps each enabled plugin key to
+        its metadata (including its own ``mcp_config_file`` content and
+        ``mcp_config_file_path``).
 
-        Default: ``(None, {})`` (no plugin system, no discoverable MCP config).
+        Default: ``([], {})`` (no plugin system, no discoverable MCP config).
         Override to surface MCP/plugin inventory.
         """
-        return None, {}
+        return [], {}
 
     def get_skills(self) -> list[dict]:
         """Return the IDE's user-scope skills as ``[{"path", "content"}]``.
@@ -198,7 +198,7 @@ class IDE(ABC):
         read these files off endpoints can only ever return raw content.
 
         Kept separate from ``get_session_context`` rather than folded into its
-        ``global_config_file`` slot, which is normalized to an MCP server map.
+        ``global_config_files``, which are normalized to an MCP server map.
 
         Default: ``[]`` (the IDE has no skill system). Override to surface skills.
         """

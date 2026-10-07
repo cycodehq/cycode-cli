@@ -320,17 +320,17 @@ def test_session_context_reads_mcp_servers() -> None:
         'cycode.cli.apps.ai_guardrails.ides.codex._load_codex_config',
         return_value={'mcp_servers': mcp},
     ):
-        global_config_file, plugins = Codex().get_session_context()
-    assert global_config_file is not None
-    assert global_config_file['path'].endswith('config.toml')
-    assert global_config_file['content'] == json.dumps({'mcpServers': mcp})
+        global_config_files, plugins = Codex().get_session_context()
+    assert len(global_config_files) == 1
+    assert global_config_files[0]['path'].endswith('config.toml')
+    assert global_config_files[0]['content'] == json.dumps({'mcpServers': mcp})
     assert plugins == {}
 
 
 def test_session_context_no_config() -> None:
     with patch('cycode.cli.apps.ai_guardrails.ides.codex._load_codex_config', return_value=None):
-        global_config_file, plugins = Codex().get_session_context()
-    assert global_config_file is None
+        global_config_files, plugins = Codex().get_session_context()
+    assert global_config_files == []
     assert plugins == {}
 
 

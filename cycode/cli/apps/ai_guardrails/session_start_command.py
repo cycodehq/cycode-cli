@@ -104,7 +104,7 @@ def _report_session_context(
     until the TTL expires, unless the MCP server statuses the response carries are needed.
     """
     try:
-        config_files_by_ide, enabled_plugins = collect_all_session_contexts()
+        config_files, enabled_plugins = collect_all_session_contexts()
         report = {
             'hostname': get_hostname(),
             'platform_name': get_platform_name(),
@@ -112,7 +112,7 @@ def _report_session_context(
             'serial_number': get_serial_number(),
             'last_login_user': get_last_login_user(),
             # Sorted by path so the digest is stable regardless of IDE registry order.
-            'config_files': sorted(config_files_by_ide.values(), key=lambda f: f['path']),
+            'config_files': sorted(config_files, key=lambda f: f['path']),
             'enabled_plugins': enabled_plugins,
             # Already deduplicated and sorted by path, for the same digest-stability reason.
             # Editing a skill body changes the digest and so re-reports the device's inventory.

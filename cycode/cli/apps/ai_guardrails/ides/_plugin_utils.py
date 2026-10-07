@@ -42,17 +42,17 @@ def load_plugin_json(path: Path) -> Optional[dict]:
         return None
 
 
-def build_global_config_file(path: Path, mcp_servers: Optional[dict]) -> Optional[dict]:
+def build_global_config_files(path: Path, mcp_servers: Optional[dict]) -> list[dict]:
     """Wrap a global (non-plugin) MCP config into the session-context file shape.
 
-    Returns ``{"path": <full path>, "content": <{"mcpServers": ...} JSON>}`` when
-    there are servers, else ``None``. ``content`` is normalized to the canonical
+    Returns ``[{"path": <full path>, "content": <{"mcpServers": ...} JSON>}]`` when
+    there are servers, else ``[]``. ``content`` is normalized to the canonical
     ``{"mcpServers": {...}}`` shape, dropping everything else in the source file.
     """
-    servers = mcp_servers or {}
+    servers = mcp_servers if isinstance(mcp_servers, dict) else {}
     if not servers:
-        return None
-    return {'path': str(path), 'content': json.dumps({'mcpServers': servers})}
+        return []
+    return [{'path': str(path), 'content': json.dumps({'mcpServers': servers})}]
 
 
 def walk_enabled_plugins(

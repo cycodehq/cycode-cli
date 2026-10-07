@@ -15,7 +15,7 @@ else:  # pragma: no cover - py<3.11 fallback
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
-    build_global_config_file,
+    build_global_config_files,
     load_plugin_json,
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
@@ -302,17 +302,17 @@ class Codex(IDE):
     def get_user_email(self) -> Optional[str]:
         return _email_from_auth()
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
+    def get_session_context(self) -> tuple[list[dict], dict]:
         config = _load_codex_config()
         if not config:
-            return None, {}
+            return [], {}
         # Codex stores MCP servers under `[mcp_servers.<name>]`; the global config
         # file becomes its own session-context file. Plugins (via
         # `[plugins."<plugin>@<marketplace>"]`) carry their own config files.
         config_path = _codex_config_toml_path('user')
-        global_config_file = build_global_config_file(config_path, config.get('mcp_servers'))
+        global_config_files = build_global_config_files(config_path, config.get('mcp_servers'))
         enriched_plugins = _resolve_codex_plugins(config)
-        return global_config_file, enriched_plugins
+        return global_config_files, enriched_plugins
 
     def get_skills(self) -> list[dict]:
         return walk_skill_dirs(_codex_skills_dir())

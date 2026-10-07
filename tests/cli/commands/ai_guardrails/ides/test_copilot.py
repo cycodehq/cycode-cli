@@ -362,19 +362,33 @@ def test_get_session_context_normalizes_servers_key(fs: FakeFilesystem) -> None:
         contents=json.dumps({'servers': {'gitlab': {'type': 'stdio', 'command': 'dummy-mcp'}}}),
     )
 
-    global_config_file, plugins = Copilot().get_session_context()
+    global_config_files, plugins = Copilot().get_session_context()
 
-    assert global_config_file is not None
-    assert global_config_file['path'] == str(config_path)
+    assert len(global_config_files) == 1
+    assert global_config_files[0]['path'] == str(config_path)
     # VS Code's `servers` key is normalized to the canonical mcpServers shape.
-    assert json.loads(global_config_file['content']) == {
+    assert json.loads(global_config_files[0]['content']) == {
         'mcpServers': {'gitlab': {'type': 'stdio', 'command': 'dummy-mcp'}}
     }
     assert plugins == {}
 
 
+def test_get_session_context_reports_both_runtimes_configs(fs: FakeFilesystem) -> None:
+    vscode_path = _vscode_mcp_config_path()
+    fs.create_file(vscode_path, contents=json.dumps({'servers': {'gitlab': {'command': 'gitlab-mcp'}}}))
+    agent_path = Path.home() / '.copilot' / 'mcp-config.json'
+    fs.create_file(agent_path, contents=json.dumps({'mcpServers': {'linear': {'command': 'linear-mcp'}}}))
+
+    global_config_files, _ = Copilot().get_session_context()
+
+    assert global_config_files == [
+        {'path': str(vscode_path), 'content': json.dumps({'mcpServers': {'gitlab': {'command': 'gitlab-mcp'}}})},
+        {'path': str(agent_path), 'content': json.dumps({'mcpServers': {'linear': {'command': 'linear-mcp'}}})},
+    ]
+
+
 def test_get_session_context_without_config(fs: FakeFilesystem) -> None:
-    assert Copilot().get_session_context() == (None, {})
+    assert Copilot().get_session_context() == ([], {})
 
 
 # --- plugins inventory -----------------------------------------------------------

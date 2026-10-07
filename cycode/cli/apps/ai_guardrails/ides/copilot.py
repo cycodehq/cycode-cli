@@ -33,7 +33,7 @@ from urllib.request import url2pathname
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
-    build_global_config_file,
+    build_global_config_files,
     load_plugin_json,
     walk_enabled_plugins,
 )
@@ -485,14 +485,17 @@ class Copilot(IDE):
             source=raw_payload.get('source'),
         )
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
-        # VS Code's mcp.json uses `servers` as its top-level key; normalized to the
-        # canonical mcpServers shape by build_global_config_file.
-        config = _load_vscode_mcp_config()
-        global_config_file = (
-            build_global_config_file(_vscode_mcp_config_path(), config.get('servers')) if config else None
-        )
-        return global_config_file, _collect_installed_plugins()
+    def get_session_context(self) -> tuple[list[dict], dict]:
+        # One file per runtime, as in _known_mcp_server_names. VS Code's `servers` key
+        # is normalized to the canonical mcpServers shape.
+        vscode_config = _load_vscode_mcp_config() or {}
+        agent_config_path = _copilot_home() / _AGENT_MCP_CONFIG_FILENAME
+        agent_config = _load_jsonc(agent_config_path) or {}
+        global_config_files = [
+            *build_global_config_files(_vscode_mcp_config_path(), vscode_config.get('servers')),
+            *build_global_config_files(agent_config_path, agent_config.get('mcpServers')),
+        ]
+        return global_config_files, _collect_installed_plugins()
 
     def get_skills(self) -> list[dict]:
         return walk_skill_dirs(_copilot_skills_dir())

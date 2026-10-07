@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import ClassVar, Optional
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
-from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_file
+from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_files
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
@@ -164,13 +164,11 @@ class Cursor(IDE):
             ide_version=raw_payload.get('cursor_version'),
         )
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
+    def get_session_context(self) -> tuple[list[dict], dict]:
         config = _load_cursor_mcp_config()
         if not config:
-            return None, {}
-        config_path = _cursor_mcp_config_path()
-        global_config_file = build_global_config_file(config_path, config.get('mcpServers'))
-        return global_config_file, {}
+            return [], {}
+        return build_global_config_files(_cursor_mcp_config_path(), config.get('mcpServers')), {}
 
     def get_skills(self) -> list[dict]:
         return walk_skill_dirs(_cursor_skills_dir())
