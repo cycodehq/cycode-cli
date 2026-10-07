@@ -21,10 +21,7 @@ from cycode.cli.apps.ai_guardrails.scan.guardrail_config import (
     load_guardrail_config,
     save_guardrail_config,
 )
-from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import (
-    load_mcp_server_statuses,
-    save_mcp_server_statuses,
-)
+from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import save_mcp_server_statuses
 from cycode.cli.apps.ai_guardrails.scan.types import BlockReason
 from cycode.cli.apps.ai_guardrails.scan.utils import read_stdin_text, safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
@@ -59,14 +56,21 @@ def _session_context_digest(report: dict) -> str:
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
-def _should_skip_report(digest: str, tenant_id: Optional[str]) -> bool:
+def _report_ttl_seconds(config: Optional[GuardrailConfig]) -> float:
+    """The response carries the MCP server statuses, so the guardrail's TTL applies while it is enabled."""
+    if config is None or config.is_off_for_every_agent(BlockReason.UNAUTHORIZED_MCP_SERVER):
+        return _SESSION_CONTEXT_TTL_SECONDS
+    return config.ttl_seconds
+
+
+def _should_skip_report(digest: str, tenant_id: Optional[str], ttl_seconds: float) -> bool:
     """Skip when the same payload was already sent for this tenant and the TTL hasn't expired."""
     try:
         cache = json.loads(_session_context_cache_path().read_text(encoding='utf-8'))
         return (
             cache.get('hash') == digest
             and cache.get('tenant_id') == tenant_id
-            and time.time() - float(cache.get('sent_at', 0)) < _SESSION_CONTEXT_TTL_SECONDS
+            and time.time() - float(cache.get('sent_at', 0)) < ttl_seconds
         )
     except Exception:
         # Missing/corrupt cache reads as a miss - over-sending is harmless
@@ -84,13 +88,6 @@ def _save_report_cache(digest: str, tenant_id: Optional[str]) -> None:
         logger.debug('Failed to write session context cache', exc_info=e)
 
 
-def _needs_mcp_server_statuses(config: Optional[GuardrailConfig], tenant_id: Optional[str]) -> bool:
-    if config is None or config.is_off_for_every_agent(BlockReason.UNAUTHORIZED_MCP_SERVER):
-        return False
-    cached = load_mcp_server_statuses()
-    return cached is None or cached.needs_refresh(tenant_id)
-
-
 def _report_session_context(
     ai_client: 'AISecurityManagerClient',
     user_email: Optional[str],
@@ -101,7 +98,7 @@ def _report_session_context(
 
     The device context is always reported. MCP configs and skills are collected from every
     registered IDE, not just the triggering one. Unchanged payloads are skipped via a hash cache
-    until the TTL expires, unless the MCP server statuses the response carries are needed.
+    until the TTL expires.
     """
     try:
         config_files, enabled_plugins = collect_all_session_contexts()
@@ -121,7 +118,7 @@ def _report_session_context(
         }
 
         digest = _session_context_digest(report)
-        if _should_skip_report(digest, tenant_id) and not _needs_mcp_server_statuses(config, tenant_id):
+        if _should_skip_report(digest, tenant_id, _report_ttl_seconds(config)):
             logger.debug('Session context unchanged; skipping report')
             return
 

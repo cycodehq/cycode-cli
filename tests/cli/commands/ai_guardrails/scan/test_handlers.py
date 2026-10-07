@@ -28,7 +28,7 @@ from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
 from cycode.cli.apps.ai_guardrails.scan.utils import MAX_VIOLATION_DETAIL_LINES, build_violation_summary
 from cycode.cli.models import Document, DocumentDetections, LocalScanResult
-from cycode.cyclient.models import Detection
+from cycode.cyclient.models import Detection, McpServerAuthorizationStatus, McpServerStatus
 
 
 @pytest.fixture
@@ -604,7 +604,8 @@ def _mcp_payload(server: Optional[str] = 'github') -> AIHookPayload:
 
 
 def _cached_statuses(*rows: tuple[str, str]) -> McpServerStatuses:
-    return McpServerStatuses(servers=[{'alias': a, 'status': s} for a, s in rows], fetched_at=time.time())
+    servers = [McpServerStatus(alias=a, status=McpServerAuthorizationStatus.parse(s)) for a, s in rows]
+    return McpServerStatuses(servers=servers, fetched_at=time.time())
 
 
 def _reported_event(mock_ctx: MagicMock) -> tuple[AIHookOutcome, Optional[BlockReason]]:

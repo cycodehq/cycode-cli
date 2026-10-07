@@ -1,19 +1,16 @@
 """Client for AI Security Manager service."""
 
-from typing import TYPE_CHECKING, NamedTuple, Optional
+from typing import TYPE_CHECKING, Optional
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.logger import logger
+from cycode.cyclient.models import SessionContextResponse, SessionContextResponseSchema
 
 if TYPE_CHECKING:
     from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
     from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
     from cycode.cyclient.ai_security_manager_service_config import AISecurityManagerServiceConfigBase
-
-
-class SessionContextResponse(NamedTuple):
-    mcp_servers: Optional[list]  # [{alias, normalized_id, status}]; None when missing or malformed
 
 
 class AISecurityManagerClient:
@@ -140,10 +137,7 @@ class AISecurityManagerClient:
             return None
 
         try:
-            mcp_servers = response.json().get('mcp_servers')
-            if not isinstance(mcp_servers, list):
-                raise ValueError('mcp_servers is not a list')
+            return SessionContextResponseSchema().load(response.json())
         except Exception as e:
             logger.debug('Failed to parse the session context response', exc_info=e)
-            mcp_servers = None
-        return SessionContextResponse(mcp_servers=mcp_servers)
+            return SessionContextResponse()
