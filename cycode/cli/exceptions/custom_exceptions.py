@@ -129,7 +129,7 @@ _SSL_ERROR_TRUST_HINT = (
     'If you use an on-premises installation or a proxy that intercepts SSL traffic, '
     f'set {consts.ENABLE_TRUSTSTORE_ENV_VAR_NAME}=1 to trust the CA certificates installed in your '
     f'machine certificate store, or {_SSL_ERROR_CA_BUNDLE_HINT}'
-    if trust_store.is_supported() and not trust_store.is_enabled()
+    if not trust_store.is_enabled()
     else f'If you use an on-premises installation or a proxy that intercepts SSL traffic, {_SSL_ERROR_CA_BUNDLE_HINT}'
 )
 

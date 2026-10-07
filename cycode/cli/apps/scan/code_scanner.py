@@ -1,8 +1,9 @@
 import os
 import time
 import zipfile
+from collections.abc import Callable
 from platform import platform
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING
 
 import requests
 import typer
@@ -147,7 +148,7 @@ def _get_scan_documents_thread_func(
     is_git_diff: bool,
     is_commit_range: bool,
     scan_parameters: dict,
-    prezipped: Optional['InMemoryZip'] = None,
+    prezipped: 'InMemoryZip | None' = None,
 ) -> Callable[[list[Document]], tuple[str, CliError, LocalScanResult]]:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
@@ -363,7 +364,7 @@ def _perform_scan_v4_async(
     scan_parameters: dict,
     is_git_diff: bool,
     is_commit_range: bool,
-    on_upload_progress: Optional[Callable] = None,
+    on_upload_progress: Callable | None = None,
 ) -> ZippedFileScanResult:
     upload_link = cycode_client.get_upload_link(scan_type)
     logger.debug('Got upload link, %s', {'upload_id': upload_link.upload_id})
@@ -390,7 +391,7 @@ def _perform_scan_async(
     scan_type: str,
     scan_parameters: dict,
     is_commit_range: bool,
-    on_upload_progress: Optional[Callable] = None,
+    on_upload_progress: Callable | None = None,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.zipped_file_scan_async(
         zipped_documents,
@@ -429,7 +430,7 @@ def _perform_scan(
     is_commit_range: bool,
     scan_parameters: dict,
     should_use_sync_flow: bool = False,
-    on_upload_progress: Optional[Callable] = None,
+    on_upload_progress: Callable | None = None,
 ) -> ZippedFileScanResult:
     if should_use_sync_flow:
         # it does not support commit range scans; should_use_sync_flow handles it
@@ -463,7 +464,7 @@ def poll_scan_results(
     scan_id: str,
     scan_type: str,
     scan_parameters: dict,
-    polling_timeout: Optional[int] = None,
+    polling_timeout: int | None = None,
 ) -> 'ZippedFileScanResult':
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_scan_polling_timeout_in_seconds()
@@ -504,7 +505,7 @@ def report_scan_status(
     files_to_scan_count: int,
     zip_size: int,
     command_scan_type: str,
-    error_message: Optional[str],
+    error_message: str | None,
 ) -> None:
     try:
         end_scan_time = time.time()

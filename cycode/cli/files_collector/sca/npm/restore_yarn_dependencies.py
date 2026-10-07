@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -19,7 +18,7 @@ logger = get_logger('Yarn Restore Dependencies')
 YARN_MANIFEST_FILE_NAME = MANIFEST_FILE_NAME
 
 
-def _indicates_yarn(package_json_content: Optional[str]) -> bool:
+def _indicates_yarn(package_json_content: str | None) -> bool:
     """Return True if package.json content signals that this project uses Yarn."""
     if not package_json_content:
         return False
@@ -53,7 +52,7 @@ class RestoreYarnDependencies(BaseRestoreDependencies):
 
         return _indicates_yarn(document.content)
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / YARN_LOCK_FILE_NAME if manifest_dir else None
 

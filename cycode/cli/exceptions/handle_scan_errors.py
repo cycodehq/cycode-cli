@@ -1,5 +1,4 @@
 import zipfile
-from typing import Optional
 
 import typer
 
@@ -10,7 +9,7 @@ from cycode.cli.models import CliError, CliErrors
 from cycode.cli.utils.git_proxy import git_proxy
 
 
-def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exception: bool = False) -> Optional[CliError]:
+def handle_scan_exception(ctx: typer.Context, err: Exception, *, return_exception: bool = False) -> CliError | None:
     ctx.obj['did_fail'] = True
 
     errors: CliErrors = {

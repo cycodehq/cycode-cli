@@ -4,7 +4,7 @@
 
 ## How to contribute to Cycode CLI
 
-The minimum version of Python that we support is 3.9.
+The minimum version of Python that we support is 3.10.
 We recommend using this version for local development.
 But it’s fine to use a higher version without using new features from these versions.
 

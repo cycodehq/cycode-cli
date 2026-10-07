@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
@@ -22,7 +22,7 @@ class TablePrinterBase(PrinterBase, abc.ABC):
         self.text_printer.print_error(error)
 
     def print_scan_results(
-        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: dict[str, 'CliError'] | None = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             self.console.print(self.NO_DETECTIONS_MESSAGE)

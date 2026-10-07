@@ -1,4 +1,3 @@
-from typing import Optional
 from urllib.parse import urlparse, urlunparse
 
 from cycode.logger import get_logger
@@ -6,7 +5,7 @@ from cycode.logger import get_logger
 logger = get_logger('URL Utils')
 
 
-def sanitize_repository_url(url: Optional[str]) -> Optional[str]:
+def sanitize_repository_url(url: str | None) -> str | None:
     """Remove credentials (username, password, tokens) from repository URL.
 
     This function sanitizes repository URLs to prevent sending PAT tokens or other

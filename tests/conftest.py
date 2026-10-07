@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import pytest
 import responses
@@ -35,9 +34,7 @@ def scan_client() -> ScanClient:
     return create_scan_client(_CLIENT_ID, _CLIENT_SECRET, hide_response_log=False)
 
 
-def create_token_based_client(
-    client_id: Optional[str] = None, client_secret: Optional[str] = None
-) -> CycodeTokenBasedClient:
+def create_token_based_client(client_id: str | None = None, client_secret: str | None = None) -> CycodeTokenBasedClient:
     CredentialsManager.FILE_NAME = 'unit-tests-credentials.yaml'
 
     if client_id is None:
@@ -48,7 +45,7 @@ def create_token_based_client(
     return CycodeTokenBasedClient(client_id, client_secret)
 
 
-def create_oidc_based_client(client_id: Optional[str] = None, id_token: Optional[str] = None) -> CycodeOidcBasedClient:
+def create_oidc_based_client(client_id: str | None = None, id_token: str | None = None) -> CycodeOidcBasedClient:
     CredentialsManager.FILE_NAME = 'unit-tests-credentials.yaml'
 
     if client_id is None:

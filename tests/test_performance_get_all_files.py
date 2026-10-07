@@ -3,17 +3,16 @@ import logging
 import os
 import timeit
 from pathlib import Path
-from typing import Union
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def filter_files(paths: list[Union[Path, str]]) -> list[str]:
+def filter_files(paths: list[Path | str]) -> list[str]:
     return [str(path) for path in paths if os.path.isfile(path)]
 
 
-def get_all_files_glob(path: Union[Path, str]) -> list[str]:
+def get_all_files_glob(path: Path | str) -> list[str]:
     # DOESN'T RETURN HIDDEN FILES. CAN'T BE USED
     # and doesn't show the best performance
     if not str(path).endswith(os.sep):

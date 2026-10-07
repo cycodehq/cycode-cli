@@ -1,6 +1,7 @@
 import os
+from collections.abc import Callable
 from multiprocessing.pool import ThreadPool
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from cycode.cli import consts
 from cycode.cli.models import Document

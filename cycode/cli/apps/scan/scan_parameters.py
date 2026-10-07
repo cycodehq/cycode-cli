@@ -1,5 +1,3 @@
-from typing import Optional
-
 import typer
 
 from cycode import _BOOT_WALL
@@ -23,7 +21,7 @@ def _get_default_scan_parameters(ctx: typer.Context) -> dict:
     }
 
 
-def get_scan_parameters(ctx: typer.Context, paths: Optional[tuple[str, ...]] = None) -> dict:
+def get_scan_parameters(ctx: typer.Context, paths: tuple[str, ...] | None = None) -> dict:
     scan_parameters = _get_default_scan_parameters(ctx)
 
     if not paths:

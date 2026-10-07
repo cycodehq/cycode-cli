@@ -74,7 +74,7 @@ This guide walks you through both installation and usage.
 
 # Prerequisites
 
-- The Cycode CLI application requires Python version 3.9 or later. The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
+- The Cycode CLI application requires Python version 3.10 or later.
 - Use the [`cycode auth` command](#using-the-auth-command) to authenticate to Cycode with the CLI
   - Alternatively, you can get a Cycode Client ID and Client Secret Key by following the steps detailed in the [Service Account Token](https://docs.cycode.com/docs/en/service-accounts) and [Personal Access Token](https://docs.cycode.com/v1/docs/managing-personal-access-tokens) pages, which contain details on getting these values.
 
@@ -246,7 +246,7 @@ Perform the following steps to install the pre-commit hook:
 
 ### Installing Pre-Commit Hook
 
-1. Install the pre-commit framework (Python 3.9 or higher must be installed):
+1. Install the pre-commit framework (Python 3.10 or higher must be installed):
 
    ```bash
    pip3 install pre-commit
@@ -395,18 +395,12 @@ The two options combine: with `CYCODE_CLI_ENABLE_TRUSTSTORE=1`, certificates fro
 
 Notes:
 
-- `CYCODE_CLI_ENABLE_TRUSTSTORE` requires Python 3.10 or newer. On Python 3.9 the CLI logs a warning
-  and falls back to the bundled CA bundle; use `REQUESTS_CA_BUNDLE` instead, or upgrade Python. The
-  standalone executables and the Docker image already ship a supported Python.
 - On Windows, the CLI has always fallen back to the system certificate store when neither
   `REQUESTS_CA_BUNDLE` nor `CURL_CA_BUNDLE` is set. That behavior is unchanged.
 - Proxies themselves are configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
   environment variables.
 
 # MCP Command \[EXPERIMENT\]
-
-> [!WARNING]
-> The MCP command is available only for Python 3.10 and above. If you're using an earlier Python version, this command will not be available.
 
 The Model Context Protocol (MCP) command allows you to start an MCP server that exposes Cycode's scanning capabilities to AI systems and applications. This enables AI models to interact with Cycode CLI tools via a standardized protocol.
 

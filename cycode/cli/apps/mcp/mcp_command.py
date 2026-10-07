@@ -6,7 +6,7 @@ import shutil
 import sys
 import tempfile
 import uuid
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any
 
 import anyio
 import typer
@@ -229,8 +229,8 @@ def _build_scan_summary(result: dict[str, Any]) -> str:
 
 async def _cycode_scan_tool(
     scan_type: ScanTypeOption,
-    files: Optional[dict[str, str]] = None,
-    paths: Optional[list[str]] = None,
+    files: dict[str, str] | None = None,
+    paths: list[str] | None = None,
 ) -> str:
     _tool_call_id = _gen_random_id()
     _logger.info('Scan tool called, %s', {'scan_type': scan_type, 'call_id': _tool_call_id})
@@ -288,8 +288,8 @@ async def _cycode_scan_tool(
 
 
 async def cycode_secret_scan(
-    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
-    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+    paths: list[str] | None = _PATHS_TOOL_FIELD,
+    files: dict[str, str] | None = _FILES_TOOL_FIELD,
 ) -> str:
     """Scan for hardcoded secrets.
 
@@ -309,8 +309,8 @@ async def cycode_secret_scan(
 
 
 async def cycode_sca_scan(
-    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
-    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+    paths: list[str] | None = _PATHS_TOOL_FIELD,
+    files: dict[str, str] | None = _FILES_TOOL_FIELD,
 ) -> str:
     """Scan for Software Composition Analysis (SCA) - vulnerabilities and license issues.
 
@@ -337,8 +337,8 @@ async def cycode_sca_scan(
 
 
 async def cycode_iac_scan(
-    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
-    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+    paths: list[str] | None = _PATHS_TOOL_FIELD,
+    files: dict[str, str] | None = _FILES_TOOL_FIELD,
 ) -> str:
     """Scan for Infrastructure as Code (IaC) misconfigurations.
 
@@ -360,8 +360,8 @@ async def cycode_iac_scan(
 
 
 async def cycode_sast_scan(
-    paths: Optional[list[str]] = _PATHS_TOOL_FIELD,
-    files: Optional[dict[str, str]] = _FILES_TOOL_FIELD,
+    paths: list[str] | None = _PATHS_TOOL_FIELD,
+    files: dict[str, str] | None = _FILES_TOOL_FIELD,
 ) -> str:
     """Scan for Static Application Security Testing (SAST) - code quality and security flaws.
 

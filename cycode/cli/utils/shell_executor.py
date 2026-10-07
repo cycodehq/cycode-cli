@@ -1,6 +1,5 @@
 import subprocess
 import time
-from typing import Optional, Union
 
 import click
 import typer
@@ -14,11 +13,11 @@ logger = get_logger('SHELL')
 
 
 def shell(
-    command: Union[str, list[str]],
+    command: str | list[str],
     timeout: int = _SUBPROCESS_DEFAULT_TIMEOUT_SEC,
-    working_directory: Optional[str] = None,
+    working_directory: str | None = None,
     silent_exc_info: bool = False,
-) -> Optional[str]:
+) -> str | None:
     logger.debug('Executing shell command: %s', command)
 
     try:

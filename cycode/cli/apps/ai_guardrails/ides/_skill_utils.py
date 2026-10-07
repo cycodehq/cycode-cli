@@ -11,7 +11,6 @@ the device its MCP inventory as well.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from cycode.logger import get_logger
 
@@ -32,7 +31,7 @@ MAX_SKILL_FILE_BYTES = 256 * 1024
 MAX_SKILLS_PER_ROOT = 200
 
 
-def _read_skill_file(skill_file: Path) -> Optional[dict]:
+def _read_skill_file(skill_file: Path) -> dict | None:
     """Read one ``SKILL.md`` into the session-context file shape, or None if unusable."""
     try:
         size = skill_file.stat().st_size

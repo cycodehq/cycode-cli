@@ -1,6 +1,5 @@
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Optional
 
 import pytest
 
@@ -31,8 +30,8 @@ class _ComCalls:
 
 def _install_fake_pywin32(
     monkeypatch: pytest.MonkeyPatch,
-    serial: Optional[str] = _SERIAL,
-    get_object_error: Optional[Exception] = None,
+    serial: str | None = _SERIAL,
+    get_object_error: Exception | None = None,
 ) -> _ComCalls:
     calls = _ComCalls()
 

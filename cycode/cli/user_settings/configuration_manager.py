@@ -1,7 +1,7 @@
 import os
 from functools import cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from cycode.cli import consts
@@ -59,10 +59,10 @@ class ConfigurationManager:
         verbose_flag_global_config = self.global_config_file_manager.get_verbose_flag()
         return verbose_flag_env_var or verbose_flag_local_config or verbose_flag_global_config
 
-    def get_api_url_from_environment_variables(self) -> Optional[str]:
+    def get_api_url_from_environment_variables(self) -> str | None:
         return self._get_value_from_environment_variables(consts.CYCODE_API_URL_ENV_VAR_NAME)
 
-    def get_app_url_from_environment_variables(self) -> Optional[str]:
+    def get_app_url_from_environment_variables(self) -> str | None:
         return self._get_value_from_environment_variables(consts.CYCODE_APP_URL_ENV_VAR_NAME)
 
     def get_verbose_flag_from_environment_variables(self) -> bool:
@@ -94,13 +94,13 @@ class ConfigurationManager:
 
         return installation_id
 
-    def get_last_reported_activation_version(self, client: str) -> Optional[str]:
+    def get_last_reported_activation_version(self, client: str) -> str | None:
         return self.global_config_file_manager.get_last_reported_activation_versions().get(client)
 
     def update_last_reported_activation_version(self, client: str, version: str) -> None:
         self.global_config_file_manager.update_last_reported_activation_version(client, version)
 
-    def get_config_file_manager(self, scope: Optional[str] = None) -> ConfigFileManager:
+    def get_config_file_manager(self, scope: str | None = None) -> ConfigFileManager:
         if scope == 'local':
             return self.local_config_file_manager
 
@@ -223,5 +223,5 @@ class ConfigurationManager:
         return consts.DEFAULT_EXCLUDE_DETECTIONS_IN_DELETED_LINES
 
     @staticmethod
-    def _get_value_from_environment_variables(env_var_name: str, default: Optional[Any] = None) -> Optional[Any]:
+    def _get_value_from_environment_variables(env_var_name: str, default: Any | None = None) -> Any | None:
         return os.getenv(env_var_name, default)

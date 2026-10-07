@@ -1,7 +1,6 @@
 import json
 from os import path
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -21,7 +20,7 @@ MAVEN_CYCLONE_DEP_TREE_FILE_NAME = 'bom.json'
 MAVEN_DEP_TREE_FILE_NAME = 'bcde.mvndeps'
 
 
-def _has_dependency_graph(bom_content: Optional[str]) -> bool:
+def _has_dependency_graph(bom_content: str | None) -> bool:
     try:
         if not bom_content:
             return False
@@ -52,7 +51,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
     def get_lock_file_names(self) -> list[str]:
         return [self.get_lock_file_name()]
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_file_path = self.get_manifest_file_path(document)
         if document.content is None:
             return self.restore_from_secondary_command(document, manifest_file_path)
@@ -68,7 +67,7 @@ class RestoreMavenDependencies(BaseRestoreDependencies):
 
         return restore_dependencies_document
 
-    def restore_from_secondary_command(self, document: Document, manifest_file_path: str) -> Optional[Document]:
+    def restore_from_secondary_command(self, document: Document, manifest_file_path: str) -> Document | None:
         restore_content = execute_commands(
             commands=self.create_secondary_restore_commands(manifest_file_path),
             timeout=self.command_timeout,

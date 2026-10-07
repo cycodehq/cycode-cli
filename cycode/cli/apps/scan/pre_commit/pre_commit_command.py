@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -47,7 +47,7 @@ def _validate_base_ref(repo_path: str, base_ref: str) -> None:
 
 def pre_commit_command(
     ctx: typer.Context,
-    _: Annotated[Optional[list[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
+    _: Annotated[list[str] | None, typer.Argument(help='Ignored arguments', hidden=True)] = None,
     base_ref: Annotated[
         str,
         typer.Option(
@@ -66,7 +66,7 @@ def pre_commit_command(
         ),
     ] = False,
     paths: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option(
             '--path',
             help='Optional paths to scope the diff scan to (e.g. the file currently open in an IDE). '

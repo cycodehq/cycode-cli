@@ -7,7 +7,6 @@ Chat 0.56.0) and Copilot CLI, with identifying values swapped for dummies.
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockerFixture
@@ -398,7 +397,7 @@ def _create_plugin_on_disk(
     fs: FakeFilesystem,
     plugin_dir: Path,
     manifest_location: str = '.github/plugin/plugin.json',
-    manifest_extra: Optional[dict] = None,
+    manifest_extra: dict | None = None,
     mcp_file: str = '.mcp.json',
     server_name: str = 'dummy-server',
 ) -> None:

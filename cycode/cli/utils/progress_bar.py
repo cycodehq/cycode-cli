@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import auto
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
@@ -109,7 +109,7 @@ class BaseProgressBar(ABC):
     def update(self, section: 'ProgressBarSection') -> None: ...
 
     @abstractmethod
-    def update_right_side_label(self, label: Optional[str] = None) -> None: ...
+    def update_right_side_label(self, label: str | None = None) -> None: ...
 
 
 class DummyProgressBar(BaseProgressBar):
@@ -128,7 +128,7 @@ class DummyProgressBar(BaseProgressBar):
     def update(self, section: 'ProgressBarSection') -> None:
         pass
 
-    def update_right_side_label(self, label: Optional[str] = None) -> None:
+    def update_right_side_label(self, label: str | None = None) -> None:
         pass
 
 
@@ -240,7 +240,7 @@ class CompositeProgressBar(BaseProgressBar):
         self._increment_progress(section)
         self._maybe_update_current_section()
 
-    def update_right_side_label(self, label: Optional[str] = None) -> None:
+    def update_right_side_label(self, label: str | None = None) -> None:
         self._current_right_side_label = f'({label})' if label else ''
         self._progress_bar_update()
 

@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Optional
 from urllib.parse import urlparse
 
 from cycode.cli import consts
@@ -26,7 +25,7 @@ def get_val_as_bool(key: str, default: bool = False) -> bool:
     return configuration[key].lower() in {'true', '1', 'yes', 'y', 'on', 'enabled'}
 
 
-def get_val_as_int(key: str) -> Optional[int]:
+def get_val_as_int(key: str) -> int | None:
     val = configuration.get(key)
     if not val:
         return None

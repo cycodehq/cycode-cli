@@ -15,7 +15,6 @@ import platform
 import shutil
 from pathlib import Path
 from string import Template
-from typing import Union
 
 _ARCHIVE_FORMAT = 'zip'
 _HASH_FILE_EXT = '.sha256'
@@ -30,7 +29,7 @@ _WINDOWS_EXECUTABLE_SUFFIX = '.exe'
 DirHashes = list[tuple[str, str]]
 
 
-def get_hash_of_file(file_path: Union[str, Path]) -> str:
+def get_hash_of_file(file_path: str | Path) -> str:
     with open(file_path, 'rb') as f:
         return hashlib.sha256(f.read()).hexdigest()
 
@@ -85,7 +84,7 @@ def get_os_name() -> str:
 def get_cli_file_name(suffix: str = '', ext: str = '') -> str:
     os_name = get_os_name()
     if os_name not in _OS_TO_CLI_DIST_TEMPLATE:
-        raise Exception(f'Unsupported OS: {os_name}')
+        raise Exception(f'Unsupported OS: {os_name}')  # noqa: TRY002
 
     return _OS_TO_CLI_DIST_TEMPLATE[os_name].substitute(suffix=suffix, ext=ext)
 

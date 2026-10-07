@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
 from cycode.cyclient.ai_security_manager_service_config import (
     DefaultAISecurityManagerServiceConfig,
@@ -17,7 +15,7 @@ from cycode.cyclient.scan_config_base import DefaultScanConfig, DevScanConfig
 
 
 def create_scan_client(
-    client_id: str, client_secret: Optional[str] = None, hide_response_log: bool = False, id_token: Optional[str] = None
+    client_id: str, client_secret: str | None = None, hide_response_log: bool = False, id_token: str | None = None
 ) -> ScanClient:
     if dev_mode:
         client = CycodeDevBasedClient(DEV_CYCODE_API_URL)
@@ -33,7 +31,7 @@ def create_scan_client(
 
 
 def create_report_client(
-    client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
+    client_id: str, client_secret: str | None = None, _: bool = False, id_token: str | None = None
 ) -> ReportClient:
     if dev_mode:
         client = CycodeDevBasedClient(DEV_CYCODE_API_URL)
@@ -45,7 +43,7 @@ def create_report_client(
 
 
 def create_import_sbom_client(
-    client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
+    client_id: str, client_secret: str | None = None, _: bool = False, id_token: str | None = None
 ) -> ImportSbomClient:
     if dev_mode:
         client = CycodeDevBasedClient(DEV_CYCODE_API_URL)
@@ -57,7 +55,7 @@ def create_import_sbom_client(
 
 
 def create_ai_security_manager_client(
-    client_id: str, client_secret: Optional[str] = None, _: bool = False, id_token: Optional[str] = None
+    client_id: str, client_secret: str | None = None, _: bool = False, id_token: str | None = None
 ) -> AISecurityManagerClient:
     if dev_mode:
         client = CycodeDevBasedClient(DEV_CYCODE_API_URL)

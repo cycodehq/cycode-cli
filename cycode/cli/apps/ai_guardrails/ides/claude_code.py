@@ -5,7 +5,7 @@ import re
 from collections.abc import Iterator
 from copy import deepcopy
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
@@ -80,12 +80,12 @@ def _reverse_readline(path: Path, buf_size: int = 8192) -> Iterator[str]:
             yield buffer.decode('utf-8', errors='replace')
 
 
-def _extract_model(entry: dict) -> Optional[str]:
+def _extract_model(entry: dict) -> str | None:
     """Extract model from a transcript entry (top level or nested in message)."""
     return entry.get('model') or (entry.get('message') or {}).get('model')
 
 
-def _extract_generation_id(entry: dict) -> Optional[str]:
+def _extract_generation_id(entry: dict) -> str | None:
     """Extract generation ID from a user-type transcript entry."""
     if entry.get('type') == 'user':
         return entry.get('uuid')
@@ -94,7 +94,7 @@ def _extract_generation_id(entry: dict) -> Optional[str]:
 
 def extract_from_claude_transcript(
     transcript_path: str,
-) -> tuple[Optional[str], Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None, str | None]:
     """Extract ``(ide_version, model, generation_id)`` from a transcript.
 
     The transcript is a JSONL file scanned from end → start so the most recent
@@ -135,7 +135,7 @@ def extract_from_claude_transcript(
 # --- ~/.claude.json + ~/.claude/settings.json parsing -------------------------
 
 
-def load_claude_config(config_path: Optional[Path] = None) -> Optional[dict]:
+def load_claude_config(config_path: Path | None = None) -> dict | None:
     """Load and parse `~/.claude.json`. Returns None if missing/invalid."""
     path = config_path or _CLAUDE_CONFIG_PATH
     if not path.exists():
@@ -148,17 +148,17 @@ def load_claude_config(config_path: Optional[Path] = None) -> Optional[dict]:
         return None
 
 
-def _email_from_config(config: dict) -> Optional[str]:
+def _email_from_config(config: dict) -> str | None:
     """Read ``oauthAccount.emailAddress`` from a parsed Claude config."""
     return config.get('oauthAccount', {}).get('emailAddress')
 
 
-def get_mcp_servers(config: dict) -> Optional[dict]:
+def get_mcp_servers(config: dict) -> dict | None:
     """Read ``mcpServers`` from a parsed Claude config."""
     return config.get('mcpServers')
 
 
-def load_claude_settings(settings_path: Optional[Path] = None) -> Optional[dict]:
+def load_claude_settings(settings_path: Path | None = None) -> dict | None:
     """Load and parse `~/.claude/settings.json`. Returns None if missing/invalid."""
     path = settings_path or _CLAUDE_SETTINGS_PATH
     if not path.exists():
@@ -185,7 +185,7 @@ def _plugins_cache_dir() -> Path:
     return Path.home() / '.claude' / 'plugins' / 'cache'
 
 
-def _resolve_marketplace_path(marketplace: dict) -> Optional[Path]:
+def _resolve_marketplace_path(marketplace: dict) -> Path | None:
     """Resolve filesystem path for a directory-type marketplace."""
     source = marketplace.get('source', {})
     if source.get('source') != 'directory':
@@ -236,7 +236,7 @@ def resolve_plugins(settings: dict) -> dict:
     enabled = settings.get('enabledPlugins') or {}
     marketplaces = settings.get('extraKnownMarketplaces') or {}
 
-    def _locate(plugin_name: str, marketplace_name: str) -> Optional[Path]:
+    def _locate(plugin_name: str, marketplace_name: str) -> 'Path | None':
         # Directory-type marketplaces point straight at the plugin source; every other source
         # type (git, github, ...) is cloned into the local plugin cache.
         marketplace = marketplaces.get(marketplace_name)
@@ -259,7 +259,7 @@ def _sanitize_mcp_name(name: str) -> str:
     return re.sub(r'[^a-z0-9_-]', '_', name.lower())
 
 
-def _local_mcp_servers(config: Optional[dict], cwd: Optional[str]) -> Iterator[tuple[str, str]]:
+def _local_mcp_servers(config: dict | None, cwd: str | None) -> Iterator[tuple[str, str]]:
     """Yield ``(name as Claude Code namespaces it, config key)`` for each locally configured MCP server."""
     sources = []
     if config:
@@ -280,7 +280,7 @@ def _local_mcp_servers(config: Optional[dict], cwd: Optional[str]) -> Iterator[t
             yield f'plugin_{plugin_name}_{server}', server
 
 
-def _resolve_mcp_server_name(server: str, config: Optional[dict], cwd: Optional[str]) -> str:
+def _resolve_mcp_server_name(server: str, config: dict | None, cwd: str | None) -> str:
     """Map the server segment of ``mcp__<server>__<tool>`` back to its config key; unknown names pass through."""
     wanted = _sanitize_mcp_name(server)
     for namespaced, name in _local_mcp_servers(config, cwd):
@@ -297,7 +297,7 @@ class ClaudeCode(IDE):
     display_name: ClassVar[str] = 'Claude Code'
     hook_events: ClassVar[list[str]] = list(_HOOK_EVENTS)
 
-    def settings_path(self, scope: str, repo_path: Optional[Path] = None) -> Path:
+    def settings_path(self, scope: str, repo_path: Path | None = None) -> Path:
         if scope == 'repo' and repo_path:
             return repo_path / _REPO_SUBDIR / _HOOKS_FILE_NAME
         return _USER_HOOKS_DIR / _HOOKS_FILE_NAME
@@ -430,7 +430,7 @@ class ClaudeCode(IDE):
             source=raw_payload.get('source'),
         )
 
-    def get_user_email(self) -> Optional[str]:
+    def get_user_email(self) -> str | None:
         config = load_claude_config()
         return _email_from_config(config) if config else None
 

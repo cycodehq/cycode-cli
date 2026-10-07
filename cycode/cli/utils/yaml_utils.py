@@ -15,7 +15,7 @@ def _deep_update(source: dict[Hashable, Any], overrides: dict[Hashable, Any]) ->
         if isinstance(value, dict) and value:
             source[key] = _deep_update(source.get(key, {}), value)
         else:
-            source[key] = overrides[key]
+            source[key] = value
 
     return source
 

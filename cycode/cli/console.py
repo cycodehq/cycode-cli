@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from rich.console import Console, RenderResult
 from rich.markdown import Heading, Markdown
@@ -14,7 +14,7 @@ console_err = Console(stderr=True)
 console = console_out  # alias
 
 
-def is_dark_console() -> Optional[bool]:
+def is_dark_console() -> bool | None:
     """Detect if the console is dark or light.
 
     This function checks the environment variables and terminal type to determine if the console is dark or light.

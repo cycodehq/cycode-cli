@@ -40,32 +40,12 @@ def opted_in(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_enable_env(monkeypatch, '1')
 
 
-# On Python 3.9 truststore is neither installed nor importable, and install() refuses by design,
-# so the tests that assert a successful injection cannot run there.
-requires_truststore = pytest.mark.skipif(
-    sys.version_info < trust_store._MIN_PYTHON_VERSION,
-    reason='truststore requires Python 3.10+',
-)
-
-
-@pytest.mark.skipif(
-    sys.version_info >= trust_store._MIN_PYTHON_VERSION,
-    reason='covers the Python 3.9 fallback only',
-)
-def test_install_declines_on_python_39(mocked_truststore: MagicMock, opted_in: None) -> None:
-    assert trust_store.install() is False
-    assert trust_store.is_installed() is False
-    mocked_truststore.inject_into_ssl.assert_not_called()
-
-
-@requires_truststore
 def test_install_injects_os_trust_store(mocked_truststore: MagicMock, opted_in: None) -> None:
     assert trust_store.install() is True
     assert trust_store.is_installed() is True
     mocked_truststore.inject_into_ssl.assert_called_once_with()
 
 
-@requires_truststore
 def test_install_is_idempotent(mocked_truststore: MagicMock, opted_in: None) -> None:
     assert trust_store.install() is True
     assert trust_store.install() is True
@@ -77,9 +57,8 @@ def test_install_runs_when_opted_in(value: str, mocked_truststore: MagicMock, mo
     _set_enable_env(monkeypatch, value)
 
     assert trust_store.is_enabled() is True
-    if trust_store.is_supported():
-        assert trust_store.install() is True
-        mocked_truststore.inject_into_ssl.assert_called_once_with()
+    assert trust_store.install() is True
+    mocked_truststore.inject_into_ssl.assert_called_once_with()
 
 
 @pytest.mark.parametrize('value', ['0', 'false', 'no', ''])
@@ -101,17 +80,6 @@ def test_install_skipped_when_env_var_absent(mocked_truststore: MagicMock) -> No
     mocked_truststore.inject_into_ssl.assert_not_called()
 
 
-def test_install_skipped_on_unsupported_python(
-    mocked_truststore: MagicMock, monkeypatch: pytest.MonkeyPatch, opted_in: None
-) -> None:
-    monkeypatch.setattr(trust_store.sys, 'version_info', (3, 9, 21))
-
-    assert trust_store.install() is False
-    assert trust_store.is_installed() is False
-    mocked_truststore.inject_into_ssl.assert_not_called()
-
-
-@requires_truststore
 def test_install_swallows_import_error(monkeypatch: pytest.MonkeyPatch, opted_in: None) -> None:
     import builtins
 
@@ -128,7 +96,6 @@ def test_install_swallows_import_error(monkeypatch: pytest.MonkeyPatch, opted_in
     assert trust_store.is_installed() is False
 
 
-@requires_truststore
 def test_install_swallows_injection_error(mocked_truststore: MagicMock, opted_in: None) -> None:
     mocked_truststore.inject_into_ssl.side_effect = RuntimeError('no trust store on this machine')
 
@@ -200,9 +167,7 @@ def test_windows_legacy_adapter_skipped_when_trust_store_installed(monkeypatch: 
 
 
 def test_windows_legacy_adapter_kept_when_trust_store_inactive(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Whether the user simply did not opt in, or is on Python 3.9 where it is unavailable, Windows
-    must keep behaving exactly as it did before this feature.
-    """
+    """When the user did not opt in, Windows must keep behaving exactly as it did before this feature."""
     session = _windows_session(monkeypatch, installed=False)
 
     assert _mounts_legacy_adapter(session) is True

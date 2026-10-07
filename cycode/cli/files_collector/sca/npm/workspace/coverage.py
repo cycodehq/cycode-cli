@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, Optional
+from typing import TYPE_CHECKING, NamedTuple
 
 from cycode.cli.files_collector.sca.npm.workspace.files import logger, resolved_path
 from cycode.cli.files_collector.sca.npm.workspace.globs import declares_workspace_member
@@ -49,7 +49,7 @@ def _containing_scan_roots(manifest_dir: Path, scan_roots: tuple) -> list:
     ]
 
 
-def _resolve_walk_boundary(manifest_dir: Path, scan_roots: tuple) -> Optional[Path]:
+def _resolve_walk_boundary(manifest_dir: Path, scan_roots: tuple) -> Path | None:
     for root_dir in manifest_dir.parents:
         if (root_dir / _GIT_DIR_NAME).exists():
             return root_dir
@@ -76,7 +76,7 @@ def _workspace_root_candidates(manifest_dir: Path, scan_roots: tuple) -> 'Iterat
             return
 
 
-def _find_covering_workspace(manifest_dir: Path, scan_roots: tuple) -> Optional[WorkspaceCoverage]:
+def _find_covering_workspace(manifest_dir: Path, scan_roots: tuple) -> WorkspaceCoverage | None:
     for root_dir in _workspace_root_candidates(manifest_dir, scan_roots):
         member_path = manifest_dir.relative_to(root_dir).as_posix()
 
@@ -98,7 +98,7 @@ def _find_covering_workspace(manifest_dir: Path, scan_roots: tuple) -> Optional[
     return None
 
 
-def find_covering_workspace(manifest_dir: Optional[str], scan_roots: tuple = ()) -> Optional[WorkspaceCoverage]:
+def find_covering_workspace(manifest_dir: str | None, scan_roots: tuple = ()) -> WorkspaceCoverage | None:
     if not manifest_dir:
         return None
 
@@ -115,7 +115,7 @@ def _is_inside_scanned_paths(scan_roots: tuple, root_dir: Path) -> bool:
     return any(is_sub_path(directory, resolved_root_dir) for directory in directories)
 
 
-def is_covered_workspace_member(manifest_dir: Optional[str], document_path: str, scan_roots: tuple = ()) -> bool:
+def is_covered_workspace_member(manifest_dir: str | None, document_path: str, scan_roots: tuple = ()) -> bool:
     coverage = find_covering_workspace(manifest_dir, scan_roots)
     if coverage is None:
         return False

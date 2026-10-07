@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import click
 import typer
@@ -25,7 +25,7 @@ def repository_command(
         Path, typer.Argument(exists=True, resolve_path=True, help='Path to Git repository to scan.', show_default=False)
     ],
     branch: Annotated[
-        Optional[str], typer.Option('--branch', '-b', help='Branch to scan.', show_default='default branch')
+        str | None, typer.Option('--branch', '-b', help='Branch to scan.', show_default='default branch')
     ] = None,
 ) -> None:
     try:

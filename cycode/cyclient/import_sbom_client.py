@@ -1,6 +1,5 @@
 import dataclasses
 from pathlib import Path
-from typing import Optional
 
 from requests import Response
 
@@ -15,8 +14,8 @@ class ImportSbomParameters:
     Name: str
     Vendor: str
     BusinessImpact: BusinessImpactOption
-    Labels: Optional[list[str]]
-    Owners: Optional[list[str]]
+    Labels: list[str] | None
+    Owners: list[str] | None
 
     def _owners_to_ids(self) -> list[str]:
         return []
@@ -71,7 +70,7 @@ class ImportSbomClient:
         member_details = self.parse_requested_member_details_response(response)
 
         if not member_details.items:
-            raise Exception(
+            raise Exception(  # noqa: TRY002
                 f"Failed to find user with email '{email}'. Verify this email is registered to Cycode platform"
             )
         return member_details.items.pop(0).external_id

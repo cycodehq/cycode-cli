@@ -1,5 +1,3 @@
-from typing import Optional
-
 import click
 import typer
 
@@ -8,7 +6,7 @@ from cycode.cli.models import CliError, CliErrors
 
 def handle_errors(
     ctx: typer.Context, err: BaseException, cli_errors: CliErrors, *, return_exception: bool = False
-) -> Optional['CliError']:
+) -> CliError | None:
     printer = ctx.obj.get('console_printer')
     printer.print_exception(err)
 

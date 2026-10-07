@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import Optional
 
 from cycode.cli.config import (
     CYCODE_CLIENT_ID_ENV_VAR_NAME,
@@ -36,19 +35,19 @@ class CredentialsManager(BaseFileManager):
         client_secret = os.getenv(CYCODE_CLIENT_SECRET_ENV_VAR_NAME)
         return client_id, client_secret
 
-    def get_credentials_from_file(self) -> tuple[Optional[str], Optional[str]]:
+    def get_credentials_from_file(self) -> tuple[str | None, str | None]:
         file_content = self.read_file()
         client_id = file_content.get(self.CLIENT_ID_FIELD_NAME)
         client_secret = file_content.get(self.CLIENT_SECRET_FIELD_NAME)
         return client_id, client_secret
 
-    def get_oidc_credentials_from_file(self) -> tuple[Optional[str], Optional[str]]:
+    def get_oidc_credentials_from_file(self) -> tuple[str | None, str | None]:
         file_content = self.read_file()
         client_id = file_content.get(self.CLIENT_ID_FIELD_NAME)
         id_token = file_content.get(self.ID_TOKEN_FIELD_NAME)
         return client_id, id_token
 
-    def get_oidc_credentials(self) -> tuple[Optional[str], Optional[str]]:
+    def get_oidc_credentials(self) -> tuple[str | None, str | None]:
         client_id = os.getenv(CYCODE_CLIENT_ID_ENV_VAR_NAME)
         id_token = os.getenv(CYCODE_ID_TOKEN_ENV_VAR_NAME)
 
@@ -65,7 +64,7 @@ class CredentialsManager(BaseFileManager):
         file_content_to_update = {self.CLIENT_ID_FIELD_NAME: client_id, self.CLIENT_SECRET_FIELD_NAME: client_secret}
         self.write_content_to_file(file_content_to_update)
 
-    def get_access_token(self) -> tuple[Optional[str], Optional[float], Optional[JwtCreator]]:
+    def get_access_token(self) -> tuple[str | None, float | None, JwtCreator | None]:
         file_content = self.read_file()
 
         access_token = file_content.get(self.ACCESS_TOKEN_FIELD_NAME)
@@ -79,7 +78,7 @@ class CredentialsManager(BaseFileManager):
         return access_token, expires_in, creator
 
     def update_access_token(
-        self, access_token: Optional[str], expires_in: Optional[float], creator: Optional[JwtCreator]
+        self, access_token: str | None, expires_in: float | None, creator: JwtCreator | None
     ) -> None:
         file_content_to_update = {
             self.ACCESS_TOKEN_FIELD_NAME: access_token,

@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode.cli.models import CliError, CliResult
 from cycode.cli.printers.printer_base import PrinterBase
@@ -21,7 +21,7 @@ class JsonPrinter(PrinterBase):
         self.console.print_json(self.get_data_json(result))
 
     def print_scan_results(
-        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: dict[str, 'CliError'] | None = None
     ) -> None:
         scan_ids = []
         report_urls = []

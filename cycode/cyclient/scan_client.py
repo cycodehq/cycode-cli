@@ -1,6 +1,7 @@
 import json
+from collections.abc import Callable
 from copy import deepcopy
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import requests
@@ -119,7 +120,7 @@ class ScanClient:
         scan_parameters: dict,
         is_git_diff: bool = False,
         is_commit_range: bool = False,
-        on_upload_progress: Optional[Callable[[int, int], None]] = None,
+        on_upload_progress: Callable[[int, int], None] | None = None,
     ) -> models.ScanInitializationResponse:
         response = self.scan_cycode_client.post_multipart(
             url_path=self.get_zipped_file_scan_async_url_path(scan_type),
@@ -145,7 +146,7 @@ class ScanClient:
         url: str,
         fields: dict[str, str],
         zip_file: 'InMemoryZip',
-        on_upload_progress: Optional[Callable[[int, int], None]] = None,
+        on_upload_progress: Callable[[int, int], None] | None = None,
     ) -> None:
         all_files = {key: (None, value) for key, value in fields.items()}
         all_files['file'] = ('multiple_files_scan.zip', zip_file.read(), 'application/octet-stream')
@@ -315,7 +316,7 @@ class ScanClient:
     def parse_detection_rules_response(response: Response) -> list[models.DetectionRule]:
         return models.DetectionRuleSchema().load(response.json(), many=True)
 
-    def get_detection_rules(self, detection_rules_ids: Union[set[str], list[str]]) -> list[models.DetectionRule]:
+    def get_detection_rules(self, detection_rules_ids: set[str] | list[str]) -> list[models.DetectionRule]:
         response = self.scan_cycode_client.get(
             url_path=self.get_detection_rules_path(),
             params={'ids': detection_rules_ids},
@@ -372,7 +373,7 @@ class ScanClient:
         correct_scan_type = self.scan_config.get_async_scan_type(scan_type)
         return f'{self.get_scan_service_url_path(scan_type)}/{correct_scan_type}/configuration'
 
-    def get_scan_configuration(self, scan_type: str, remote_url: Optional[str] = None) -> models.ScanConfiguration:
+    def get_scan_configuration(self, scan_type: str, remote_url: str | None = None) -> models.ScanConfiguration:
         params = {}
         if remote_url:
             params['remote_url'] = remote_url
@@ -385,8 +386,8 @@ class ScanClient:
         return models.ScanConfigurationSchema().load(response.json())
 
     def get_scan_configuration_safe(
-        self, scan_type: str, remote_url: Optional[str] = None
-    ) -> Optional['models.ScanConfiguration']:
+        self, scan_type: str, remote_url: str | None = None
+    ) -> 'models.ScanConfiguration | None':
         try:
             return self.get_scan_configuration(scan_type, remote_url)
         except RequestHttpError as e:

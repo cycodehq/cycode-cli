@@ -8,7 +8,6 @@ agent-agnostic.
 import copy
 import json
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -47,7 +46,7 @@ def is_cycode_hook_entry(entry: dict) -> bool:
     return False
 
 
-def _strip_cycode_from_entry(entry: dict) -> Optional[dict]:
+def _strip_cycode_from_entry(entry: dict) -> dict | None:
     """Remove Cycode hooks from ``entry`` and return the remainder.
 
     Returns ``None`` when nothing useful remains (Cursor-flat Cycode entry, or
@@ -72,7 +71,7 @@ def _strip_cycode_from_entry(entry: dict) -> Optional[dict]:
     return entry
 
 
-def _load_hooks_file(hooks_path: Path) -> Optional[dict]:
+def _load_hooks_file(hooks_path: Path) -> dict | None:
     if not hooks_path.exists():
         return None
     try:
@@ -102,7 +101,7 @@ def _load_policy_dict(policy_path: Path) -> dict:
     return {**copy.deepcopy(DEFAULT_POLICY), **existing}
 
 
-def create_policy_file(scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+def create_policy_file(scope: str, repo_path: Path | None = None) -> tuple[bool, str]:
     """Create or update the ai-guardrails.yaml policy file (operational knobs only).
 
     Enforcement mode and sensitive-path globs are platform-managed; those keys are stripped
@@ -125,7 +124,7 @@ def create_policy_file(scope: str, repo_path: Optional[Path] = None) -> tuple[bo
 def install_hooks(
     ide: IDE,
     scope: str = 'user',
-    repo_path: Optional[Path] = None,
+    repo_path: Path | None = None,
 ) -> tuple[bool, str]:
     """Install Cycode AI guardrails hooks for ``ide``."""
     hooks_path = ide.settings_path(scope, repo_path)
@@ -197,7 +196,7 @@ def _persist_uninstall(hooks_path: Path, existing: dict, modified: bool) -> tupl
     return True, f'Cycode hooks removed from: {hooks_path}'
 
 
-def uninstall_hooks(ide: IDE, scope: str = 'user', repo_path: Optional[Path] = None) -> tuple[bool, str]:
+def uninstall_hooks(ide: IDE, scope: str = 'user', repo_path: Path | None = None) -> tuple[bool, str]:
     """Remove Cycode AI guardrails hooks for ``ide``."""
     hooks_path = ide.settings_path(scope, repo_path)
 
@@ -218,7 +217,7 @@ def uninstall_hooks(ide: IDE, scope: str = 'user', repo_path: Optional[Path] = N
     return True, message
 
 
-def get_hooks_status(ide: IDE, scope: str = 'user', repo_path: Optional[Path] = None) -> dict:
+def get_hooks_status(ide: IDE, scope: str = 'user', repo_path: Path | None = None) -> dict:
     """Return installation status of Cycode hooks for ``ide``."""
     hooks_path = ide.settings_path(scope, repo_path)
 

@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import click
 import requests
@@ -72,7 +72,7 @@ def _perform_commit_range_scan_async(
     to_commit_zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
-    timeout: Optional[int] = None,
+    timeout: int | None = None,
 ) -> ZippedFileScanResult:
     scan_async_result = cycode_client.commit_range_scan_async(
         from_commit_zipped_documents, to_commit_zipped_documents, scan_type, scan_parameters
@@ -90,7 +90,7 @@ def _perform_commit_range_scan_v4_async(
     to_commit_zipped_documents: 'InMemoryZip',
     scan_type: str,
     scan_parameters: dict,
-    timeout: Optional[int] = None,
+    timeout: int | None = None,
 ) -> ZippedFileScanResult:
     from_upload_link = cycode_client.get_upload_link(scan_type)
     logger.debug('Got from-commit upload link, %s', {'upload_id': from_upload_link.upload_id})
@@ -120,8 +120,8 @@ def _scan_commit_range_documents(
     ctx: typer.Context,
     from_documents_to_scan: list[Document],
     to_documents_to_scan: list[Document],
-    scan_parameters: Optional[dict] = None,
-    timeout: Optional[int] = None,
+    scan_parameters: dict | None = None,
+    timeout: int | None = None,
 ) -> None:
     cycode_client = ctx.obj['client']
     scan_type = ctx.obj['scan_type']
@@ -265,7 +265,7 @@ def _scan_sca_commit_range(ctx: typer.Context, repo_path: str, commit_range: str
 
 
 def _scan_secret_commit_range(
-    ctx: typer.Context, repo_path: str, commit_range: str, max_commits_count: Optional[int] = None
+    ctx: typer.Context, repo_path: str, commit_range: str, max_commits_count: int | None = None
 ) -> None:
     commit_diff_documents_to_scan = collect_commit_range_diff_documents(ctx, repo_path, commit_range, max_commits_count)
     diff_documents_to_scan = excluder.exclude_irrelevant_documents_to_scan(
@@ -329,7 +329,7 @@ def _scan_sca_pre_commit(
     repo_path: str,
     base_ref: str = consts.GIT_HEAD_COMMIT_REV,
     include_unstaged: bool = False,
-    paths: Optional[list[str]] = None,
+    paths: list[str] | None = None,
 ) -> None:
     scan_parameters = get_scan_parameters(ctx, (repo_path,))
 
@@ -367,7 +367,7 @@ def _scan_secret_pre_commit(
     repo_path: str,
     base_ref: str = consts.GIT_HEAD_COMMIT_REV,
     include_unstaged: bool = False,
-    paths: Optional[list[str]] = None,
+    paths: list[str] | None = None,
 ) -> None:
     # collect_file_contents=False: the secret scan only ever uses diff_documents below, so skip
     # building from_ref_documents/working_copy_documents (a disk read per changed file it would
@@ -395,7 +395,7 @@ def _scan_sast_pre_commit(
     repo_path: str,
     base_ref: str = consts.GIT_HEAD_COMMIT_REV,
     include_unstaged: bool = False,
-    paths: Optional[list[str]] = None,
+    paths: list[str] | None = None,
     **_,
 ) -> None:
     scan_parameters = get_scan_parameters(ctx, (repo_path,))
@@ -435,7 +435,7 @@ def scan_pre_commit(
     repo_path: str,
     base_ref: str = consts.GIT_HEAD_COMMIT_REV,
     include_unstaged: bool = False,
-    paths: Optional[list[str]] = None,
+    paths: list[str] | None = None,
 ) -> None:
     scan_type = ctx.obj['scan_type']
     if scan_type not in _SCAN_TYPE_TO_PRE_COMMIT_HANDLER:

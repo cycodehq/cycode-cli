@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import click
 import typer
@@ -121,7 +121,7 @@ def scan_command(
         ),
     ] = None,
     export_file: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             '--export-file',
             help='Export file. Path to the file where the export will be saved.',

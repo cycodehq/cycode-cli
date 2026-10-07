@@ -7,15 +7,16 @@ supplies the two callables that vary (``locate_dir`` + ``read_plugin``).
 """
 
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails Plugins')
 
 
-def resolve_cached_plugin_dir(cache_root: Path, marketplace: str, plugin_name: str) -> Optional[Path]:
+def resolve_cached_plugin_dir(cache_root: Path, marketplace: str, plugin_name: str) -> Path | None:
     """Find ``<cache_root>/<marketplace>/<plugin>/<version-or-hash>/``.
 
     Both Claude Code and Codex cache installed plugin content in this layout (the trailing
@@ -31,7 +32,7 @@ def resolve_cached_plugin_dir(cache_root: Path, marketplace: str, plugin_name: s
     return max(candidates, key=lambda d: (d.stat().st_mtime, d.name))
 
 
-def load_plugin_json(path: Path) -> Optional[dict]:
+def load_plugin_json(path: Path) -> dict | None:
     """Load a JSON file inside a plugin directory; None if missing or invalid."""
     if not path.exists():
         return None
@@ -42,7 +43,7 @@ def load_plugin_json(path: Path) -> Optional[dict]:
         return None
 
 
-def build_global_config_files(path: Path, mcp_servers: Optional[dict]) -> list[dict]:
+def build_global_config_files(path: Path, mcp_servers: dict | None) -> list[dict]:
     """Wrap a global (non-plugin) MCP config into the session-context file shape.
 
     Returns ``[{"path": <full path>, "content": <{"mcpServers": ...} JSON>}]`` when
@@ -58,7 +59,7 @@ def build_global_config_files(path: Path, mcp_servers: Optional[dict]) -> list[d
 def walk_enabled_plugins(
     plugin_entries: dict[str, Any],
     is_enabled: Callable[[Any], bool],
-    locate_dir: Callable[[str, str], Optional[Path]],
+    locate_dir: Callable[[str, str], Path | None],
     read_plugin: Callable[[Path], tuple[dict, dict]],
 ) -> dict:
     """Iterate enabled plugins and build their inventory metadata.

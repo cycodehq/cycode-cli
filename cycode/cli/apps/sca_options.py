@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -25,7 +25,7 @@ GradleAllSubProjectsOption = Annotated[
 ]
 
 MavenSettingsFileOption = Annotated[
-    Optional[Path],
+    Path | None,
     typer.Option(
         '--maven-settings-file',
         show_default=False,
@@ -49,7 +49,7 @@ def apply_sca_restore_options_to_context(
     ctx: typer.Context,
     no_restore: bool,
     gradle_all_sub_projects: bool,
-    maven_settings_file: Optional[Path],
+    maven_settings_file: Path | None,
     stop_on_error: bool = False,
 ) -> None:
     ctx.obj['no_restore'] = no_restore

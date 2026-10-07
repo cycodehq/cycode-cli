@@ -1,7 +1,7 @@
 import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -51,7 +51,7 @@ class PrinterBase(ABC):
 
     @abstractmethod
     def print_scan_results(
-        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: dict[str, 'CliError'] | None = None
     ) -> None:
         pass
 
@@ -63,7 +63,7 @@ class PrinterBase(ABC):
     def print_error(self, error: CliError) -> None:
         pass
 
-    def print_exception(self, e: Optional[BaseException] = None) -> None:
+    def print_exception(self, e: BaseException | None = None) -> None:
         """We are printing it in stderr so, we don't care about supporting JSON and TABLE outputs.
 
         Note:

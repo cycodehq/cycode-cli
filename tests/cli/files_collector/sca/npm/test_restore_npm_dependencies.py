@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -150,8 +149,8 @@ class TestCleanup:
         def side_effect(
             commands: list,
             timeout: int,
-            output_file_path: Optional[str] = None,
-            working_directory: Optional[str] = None,
+            output_file_path: str | None = None,
+            working_directory: str | None = None,
         ) -> str:
             lock_path.write_text('{"lockfileVersion": 3}')
             return 'output'
@@ -213,7 +212,7 @@ class TestIsProjectInNpmWorkspace:
         return Document(str(manifest), manifest.read_text(), absolute_path=str(manifest))
 
     @staticmethod
-    def _write_workspace_root(root: Path, *, lockfile_members: Optional[list] = None) -> None:
+    def _write_workspace_root(root: Path, *, lockfile_members: list | None = None) -> None:
         (root / 'package.json').write_text('{"name": "root", "workspaces": ["frontend"]}')
         if lockfile_members is None:
             return

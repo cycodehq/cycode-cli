@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 
 class ColumnInfoBuilder:
@@ -14,7 +14,7 @@ class ColumnInfoBuilder:
 class ColumnInfo(NamedTuple):
     name: str
     index: int  # Represents the order of the columns, starting from the left
-    column_opts: Optional[dict] = None
+    column_opts: dict | None = None
 
     def __hash__(self) -> int:
         return hash((self.name, self.index))

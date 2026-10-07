@@ -1,6 +1,6 @@
 import os
 from collections.abc import Hashable
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.cli.user_settings.base_file_manager import BaseFileManager
@@ -30,26 +30,26 @@ class ConfigFileManager(BaseFileManager):
     def __init__(self, path: Union['Path', str]) -> None:
         self.path = path
 
-    def get_api_url(self) -> Optional[Any]:
+    def get_api_url(self) -> Any | None:
         return self._get_value_from_environment_section(self.API_URL_FIELD_NAME)
 
-    def get_app_url(self) -> Optional[Any]:
+    def get_app_url(self) -> Any | None:
         return self._get_value_from_environment_section(self.APP_URL_FIELD_NAME)
 
-    def get_verbose_flag(self) -> Optional[Any]:
+    def get_verbose_flag(self) -> Any | None:
         return self._get_value_from_environment_section(self.VERBOSE_FIELD_NAME)
 
     def get_exclusions_by_scan_type(self, scan_type: str) -> dict[Hashable, Any]:
         exclusions_section = self._get_section(self.EXCLUSIONS_SECTION_NAME)
         return exclusions_section.get(scan_type, {})
 
-    def get_max_commits(self, command_scan_type: str) -> Optional[Any]:
+    def get_max_commits(self, command_scan_type: str) -> Any | None:
         return self._get_value_from_command_scan_type_configuration(command_scan_type, self.MAX_COMMITS_FIELD_NAME)
 
-    def get_command_timeout(self, command_scan_type: str) -> Optional[Any]:
+    def get_command_timeout(self, command_scan_type: str) -> Any | None:
         return self._get_value_from_command_scan_type_configuration(command_scan_type, self.COMMAND_TIMEOUT_FIELD_NAME)
 
-    def get_exclude_detections_in_deleted_lines(self, command_scan_type: str) -> Optional[Any]:
+    def get_exclude_detections_in_deleted_lines(self, command_scan_type: str) -> Any | None:
         return self._get_value_from_command_scan_type_configuration(
             command_scan_type, self.EXCLUDE_DETECTIONS_IN_DELETED_LINES
         )
@@ -62,7 +62,7 @@ class ConfigFileManager(BaseFileManager):
         update_data = {self.ENVIRONMENT_SECTION_NAME: {self.APP_URL_FIELD_NAME: app_url}}
         self.write_content_to_file(update_data)
 
-    def get_installation_id(self) -> Optional[str]:
+    def get_installation_id(self) -> str | None:
         return self._get_value_from_environment_section(self.INSTALLATION_ID_FIELD_NAME)
 
     def update_installation_id(self, installation_id: str) -> None:
@@ -103,7 +103,7 @@ class ConfigFileManager(BaseFileManager):
         scan_type_exclusions = self.get_exclusions_by_scan_type(scan_type)
         return scan_type_exclusions.get(exclusion_type, [])
 
-    def _get_value_from_environment_section(self, field_name: str) -> Optional[Any]:
+    def _get_value_from_environment_section(self, field_name: str) -> Any | None:
         environment_section = self._get_section(self.ENVIRONMENT_SECTION_NAME)
         return environment_section.get(field_name)
 
@@ -111,7 +111,7 @@ class ConfigFileManager(BaseFileManager):
         scan_section = self._get_section(self.SCAN_SECTION_NAME)
         return scan_section.get(command_scan_type, {})
 
-    def _get_value_from_command_scan_type_configuration(self, command_scan_type: str, field_name: str) -> Optional[Any]:
+    def _get_value_from_command_scan_type_configuration(self, command_scan_type: str, field_name: str) -> Any | None:
         command_scan_type_configuration = self._get_scan_configuration_by_scan_type(command_scan_type)
         return command_scan_type_configuration.get(field_name)
 

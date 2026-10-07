@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 def _get_code_segment_start_line(detection_line: int, lines_to_display_before: int) -> int:
     start_line = detection_line - lines_to_display_before
-    return 0 if start_line < 0 else start_line
+    return max(start_line, 0)
 
 
 def get_detection_line(scan_type: str, detection: 'Detection') -> int:

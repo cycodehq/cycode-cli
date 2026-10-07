@@ -1,6 +1,6 @@
 """Client for AI Security Manager service."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cyclient.cycode_client_base import CycodeClientBase
@@ -32,7 +32,7 @@ class AISecurityManagerClient:
             return f'{service_name}/{path}'
         return path
 
-    def create_conversation(self, payload: 'AIHookPayload') -> Optional[str]:
+    def create_conversation(self, payload: 'AIHookPayload') -> str | None:
         """Creates an AI conversation from hook payload."""
         conversation_id = payload.conversation_id
         if not conversation_id:
@@ -63,10 +63,10 @@ class AISecurityManagerClient:
         payload: 'AIHookPayload',
         event_type: 'AiHookEventType',
         outcome: 'AIHookOutcome',
-        scan_id: Optional[str] = None,
-        block_reason: Optional['BlockReason'] = None,
-        error_message: Optional[str] = None,
-        file_path: Optional[str] = None,
+        scan_id: str | None = None,
+        block_reason: 'BlockReason | None' = None,
+        error_message: str | None = None,
+        file_path: str | None = None,
     ) -> None:
         """Create an AI hook event from hook payload."""
         conversation_id = payload.conversation_id
@@ -95,7 +95,7 @@ class AISecurityManagerClient:
             logger.debug('Failed to create AI hook event', exc_info=e)
             # Don't fail the hook if tracking fails
 
-    def get_resolved_guardrails(self) -> Optional[dict]:
+    def get_resolved_guardrails(self) -> dict | None:
         """Fetch the tenant's resolved guardrail config (per-agent modes + sensitive-path globs)."""
         try:
             response = self.client.get(self._build_endpoint_path(self._RESOLVED_GUARDRAILS_PATH))
@@ -106,16 +106,16 @@ class AISecurityManagerClient:
 
     def report_session_context(
         self,
-        hostname: Optional[str] = None,
-        platform_name: Optional[str] = None,
-        os_version: Optional[str] = None,
-        serial_number: Optional[str] = None,
-        last_login_user: Optional[str] = None,
-        config_files: Optional[list[dict]] = None,
-        enabled_plugins: Optional[dict] = None,
-        skill_files: Optional[list[dict]] = None,
-        user_email: Optional[str] = None,
-    ) -> Optional[SessionContextResponse]:
+        hostname: str | None = None,
+        platform_name: str | None = None,
+        os_version: str | None = None,
+        serial_number: str | None = None,
+        last_login_user: str | None = None,
+        config_files: list[dict] | None = None,
+        enabled_plugins: dict | None = None,
+        skill_files: list[dict] | None = None,
+        user_email: str | None = None,
+    ) -> SessionContextResponse | None:
         """Report session context to the backend. Returns None when the report was not accepted."""
         body: dict = {
             'hostname': hostname,

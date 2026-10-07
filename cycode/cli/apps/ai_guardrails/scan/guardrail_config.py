@@ -10,7 +10,6 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from cycode.cli.apps.ai_guardrails.consts import GuardrailCellMode, PolicyMode
 from cycode.cli.apps.ai_guardrails.scan.consts import DEFAULT_SENSITIVE_PATH_GLOBS
@@ -60,7 +59,7 @@ def _default_sensitive_globs() -> list:
 class GuardrailConfig:
     payload: dict
     fetched_at: float
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
     _guardrails: dict = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -77,7 +76,7 @@ class GuardrailConfig:
     def _agents(self, guardrail_key: str) -> dict:
         return (self._guardrails.get(guardrail_key) or {}).get('agents') or {}
 
-    def mode_for(self, guardrail_key: str, ide_name: Optional[str]) -> str:
+    def mode_for(self, guardrail_key: str, ide_name: str | None) -> str:
         """The platform keys the cells by our --ide names, so the lookup is direct."""
         agents = self._agents(guardrail_key)
         return str(agents.get((ide_name or '').lower(), default_mode_for(guardrail_key))).lower()
@@ -85,19 +84,19 @@ class GuardrailConfig:
     def is_off_for_every_agent(self, guardrail_key: str) -> bool:
         return all(str(mode).lower() == GuardrailCellMode.OFF for mode in self._agents(guardrail_key).values())
 
-    def _modes_for_event(self, event_name: str, ide_name: Optional[str]) -> list:
+    def _modes_for_event(self, event_name: str, ide_name: str | None) -> list:
         return [
             self.mode_for(key, ide_name)
             for key, guardrail in self._guardrails.items()
             if str(guardrail.get('event_type', '')).lower() == str(event_name).lower()
         ]
 
-    def is_event_off(self, event_name: str, ide_name: Optional[str]) -> bool:
+    def is_event_off(self, event_name: str, ide_name: str | None) -> bool:
         """Every guardrail for this event is Off - skip the scan entirely."""
         modes = self._modes_for_event(event_name, ide_name)
         return bool(modes) and all(mode == GuardrailCellMode.OFF for mode in modes)
 
-    def can_event_block(self, event_name: str, ide_name: Optional[str]) -> bool:
+    def can_event_block(self, event_name: str, ide_name: str | None) -> bool:
         """At least one guardrail for this event is in Block mode - the scan must stay synchronous."""
         return GuardrailCellMode.BLOCK in self._modes_for_event(event_name, ide_name)
 
@@ -109,12 +108,12 @@ class GuardrailConfig:
     def is_expired(self) -> bool:
         return time.time() - self.fetched_at > self.ttl_seconds
 
-    def needs_refresh(self, tenant_id: Optional[str]) -> bool:
+    def needs_refresh(self, tenant_id: str | None) -> bool:
         """Expired, or fetched for another tenant (the user switched tenants since)."""
         return self.is_expired() or self.tenant_id != tenant_id
 
 
-def apply_platform_config(policy: dict, config: Optional[GuardrailConfig], ide_name: Optional[str]) -> None:
+def apply_platform_config(policy: dict, config: GuardrailConfig | None, ide_name: str | None) -> None:
     """Overlay the platform-owned enforcement config onto the local knobs-only policy.
 
     The platform is the only mode source: no cache (cold start) means the built-in defaults -
@@ -149,7 +148,7 @@ def apply_platform_config(policy: dict, config: Optional[GuardrailConfig], ide_n
     mcp['server_action'] = action(BlockReason.UNAUTHORIZED_MCP_SERVER)
 
 
-def save_guardrail_config(payload: dict, tenant_id: Optional[str]) -> None:
+def save_guardrail_config(payload: dict, tenant_id: str | None) -> None:
     """Persist a fetched resolved config; a failed write just leaves the previous cache in place."""
     path = get_config_cache_path()
     content = {'fetched_at': time.time(), 'tenant_id': tenant_id, 'payload': payload}
@@ -160,7 +159,7 @@ def save_guardrail_config(payload: dict, tenant_id: Optional[str]) -> None:
         logger.debug('Failed to save guardrail config cache', exc_info=e)
 
 
-def load_guardrail_config() -> Optional[GuardrailConfig]:
+def load_guardrail_config() -> GuardrailConfig | None:
     """The cached platform config, or None when it is absent or corrupt (quarantined)."""
     path = get_config_cache_path()
     if not path.exists():
@@ -171,7 +170,7 @@ def load_guardrail_config() -> Optional[GuardrailConfig]:
             content = json.load(file)
         payload = content['payload']
         if not isinstance(payload, dict):
-            raise ValueError('payload is not an object')
+            raise TypeError('payload is not an object')
         return GuardrailConfig(
             payload=payload, fetched_at=float(content['fetched_at']), tenant_id=content.get('tenant_id')
         )
