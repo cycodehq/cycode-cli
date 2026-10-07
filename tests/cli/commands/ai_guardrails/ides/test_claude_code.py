@@ -12,6 +12,7 @@ from cycode.cli.apps.ai_guardrails.ides.claude_code import (
     ClaudeCode,
     _email_from_config,
     _read_claude_plugin,
+    _resolve_mcp_server_name,
     load_claude_config,
     resolve_plugins,
 )
@@ -111,18 +112,75 @@ def test_parse_file_read_payload() -> None:
 
 def test_parse_mcp_execution_payload() -> None:
     args = {'resource_type': 'merge_request', 'parent_id': 'org/repo', 'resource_id': '4'}
-    unified = ClaudeCode().parse_hook_payload(
-        {
-            'hook_event_name': 'PreToolUse',
-            'tool_name': 'mcp__gitlab__discussion_list',
-            'tool_input': args,
-        }
-    )
+    with (
+        patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_config', return_value=None),
+        patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings', return_value=None),
+    ):
+        unified = ClaudeCode().parse_hook_payload(
+            {
+                'hook_event_name': 'PreToolUse',
+                'tool_name': 'mcp__gitlab__discussion_list',
+                'tool_input': args,
+            }
+        )
 
     assert unified.event_name == AiHookEventType.MCP_EXECUTION
     assert unified.mcp_server_name == 'gitlab'
     assert unified.mcp_tool_name == 'discussion_list'
     assert unified.mcp_arguments == args
+
+
+def _create_claude_plugin(fs: FakeFilesystem, plugin: str, servers: list[str]) -> dict:
+    plugin_dir = Path.home() / '.claude' / 'plugins' / 'cache' / 'dummy-marketplace' / plugin / '1.0.0'
+    fs.create_file(
+        plugin_dir / '.mcp.json',
+        contents=json.dumps({'mcpServers': {server: {'command': 'dummy-command'} for server in servers}}),
+    )
+    return {'enabledPlugins': {f'{plugin}@dummy-marketplace': True}}
+
+
+def test_resolve_mcp_server_name_from_user_and_project_config(fs: FakeFilesystem) -> None:
+    fs.create_file('/repo/.mcp.json', contents=json.dumps({'mcpServers': {'repo.server': {}}}))
+    config = {'mcpServers': {'my.server': {}}, 'projects': {'/repo': {'mcpServers': {'Project Server': {}}}}}
+
+    assert _resolve_mcp_server_name('my_server', config, None) == 'my.server'
+    assert _resolve_mcp_server_name('Project_Server', config, '/repo') == 'Project Server'
+    assert _resolve_mcp_server_name('repo_server', config, '/repo') == 'repo.server'
+    assert _resolve_mcp_server_name('Project_Server', config, None) == 'Project_Server'
+
+
+def test_resolve_mcp_server_name_from_plugin(fs: FakeFilesystem) -> None:
+    settings = _create_claude_plugin(fs, 'cycode-dev-dev', ['sentry'])
+    config = {'mcpServers': {'dev_sentry': {}}}
+
+    with patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings', return_value=settings):
+        assert _resolve_mcp_server_name('plugin_cycode-dev-dev_sentry', config, None) == 'sentry'
+        assert _resolve_mcp_server_name('dev_sentry', config, None) == 'dev_sentry'
+        assert _resolve_mcp_server_name('plugin_cycode-dev-dev_unknown', config, None) == (
+            'plugin_cycode-dev-dev_unknown'
+        )
+
+
+def test_parse_mcp_execution_payload_resolves_plugin_server(fs: FakeFilesystem) -> None:
+    settings = _create_claude_plugin(fs, 'cycode-dev', ['sentry'])
+
+    with (
+        patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_config', return_value=None),
+        patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings', return_value=settings),
+    ):
+        unified = ClaudeCode().parse_hook_payload(
+            {'hook_event_name': 'PreToolUse', 'tool_name': 'mcp__plugin_cycode-dev_sentry__search', 'tool_input': {}}
+        )
+
+    assert unified.mcp_server_name == 'sentry'
+    assert unified.mcp_tool_name == 'search'
+
+
+def test_parse_non_mcp_payload_skips_server_resolution() -> None:
+    with patch('cycode.cli.apps.ai_guardrails.ides.claude_code.load_claude_settings') as mock_settings:
+        ClaudeCode().parse_hook_payload({'hook_event_name': 'PreToolUse', 'tool_name': 'Read', 'tool_input': {}})
+
+    mock_settings.assert_not_called()
 
 
 def test_parse_empty_payload_defaults() -> None:

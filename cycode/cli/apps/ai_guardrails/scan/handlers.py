@@ -326,10 +326,6 @@ def _check_mcp_server_authorization(payload: AIHookPayload, policy: dict) -> Opt
         return None
 
     server = statuses.match(alias)
-    if server is not None and server.alias.lower() != alias.lower():
-        # Report the alias the platform stores, not the normalized or plugin-namespaced one.
-        payload.mcp_server_name = server.alias
-
     status = server.status if server is not None else None
     if not is_enforced(status):
         return None

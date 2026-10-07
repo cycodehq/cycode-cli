@@ -720,21 +720,6 @@ def test_unauthorized_mcp_server_off_never_reads_statuses(
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
-def test_plugin_namespaced_server_is_reported_under_the_platform_alias(
-    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
-) -> None:
-    mock_statuses.return_value = _cached_statuses(('sentry', 'Unauthorized'))
-    payload = _mcp_payload('plugin_cycode-dev_sentry')
-
-    result = handle_before_mcp_execution(mock_ctx, payload, _server_check_policy(default_policy))
-
-    assert result.action == DecisionAction.DENY
-    assert "'sentry'" in result.user_message
-    assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[0].mcp_server_name == 'sentry'
-
-
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
 def test_args_scan_off_skips_the_scan_when_only_the_server_check_is_on(
     mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
 ) -> None:

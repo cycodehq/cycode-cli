@@ -4,7 +4,6 @@ An absent or corrupt cache means no status is known, so the guardrail fails open
 """
 
 import json
-import re
 import time
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
@@ -19,9 +18,6 @@ from cycode.logger import get_logger
 logger = get_logger('AI Guardrails')
 
 MCP_SERVER_STATUSES_FILE_NAME = 'ai-guardrails-mcp-servers.json'
-
-# Claude Code names plugin servers `plugin_<plugin>_<server>` in tool names; the platform stores `<server>`.
-_PLUGIN_ALIAS_PREFIX = 'plugin_'
 
 
 class McpServerAuthorizationStatus(str, Enum):
@@ -49,11 +45,6 @@ def parse_status(raw_status: object) -> McpServerAuthorizationStatus:
         if status.value.lower() == lowered:
             return status
     return McpServerAuthorizationStatus.UNREVIEWED
-
-
-def _normalize_alias(alias: str) -> str:
-    """Mirrors how Claude Code sanitizes a config name inside a tool name."""
-    return re.sub(r'[^a-z0-9_-]', '_', alias.lower())
 
 
 def is_enforced(status: Optional[McpServerAuthorizationStatus]) -> bool:
@@ -88,20 +79,7 @@ class McpServerStatuses:
                 self._by_alias[key] = McpServerMatch(alias, status)
 
     def match(self, alias: str) -> Optional[McpServerMatch]:
-        exact = self._by_alias.get(alias.lower())
-        if exact is not None:
-            return exact
-
-        wanted = _normalize_alias(alias)
-        candidates = [(_normalize_alias(key), known) for key, known in self._by_alias.items()]
-        normalized = [known for key, known in candidates if key == wanted]
-        if not normalized and wanted.startswith(_PLUGIN_ALIAS_PREFIX):
-            # The plugin name may itself contain '_', so the server is the longest known suffix.
-            suffixes = [(len(key), known) for key, known in candidates if wanted.endswith(f'_{key}')]
-            longest = max((length for length, _ in suffixes), default=None)
-            normalized = [known for length, known in suffixes if length == longest]
-
-        return max(normalized, key=lambda known: _RESTRICTIVENESS[known.status], default=None)
+        return self._by_alias.get(alias.lower())
 
     def is_expired(self) -> bool:
         return time.time() - self.fetched_at > self.ttl_seconds

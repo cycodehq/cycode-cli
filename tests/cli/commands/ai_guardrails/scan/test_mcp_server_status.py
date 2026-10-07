@@ -88,28 +88,6 @@ def test_the_most_restrictive_status_wins_for_one_alias() -> None:
     assert statuses.match('notion').status == _UNREVIEWED
 
 
-def test_match_normalized_name() -> None:
-    # Claude Code turns characters outside [A-Za-z0-9_-] into '_' in tool names.
-    match = _statuses(('my.server', 'Unauthorized')).match('my_server')
-
-    assert match is not None
-    assert match.alias == 'my.server'
-
-
-def test_match_plugin_namespaced_name_by_longest_server_suffix() -> None:
-    statuses = _statuses(('sentry', 'Authorized'), ('dev_sentry', 'Unauthorized'), ('other', 'Unauthorized'))
-
-    match = statuses.match('plugin_cycode-dev_sentry')
-    assert match is not None
-    assert match.alias == 'sentry'
-
-    match = statuses.match('plugin_cycode_dev_sentry')
-    assert match is not None
-    assert match.alias == 'dev_sentry'
-
-    assert statuses.match('plugin_cycode-dev_unknown') is None
-
-
 def test_rows_without_an_alias_are_ignored() -> None:
     statuses = McpServerStatuses(servers=[{'status': 'Unauthorized'}, 'garbage', {'alias': ''}], fetched_at=time.time())
     assert statuses.match('') is None

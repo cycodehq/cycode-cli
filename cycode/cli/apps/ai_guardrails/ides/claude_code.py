@@ -1,6 +1,7 @@
 """Claude Code IDE integration for AI guardrails."""
 
 import json
+import re
 from collections.abc import Iterator
 from copy import deepcopy
 from pathlib import Path
@@ -253,6 +254,41 @@ def resolve_plugins(settings: dict) -> dict:
     )
 
 
+def _sanitize_mcp_name(name: str) -> str:
+    """Mirrors how Claude Code sanitizes a server name inside a tool name."""
+    return re.sub(r'[^a-z0-9_-]', '_', name.lower())
+
+
+def _local_mcp_servers(config: Optional[dict], cwd: Optional[str]) -> Iterator[tuple[str, str]]:
+    """Yield ``(name as Claude Code namespaces it, config key)`` for each locally configured MCP server."""
+    sources = []
+    if config:
+        sources.append(get_mcp_servers(config))
+        if cwd:
+            sources.append(((config.get('projects') or {}).get(cwd) or {}).get('mcpServers'))
+    if cwd:
+        sources.append((load_plugin_json(Path(cwd) / '.mcp.json') or {}).get('mcpServers'))
+    for servers in sources:
+        if isinstance(servers, dict):
+            for name in servers:
+                yield name, name
+
+    settings = load_claude_settings()
+    for plugin_key, entry in (resolve_plugins(settings) if settings else {}).items():
+        plugin_name = plugin_key.split('@', 1)[0]
+        for server in entry.get('mcp_server_names') or []:
+            yield f'plugin_{plugin_name}_{server}', server
+
+
+def _resolve_mcp_server_name(server: str, config: Optional[dict], cwd: Optional[str]) -> str:
+    """Map the server segment of ``mcp__<server>__<tool>`` back to its config key; unknown names pass through."""
+    wanted = _sanitize_mcp_name(server)
+    for namespaced, name in _local_mcp_servers(config, cwd):
+        if _sanitize_mcp_name(namespaced) == wanted:
+            return name
+    return server
+
+
 # --- IDE integration ----------------------------------------------------------
 
 
@@ -339,6 +375,8 @@ class ClaudeCode(IDE):
 
         config = load_claude_config()
         ide_user_email = _email_from_config(config) if config else None
+        if mcp_server_name:
+            mcp_server_name = _resolve_mcp_server_name(mcp_server_name, config, raw_payload.get('cwd'))
 
         return AIHookPayload(
             event_name=canonical_event,
