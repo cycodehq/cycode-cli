@@ -68,29 +68,25 @@ def test_is_enforced(status: Optional[McpServerAuthorizationStatus], expected: b
     assert is_enforced(status) is expected
 
 
-def test_match_is_case_insensitive_and_returns_the_stored_alias() -> None:
-    match = _statuses(('GitHub', 'Unauthorized')).match('github')
-
-    assert match is not None
-    assert match.alias == 'GitHub'
-    assert match.status == _UNAUTHORIZED
+def test_status_of_is_case_insensitive() -> None:
+    assert _statuses(('GitHub', 'Unauthorized')).status_of('github') == _UNAUTHORIZED
 
 
-def test_match_unknown_alias_returns_none() -> None:
-    assert _statuses(('github', 'Authorized')).match('notion') is None
+def test_status_of_unknown_alias_returns_none() -> None:
+    assert _statuses(('github', 'Authorized')).status_of('notion') is None
 
 
 def test_the_most_restrictive_status_wins_for_one_alias() -> None:
     statuses = _statuses(('github', 'Authorized'), ('github', 'Unauthorized'), ('github', 'Unreviewed'))
-    assert statuses.match('github').status == _UNAUTHORIZED
+    assert statuses.status_of('github') == _UNAUTHORIZED
 
     statuses = _statuses(('notion', 'Authorized'), ('Notion', 'Unreviewed'))
-    assert statuses.match('notion').status == _UNREVIEWED
+    assert statuses.status_of('notion') == _UNREVIEWED
 
 
 def test_rows_without_an_alias_are_ignored() -> None:
     statuses = McpServerStatuses(servers=[{'status': 'Unauthorized'}, 'garbage', {'alias': ''}], fetched_at=time.time())
-    assert statuses.match('') is None
+    assert statuses.status_of('') is None
 
 
 def test_save_and_load_round_trip() -> None:
@@ -99,7 +95,7 @@ def test_save_and_load_round_trip() -> None:
     statuses = load_mcp_server_statuses()
 
     assert statuses is not None
-    assert statuses.match('github').status == _UNAUTHORIZED
+    assert statuses.status_of('github') == _UNAUTHORIZED
     assert statuses.ttl_seconds == 60
     assert statuses.needs_refresh('tenant-a') is False
     assert statuses.needs_refresh('tenant-b') is True

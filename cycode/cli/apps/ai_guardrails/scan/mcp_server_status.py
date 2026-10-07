@@ -8,7 +8,7 @@ import time
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Optional
 
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import DEFAULT_TTL_SECONDS
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
@@ -52,11 +52,6 @@ def is_enforced(status: Optional[McpServerAuthorizationStatus]) -> bool:
     return status == McpServerAuthorizationStatus.UNAUTHORIZED
 
 
-class McpServerMatch(NamedTuple):
-    alias: str  # as the platform stores it
-    status: McpServerAuthorizationStatus
-
-
 @dataclass
 class McpServerStatuses:
     servers: InitVar[list]
@@ -71,14 +66,13 @@ class McpServerStatuses:
         for server in servers:
             if not isinstance(server, dict) or not server.get('alias'):
                 continue
-            alias = str(server['alias'])
-            key = alias.lower()
+            key = str(server['alias']).lower()
             status = parse_status(server.get('status'))
             known = self._by_alias.get(key)
-            if known is None or _RESTRICTIVENESS[status] > _RESTRICTIVENESS[known.status]:
-                self._by_alias[key] = McpServerMatch(alias, status)
+            if known is None or _RESTRICTIVENESS[status] > _RESTRICTIVENESS[known]:
+                self._by_alias[key] = status
 
-    def match(self, alias: str) -> Optional[McpServerMatch]:
+    def status_of(self, alias: str) -> Optional[McpServerAuthorizationStatus]:
         return self._by_alias.get(alias.lower())
 
     def is_expired(self) -> bool:

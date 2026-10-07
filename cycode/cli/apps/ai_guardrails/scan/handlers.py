@@ -315,8 +315,8 @@ def _check_mcp_server_authorization(payload: AIHookPayload, policy: dict) -> Opt
     if not get_policy_value(mcp_config, 'check_server', default=False):
         return None
 
-    alias = payload.mcp_server_name
-    if not alias:
+    server_name = payload.mcp_server_name
+    if not server_name:
         logger.debug('No MCP server name in the payload; skipping the server authorization check')
         return None
 
@@ -325,16 +325,11 @@ def _check_mcp_server_authorization(payload: AIHookPayload, policy: dict) -> Opt
         logger.debug('No cached MCP server statuses; skipping the server authorization check')
         return None
 
-    server = statuses.match(alias)
-    status = server.status if server is not None else None
+    status = statuses.status_of(server_name)
     if not is_enforced(status):
         return None
 
-    logger.debug(
-        'MCP server is not authorized, %s',
-        {'mcp_server_name': payload.mcp_server_name, 'status': status},
-    )
-    server_name = payload.mcp_server_name
+    logger.debug('MCP server is not authorized, %s', {'mcp_server_name': server_name, 'status': status})
     return _PreScanFinding(
         block_reason=BlockReason.UNAUTHORIZED_MCP_SERVER,
         mode=get_effective_mode(mcp_config, action_key='server_action'),

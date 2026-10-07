@@ -283,6 +283,15 @@ def _collect_installed_plugins() -> dict:
 # --- MCP tool-name splitting ------------------------------------------------------
 
 
+def _global_mcp_server_maps() -> list[tuple[Path, object]]:
+    """``(path, servers)`` of each runtime's global MCP config: VS Code's ``servers``, the agent's ``mcpServers``."""
+    agent_config_path = _copilot_home() / _AGENT_MCP_CONFIG_FILENAME
+    return [
+        (_vscode_mcp_config_path(), (_load_vscode_mcp_config() or {}).get('servers')),
+        (agent_config_path, (_load_jsonc(agent_config_path) or {}).get('mcpServers')),
+    ]
+
+
 def _known_mcp_server_names() -> list[str]:
     """Config-declared MCP server names, across both runtimes' config files.
 
@@ -293,15 +302,7 @@ def _known_mcp_server_names() -> list[str]:
     Best-effort inventory: servers contributed by extensions, ``chat.mcp.discovery``
     imports, dev containers, or non-default profiles are not discoverable from disk.
     """
-    config = _load_vscode_mcp_config()
-    servers = (config or {}).get('servers')
-    names = list(servers.keys()) if isinstance(servers, dict) else []
-
-    agent_config = _load_jsonc(_copilot_home() / _AGENT_MCP_CONFIG_FILENAME) or {}
-    agent_servers = agent_config.get('mcpServers')
-    if isinstance(agent_servers, dict):
-        names.extend(agent_servers.keys())
-
+    names = [name for _, servers in _global_mcp_server_maps() if isinstance(servers, dict) for name in servers]
     for plugin in _collect_installed_plugins().values():
         names.extend(plugin.get('mcp_server_names') or [])
     return names
@@ -486,14 +487,8 @@ class Copilot(IDE):
         )
 
     def get_session_context(self) -> tuple[list[dict], dict]:
-        # One file per runtime, as in _known_mcp_server_names. VS Code's `servers` key
-        # is normalized to the canonical mcpServers shape.
-        vscode_config = _load_vscode_mcp_config() or {}
-        agent_config_path = _copilot_home() / _AGENT_MCP_CONFIG_FILENAME
-        agent_config = _load_jsonc(agent_config_path) or {}
         global_config_files = [
-            *build_global_config_files(_vscode_mcp_config_path(), vscode_config.get('servers')),
-            *build_global_config_files(agent_config_path, agent_config.get('mcpServers')),
+            file for path, servers in _global_mcp_server_maps() for file in build_global_config_files(path, servers)
         ]
         return global_config_files, _collect_installed_plugins()
 
