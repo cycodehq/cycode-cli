@@ -4,6 +4,7 @@ import json
 import time
 from io import StringIO
 from pathlib import Path
+from typing import Optional
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -17,6 +18,7 @@ from cycode.cli.apps.ai_guardrails.ides import copilot as _copilot_mod
 from cycode.cli.apps.ai_guardrails.ides import cursor as _cursor_mod
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
 from cycode.cli.apps.ai_guardrails.session_start_command import session_start_command
+from cycode.cyclient.models import McpServerAuthorizationStatus, McpServerStatus, SessionContextResponse
 
 
 @pytest.fixture
@@ -33,6 +35,14 @@ def mock_save_guardrail_config(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     save_mock = MagicMock(return_value=True)
     monkeypatch.setattr(_session_start_mod, 'save_guardrail_config', save_mock)
     monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=None))
+    return save_mock
+
+
+@pytest.fixture(autouse=True)
+def mock_save_mcp_server_statuses(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Keep tests hermetic: never write the real MCP server statuses cache."""
+    save_mock = MagicMock()
+    monkeypatch.setattr(_session_start_mod, 'save_mcp_server_statuses', save_mock)
     return save_mock
 
 
@@ -266,7 +276,7 @@ def test_reports_cross_ide_session_context(
     cursor_file = {'path': '/home/u/.cursor/mcp.json', 'content': '{"mcpServers": {}}'}
     claude_file = {'path': '/home/u/.claude.json', 'content': '{"mcpServers": {}}'}
     plugins = {'dummy-plugin@dummy-marketplace': {'enabled': True}}
-    mock_collect.return_value = ({'cursor': cursor_file, 'claude-code': claude_file}, plugins)
+    mock_collect.return_value = ([cursor_file, claude_file], plugins)
 
     payload = {'session_id': 'session-123'}
 
@@ -302,7 +312,7 @@ def test_no_mcp_anywhere_still_reports_device(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({}, {})
+    mock_collect.return_value = ([], {})
 
     payload = {'session_id': 'session-123'}
 
@@ -484,7 +494,7 @@ def test_unchanged_context_skips_second_report(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
     _run_session_start(mock_ctx, {'session_id': 'session-2'})
@@ -506,10 +516,10 @@ def test_changed_context_resends(
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
 
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c1'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c1'}], {})
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
 
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c2'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c2'}], {})
     _run_session_start(mock_ctx, {'session_id': 'session-2'})
 
     assert mock_ai_client.report_session_context.call_count == 2
@@ -527,7 +537,7 @@ def test_tenant_change_resends(
     """Re-authenticating against a different tenant must re-send the same inventory."""
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
@@ -550,9 +560,9 @@ def test_failed_report_is_not_cached(
     """A failed send must not populate the cache - the next session retries."""
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
-    mock_ai_client.report_session_context.return_value = False
+    mock_ai_client.report_session_context.return_value = None
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
     _run_session_start(mock_ctx, {'session_id': 'session-2'})
@@ -573,7 +583,7 @@ def test_expired_ttl_resends(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({'cursor': {'path': '/p', 'content': 'c'}}, {})
+    mock_collect.return_value = ([{'path': '/p', 'content': 'c'}], {})
 
     _run_session_start(mock_ctx, {'session_id': 'session-1'})
 
@@ -597,10 +607,10 @@ def test_collect_all_session_contexts_merges_plugins_first_wins() -> None:
     codex_plugin = {'enabled': True, 'version': '2.0.0'}
 
     with (
-        patch.object(IDES['cursor'], 'get_session_context', return_value=(None, {})),
-        patch.object(IDES['claude-code'], 'get_session_context', return_value=(None, {'plug@m': claude_plugin})),
-        patch.object(IDES['codex'], 'get_session_context', return_value=(None, {'plug@m': codex_plugin})),
-        patch.object(IDES['copilot'], 'get_session_context', return_value=(None, {})),
+        patch.object(IDES['cursor'], 'get_session_context', return_value=([], {})),
+        patch.object(IDES['claude-code'], 'get_session_context', return_value=([], {'plug@m': claude_plugin})),
+        patch.object(IDES['codex'], 'get_session_context', return_value=([], {'plug@m': codex_plugin})),
+        patch.object(IDES['copilot'], 'get_session_context', return_value=([], {})),
     ):
         _, plugins = collect_all_session_contexts()
 
@@ -702,6 +712,145 @@ def test_fresh_guardrail_config_cache_skips_fetch(
     mock_save_guardrail_config.assert_called_once_with(mock_ai_client.get_resolved_guardrails.return_value, 'tenant-b')
 
 
+# MCP server statuses (unauthorized MCP server guardrail)
+
+
+def _guardrail_config_with_mcp_server(agents: dict) -> GuardrailConfig:
+    payload = {
+        'ttl_seconds': 600,
+        'guardrails': [
+            {
+                'key': 'unauthorized_mcp_server',
+                'event_type': 'McpExecution',
+                'agents': agents,
+            }
+        ],
+    }
+    return GuardrailConfig(payload=payload, fetched_at=time.time(), tenant_id='tenant-a')
+
+
+_SERVERS = [McpServerStatus('github', 'pkg:gh', McpServerAuthorizationStatus.UNAUTHORIZED)]
+
+
+def _run_with_config(
+    mock_ctx: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    ai_client: MagicMock,
+    config: Optional[GuardrailConfig],
+    tenant_id: str = 'tenant-a',
+) -> None:
+    monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
+    with (
+        patch.object(_session_start_mod, 'get_authorization_info', return_value=MagicMock(tenant_id=tenant_id)),
+        patch.object(_session_start_mod, 'get_ai_security_manager_client', return_value=ai_client),
+        patch.object(
+            _session_start_mod,
+            'collect_all_session_contexts',
+            return_value=([{'path': '/p', 'content': 'c'}], {}),
+        ),
+        patch('sys.stdin', new=StringIO(json.dumps({'conversation_id': 'conv-1'}))),
+    ):
+        session_start_command(mock_ctx, ide='cursor')
+
+
+def _age_report_cache(seconds: float) -> None:
+    cache_path = _session_start_mod._session_context_cache_path()
+    cache = json.loads(cache_path.read_text(encoding='utf-8'))
+    cache['sent_at'] -= seconds
+    cache_path.write_text(json.dumps(cache), encoding='utf-8')
+
+
+def _statuses_client(mcp_servers: Optional[list] = _SERVERS) -> MagicMock:
+    ai_client = MagicMock()
+    ai_client.report_session_context.return_value = SessionContextResponse(mcp_servers=mcp_servers)
+    return ai_client
+
+
+def test_session_context_response_saves_the_mcp_server_statuses(
+    mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch, mock_save_mcp_server_statuses: MagicMock
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
+
+    _run_with_config(mock_ctx, monkeypatch, _statuses_client(), config)
+
+    # Cached with the guardrail config's TTL.
+    mock_save_mcp_server_statuses.assert_called_once_with(_SERVERS, 'tenant-a', 600)
+
+
+@pytest.mark.parametrize('response', [None, SessionContextResponse(mcp_servers=None)])
+def test_failed_or_malformed_session_context_response_keeps_the_cache(
+    response: Optional[SessionContextResponse],
+    mock_ctx: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_save_mcp_server_statuses: MagicMock,
+) -> None:
+    ai_client = MagicMock()
+    ai_client.report_session_context.return_value = response
+
+    _run_with_config(mock_ctx, monkeypatch, ai_client, _guardrail_config_with_mcp_server({'cursor': 'Block'}))
+
+    ai_client.report_session_context.assert_called_once()
+    mock_save_mcp_server_statuses.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    'config',
+    [
+        None,
+        GuardrailConfig(payload={'guardrails': []}, fetched_at=time.time(), tenant_id='tenant-a'),
+        _guardrail_config_with_mcp_server({'cursor': 'Off', 'claude-code': 'Off'}),
+    ],
+)
+def test_unchanged_context_is_skipped_for_the_report_ttl_while_the_guardrail_is_off(
+    config: Optional[GuardrailConfig], mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ai_client = _statuses_client()
+
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+    _age_report_cache(601)
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+
+    ai_client.report_session_context.assert_called_once()
+
+
+def test_unchanged_context_is_skipped_within_the_guardrail_ttl(
+    mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Off', 'claude-code': 'Report'})
+    ai_client = _statuses_client()
+
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+    _age_report_cache(599)
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+
+    ai_client.report_session_context.assert_called_once()
+
+
+def test_unchanged_context_is_resent_after_the_guardrail_ttl_to_refresh_statuses(
+    mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
+    ai_client = _statuses_client()
+
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+    _age_report_cache(601)
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+
+    assert ai_client.report_session_context.call_count == 2
+
+
+def test_unchanged_context_is_resent_for_another_tenant_while_the_guardrail_is_enabled(
+    mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
+    ai_client = _statuses_client()
+
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config)
+    _run_with_config(mock_ctx, monkeypatch, ai_client, config, tenant_id='tenant-b')
+
+    assert ai_client.report_session_context.call_count == 2
+
+
 # Skills reporting
 
 
@@ -721,7 +870,7 @@ def test_reports_skill_files(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({}, {})
+    mock_collect.return_value = ([], {})
     content = '---\nname: dummy-skill\n---\nBody.\n'
     skill_file = _write_claude_skill(isolated_home, 'dummy-skill', content)
     skills = [{'path': str(skill_file), 'content': content}]
@@ -760,7 +909,7 @@ def test_editing_a_skill_re_reports(
     mock_get_auth.return_value = MagicMock(tenant_id='tenant-1')
     mock_ai_client = MagicMock()
     mock_get_client.return_value = mock_ai_client
-    mock_collect.return_value = ({}, {})
+    mock_collect.return_value = ([], {})
     payload = json.dumps({'session_id': 'session-123'})
 
     _write_claude_skill(isolated_home, 'dummy-skill', 'first')

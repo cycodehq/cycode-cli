@@ -10,9 +10,10 @@ def resolved_guardrails_payload(
     sensitive_path: str = 'Report',
     mcp: str = 'Report',
     globs: Optional[list] = None,
+    mcp_server: Optional[str] = None,
 ) -> dict:
     """A platform resolved-config payload with the given per-guardrail modes for the cursor agent."""
-    return {
+    payload = {
         'ttl_seconds': 900,
         'guardrails': [
             {'key': 'secrets_in_prompt', 'event_type': 'Prompt', 'agents': {'cursor': prompt, 'claude-code': 'Block'}},
@@ -26,9 +27,19 @@ def resolved_guardrails_payload(
             {'key': 'secrets_in_mcp_args', 'event_type': 'McpExecution', 'agents': {'cursor': mcp}},
         ],
     }
+    if mcp_server is not None:
+        payload['guardrails'].append(
+            {
+                'key': 'unauthorized_mcp_server',
+                'policy_type': 'UnauthorizedAiTools',
+                'event_type': 'McpExecution',
+                'agents': {'cursor': mcp_server},
+            }
+        )
+    return payload
 
 
-def platform_config(fetched_at: Optional[float] = None, **modes: str) -> GuardrailConfig:
+def platform_config(fetched_at: Optional[float] = None, **modes: Optional[str]) -> GuardrailConfig:
     """A cached platform config; keyword args are the per-guardrail modes (see resolved_guardrails_payload)."""
     return GuardrailConfig(
         payload=resolved_guardrails_payload(**modes),

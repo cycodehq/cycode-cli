@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Optional
 
-from marshmallow import EXCLUDE, Schema, fields, post_load
+from marshmallow import EXCLUDE, Schema, fields, missing, post_load
 
 
 class Detection(Schema):
@@ -578,3 +579,60 @@ class ScanConfigurationSchema(Schema):
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> 'ScanConfiguration':
         return ScanConfiguration(**data)
+
+
+class McpServerAuthorizationStatus(str, Enum):
+    AUTHORIZED = 'Authorized'
+    UNREVIEWED = 'Unreviewed'
+    UNAUTHORIZED = 'Unauthorized'
+
+    @classmethod
+    def parse(cls, raw_status: object) -> 'McpServerAuthorizationStatus':
+        """An unknown status reads as Unreviewed: no decision was made on the server."""
+        lowered = str(raw_status or '').lower()
+        return next((status for status in cls if status.value.lower() == lowered), cls.UNREVIEWED)
+
+
+class McpServerAuthorizationStatusField(fields.Field):
+    def _serialize(self, value: Optional[McpServerAuthorizationStatus], *_, **__) -> Optional[str]:
+        return value.value if value is not None else None
+
+    def deserialize(self, value: object, *_, **__) -> McpServerAuthorizationStatus:
+        return McpServerAuthorizationStatus.parse(None if value is missing else value)
+
+
+@dataclass
+class McpServerStatus:
+    alias: Optional[str] = None
+    normalized_id: Optional[str] = None
+    status: McpServerAuthorizationStatus = McpServerAuthorizationStatus.UNREVIEWED
+
+
+class McpServerStatusSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    alias = fields.String(allow_none=True, load_default=None)
+    normalized_id = fields.String(allow_none=True, load_default=None)
+    status = McpServerAuthorizationStatusField()
+
+    @post_load
+    def build_dto(self, data: dict[str, Any], **_) -> McpServerStatus:
+        return McpServerStatus(**data)
+
+
+@dataclass
+class SessionContextResponse:
+    # None when the response carries no (or malformed) MCP server statuses.
+    mcp_servers: Optional[list[McpServerStatus]] = None
+
+
+class SessionContextResponseSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    mcp_servers = fields.List(fields.Nested(McpServerStatusSchema), allow_none=True, load_default=None)
+
+    @post_load
+    def build_dto(self, data: dict[str, Any], **_) -> SessionContextResponse:
+        return SessionContextResponse(**data)

@@ -1,8 +1,11 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome
 from cycode.cyclient.ai_security_manager_client import AISecurityManagerClient
+from cycode.cyclient.models import McpServerAuthorizationStatus, McpServerStatus
 
 
 def _build_client() -> tuple[AISecurityManagerClient, MagicMock]:
@@ -74,3 +77,46 @@ def test_create_event_without_a_conversation_posts_nothing() -> None:
     client.create_event(AIHookPayload(event_name='Prompt'), AiHookEventType.PROMPT, AIHookOutcome.ALLOWED)
 
     http_client.post.assert_not_called()
+
+
+def test_report_session_context_returns_the_mcp_server_statuses() -> None:
+    client, http_client = _build_client()
+    http_client.post.return_value.json.return_value = {
+        'mcp_servers': [
+            {'alias': 'github', 'normalized_id': 'pkg:gh', 'status': 'Unauthorized', 'unknown_field': 1},
+            {'alias': 'notion', 'normalized_id': 'pkg:notion', 'status': 'SomethingNew'},
+        ],
+        'unknown_field': 1,
+    }
+
+    response = client.report_session_context(hostname='host')
+
+    assert response is not None
+    assert response.mcp_servers == [
+        McpServerStatus('github', 'pkg:gh', McpServerAuthorizationStatus.UNAUTHORIZED),
+        McpServerStatus('notion', 'pkg:notion', McpServerAuthorizationStatus.UNREVIEWED),
+    ]
+    assert http_client.post.call_args.args[0] == 'v4/ai-security/interactions/session-context'
+
+
+def test_report_session_context_failure_returns_none() -> None:
+    client, http_client = _build_client()
+    http_client.post.side_effect = RuntimeError('boom')
+
+    assert client.report_session_context(hostname='host') is None
+
+
+@pytest.mark.parametrize(
+    'body', [{}, [], {'mcp_servers': {'github': 'Unauthorized'}}, {'mcp_servers': ['github']}, ValueError('not json')]
+)
+def test_report_session_context_malformed_response_has_no_statuses(body: object) -> None:
+    client, http_client = _build_client()
+    if isinstance(body, Exception):
+        http_client.post.return_value.json.side_effect = body
+    else:
+        http_client.post.return_value.json.return_value = body
+
+    response = client.report_session_context(hostname='host')
+
+    assert response is not None
+    assert response.mcp_servers is None

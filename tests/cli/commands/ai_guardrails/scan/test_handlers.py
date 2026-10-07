@@ -2,8 +2,9 @@
 
 import os
 import threading
+import time
 from multiprocessing import synchronize
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,11 +23,12 @@ from cycode.cli.apps.ai_guardrails.scan.handlers import (
     handle_before_read_file,
     handle_before_submit_prompt,
 )
+from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import McpServerStatuses
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
 from cycode.cli.apps.ai_guardrails.scan.utils import MAX_VIOLATION_DETAIL_LINES, build_violation_summary
 from cycode.cli.models import Document, DocumentDetections, LocalScanResult
-from cycode.cyclient.models import Detection
+from cycode.cyclient.models import Detection, McpServerAuthorizationStatus, McpServerStatus
 
 
 @pytest.fixture
@@ -580,6 +582,157 @@ def test_handle_before_mcp_execution_with_secrets_warned(
     assert 'Found 1 secret: token' in result.user_message
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.WARNED
+
+
+# Tests for the unauthorized MCP server guardrail
+
+
+def _server_check_policy(default_policy: dict[str, Any], server_action: str = 'block') -> dict[str, Any]:
+    default_policy['mcp'].update(check_server=True, server_action=server_action)
+    return default_policy
+
+
+def _mcp_payload(server: Optional[str] = 'github') -> AIHookPayload:
+    return AIHookPayload(
+        event_name='McpExecution',
+        conversation_id='conv-1',
+        ide_provider='claude-code',
+        mcp_server_name=server,
+        mcp_tool_name='create_issue',
+        mcp_arguments={'title': 'hello'},
+    )
+
+
+def _cached_statuses(*rows: tuple[str, str]) -> McpServerStatuses:
+    servers = [McpServerStatus(alias=a, status=McpServerAuthorizationStatus.parse(s)) for a, s in rows]
+    return McpServerStatuses(servers=servers, fetched_at=time.time())
+
+
+def _reported_event(mock_ctx: MagicMock) -> tuple[AIHookOutcome, Optional[BlockReason]]:
+    call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
+    return call_args.args[2], call_args.kwargs['block_reason']
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
+def test_unauthorized_mcp_server_block_denies_without_scanning(
+    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    mock_statuses.return_value = _cached_statuses(('github', 'Unauthorized'))
+
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(), _server_check_policy(default_policy))
+
+    assert result.action == DecisionAction.DENY
+    assert result.user_message == (
+        "Cycode blocked MCP server 'github': it is not authorized in your organization. "
+        'Contact your admin to authorize it.'
+    )
+    assert "'github'" in result.agent_message
+    mock_scan.assert_not_called()
+    assert _reported_event(mock_ctx) == (AIHookOutcome.BLOCKED, BlockReason.UNAUTHORIZED_MCP_SERVER)
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
+def test_unauthorized_mcp_server_report_allows_warns_and_still_scans(
+    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    mock_statuses.return_value = _cached_statuses(('github', 'Unauthorized'))
+    mock_scan.return_value = ScanOutcome(scan_id='scan-1')
+
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(), _server_check_policy(default_policy, 'warn'))
+
+    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+    mock_scan.assert_called_once()
+    assert _reported_event(mock_ctx) == (AIHookOutcome.WARNED, BlockReason.UNAUTHORIZED_MCP_SERVER)
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
+def test_unauthorized_mcp_server_report_then_secret_block_takes_over(
+    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    mock_statuses.return_value = _cached_statuses(('github', 'Unauthorized'))
+    mock_scan.return_value = ScanOutcome('Found 1 secret: token', 'scan-1', GuardrailsMode.BLOCK)
+
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(), _server_check_policy(default_policy, 'warn'))
+
+    assert result.action == DecisionAction.DENY
+    assert 'Found 1 secret: token' in result.user_message
+    assert _reported_event(mock_ctx) == (AIHookOutcome.BLOCKED, BlockReason.SECRETS_IN_MCP_ARGS)
+
+
+@pytest.mark.parametrize(
+    ('rows', 'server', 'expected_action'),
+    [
+        # Only explicitly Unauthorized servers are enforced.
+        ((('github', 'Unreviewed'),), 'github', DecisionAction.ALLOW),
+        ((('github', 'Authorized'),), 'github', DecisionAction.ALLOW),
+        ((), 'github', DecisionAction.ALLOW),
+        # One alias, several servers: the most restrictive status wins.
+        ((('github', 'Authorized'), ('GitHub', 'Unauthorized')), 'github', DecisionAction.DENY),
+        # No server name to check: fail open.
+        ((('github', 'Unauthorized'),), None, DecisionAction.ALLOW),
+    ],
+)
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets', return_value=ScanOutcome())
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
+def test_unauthorized_mcp_server_enforcement(
+    mock_statuses: MagicMock,
+    mock_scan: MagicMock,
+    mock_ctx: MagicMock,
+    default_policy: dict[str, Any],
+    rows: tuple,
+    server: Optional[str],
+    expected_action: DecisionAction,
+) -> None:
+    mock_statuses.return_value = _cached_statuses(*rows)
+    policy = _server_check_policy(default_policy)
+
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(server), policy)
+
+    assert result.action == expected_action
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets', return_value=ScanOutcome())
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses', return_value=None)
+def test_unauthorized_mcp_server_without_cached_statuses_fails_open(
+    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    policy = _server_check_policy(default_policy)
+
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(), policy)
+
+    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+    assert _reported_event(mock_ctx) == (AIHookOutcome.ALLOWED, None)
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets', return_value=ScanOutcome())
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
+def test_unauthorized_mcp_server_off_never_reads_statuses(
+    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    # The default policy carries no platform overlay: the check is off.
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(), default_policy)
+
+    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+    mock_statuses.assert_not_called()
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers.load_mcp_server_statuses')
+def test_args_scan_off_skips_the_scan_when_only_the_server_check_is_on(
+    mock_statuses: MagicMock, mock_scan: MagicMock, mock_ctx: MagicMock, default_policy: dict[str, Any]
+) -> None:
+    mock_statuses.return_value = _cached_statuses(('github', 'Authorized'))
+    policy = _server_check_policy(default_policy)
+    policy['mcp']['scan_args'] = False
+
+    result = handle_before_mcp_execution(mock_ctx, _mcp_payload(), policy)
+
+    assert result == HookDecision.allow(AiHookEventType.MCP_EXECUTION)
+    mock_scan.assert_not_called()
+    assert _reported_event(mock_ctx) == (AIHookOutcome.ALLOWED, None)
 
 
 def test_get_effective_mode_reads_the_guardrails_action() -> None:

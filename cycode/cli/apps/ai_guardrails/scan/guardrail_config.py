@@ -3,7 +3,7 @@
 session-start fetches the tenant's resolved guardrail config from the platform and writes it
 here; scans only read. Per-agent modes and sensitive-path globs are platform-owned - local
 policy files never carry them. An absent or corrupt cache means built-in defaults (Report
-everywhere + the default globs), always synchronous.
+everywhere + the default globs, with the unauthorized MCP server guardrail Off), always synchronous.
 """
 
 import json
@@ -23,7 +23,7 @@ logger = get_logger('AI Guardrails')
 
 GUARDRAILS_CONFIG_FILE_NAME = 'ai-guardrails-config.json'
 
-_DEFAULT_TTL_SECONDS = 900
+DEFAULT_TTL_SECONDS = 900
 
 # Guardrail keys are the CLI's block-reason vocabulary. Anything else in the payload (a future
 # guardrail this CLI doesn't implement) is ignored - unknown config must never fail closed.
@@ -34,12 +34,22 @@ _KNOWN_GUARDRAIL_KEYS = frozenset(
         BlockReason.SECRETS_IN_FILE,
         BlockReason.SENSITIVE_PATH,
         BlockReason.SECRETS_IN_MCP_ARGS,
+        BlockReason.UNAUTHORIZED_MCP_SERVER,
     )
 )
+
+# Off by default (not Report), so they never start enforcing on a tenant that hasn't configured them.
+_DEFAULT_OFF_GUARDRAIL_KEYS = frozenset((BlockReason.UNAUTHORIZED_MCP_SERVER.value,))
 
 
 def get_config_cache_path() -> Path:
     return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / GUARDRAILS_CONFIG_FILE_NAME
+
+
+def default_mode_for(guardrail_key: str) -> str:
+    if guardrail_key in _DEFAULT_OFF_GUARDRAIL_KEYS:
+        return GuardrailCellMode.OFF.value
+    return GuardrailCellMode.REPORT.value
 
 
 def _default_sensitive_globs() -> list:
@@ -60,10 +70,20 @@ class GuardrailConfig:
             if guardrail.get('key') in _KNOWN_GUARDRAIL_KEYS
         }
 
+    @property
+    def ttl_seconds(self) -> float:
+        return self.payload.get('ttl_seconds') or DEFAULT_TTL_SECONDS
+
+    def _agents(self, guardrail_key: str) -> dict:
+        return (self._guardrails.get(guardrail_key) or {}).get('agents') or {}
+
     def mode_for(self, guardrail_key: str, ide_name: Optional[str]) -> str:
         """The platform keys the cells by our --ide names, so the lookup is direct."""
-        agents = (self._guardrails.get(guardrail_key) or {}).get('agents') or {}
-        return str(agents.get((ide_name or '').lower(), GuardrailCellMode.REPORT.value)).lower()
+        agents = self._agents(guardrail_key)
+        return str(agents.get((ide_name or '').lower(), default_mode_for(guardrail_key))).lower()
+
+    def is_off_for_every_agent(self, guardrail_key: str) -> bool:
+        return all(str(mode).lower() == GuardrailCellMode.OFF for mode in self._agents(guardrail_key).values())
 
     def _modes_for_event(self, event_name: str, ide_name: Optional[str]) -> list:
         return [
@@ -87,8 +107,7 @@ class GuardrailConfig:
         return globs if isinstance(globs, list) and globs else _default_sensitive_globs()
 
     def is_expired(self) -> bool:
-        ttl = self.payload.get('ttl_seconds') or _DEFAULT_TTL_SECONDS
-        return time.time() - self.fetched_at > ttl
+        return time.time() - self.fetched_at > self.ttl_seconds
 
     def needs_refresh(self, tenant_id: Optional[str]) -> bool:
         """Expired, or fetched for another tenant (the user switched tenants since)."""
@@ -99,14 +118,14 @@ def apply_platform_config(policy: dict, config: Optional[GuardrailConfig], ide_n
     """Overlay the platform-owned enforcement config onto the local knobs-only policy.
 
     The platform is the only mode source: no cache (cold start) means the built-in defaults -
-    Report everywhere with the default globs - which equal an unconfigured tenant's platform
-    config, so behaviour is uniform either way. Each matrix cell lands on its own per-feature
-    action, so the two FileRead guardrails (content scan vs. sensitive path) keep independent modes.
+    Report everywhere (unauthorized MCP server Off) with the default globs - which equal an unconfigured
+    tenant's platform config, so behaviour is uniform either way. Each matrix cell lands on its own
+    per-feature action, so guardrails sharing an event (e.g. the two FileRead ones) keep independent modes.
     An all-Off event never reaches here at all: scan_command skips it.
     """
 
     def cell(guardrail_key: str) -> str:
-        return config.mode_for(guardrail_key, ide_name) if config is not None else GuardrailCellMode.REPORT.value
+        return config.mode_for(guardrail_key, ide_name) if config is not None else default_mode_for(guardrail_key)
 
     def action(guardrail_key: str) -> str:
         return PolicyMode.BLOCK.value if cell(guardrail_key) == GuardrailCellMode.BLOCK else PolicyMode.WARN.value
@@ -123,7 +142,11 @@ def apply_platform_config(policy: dict, config: Optional[GuardrailConfig], ide_n
     )
     file_read['path_action'] = action(BlockReason.SENSITIVE_PATH)
 
-    policy.setdefault('mcp', {})['action'] = action(BlockReason.SECRETS_IN_MCP_ARGS)
+    mcp = policy.setdefault('mcp', {})
+    mcp['scan_args'] = cell(BlockReason.SECRETS_IN_MCP_ARGS) != GuardrailCellMode.OFF
+    mcp['action'] = action(BlockReason.SECRETS_IN_MCP_ARGS)
+    mcp['check_server'] = cell(BlockReason.UNAUTHORIZED_MCP_SERVER) != GuardrailCellMode.OFF
+    mcp['server_action'] = action(BlockReason.UNAUTHORIZED_MCP_SERVER)
 
 
 def save_guardrail_config(payload: dict, tenant_id: Optional[str]) -> None:

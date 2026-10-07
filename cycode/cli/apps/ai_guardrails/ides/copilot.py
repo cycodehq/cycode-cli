@@ -33,7 +33,7 @@ from urllib.request import url2pathname
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
-    build_global_config_file,
+    build_global_config_files,
     load_plugin_json,
     walk_enabled_plugins,
 )
@@ -283,6 +283,15 @@ def _collect_installed_plugins() -> dict:
 # --- MCP tool-name splitting ------------------------------------------------------
 
 
+def _global_mcp_server_maps() -> list[tuple[Path, object]]:
+    """``(path, servers)`` of each runtime's global MCP config: VS Code's ``servers``, the agent's ``mcpServers``."""
+    agent_config_path = _copilot_home() / _AGENT_MCP_CONFIG_FILENAME
+    return [
+        (_vscode_mcp_config_path(), (_load_vscode_mcp_config() or {}).get('servers')),
+        (agent_config_path, (_load_jsonc(agent_config_path) or {}).get('mcpServers')),
+    ]
+
+
 def _known_mcp_server_names() -> list[str]:
     """Config-declared MCP server names, across both runtimes' config files.
 
@@ -293,15 +302,7 @@ def _known_mcp_server_names() -> list[str]:
     Best-effort inventory: servers contributed by extensions, ``chat.mcp.discovery``
     imports, dev containers, or non-default profiles are not discoverable from disk.
     """
-    config = _load_vscode_mcp_config()
-    servers = (config or {}).get('servers')
-    names = list(servers.keys()) if isinstance(servers, dict) else []
-
-    agent_config = _load_jsonc(_copilot_home() / _AGENT_MCP_CONFIG_FILENAME) or {}
-    agent_servers = agent_config.get('mcpServers')
-    if isinstance(agent_servers, dict):
-        names.extend(agent_servers.keys())
-
+    names = [name for _, servers in _global_mcp_server_maps() if isinstance(servers, dict) for name in servers]
     for plugin in _collect_installed_plugins().values():
         names.extend(plugin.get('mcp_server_names') or [])
     return names
@@ -485,14 +486,11 @@ class Copilot(IDE):
             source=raw_payload.get('source'),
         )
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
-        # VS Code's mcp.json uses `servers` as its top-level key; normalized to the
-        # canonical mcpServers shape by build_global_config_file.
-        config = _load_vscode_mcp_config()
-        global_config_file = (
-            build_global_config_file(_vscode_mcp_config_path(), config.get('servers')) if config else None
-        )
-        return global_config_file, _collect_installed_plugins()
+    def get_session_context(self) -> tuple[list[dict], dict]:
+        global_config_files = [
+            file for path, servers in _global_mcp_server_maps() for file in build_global_config_files(path, servers)
+        ]
+        return global_config_files, _collect_installed_plugins()
 
     def get_skills(self) -> list[dict]:
         return walk_skill_dirs(_copilot_skills_dir())

@@ -15,7 +15,14 @@ from cycode.cli.apps.ai_guardrails.ides import (
     collect_all_skills,
     get_ide,
 )
-from cycode.cli.apps.ai_guardrails.scan.guardrail_config import load_guardrail_config, save_guardrail_config
+from cycode.cli.apps.ai_guardrails.scan.guardrail_config import (
+    DEFAULT_TTL_SECONDS,
+    GuardrailConfig,
+    load_guardrail_config,
+    save_guardrail_config,
+)
+from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import save_mcp_server_statuses
+from cycode.cli.apps.ai_guardrails.scan.types import BlockReason
 from cycode.cli.apps.ai_guardrails.scan.utils import read_stdin_text, safe_json_parse
 from cycode.cli.apps.auth.auth_common import get_authorization_info
 from cycode.cli.apps.auth.auth_manager import AuthManager
@@ -49,14 +56,21 @@ def _session_context_digest(report: dict) -> str:
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
-def _should_skip_report(digest: str, tenant_id: Optional[str]) -> bool:
+def _report_ttl_seconds(config: Optional[GuardrailConfig]) -> float:
+    """The response carries the MCP server statuses, so the guardrail's TTL applies while it is enabled."""
+    if config is None or config.is_off_for_every_agent(BlockReason.UNAUTHORIZED_MCP_SERVER):
+        return _SESSION_CONTEXT_TTL_SECONDS
+    return config.ttl_seconds
+
+
+def _should_skip_report(digest: str, tenant_id: Optional[str], ttl_seconds: float) -> bool:
     """Skip when the same payload was already sent for this tenant and the TTL hasn't expired."""
     try:
         cache = json.loads(_session_context_cache_path().read_text(encoding='utf-8'))
         return (
             cache.get('hash') == digest
             and cache.get('tenant_id') == tenant_id
-            and time.time() - float(cache.get('sent_at', 0)) < _SESSION_CONTEXT_TTL_SECONDS
+            and time.time() - float(cache.get('sent_at', 0)) < ttl_seconds
         )
     except Exception:
         # Missing/corrupt cache reads as a miss - over-sending is harmless
@@ -78,6 +92,7 @@ def _report_session_context(
     ai_client: 'AISecurityManagerClient',
     user_email: Optional[str],
     tenant_id: Optional[str],
+    config: Optional[GuardrailConfig],
 ) -> None:
     """Report the device + cross-IDE session context to the AI security manager. Never raises.
 
@@ -86,7 +101,7 @@ def _report_session_context(
     until the TTL expires.
     """
     try:
-        config_files_by_ide, enabled_plugins = collect_all_session_contexts()
+        config_files, enabled_plugins = collect_all_session_contexts()
         report = {
             'hostname': get_hostname(),
             'platform_name': get_platform_name(),
@@ -94,7 +109,7 @@ def _report_session_context(
             'serial_number': get_serial_number(),
             'last_login_user': get_last_login_user(),
             # Sorted by path so the digest is stable regardless of IDE registry order.
-            'config_files': sorted(config_files_by_ide.values(), key=lambda f: f['path']),
+            'config_files': sorted(config_files, key=lambda f: f['path']),
             'enabled_plugins': enabled_plugins,
             # Already deduplicated and sorted by path, for the same digest-stability reason.
             # Editing a skill body changes the digest and so re-reports the device's inventory.
@@ -103,12 +118,19 @@ def _report_session_context(
         }
 
         digest = _session_context_digest(report)
-        if _should_skip_report(digest, tenant_id):
+        if _should_skip_report(digest, tenant_id, _report_ttl_seconds(config)):
             logger.debug('Session context unchanged; skipping report')
             return
 
-        if ai_client.report_session_context(**report):
-            _save_report_cache(digest, tenant_id)
+        response = ai_client.report_session_context(**report)
+        if response is None:
+            return
+
+        _save_report_cache(digest, tenant_id)
+        if response.mcp_servers is not None:
+            ttl_seconds = config.ttl_seconds if config is not None else DEFAULT_TTL_SECONDS
+            save_mcp_server_statuses(response.mcp_servers, tenant_id, ttl_seconds)
+            logger.debug('MCP server statuses cache updated')
     except Exception as e:
         logger.debug('Failed to report session context', exc_info=e)
 
@@ -166,14 +188,14 @@ def session_start_command(
     except Exception as e:
         logger.debug('Failed to create conversation during session start', exc_info=e)
 
-    # Report session context (device + cross-IDE MCP servers and plugins)
-    _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id)
-
     # SessionStart precedes the first prompt hook in every IDE, so scans normally find a cache.
-    _sync_guardrail_config(ai_client, auth_info.tenant_id)
+    config = _sync_guardrail_config(ai_client, auth_info.tenant_id)
+
+    # Report session context (device + cross-IDE MCP servers and plugins)
+    _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id, config)
 
 
-def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Optional[str]) -> None:
+def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Optional[str]) -> Optional[GuardrailConfig]:
     """Refresh the guardrail config cache when it is expired or belongs to another tenant.
 
     Every step here swallows its own failures - a broken cache or an unreachable platform
@@ -182,9 +204,12 @@ def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Opti
     cached = load_guardrail_config()
     if cached is not None and not cached.needs_refresh(tenant_id):
         logger.debug('Guardrail config cache is fresh, skipping fetch')
-        return
+        return cached
 
     resolved = ai_client.get_resolved_guardrails()
-    if resolved:
-        save_guardrail_config(resolved, tenant_id)
-        logger.debug('Guardrail config cache updated')
+    if not resolved:
+        return cached
+
+    save_guardrail_config(resolved, tenant_id)
+    logger.debug('Guardrail config cache updated')
+    return GuardrailConfig(payload=resolved, fetched_at=time.time(), tenant_id=tenant_id)

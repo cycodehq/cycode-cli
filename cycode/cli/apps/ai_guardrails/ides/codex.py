@@ -2,7 +2,9 @@
 
 import json
 import os
+import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import ClassVar, Optional
 
@@ -15,7 +17,7 @@ else:  # pragma: no cover - py<3.11 fallback
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
-    build_global_config_file,
+    build_global_config_files,
     load_plugin_json,
     resolve_cached_plugin_dir,
     walk_enabled_plugins,
@@ -158,6 +160,42 @@ def _resolve_codex_plugins(config: dict) -> dict:
     )
 
 
+def _sanitize_mcp_name(name: str) -> str:
+    """Mirrors how Codex sanitizes a server name into a tool namespace."""
+    return re.sub(r'[^A-Za-z0-9_]', '_', name) or '_'
+
+
+def _local_mcp_server_names() -> Iterator[str]:
+    """Yield the config key of each locally configured Codex MCP server, plugin servers included."""
+    config = _load_codex_config()
+    if not config:
+        return
+    servers = config.get('mcp_servers')
+    if isinstance(servers, dict):
+        yield from servers
+    for entry in _resolve_codex_plugins(config).values():
+        yield from entry.get('mcp_server_names') or []
+
+
+def _split_mcp_tool_name(tool_name: str) -> tuple[Optional[str], Optional[str]]:
+    """Split ``mcp__<namespace>__<tool>`` into ``(server config key, tool)``; unknown namespaces split on ``__``."""
+    rest = tool_name[len('mcp__') :]
+    names = list(_local_mcp_server_names())
+    # Codex appends `_<12 hex>` to a namespace on collision or length overflow.
+    for suffix in ('__', r'_+[0-9a-f]{12}__'):
+        best: Optional[tuple[int, str]] = None
+        for name in names:
+            namespace = _sanitize_mcp_name(name).rstrip('_')
+            match = namespace and re.match(re.escape(namespace) + suffix, rest)
+            if match and (best is None or match.end() > best[0]):
+                best = (match.end(), name)
+        if best:
+            return best[1], rest[best[0] :]
+
+    parts = tool_name.split('__')
+    return (parts[1] if len(parts) >= 2 else None), (parts[2] if len(parts) >= 3 else None)
+
+
 def _enable_codex_hooks_feature(scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
     """Set ``[features] hooks = true`` in Codex's ``config.toml``.
 
@@ -247,12 +285,8 @@ class Codex(IDE):
         mcp_server_name = None
         mcp_tool_name = None
         mcp_arguments = None
-        if tool_name.startswith('mcp__'):
-            parts = tool_name.split('__')
-            if len(parts) >= 2:
-                mcp_server_name = parts[1]
-            if len(parts) >= 3:
-                mcp_tool_name = parts[2]
+        if canonical_event == AiHookEventType.MCP_EXECUTION:
+            mcp_server_name, mcp_tool_name = _split_mcp_tool_name(tool_name)
             mcp_arguments = tool_input
 
         return AIHookPayload(
@@ -302,17 +336,17 @@ class Codex(IDE):
     def get_user_email(self) -> Optional[str]:
         return _email_from_auth()
 
-    def get_session_context(self) -> tuple[Optional[dict], dict]:
+    def get_session_context(self) -> tuple[list[dict], dict]:
         config = _load_codex_config()
         if not config:
-            return None, {}
+            return [], {}
         # Codex stores MCP servers under `[mcp_servers.<name>]`; the global config
         # file becomes its own session-context file. Plugins (via
         # `[plugins."<plugin>@<marketplace>"]`) carry their own config files.
         config_path = _codex_config_toml_path('user')
-        global_config_file = build_global_config_file(config_path, config.get('mcp_servers'))
+        global_config_files = build_global_config_files(config_path, config.get('mcp_servers'))
         enriched_plugins = _resolve_codex_plugins(config)
-        return global_config_file, enriched_plugins
+        return global_config_files, enriched_plugins
 
     def get_skills(self) -> list[dict]:
         return walk_skill_dirs(_codex_skills_dir())

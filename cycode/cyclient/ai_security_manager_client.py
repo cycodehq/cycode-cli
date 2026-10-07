@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
 from cycode.cyclient.cycode_client_base import CycodeClientBase
 from cycode.cyclient.logger import logger
+from cycode.cyclient.models import SessionContextResponse, SessionContextResponseSchema
 
 if TYPE_CHECKING:
     from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
@@ -114,8 +115,8 @@ class AISecurityManagerClient:
         enabled_plugins: Optional[dict] = None,
         skill_files: Optional[list[dict]] = None,
         user_email: Optional[str] = None,
-    ) -> bool:
-        """Report session context to the backend. Returns whether the report was accepted."""
+    ) -> Optional[SessionContextResponse]:
+        """Report session context to the backend. Returns None when the report was not accepted."""
         body: dict = {
             'hostname': hostname,
             'platform_name': platform_name,
@@ -129,9 +130,14 @@ class AISecurityManagerClient:
         }
 
         try:
-            self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
-            return True
+            response = self.client.post(self._build_endpoint_path(self._SESSION_CONTEXT_PATH), body=body)
         except Exception as e:
             logger.debug('Failed to report session context', exc_info=e)
             # Don't fail the session if reporting fails
-            return False
+            return None
+
+        try:
+            return SessionContextResponseSchema().load(response.json())
+        except Exception as e:
+            logger.debug('Failed to parse the session context response', exc_info=e)
+            return SessionContextResponse()
