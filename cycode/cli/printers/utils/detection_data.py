@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode.cli import consts
 
@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from cycode.cyclient.models import Detection
 
 
-def get_cwe_cve_link(cwe_cve: Optional[str]) -> Optional[str]:
+def get_cwe_cve_link(cwe_cve: str | None) -> str | None:
     if not cwe_cve:
         return None
 
@@ -63,7 +63,7 @@ def get_detection_clickable_cwe_cve(scan_type: str, detection: 'Detection') -> s
     return ''
 
 
-def get_detection_cwe_cve(scan_type: str, detection: 'Detection') -> Optional[str]:
+def get_detection_cwe_cve(scan_type: str, detection: 'Detection') -> str | None:
     if scan_type == consts.SCA_SCAN_TYPE:
         return detection.detection_details.get('vulnerability_id')
     if scan_type == consts.SAST_SCAN_TYPE:

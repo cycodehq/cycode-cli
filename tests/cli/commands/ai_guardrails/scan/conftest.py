@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
 
@@ -9,8 +8,8 @@ def resolved_guardrails_payload(
     file_read: str = 'Report',
     sensitive_path: str = 'Report',
     mcp: str = 'Report',
-    globs: Optional[list] = None,
-    mcp_server: Optional[str] = None,
+    globs: list | None = None,
+    mcp_server: str | None = None,
 ) -> dict:
     """A platform resolved-config payload with the given per-guardrail modes for the cursor agent."""
     payload = {
@@ -39,7 +38,7 @@ def resolved_guardrails_payload(
     return payload
 
 
-def platform_config(fetched_at: Optional[float] = None, **modes: Optional[str]) -> GuardrailConfig:
+def platform_config(fetched_at: float | None = None, **modes: str | None) -> GuardrailConfig:
     """A cached platform config; keyword args are the per-guardrail modes (see resolved_guardrails_payload)."""
     return GuardrailConfig(
         payload=resolved_guardrails_payload(**modes),

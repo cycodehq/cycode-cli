@@ -1,11 +1,11 @@
 from _thread import interrupt_main
+from collections.abc import Callable
 from threading import Event, Thread
 from types import TracebackType
-from typing import Callable, Optional
 
 
 class FunctionContext:
-    def __init__(self, function: Callable, args: Optional[list] = None, kwargs: Optional[dict] = None) -> None:
+    def __init__(self, function: Callable, args: list | None = None, kwargs: dict | None = None) -> None:
         self.function = function
         self.args = args or []
         self.kwargs = kwargs or {}
@@ -54,7 +54,7 @@ class TimeoutAfter:
                                    the default option is to interrupt main thread
     """
 
-    def __init__(self, timeout: int, quit_function: Optional[FunctionContext] = None) -> None:
+    def __init__(self, timeout: int, quit_function: FunctionContext | None = None) -> None:
         self.timeout = timeout
         self._quit_function = quit_function or FunctionContext(function=self.timeout_function)
         self.timer = TimerThread(timeout, quit_function=self._quit_function)
@@ -64,7 +64,7 @@ class TimeoutAfter:
             self.timer.start()
 
     def __exit__(
-        self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
     ) -> None:
         if self.timeout:
             self.timer.stop()

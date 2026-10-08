@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -28,7 +28,7 @@ from cycode.logger import set_logging_level
 
 def pre_push_command(
     ctx: typer.Context,
-    _: Annotated[Optional[list[str]], typer.Argument(help='Ignored arguments', hidden=True)] = None,
+    _: Annotated[list[str] | None, typer.Argument(help='Ignored arguments', hidden=True)] = None,
 ) -> None:
     try:
         if should_skip_pre_receive_scan():
@@ -63,7 +63,7 @@ def pre_push_command(
         handle_scan_exception(ctx, e)
 
 
-def _get_pre_push_commit_range() -> Optional[str]:
+def _get_pre_push_commit_range() -> str | None:
     commit_range = get_pre_commit_framework_push_range()
     if commit_range:
         logger.debug('Using push details from the pre-commit framework, %s', {'commit_range': commit_range})

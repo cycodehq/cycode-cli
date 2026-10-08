@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -10,13 +10,13 @@ if TYPE_CHECKING:
 logger = get_logger('Aggregation Report URL')
 
 
-def _set_aggregation_report_url(ctx: typer.Context, aggregation_report_url: Optional[str] = None) -> None:
+def _set_aggregation_report_url(ctx: typer.Context, aggregation_report_url: str | None = None) -> None:
     ctx.obj['aggregation_report_url'] = aggregation_report_url
 
 
 def try_get_aggregation_report_url_if_needed(
     scan_parameters: dict, cycode_client: 'ScanClient', scan_type: str
-) -> Optional[str]:
+) -> str | None:
     if not scan_parameters.get('report', False):
         return None
 
@@ -37,6 +37,6 @@ def try_set_aggregation_report_url_if_needed(
     aggregation_report_url = try_get_aggregation_report_url_if_needed(scan_parameters, cycode_client, scan_type)
     if aggregation_report_url:
         _set_aggregation_report_url(ctx, aggregation_report_url)
-        logger.debug('Aggregation report URL set successfully', {'aggregation_report_url': aggregation_report_url})
+        logger.debug('Aggregation report URL set successfully, %s', {'aggregation_report_url': aggregation_report_url})
     else:
         logger.debug('No aggregation report URL found or report generation is disabled')

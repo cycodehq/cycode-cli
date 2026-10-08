@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -17,7 +16,7 @@ POETRY_LOCK_FILE_NAME = 'poetry.lock'
 _POETRY_TOOL_SECTION = '[tool.poetry]'
 
 
-def _indicates_poetry(pyproject_content: Optional[str]) -> bool:
+def _indicates_poetry(pyproject_content: str | None) -> bool:
     """Return True if pyproject.toml content signals that this project uses Poetry."""
     if not pyproject_content:
         return False
@@ -38,7 +37,7 @@ class RestorePoetryDependencies(BaseRestoreDependencies):
 
         return _indicates_poetry(document.content)
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / POETRY_LOCK_FILE_NAME if manifest_dir else None
 

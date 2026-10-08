@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from rich.console import Group
 from rich.panel import Panel
@@ -26,7 +26,7 @@ class RichPrinter(TextPrinter):
     MAX_PATH_LENGTH = 60
 
     def print_scan_results(
-        self, local_scan_results: list['LocalScanResult'], errors: Optional[dict[str, 'CliError']] = None
+        self, local_scan_results: list['LocalScanResult'], errors: dict[str, 'CliError'] | None = None
     ) -> None:
         if not errors and all(result.issue_detected == 0 for result in local_scan_results):
             self.console.print(self.NO_DETECTIONS_MESSAGE)

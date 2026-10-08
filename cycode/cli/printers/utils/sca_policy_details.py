@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,

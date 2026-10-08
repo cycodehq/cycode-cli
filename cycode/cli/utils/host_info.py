@@ -7,15 +7,15 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.logger import get_logger
 
 logger = get_logger('HOST INFO')
 
-pythoncom: Optional[Any] = None
-win32com_client: Optional[Any] = None
+pythoncom: Any | None = None
+win32com_client: Any | None = None
 if sys.platform == 'win32':
     try:
         import pythoncom
@@ -30,22 +30,13 @@ _DEVICE_ID_CACHE_FILE_NAME = 'device-id'
 _PLATFORM_NAMES = {'Darwin': 'macOS', 'Windows': 'Windows', 'Linux': 'Linux'}
 
 
-def _run(command: list, timeout: int = _SUBPROCESS_TIMEOUT_SEC) -> Optional[str]:
+def _run(command: list, timeout: int = _SUBPROCESS_TIMEOUT_SEC) -> str | None:
     """Run a command and return its stripped stdout. Never raises; returns None on any error."""
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)  # noqa: S603
+        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)  # noqa: S603
         return result.stdout.strip() or None
     except Exception as e:
         logger.debug('Failed to run command %s', command, exc_info=e)
-        return None
-
-
-def _read_text_file(path: str) -> Optional[str]:
-    """Read and strip a text file. Never raises; returns None if it can't be read."""
-    try:
-        with open(path) as text_file:
-            return text_file.read().strip() or None
-    except OSError:
         return None
 
 
@@ -54,7 +45,7 @@ def is_64bit() -> bool:
     return sys.maxsize > 2**32
 
 
-def get_hostname() -> Optional[str]:
+def get_hostname() -> str | None:
     try:
         return socket.gethostname() or None
     except Exception as e:
@@ -62,7 +53,7 @@ def get_hostname() -> Optional[str]:
         return None
 
 
-def get_platform_name() -> Optional[str]:
+def get_platform_name() -> str | None:
     try:
         system = platform.system()
         return _PLATFORM_NAMES.get(system, system or None)
@@ -71,7 +62,7 @@ def get_platform_name() -> Optional[str]:
         return None
 
 
-def get_os_version() -> Optional[str]:
+def get_os_version() -> str | None:
     try:
         system = platform.system()
         if system == 'Darwin':
@@ -86,26 +77,18 @@ def get_os_version() -> Optional[str]:
         return None
 
 
-def _get_linux_os_version() -> Optional[str]:
-    freedesktop_os_release = getattr(platform, 'freedesktop_os_release', None)  # Python 3.10+
-    if freedesktop_os_release is not None:
-        try:
-            version_id = freedesktop_os_release().get('VERSION_ID')
-            if version_id:
-                return version_id
-        except OSError:
-            pass
-
-    os_release = _read_text_file('/etc/os-release')  # Python 3.9 fallback: parse manually
-    if os_release:
-        for line in os_release.splitlines():
-            if line.startswith('VERSION_ID='):
-                return line.split('=', 1)[1].strip().strip('"') or None
+def _get_linux_os_version() -> str | None:
+    try:
+        version_id = platform.freedesktop_os_release().get('VERSION_ID')
+        if version_id:
+            return version_id
+    except OSError:
+        pass
 
     return platform.release() or None
 
 
-def get_last_login_user() -> Optional[str]:
+def get_last_login_user() -> str | None:
     try:
         return getpass.getuser() or None
     except Exception as e:
@@ -113,7 +96,7 @@ def get_last_login_user() -> Optional[str]:
         return None
 
 
-def get_serial_number() -> Optional[str]:
+def get_serial_number() -> str | None:
     # The serial is immutable hardware info, but resolving it shells out (ioreg/WMI)
     # and this runs in a fresh process per AI hook event - cache it on disk.
     cached = _read_serial_number_cache()
@@ -126,7 +109,7 @@ def get_serial_number() -> Optional[str]:
     return serial
 
 
-def _resolve_serial_number() -> Optional[str]:
+def _resolve_serial_number() -> str | None:
     try:
         system = platform.system()
         if system == 'Darwin':
@@ -142,7 +125,7 @@ def _serial_number_cache_path() -> Path:
     return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / _DEVICE_ID_CACHE_FILE_NAME
 
 
-def _read_serial_number_cache() -> Optional[str]:
+def _read_serial_number_cache() -> str | None:
     try:
         return _serial_number_cache_path().read_text(encoding='utf-8').strip() or None
     except Exception:
@@ -170,7 +153,7 @@ def _write_serial_number_cache(serial: str) -> None:
         logger.debug('Failed to cache serial number', exc_info=e)
 
 
-def _get_macos_serial_number() -> Optional[str]:
+def _get_macos_serial_number() -> str | None:
     output = _run(['ioreg', '-c', 'IOPlatformExpertDevice', '-d', '2'])
     if not output:
         return None
@@ -178,7 +161,7 @@ def _get_macos_serial_number() -> Optional[str]:
     return match.group(1) if match else None
 
 
-def _get_windows_serial_number() -> Optional[str]:
+def _get_windows_serial_number() -> str | None:
     """Read the OEM serial over WMI."""
     if pythoncom is None or win32com_client is None:
         return None

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -19,7 +18,7 @@ class RestoreGoDependencies(BaseRestoreDependencies):
     def __init__(self, ctx: typer.Context, is_git_diff: bool, command_timeout: int) -> None:
         super().__init__(ctx, is_git_diff, command_timeout, create_output_file_manually=True)
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_exists = (Path(self.get_working_directory(document)) / BUILD_GO_FILE_NAME).is_file()
         lock_exists = (Path(self.get_working_directory(document)) / BUILD_GO_LOCK_FILE_NAME).is_file()
 

@@ -2,8 +2,9 @@ import functools
 import os
 import platform
 import ssl
+from collections.abc import Callable
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 import requests
 from requests import Response, exceptions
@@ -114,7 +115,7 @@ def _should_retry_exception(exception: BaseException) -> bool:
 class UploadProgressTracker:
     """File-like wrapper that tracks bytes read during upload and fires a progress callback."""
 
-    def __init__(self, data: bytes, callback: Optional[Callable[[int, int], None]]) -> None:
+    def __init__(self, data: bytes, callback: Callable[[int, int], None] | None) -> None:
         self._io = BytesIO(data)
         self._callback = callback
         self.bytes_read = 0
@@ -146,13 +147,13 @@ class CycodeClientBase:
     def enrich_user_agent(user_agent_suffix: str) -> None:
         CycodeClientBase.MANDATORY_HEADERS['User-Agent'] += f' {user_agent_suffix}'
 
-    def post(self, url_path: str, body: Optional[dict] = None, headers: Optional[dict] = None, **kwargs) -> Response:
+    def post(self, url_path: str, body: dict | None = None, headers: dict | None = None, **kwargs) -> Response:
         return self._execute(method='post', endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def put(self, url_path: str, body: Optional[dict] = None, headers: Optional[dict] = None, **kwargs) -> Response:
+    def put(self, url_path: str, body: dict | None = None, headers: dict | None = None, **kwargs) -> Response:
         return self._execute(method='put', endpoint=url_path, json=body, headers=headers, **kwargs)
 
-    def get(self, url_path: str, headers: Optional[dict] = None, **kwargs) -> Response:
+    def get(self, url_path: str, headers: dict | None = None, **kwargs) -> Response:
         return self._execute(method='get', endpoint=url_path, headers=headers, **kwargs)
 
     def post_multipart(
@@ -160,7 +161,7 @@ class CycodeClientBase:
         url_path: str,
         form_fields: dict,
         files: dict,
-        on_upload_progress: Optional[Callable[[int, int], None]] = None,
+        on_upload_progress: Callable[[int, int], None] | None = None,
         hide_response_content_log: bool = False,
     ) -> Response:
         """POST a multipart form body with optional upload progress tracking and retry."""
@@ -191,7 +192,7 @@ class CycodeClientBase:
         url: str,
         body: bytes,
         content_type: str,
-        on_upload_progress: Optional[Callable[[int, int], None]],
+        on_upload_progress: Callable[[int, int], None] | None,
         hide_response_content_log: bool,
     ) -> Response:
         # Wrap the body in a fresh tracker each attempt so bytes_read starts from zero.
@@ -227,7 +228,7 @@ class CycodeClientBase:
         self,
         method: str,
         endpoint: str,
-        headers: Optional[dict] = None,
+        headers: dict | None = None,
         without_auth: bool = False,
         hide_response_content_log: bool = False,
         **kwargs,
@@ -253,7 +254,7 @@ class CycodeClientBase:
         except Exception as e:
             self._handle_exception(e)
 
-    def get_request_headers(self, additional_headers: Optional[dict] = None, **kwargs) -> dict[str, str]:
+    def get_request_headers(self, additional_headers: dict | None = None, **kwargs) -> dict[str, str]:
         if additional_headers is None:
             return self.MANDATORY_HEADERS.copy()
         return {**self.MANDATORY_HEADERS, **additional_headers}

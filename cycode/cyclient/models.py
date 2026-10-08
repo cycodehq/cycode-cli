@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from marshmallow import EXCLUDE, Schema, fields, missing, post_load
 
@@ -13,8 +13,8 @@ class Detection(Schema):
         message: str,
         detection_details: dict,
         detection_rule_id: str,
-        severity: Optional[str] = None,
-        id: Optional[str] = None,
+        severity: str | None = None,
+        id: str | None = None,
     ) -> None:
         super().__init__()
         self.id = id
@@ -62,7 +62,7 @@ class DetectionSchema(Schema):
 
 
 class DetectionsPerFile(Schema):
-    def __init__(self, file_name: str, detections: list[Detection], commit_id: Optional[str] = None) -> None:
+    def __init__(self, file_name: str, detections: list[Detection], commit_id: str | None = None) -> None:
         super().__init__()
         self.file_name = file_name
         self.detections = detections
@@ -74,10 +74,10 @@ class ZippedFileScanResult(Schema):
         self,
         did_detect: bool,
         detections_per_file: list[DetectionsPerFile],
-        report_url: Optional[str] = None,
-        scan_id: Optional[str] = None,
-        err: Optional[str] = None,
-        verdict: Optional[str] = None,
+        report_url: str | None = None,
+        scan_id: str | None = None,
+        err: str | None = None,
+        verdict: str | None = None,
     ) -> None:
         super().__init__()
         self.did_detect = did_detect
@@ -92,9 +92,9 @@ class ScanResult(Schema):
     def __init__(
         self,
         did_detect: bool,
-        scan_id: Optional[str] = None,
-        detections: Optional[list[Detection]] = None,
-        err: Optional[str] = None,
+        scan_id: str | None = None,
+        detections: list[Detection] | None = None,
+        err: str | None = None,
     ) -> None:
         super().__init__()
         self.did_detect = did_detect
@@ -138,7 +138,7 @@ class UploadLinkResponseSchema(Schema):
 
 
 class ScanInitializationResponse(Schema):
-    def __init__(self, scan_id: Optional[str] = None, err: Optional[str] = None) -> None:
+    def __init__(self, scan_id: str | None = None, err: str | None = None) -> None:
         super().__init__()
         self.scan_id = scan_id
         self.err = err
@@ -159,13 +159,13 @@ class ScanInitializationResponseSchema(Schema):
 class ScanDetailsResponse(Schema):
     def __init__(
         self,
-        id: Optional[str] = None,
-        scan_status: Optional[str] = None,
-        results_count: Optional[int] = None,
-        metadata: Optional[str] = None,
-        message: Optional[str] = None,
-        scan_update_at: Optional[str] = None,
-        err: Optional[str] = None,
+        id: str | None = None,
+        scan_status: str | None = None,
+        results_count: int | None = None,
+        metadata: str | None = None,
+        message: str | None = None,
+        scan_update_at: str | None = None,
+        err: str | None = None,
     ) -> None:
         super().__init__()
         self.id = id
@@ -389,9 +389,9 @@ class SbomReportStorageDetailsSchema(Schema):
 class ReportExecution:
     id: int
     status: str
-    error_message: Optional[str] = None
-    status_message: Optional[str] = None
-    storage_details: Optional[SbomReportStorageDetails] = None
+    error_message: str | None = None
+    status_message: str | None = None
+    storage_details: SbomReportStorageDetails | None = None
 
 
 class ReportExecutionSchema(Schema):
@@ -445,7 +445,7 @@ class MemberSchema(Schema):
 class MemberDetails:
     items: list[Member]
     page_size: int
-    next_page_token: Optional[str]
+    next_page_token: str | None
 
 
 class RequestedMemberDetailsResultSchema(Schema):
@@ -481,11 +481,11 @@ class ClassificationDataSchema(Schema):
 class DetectionRule:
     classification_data: list[ClassificationData]
     detection_rule_id: str
-    custom_remediation_guidelines: Optional[str] = None
-    remediation_guidelines: Optional[str] = None
-    description: Optional[str] = None
-    policy_name: Optional[str] = None
-    display_name: Optional[str] = None
+    custom_remediation_guidelines: str | None = None
+    remediation_guidelines: str | None = None
+    description: str | None = None
+    policy_name: str | None = None
+    display_name: str | None = None
 
 
 class DetectionRuleSchema(Schema):
@@ -509,7 +509,7 @@ class DetectionRuleSchema(Schema):
 class ScanResultsSyncFlow:
     id: str
     detection_messages: list[dict]
-    verdict: Optional[str] = None
+    verdict: str | None = None
 
 
 class ScanResultsSyncFlowSchema(Schema):
@@ -594,7 +594,7 @@ class McpServerAuthorizationStatus(str, Enum):
 
 
 class McpServerAuthorizationStatusField(fields.Field):
-    def _serialize(self, value: Optional[McpServerAuthorizationStatus], *_, **__) -> Optional[str]:
+    def _serialize(self, value: McpServerAuthorizationStatus | None, *_, **__) -> str | None:
         return value.value if value is not None else None
 
     def deserialize(self, value: object, *_, **__) -> McpServerAuthorizationStatus:
@@ -603,8 +603,8 @@ class McpServerAuthorizationStatusField(fields.Field):
 
 @dataclass
 class McpServerStatus:
-    alias: Optional[str] = None
-    normalized_id: Optional[str] = None
+    alias: str | None = None
+    normalized_id: str | None = None
     status: McpServerAuthorizationStatus = McpServerAuthorizationStatus.UNREVIEWED
 
 
@@ -624,7 +624,7 @@ class McpServerStatusSchema(Schema):
 @dataclass
 class SessionContextResponse:
     # None when the response carries no (or malformed) MCP server statuses.
-    mcp_servers: Optional[list[McpServerStatus]] = None
+    mcp_servers: list[McpServerStatus] | None = None
 
 
 class SessionContextResponseSchema(Schema):

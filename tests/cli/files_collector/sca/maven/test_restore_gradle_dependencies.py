@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -120,8 +119,8 @@ class TestCleanup:
         def side_effect(
             commands: list,
             timeout: int,
-            output_file_path: Optional[str] = None,
-            working_directory: Optional[str] = None,
+            output_file_path: str | None = None,
+            working_directory: str | None = None,
         ) -> str:
             # Gradle uses create_output_file_manually=True; output_file_path is provided
             target = output_file_path or str(output_path)
@@ -164,8 +163,8 @@ class TestCleanup:
         def side_effect(
             commands: list,
             timeout: int,
-            output_file_path: Optional[str] = None,
-            working_directory: Optional[str] = None,
+            output_file_path: str | None = None,
+            working_directory: str | None = None,
         ) -> str:
             target = output_file_path or str(output_path)
             Path(target).write_text('compileClasspath\n')

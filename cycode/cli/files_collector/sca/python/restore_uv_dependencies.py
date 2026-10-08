@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -16,7 +15,7 @@ UV_LOCK_FILE_NAME = 'uv.lock'
 _UV_TOOL_SECTION = '[tool.uv]'
 
 
-def _indicates_uv(pyproject_content: Optional[str]) -> bool:
+def _indicates_uv(pyproject_content: str | None) -> bool:
     """Return True if pyproject.toml content signals that this project uses UV."""
     if not pyproject_content:
         return False
@@ -37,7 +36,7 @@ class RestoreUvDependencies(BaseRestoreDependencies):
 
         return _indicates_uv(document.content)
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / UV_LOCK_FILE_NAME if manifest_dir else None
 

@@ -3,7 +3,6 @@
 import json
 import time
 from pathlib import Path
-from typing import Optional
 
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
@@ -52,7 +51,7 @@ def test_cache_file_sits_next_to_the_guardrail_config() -> None:
     ],
 )
 def test_parse_status_is_case_insensitive_and_unknown_reads_unreviewed(
-    raw: Optional[str], expected: McpServerAuthorizationStatus
+    raw: str | None, expected: McpServerAuthorizationStatus
 ) -> None:
     assert McpServerAuthorizationStatus.parse(raw) == expected
 
@@ -66,7 +65,7 @@ def test_parse_status_is_case_insensitive_and_unknown_reads_unreviewed(
         (None, False),
     ],
 )
-def test_is_enforced(status: Optional[McpServerAuthorizationStatus], expected: bool) -> None:
+def test_is_enforced(status: McpServerAuthorizationStatus | None, expected: bool) -> None:
     assert is_enforced(status) is expected
 
 

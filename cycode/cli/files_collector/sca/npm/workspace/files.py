@@ -3,7 +3,6 @@
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 from cycode.cli.utils.path_utils import get_absolute_path
 from cycode.logger import get_logger
@@ -17,7 +16,7 @@ def resolved_path(path: object) -> str:
     return os.path.realpath(get_absolute_path(str(path)))
 
 
-def file_stamp(path: Path) -> Optional[FileStamp]:
+def file_stamp(path: Path) -> FileStamp | None:
     try:
         stat_result = path.stat()
     except OSError:
@@ -26,7 +25,7 @@ def file_stamp(path: Path) -> Optional[FileStamp]:
     return str(path), stat_result.st_mtime_ns, stat_result.st_size
 
 
-def read_json_object(path: Path) -> Optional[dict]:
+def read_json_object(path: Path) -> dict | None:
     try:
         content = json.loads(path.read_text(encoding='UTF-8'))
     except FileNotFoundError:

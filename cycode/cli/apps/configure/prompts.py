@@ -1,12 +1,10 @@
-from typing import Optional
-
 import typer
 
 from cycode.cli import consts
 from cycode.cli.utils.string_utils import obfuscate_text
 
 
-def get_client_id_input(current_client_id: Optional[str]) -> Optional[str]:
+def get_client_id_input(current_client_id: str | None) -> str | None:
     prompt_text = 'Cycode Client ID'
 
     prompt_suffix = ' []: '
@@ -17,7 +15,7 @@ def get_client_id_input(current_client_id: Optional[str]) -> Optional[str]:
     return new_client_id or current_client_id
 
 
-def get_client_secret_input(current_client_secret: Optional[str]) -> Optional[str]:
+def get_client_secret_input(current_client_secret: str | None) -> str | None:
     prompt_text = 'Cycode Client Secret'
 
     prompt_suffix = ' []: '
@@ -28,7 +26,7 @@ def get_client_secret_input(current_client_secret: Optional[str]) -> Optional[st
     return new_client_secret or current_client_secret
 
 
-def get_app_url_input(current_app_url: Optional[str]) -> str:
+def get_app_url_input(current_app_url: str | None) -> str:
     prompt_text = 'Cycode APP URL'
 
     default = consts.DEFAULT_CYCODE_APP_URL
@@ -38,7 +36,7 @@ def get_app_url_input(current_app_url: Optional[str]) -> str:
     return typer.prompt(text=prompt_text, default=default, type=str)
 
 
-def get_api_url_input(current_api_url: Optional[str]) -> str:
+def get_api_url_input(current_api_url: str | None) -> str:
     prompt_text = 'Cycode API URL'
 
     default = consts.DEFAULT_CYCODE_API_URL
@@ -48,7 +46,7 @@ def get_api_url_input(current_api_url: Optional[str]) -> str:
     return typer.prompt(text=prompt_text, default=default, type=str)
 
 
-def get_id_token_input(current_id_token: Optional[str]) -> Optional[str]:
+def get_id_token_input(current_id_token: str | None) -> str | None:
     prompt_text = 'Cycode ID Token'
 
     prompt_suffix = ' []: '

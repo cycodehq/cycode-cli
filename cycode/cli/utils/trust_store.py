@@ -1,19 +1,10 @@
-import sys
-
 from cycode import config
 from cycode.cli import consts
 from cycode.logger import get_logger
 
 logger = get_logger('Trust Store')
 
-# truststore requires Python 3.10+, so on 3.9 the OS trust store is unavailable
-_MIN_PYTHON_VERSION = (3, 10)
-
 _installed = False
-
-
-def is_supported() -> bool:
-    return sys.version_info >= _MIN_PYTHON_VERSION
 
 
 def is_enabled() -> bool:
@@ -42,14 +33,6 @@ def install() -> bool:
         logger.debug(
             'OS trust store not enabled, using the bundled CA store (certifi). Set %s=1 to enable it',
             consts.ENABLE_TRUSTSTORE_ENV_VAR_NAME,
-        )
-        return False
-
-    if not is_supported():
-        logger.warning(
-            'OS trust store requires Python %s+, using the bundled CA store (certifi). Current version: %s',
-            '.'.join(map(str, _MIN_PYTHON_VERSION)),
-            '.'.join(map(str, sys.version_info[:3])),
         )
         return False
 

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from requests import Request, Response
 
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, RequestHttpError
@@ -24,7 +22,7 @@ class AuthClient:
         response = self.cycode_client.post(url_path=path, body=body)
         return self.parse_start_session_response(response)
 
-    def get_api_token(self, session_id: str, code_verifier: str) -> Optional[models.ApiTokenGenerationPollingResponse]:
+    def get_api_token(self, session_id: str, code_verifier: str) -> models.ApiTokenGenerationPollingResponse | None:
         path = f'{self.AUTH_CONTROLLER_PATH}/token'
         body = {'session_id': session_id, 'code_verifier': code_verifier}
         try:
@@ -40,7 +38,7 @@ class AuthClient:
         return models.AuthenticationSessionSchema().load(response.json())
 
     @staticmethod
-    def parse_api_token_polling_response(response: Response) -> Optional[models.ApiTokenGenerationPollingResponse]:
+    def parse_api_token_polling_response(response: Response) -> models.ApiTokenGenerationPollingResponse | None:
         try:
             return models.ApiTokenGenerationPollingResponseSchema().load(response.json())
         except Exception:

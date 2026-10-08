@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -95,7 +95,7 @@ class TestVersionChecker:
         version_checker_cached: 'VersionChecker',
         current_version: str,
         latest_version: str,
-        expected_result: Optional[str],
+        expected_result: str | None,
     ) -> None:
         with patch.multiple(
             version_checker_cached,

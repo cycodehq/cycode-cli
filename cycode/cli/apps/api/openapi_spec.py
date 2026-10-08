@@ -4,7 +4,6 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.cli.user_settings.credentials_manager import CredentialsManager
@@ -20,7 +19,7 @@ _CACHE_TTL_SECONDS = int(os.getenv('CYCODE_SPEC_CACHE_TTL', str(24 * 60 * 60))) 
 _OPENAPI_SPEC_PATH = '/v4/api-docs/cycode-api-swagger.json'
 
 
-def get_openapi_spec(client_id: Optional[str] = None, client_secret: Optional[str] = None) -> dict:
+def get_openapi_spec(client_id: str | None = None, client_secret: str | None = None) -> dict:
     """Get the OpenAPI spec, using cache if fresh, otherwise fetching from API.
 
     The spec is only fetched when the user actually invokes `cycode platform ...`.
@@ -45,7 +44,7 @@ def get_openapi_spec(client_id: Optional[str] = None, client_secret: Optional[st
     return _fetch_and_cache_spec(client_id, client_secret)
 
 
-def _load_cached_spec() -> Optional[dict]:
+def _load_cached_spec() -> dict | None:
     """Load spec from local cache if it exists and is fresh."""
     if not _CACHE_FILE.exists():
         return None
@@ -64,7 +63,7 @@ def _load_cached_spec() -> Optional[dict]:
         return None
 
 
-def resolve_credentials(client_id: Optional[str] = None, client_secret: Optional[str] = None) -> tuple[str, str]:
+def resolve_credentials(client_id: str | None = None, client_secret: str | None = None) -> tuple[str, str]:
     """Resolve credentials from args or the CLI's standard credential chain."""
     if not client_id or not client_secret:
         credentials_manager = CredentialsManager()
@@ -81,7 +80,7 @@ def resolve_credentials(client_id: Optional[str] = None, client_secret: Optional
     return client_id, client_secret
 
 
-def _fetch_and_cache_spec(client_id: Optional[str] = None, client_secret: Optional[str] = None) -> dict:
+def _fetch_and_cache_spec(client_id: str | None = None, client_secret: str | None = None) -> dict:
     """Fetch OpenAPI spec from API and cache to disk.
 
     Uses CycodeTokenBasedClient for auth and retries. The spec is served from the app URL,

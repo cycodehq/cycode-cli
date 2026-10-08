@@ -4,7 +4,7 @@ import os
 import threading
 import time
 from multiprocessing import synchronize
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -592,7 +592,7 @@ def _server_check_policy(default_policy: dict[str, Any], server_action: str = 'b
     return default_policy
 
 
-def _mcp_payload(server: Optional[str] = 'github') -> AIHookPayload:
+def _mcp_payload(server: str | None = 'github') -> AIHookPayload:
     return AIHookPayload(
         event_name='McpExecution',
         conversation_id='conv-1',
@@ -608,7 +608,7 @@ def _cached_statuses(*rows: tuple[str, str]) -> McpServerStatuses:
     return McpServerStatuses(servers=servers, fetched_at=time.time())
 
 
-def _reported_event(mock_ctx: MagicMock) -> tuple[AIHookOutcome, Optional[BlockReason]]:
+def _reported_event(mock_ctx: MagicMock) -> tuple[AIHookOutcome, BlockReason | None]:
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     return call_args.args[2], call_args.kwargs['block_reason']
 
@@ -683,7 +683,7 @@ def test_unauthorized_mcp_server_enforcement(
     mock_ctx: MagicMock,
     default_policy: dict[str, Any],
     rows: tuple,
-    server: Optional[str],
+    server: str | None,
     expected_action: DecisionAction,
 ) -> None:
     mock_statuses.return_value = _cached_statuses(*rows)

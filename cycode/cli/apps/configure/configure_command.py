@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cycode.cli.apps.configure.consts import CONFIGURATION_MANAGER, CREDENTIALS_MANAGER
 from cycode.cli.apps.configure.messages import (
     get_credentials_environment_variables_override_warning,
@@ -18,8 +16,8 @@ from cycode.cli.console import console
 
 
 def _should_update_value(
-    old_value: Optional[str],
-    new_value: Optional[str],
+    old_value: str | None,
+    new_value: str | None,
 ) -> bool:
     if not new_value:
         return False

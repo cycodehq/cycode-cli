@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode import __version__
 from cycode.cli.config import configuration_manager
@@ -13,13 +13,13 @@ logger = get_logger('Activation Manager')
 _CLI_CLIENT_NAME = 'cli'
 
 
-def _get_client_and_version(plugin_app_name: Optional[str], plugin_app_version: Optional[str]) -> tuple[str, str]:
+def _get_client_and_version(plugin_app_name: str | None, plugin_app_version: str | None) -> tuple[str, str]:
     return plugin_app_name or _CLI_CLIENT_NAME, plugin_app_version or __version__
 
 
 def should_report_cli_activation(
-    plugin_app_name: Optional[str] = None,
-    plugin_app_version: Optional[str] = None,
+    plugin_app_name: str | None = None,
+    plugin_app_version: str | None = None,
 ) -> bool:
     client, version = _get_client_and_version(plugin_app_name, plugin_app_version)
     return configuration_manager.get_last_reported_activation_version(client) != version
@@ -27,8 +27,8 @@ def should_report_cli_activation(
 
 def report_cli_activation(
     cycode_client: 'CycodeClientBase',
-    plugin_app_name: Optional[str] = None,
-    plugin_app_version: Optional[str] = None,
+    plugin_app_name: str | None = None,
+    plugin_app_version: str | None = None,
 ) -> None:
     """Report CLI/IDE activation to the backend if the (client, version) pair is new.
 

@@ -1,7 +1,6 @@
 import os
 import pathlib
 import re
-from typing import Optional
 
 import typer
 
@@ -9,7 +8,7 @@ from cycode.cli.console import console
 
 
 class SbomReportFile:
-    def __init__(self, storage_path: str, output_format: str, output_file: Optional[pathlib.Path]) -> None:
+    def __init__(self, storage_path: str, output_format: str, output_file: pathlib.Path | None) -> None:
         if output_file is None:
             output_file = pathlib.Path(storage_path)
 

@@ -43,8 +43,6 @@ from os import PathLike
 from typing import (
     Any,
     BinaryIO,
-    Optional,
-    Union,
 )
 
 
@@ -205,9 +203,9 @@ class Pattern:
 class IgnoreFilter:
     def __init__(
         self,
-        patterns: Iterable[Union[str, bytes]],
+        patterns: Iterable[str | bytes],
         ignore_case: bool = False,
-        path: Optional[Union[PathLike, str]] = None,
+        path: PathLike | str | None = None,
     ) -> None:
         if hasattr(path, '__fspath__'):
             path = path.__fspath__()
@@ -227,13 +225,13 @@ class IgnoreFilter:
             d['path'] = path
         return d
 
-    def append_pattern(self, pattern: Union[str, bytes]) -> None:
+    def append_pattern(self, pattern: str | bytes) -> None:
         """Add a pattern to the set."""
         if isinstance(pattern, str):
             pattern = bytes(pattern, 'utf-8')
         self._patterns.append(Pattern(pattern, self._ignore_case))
 
-    def find_matching(self, path: Union[bytes, str]) -> Iterable[Pattern]:
+    def find_matching(self, path: bytes | str) -> Iterable[Pattern]:
         """Yield all matching patterns for path.
 
         Args:
@@ -248,7 +246,7 @@ class IgnoreFilter:
             if pattern.match(path):
                 yield pattern
 
-    def is_ignored(self, path: Union[bytes, str]) -> Optional[bool]:
+    def is_ignored(self, path: bytes | str) -> bool | None:
         """Check whether a path is ignored.
 
         For directories, include a trailing slash.
@@ -264,7 +262,7 @@ class IgnoreFilter:
         return status
 
     @classmethod
-    def from_path(cls, path: Union[PathLike, str], ignore_case: bool = False) -> 'IgnoreFilter':
+    def from_path(cls, path: PathLike | str, ignore_case: bool = False) -> 'IgnoreFilter':
         if hasattr(path, '__fspath__'):
             path = path.__fspath__()
         with open(path, 'rb') as f:
@@ -284,7 +282,7 @@ class IgnoreFilterManager:
         self,
         path: str,
         global_filters: list[IgnoreFilter],
-        ignore_file_name: Optional[str] = None,
+        ignore_file_name: str | None = None,
         ignore_case: bool = False,
     ) -> None:
         if hasattr(path, '__fspath__'):
@@ -317,14 +315,14 @@ class IgnoreFilterManager:
         return self._top_path
 
     @property
-    def ignore_file_name(self) -> Optional[str]:
+    def ignore_file_name(self) -> str | None:
         return self._ignore_file_name
 
     @property
     def ignore_case(self) -> bool:
         return self._ignore_case
 
-    def _load_path(self, path: str) -> Optional[IgnoreFilter]:
+    def _load_path(self, path: str) -> IgnoreFilter | None:
         try:
             return self._path_filters[path]
         except KeyError:
@@ -370,7 +368,7 @@ class IgnoreFilterManager:
                 filters.insert(0, (i, ignore_filter))
         return iter(matches)
 
-    def is_ignored(self, path: str) -> Optional[bool]:
+    def is_ignored(self, path: str) -> bool | None:
         """Check whether a path is ignored.
 
         Args:
@@ -425,9 +423,9 @@ class IgnoreFilterManager:
     def build(
         cls,
         path: str,
-        global_ignore_file_paths: Optional[Iterable[str]] = None,
-        global_patterns: Optional[Iterable[Union[str, bytes]]] = None,
-        ignore_file_name: Optional[str] = None,
+        global_ignore_file_paths: Iterable[str] | None = None,
+        global_patterns: Iterable[str | bytes] | None = None,
+        ignore_file_name: str | None = None,
         ignore_case: bool = False,
     ) -> 'IgnoreFilterManager':
         """Create a IgnoreFilterManager from patterns and paths.

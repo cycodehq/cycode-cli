@@ -1,7 +1,6 @@
 """Tests for AI guardrails policy loading and management."""
 
 from pathlib import Path
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -156,7 +155,7 @@ def test_load_policy_with_repo_config(mock_load: MagicMock) -> None:
     repo_path = Path('/fake/repo')
     repo_config = repo_path / '.cycode' / 'ai-guardrails.yaml'
 
-    def side_effect(path: Path) -> Optional[dict]:
+    def side_effect(path: Path) -> dict | None:
         if path == repo_config:
             return {
                 'mode': 'block',

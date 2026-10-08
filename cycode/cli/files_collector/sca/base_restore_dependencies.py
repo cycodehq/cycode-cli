@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -19,9 +18,9 @@ def build_dep_tree_path(path: str, generated_file_name: str) -> str:
 def execute_commands(
     commands: list[list[str]],
     timeout: int,
-    output_file_path: Optional[str] = None,
-    working_directory: Optional[str] = None,
-) -> Optional[str]:
+    output_file_path: str | None = None,
+    working_directory: str | None = None,
+) -> str | None:
     logger.debug(
         'Executing restore commands, %s',
         {
@@ -67,7 +66,7 @@ class BaseRestoreDependencies(ABC):
         self.command_timeout = command_timeout
         self.create_output_file_manually = create_output_file_manually
 
-    def restore(self, document: Document) -> Optional[Document]:
+    def restore(self, document: Document) -> Document | None:
         return self.try_restore_dependencies(document)
 
     def get_manifest_file_path(self, document: Document) -> str:
@@ -75,7 +74,7 @@ class BaseRestoreDependencies(ABC):
             join_paths(get_path_from_context(self.ctx), document.path) if self.ctx.obj.get('monitor') else document.path
         )
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_file_path = self.get_manifest_file_path(document)
         restore_file_paths = [
             build_dep_tree_path(document.absolute_path, restore_file_path_item)
@@ -122,7 +121,7 @@ class BaseRestoreDependencies(ABC):
 
         return Document(relative_restore_file_path, restore_file_content, self.is_git_diff)
 
-    def get_manifest_dir(self, document: Document) -> Optional[str]:
+    def get_manifest_dir(self, document: Document) -> str | None:
         """Return the directory containing the manifest file, resolving monitor-mode paths.
 
         Uses the same path resolution as get_manifest_file_path() to ensure consistency.
@@ -143,7 +142,7 @@ class BaseRestoreDependencies(ABC):
 
         return None
 
-    def get_working_directory(self, document: Document) -> Optional[str]:
+    def get_working_directory(self, document: Document) -> str | None:
         return str(Path(document.absolute_path).parent)
 
     def get_restored_lock_file_name(self, restore_file_path: str) -> str:

@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -60,7 +60,7 @@ def _path_to_command_name(path: str, common_prefix: str, has_path_params: bool) 
         /v4/violations/count  (prefix=/v4/violations) -> count
     """
     # Strip common prefix
-    relative = path[len(common_prefix) :] if path.startswith(common_prefix) else path
+    relative = path.removeprefix(common_prefix)
     relative = relative.strip('/')
 
     # Remove path parameter segments and empty parts
@@ -91,8 +91,8 @@ def _make_api_request(
     method: str,
     path_params: dict[str, str],
     query_params: dict[str, Any],
-    client_id: Optional[str] = None,
-    client_secret: Optional[str] = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> dict:
     """Execute an API request using the CLI's standard auth client."""
     from urllib.parse import quote
@@ -115,8 +115,8 @@ def _make_api_request(
 
 
 def build_api_command_groups(
-    client_id: Optional[str] = None,
-    client_secret: Optional[str] = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> list[tuple[click.Group, str]]:
     """Build Click command groups from the OpenAPI spec.
 

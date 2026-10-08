@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cycode.cli import consts
 from cycode.cli.utils.git_proxy import git_proxy
 from cycode.cli.utils.shell_executor import shell
@@ -9,7 +7,7 @@ from cycode.logger import get_logger
 logger = get_logger('Remote URL Resolver')
 
 
-def _get_plastic_repository_name(path: str) -> Optional[str]:
+def _get_plastic_repository_name(path: str) -> str | None:
     """Get the name of the Plastic repository from the current working directory.
 
     The command to execute is:
@@ -45,7 +43,7 @@ def _get_plastic_repository_name(path: str) -> Optional[str]:
         return None
 
 
-def _get_plastic_repository_list(working_dir: Optional[str] = None) -> dict[str, str]:
+def _get_plastic_repository_list(working_dir: str | None = None) -> dict[str, str]:
     """Get the list of Plastic repositories and their GUIDs.
 
     The command to execute is:
@@ -84,7 +82,7 @@ def _get_plastic_repository_list(working_dir: Optional[str] = None) -> dict[str,
         return repo_name_to_guid
 
 
-def _try_to_get_plastic_remote_url(path: str) -> Optional[str]:
+def _try_to_get_plastic_remote_url(path: str) -> str | None:
     repository_name = _get_plastic_repository_name(path)
     if not repository_name:
         return None
@@ -98,7 +96,7 @@ def _try_to_get_plastic_remote_url(path: str) -> Optional[str]:
     return f'{consts.PLASTIC_VCS_REMOTE_URI_PREFIX}{repository_guid}'
 
 
-def _try_get_git_remote_url(path: str) -> Optional[str]:
+def _try_get_git_remote_url(path: str) -> str | None:
     try:
         repo = git_proxy.get_repo(path, search_parent_directories=True)
         remote_url = repo.remotes[0].config_reader.get('url')
@@ -113,7 +111,7 @@ def _try_get_git_remote_url(path: str) -> Optional[str]:
         return None
 
 
-def _try_get_any_remote_url(path: str) -> Optional[str]:
+def _try_get_any_remote_url(path: str) -> str | None:
     remote_url = _try_get_git_remote_url(path)
     if not remote_url:
         remote_url = _try_to_get_plastic_remote_url(path)
@@ -121,7 +119,7 @@ def _try_get_any_remote_url(path: str) -> Optional[str]:
     return remote_url
 
 
-def get_remote_url_scan_parameter(paths: tuple[str, ...]) -> Optional[str]:
+def get_remote_url_scan_parameter(paths: tuple[str, ...]) -> str | None:
     remote_urls = set()
     for path in paths:
         # FIXME(MarshalX): perf issue. This looping will produce:

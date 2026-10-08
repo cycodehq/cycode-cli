@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -18,7 +17,7 @@ _POETRY_TOOL_SECTION = '[tool.poetry]'
 _UV_TOOL_SECTION = '[tool.uv]'
 
 
-def _indicates_plain_pip(pyproject_content: Optional[str]) -> bool:
+def _indicates_plain_pip(pyproject_content: str | None) -> bool:
     """Return True if pyproject.toml content signals a plain-pip project (no Poetry, no uv)."""
     if not pyproject_content:
         return False
@@ -44,7 +43,7 @@ class RestorePipDependencies(BaseRestoreDependencies):
 
         return _indicates_plain_pip(document.content)
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / PIP_LOCK_FILE_NAME if manifest_dir else None
 

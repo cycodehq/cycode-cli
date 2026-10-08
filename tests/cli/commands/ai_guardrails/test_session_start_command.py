@@ -4,7 +4,6 @@ import json
 import time
 from io import StringIO
 from pathlib import Path
-from typing import Optional
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -736,7 +735,7 @@ def _run_with_config(
     mock_ctx: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
     ai_client: MagicMock,
-    config: Optional[GuardrailConfig],
+    config: GuardrailConfig | None,
     tenant_id: str = 'tenant-a',
 ) -> None:
     monkeypatch.setattr(_session_start_mod, 'load_guardrail_config', MagicMock(return_value=config))
@@ -760,7 +759,7 @@ def _age_report_cache(seconds: float) -> None:
     cache_path.write_text(json.dumps(cache), encoding='utf-8')
 
 
-def _statuses_client(mcp_servers: Optional[list] = _SERVERS) -> MagicMock:
+def _statuses_client(mcp_servers: list | None = _SERVERS) -> MagicMock:
     ai_client = MagicMock()
     ai_client.report_session_context.return_value = SessionContextResponse(mcp_servers=mcp_servers)
     return ai_client
@@ -779,7 +778,7 @@ def test_session_context_response_saves_the_mcp_server_statuses(
 
 @pytest.mark.parametrize('response', [None, SessionContextResponse(mcp_servers=None)])
 def test_failed_or_malformed_session_context_response_keeps_the_cache(
-    response: Optional[SessionContextResponse],
+    response: SessionContextResponse | None,
     mock_ctx: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
     mock_save_mcp_server_statuses: MagicMock,
@@ -802,7 +801,7 @@ def test_failed_or_malformed_session_context_response_keeps_the_cache(
     ],
 )
 def test_unchanged_context_is_skipped_for_the_report_ttl_while_the_guardrail_is_off(
-    config: Optional[GuardrailConfig], mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+    config: GuardrailConfig | None, mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ai_client = _statuses_client()
 

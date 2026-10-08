@@ -2,7 +2,6 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Optional
 
 from cycode.cli.console import console
 from cycode.cli.user_settings.configuration_manager import ConfigurationManager
@@ -19,7 +18,7 @@ def _compare_versions(
     current_is_pre: bool,
     latest_is_pre: bool,
     latest_version: str,
-) -> Optional[str]:
+) -> str | None:
     """Compare version numbers and determine if an update is needed.
 
     Implements version comparison logic with special handling for pre-release versions:
@@ -43,7 +42,7 @@ def _compare_versions(
         return None
 
     # Compare version numbers
-    for current, latest in zip(current_parts, latest_parts):
+    for current, latest in zip(current_parts, latest_parts, strict=False):
         if latest > current:
             return latest_version
         if current > latest:
@@ -78,7 +77,7 @@ class VersionChecker(CycodeClientBase):
         config_dir = configuration_manager.global_config_file_manager.get_config_directory_path()
         self.cache_file = Path(config_dir) / '.version_check'
 
-    def get_latest_version(self) -> Optional[str]:
+    def get_latest_version(self) -> str | None:
         """Fetch the latest version of the package from PyPI.
 
         Makes an HTTP request to PyPI's JSON API to get the latest version information.
@@ -160,7 +159,7 @@ class VersionChecker(CycodeClientBase):
         except Exception as e:
             logger.debug('Failed to update version check cache file: %s', {'file': self.cache_file}, exc_info=e)
 
-    def check_for_update(self, current_version: str, use_cache: bool = True) -> Optional[str]:
+    def check_for_update(self, current_version: str, use_cache: bool = True) -> str | None:
         """Check if an update is available for the current version.
 
         Respects the update check frequency (daily/weekly) based on the version type

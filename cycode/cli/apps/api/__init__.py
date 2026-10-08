@@ -5,7 +5,7 @@ The spec is fetched lazily — only when the user invokes `cycode platform ...` 
 and cached locally for 24 hours.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -32,7 +32,7 @@ class PlatformGroup(click.Group):
         super().__init__(*args, **kwargs)
         self._loaded: bool = False
 
-    def _ensure_loaded(self, ctx: Optional[click.Context]) -> None:
+    def _ensure_loaded(self, ctx: click.Context | None) -> None:
         if self._loaded:
             return
         self._loaded = True  # set first to avoid re-entrancy on errors
@@ -59,7 +59,7 @@ class PlatformGroup(click.Group):
         self._ensure_loaded(ctx)
         return super().list_commands(ctx)
 
-    def get_command(self, ctx: click.Context, cmd_name: str) -> Optional[click.Command]:
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
         self._ensure_loaded(ctx)
         return super().get_command(ctx, cmd_name)
 

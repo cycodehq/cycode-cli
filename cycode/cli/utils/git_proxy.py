@@ -1,7 +1,7 @@
 import types
 from abc import ABC, abstractmethod
 from functools import cache
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 _GIT_ERROR_MESSAGE = """
 Cycode CLI needs the Git executable to be installed on the system.
@@ -21,7 +21,7 @@ class GitProxyError(Exception):
 
 # GitPython runs `git version` on import, so it is imported on first use rather than at CLI startup
 @cache
-def _import_git() -> Optional[types.ModuleType]:
+def _import_git() -> types.ModuleType | None:
     try:
         import git
     except ImportError:
@@ -31,7 +31,7 @@ def _import_git() -> Optional[types.ModuleType]:
 
 class _AbstractGitProxy(ABC):
     @abstractmethod
-    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo': ...
+    def get_repo(self, path: 'PathLike | None' = None, *args, **kwargs) -> 'Repo': ...
 
     @abstractmethod
     def get_null_tree(self) -> object: ...
@@ -44,7 +44,7 @@ class _AbstractGitProxy(ABC):
 
 
 class _DummyGitProxy(_AbstractGitProxy):
-    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
+    def get_repo(self, path: 'PathLike | None' = None, *args, **kwargs) -> 'Repo':
         raise RuntimeError(_GIT_ERROR_MESSAGE)
 
     def get_null_tree(self) -> object:
@@ -61,7 +61,7 @@ class _GitProxy(_AbstractGitProxy):
     def __init__(self, git_module: types.ModuleType) -> None:
         self._git = git_module
 
-    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
+    def get_repo(self, path: 'PathLike | None' = None, *args, **kwargs) -> 'Repo':
         return self._git.Repo(path, *args, **kwargs)
 
     def get_null_tree(self) -> object:
@@ -74,7 +74,7 @@ class _GitProxy(_AbstractGitProxy):
         return self._git.GitCommandError
 
 
-def get_git_proxy(git_module: Optional[types.ModuleType]) -> _AbstractGitProxy:
+def get_git_proxy(git_module: types.ModuleType | None) -> _AbstractGitProxy:
     return _GitProxy(git_module) if git_module else _DummyGitProxy()
 
 
@@ -82,7 +82,7 @@ class GitProxyManager(_AbstractGitProxy):
     """We are using this manager for easy unit testing and mocking of the git module."""
 
     def __init__(self) -> None:
-        self._git_proxy: Optional[_AbstractGitProxy] = None
+        self._git_proxy: _AbstractGitProxy | None = None
 
     def _get_git_proxy(self) -> _AbstractGitProxy:
         if self._git_proxy is None:
@@ -95,7 +95,7 @@ class GitProxyManager(_AbstractGitProxy):
     def _set_git_proxy(self) -> None:
         self._git_proxy = _GitProxy(_import_git())
 
-    def get_repo(self, path: Optional['PathLike'] = None, *args, **kwargs) -> 'Repo':
+    def get_repo(self, path: 'PathLike | None' = None, *args, **kwargs) -> 'Repo':
         return self._get_git_proxy().get_repo(path, *args, **kwargs)
 
     def get_null_tree(self) -> object:

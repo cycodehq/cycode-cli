@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 from cycode.cli.consts import DEFAULT_CYCODE_API_URL
@@ -68,9 +68,9 @@ def test_get_base_url_not_configured(mocker: 'MockerFixture') -> None:
 
 def _configure_mocks(
     mocker: 'MockerFixture',
-    expected_env_var_base_url: Optional[str],
-    expected_local_config_file_base_url: Optional[str],
-    expected_global_config_file_base_url: Optional[str],
+    expected_env_var_base_url: str | None,
+    expected_local_config_file_base_url: str | None,
+    expected_global_config_file_base_url: str | None,
 ) -> ConfigurationManager:
     mocker.patch.object(
         ConfigurationManager, 'get_api_url_from_environment_variables', return_value=expected_env_var_base_url

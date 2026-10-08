@@ -1,7 +1,7 @@
 """Install command for AI guardrails hooks."""
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -29,7 +29,7 @@ def install_command(
         ),
     ] = DEFAULT_IDE_NAME,
     repo_path: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             '--repo-path',
             help='Repository path for repo-scoped installation (defaults to current directory).',
@@ -93,7 +93,7 @@ def install_command(
         raise typer.Exit(1)
 
 
-def _install_policy(scope: str, repo_path: Optional[Path]) -> None:
+def _install_policy(scope: str, repo_path: Path | None) -> None:
     policy_success, policy_message = create_policy_file(scope, repo_path)
     if policy_success:
         console.print(f'[green]✓[/] {policy_message}')

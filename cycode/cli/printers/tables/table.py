@@ -1,5 +1,5 @@
 import urllib.parse
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from rich.markup import escape
 from rich.table import Table as RichTable
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class Table:
     """Helper class to manage columns and their values in the right order and only if the column should be presented."""
 
-    def __init__(self, column_infos: Optional[list['ColumnInfo']] = None) -> None:
+    def __init__(self, column_infos: list['ColumnInfo'] | None = None) -> None:
         self._group_separator_indexes: set[int] = set()
 
         self._columns: dict[ColumnInfo, list[str]] = {}
@@ -26,7 +26,7 @@ class Table:
         if column in self._columns:
             self._columns[column].append(value)
 
-    def add_cell(self, column: 'ColumnInfo', value: str, color: Optional[str] = None) -> None:
+    def add_cell(self, column: 'ColumnInfo', value: str, color: str | None = None) -> None:
         if color:
             value = f'[{color}]{value}[/]'
 
@@ -49,7 +49,7 @@ class Table:
 
     def get_rows(self) -> list[str]:
         column_values = [self._columns[column_info] for column_info in self._get_ordered_columns()]
-        return list(zip(*column_values))
+        return list(zip(*column_values, strict=False))
 
     def get_table(self) -> 'RichTable':
         table = RichTable(expand=True, highlight=True)

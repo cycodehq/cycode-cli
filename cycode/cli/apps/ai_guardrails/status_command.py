@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from rich.table import Table
@@ -30,7 +30,7 @@ def status_command(
         ),
     ] = DEFAULT_IDE_NAME,
     repo_path: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             '--repo-path',
             help='Repository path for repo-scoped status (defaults to current directory).',

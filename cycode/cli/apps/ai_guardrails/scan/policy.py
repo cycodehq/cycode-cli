@@ -15,7 +15,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -71,7 +71,7 @@ def deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
-def load_yaml_file(path: Path) -> Optional[dict]:
+def load_yaml_file(path: Path) -> dict | None:
     """Load a YAML or JSON config file."""
     if not path.exists():
         return None
@@ -101,7 +101,7 @@ def get_policy_value(policy: dict, *keys: str, default: Any = None) -> Any:
     return current
 
 
-def load_policy(workspace_root: Optional[str] = None) -> dict:
+def load_policy(workspace_root: str | None = None) -> dict:
     """
     Load policy by merging configs in order of precedence.
 

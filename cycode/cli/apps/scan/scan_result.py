@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -26,8 +26,8 @@ logger = get_logger('Scan Results')
 
 
 def _get_document_by_file_name(
-    documents: list[Document], file_name: str, unique_id: Optional[str] = None
-) -> Optional[Document]:
+    documents: list[Document], file_name: str, unique_id: str | None = None
+) -> Document | None:
     normalized_file_name = normalize_file_path(file_name)
     for document in documents:
         if normalize_file_path(document.path) == normalized_file_name and document.unique_id == unique_id:
@@ -132,7 +132,7 @@ def _map_detections_per_file_and_commit_id(scan_type: str, raw_detections: list[
 
             file_name = _get_file_name_from_detection(scan_type, raw_detection)
             detection: Detection = DetectionSchema().load(raw_detection)
-            commit_id: Optional[str] = detection.detection_details.get('commit_id')  # could be None
+            commit_id: str | None = detection.detection_details.get('commit_id')  # could be None
             group_by_key = (file_name, commit_id)
 
             if group_by_key in detections_per_files:
@@ -187,7 +187,7 @@ def get_sync_scan_result(scan_type: str, scan_results: 'ScanResultsSyncFlow') ->
 
 
 def print_local_scan_results(
-    ctx: typer.Context, local_scan_results: list[LocalScanResult], errors: Optional[dict[str, 'CliError']] = None
+    ctx: typer.Context, local_scan_results: list[LocalScanResult], errors: dict[str, 'CliError'] | None = None
 ) -> None:
     printer = ctx.obj.get('console_printer')
     printer.update_ctx(ctx)
