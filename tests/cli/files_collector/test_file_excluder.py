@@ -128,3 +128,23 @@ class TestIsFileRelevantForScaScan:
         # File with excluded directory name in filename should be included
         included_path = f'project/src/{excluded_dir}_config.txt'
         assert _is_file_relevant_for_sca_scan(included_path) is True
+
+
+class TestScaSupportedFiles:
+    """Test which file names an SCA scan collects."""
+
+    @pytest.mark.parametrize(
+        'file_path',
+        ['pnpm-workspace.yaml', 'repo/pnpm-workspace.yaml', '/home/user/repo/pnpm-workspace.yaml'],
+    )
+    def test_pnpm_workspace_file_is_collected(self, file_path: str) -> None:
+        """pnpm declares its workspace members in pnpm-workspace.yaml, which the backend needs to resolve them."""
+        excluder = Excluder()
+
+        assert excluder._is_relevant_file_to_scan_common(consts.SCA_SCAN_TYPE, file_path) is True
+
+    def test_unrelated_yaml_file_is_not_collected(self) -> None:
+        """Collecting pnpm-workspace.yaml must not make every yaml file part of an SCA scan."""
+        excluder = Excluder()
+
+        assert excluder._is_relevant_file_to_scan_common(consts.SCA_SCAN_TYPE, 'repo/config.yaml') is False
