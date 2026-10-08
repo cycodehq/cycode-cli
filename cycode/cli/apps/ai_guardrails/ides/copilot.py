@@ -27,7 +27,7 @@ import platform
 import re
 from collections.abc import Iterable
 from pathlib import Path
-from typing import ClassVar, Optional, Union
+from typing import ClassVar
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
@@ -131,7 +131,7 @@ def _vscode_mcp_config_path() -> Path:
     return _vscode_user_dir() / _MCP_CONFIG_FILENAME
 
 
-def _load_vscode_mcp_config(config_path: Optional[Path] = None) -> Optional[dict]:
+def _load_vscode_mcp_config(config_path: Path | None = None) -> dict | None:
     """Load and parse VS Code's user-level ``mcp.json``. Returns None if missing/invalid."""
     path = config_path or _vscode_mcp_config_path()
     if not path.exists():
@@ -144,7 +144,7 @@ def _load_vscode_mcp_config(config_path: Optional[Path] = None) -> Optional[dict
         return None
 
 
-def _load_jsonc(path: Path) -> Optional[dict]:
+def _load_jsonc(path: Path) -> dict | None:
     """Parse a JSON file tolerating //-comment lines (Copilot's config.json ships
     with a comment header; VS Code's settings.json is JSONC).
 
@@ -321,7 +321,7 @@ def _server_name_variants(server_name: str) -> set[str]:
     return {v for v in (server_name, underscored, collapsed) if v}
 
 
-def _read_file_path(tool_name: str, tool_input: object) -> Optional[str]:
+def _read_file_path(tool_name: str, tool_input: object) -> str | None:
     """Path of a file-read tool call, or None when this isn't one.
 
     The agent runtime reuses its read tool for directory listings, with a payload
@@ -350,7 +350,7 @@ def is_mcp_tool_name(tool_name: str) -> bool:
     return tool_name.startswith(_MCP_TOOL_PREFIX) or _MCP_AGENT_SEPARATOR in tool_name
 
 
-def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[Optional[str], Optional[str]]:
+def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[str | None, str | None]:
     """Split an MCP tool name into ``(server, tool)``.
 
     Handles both naming schemes: VS Code's ``mcp_<server>_<tool>`` and the agent
@@ -385,7 +385,7 @@ class Copilot(IDE):
     display_name: ClassVar[str] = 'GitHub Copilot'
     hook_events: ClassVar[list[str]] = list(_HOOK_EVENTS)
 
-    def settings_path(self, scope: str, repo_path: Optional[Path] = None) -> Path:
+    def settings_path(self, scope: str, repo_path: Path | None = None) -> Path:
         # Dedicated Cycode-owned file (Copilot reads every *.json in the hooks
         # dir), unlike the shared settings files of other IDEs.
         if scope == 'repo' and repo_path:
@@ -419,7 +419,7 @@ class Copilot(IDE):
         read_path = _read_file_path(tool_name, tool_input)
 
         if hook_event_name == 'UserPromptSubmit':
-            canonical_event: Union[AiHookEventType, str] = AiHookEventType.PROMPT
+            canonical_event: AiHookEventType | str = AiHookEventType.PROMPT
         elif hook_event_name == 'PreToolUse' and read_path is not None:
             canonical_event = AiHookEventType.FILE_READ
         elif hook_event_name == 'PreToolUse' and is_mcp_tool_name(tool_name):

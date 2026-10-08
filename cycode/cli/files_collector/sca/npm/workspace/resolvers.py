@@ -9,7 +9,6 @@ import json
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -38,17 +37,16 @@ _YARN_WORKSPACE_PROTOCOL = re.compile(r'@workspace:([^"\',\s]+)')
 _BUN_LOCKFILE_WORKSPACES_SECTION = 'workspaces'
 _TRAILING_COMMA = re.compile(r',(\s*[}\]])')
 
-_member_names_cache: dict[FileStamp, Optional[frozenset[str]]] = {}
+_member_names_cache: dict[FileStamp, frozenset[str] | None] = {}
 
 
 def clear_cache() -> None:
     _member_names_cache.clear()
 
 
-def _normalize_member_path(member_path: str) -> Optional[str]:
+def _normalize_member_path(member_path: str) -> str | None:
     normalized = member_path.strip()
-    if normalized.startswith('./'):
-        normalized = normalized[2:]
+    normalized = normalized.removeprefix('./')
 
     normalized = normalized.rstrip('/')
     if not normalized or normalized == _PNPM_LOCKFILE_ROOT_IMPORTER:
@@ -57,7 +55,7 @@ def _normalize_member_path(member_path: str) -> Optional[str]:
     return normalized
 
 
-def _npm_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
+def _npm_lockfile_member_names(lock_file: Path) -> frozenset | None:
     content = read_json_object(lock_file)
     packages = content.get(_LOCKFILE_PACKAGES_SECTION) if content is not None else None
     if not isinstance(packages, dict):
@@ -96,7 +94,7 @@ def _read_pnpm_importers_section(lock_file: Path) -> str:
     return '\n'.join(section)
 
 
-def _pnpm_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
+def _pnpm_lockfile_member_names(lock_file: Path) -> frozenset | None:
     section = _read_pnpm_importers_section(lock_file)
     if not section:
         return None
@@ -124,7 +122,7 @@ def _pnpm_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
     return frozenset(member_names) or None
 
 
-def _bun_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
+def _bun_lockfile_member_names(lock_file: Path) -> frozenset | None:
     """bun.lock is JSON with trailing commas, and names its members under "workspaces"."""
     try:
         text = lock_file.read_text(encoding='UTF-8')
@@ -151,7 +149,7 @@ def _bun_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
     return frozenset(member_names)
 
 
-def _yarn_lockfile_member_names(lock_file: Path) -> Optional[frozenset]:
+def _yarn_lockfile_member_names(lock_file: Path) -> frozenset | None:
     """Yarn berry records every member as "<name>@workspace:<path>"; classic yarn records nothing."""
     try:
         text = lock_file.read_text(encoding='UTF-8', errors='replace')
@@ -201,7 +199,7 @@ class WorkspaceMemberResolver(ABC):
         """
         return False
 
-    def resolve(self, lock_file: Path) -> Optional[frozenset]:
+    def resolve(self, lock_file: Path) -> frozenset | None:
         """Member paths this lockfile resolves, or None when it cannot name them.
 
         Caches on the file's identity so one scan parses each root lockfile once.
@@ -218,14 +216,14 @@ class WorkspaceMemberResolver(ABC):
         return member_names
 
     @abstractmethod
-    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]: ...
+    def _read_member_names(self, lock_file: Path) -> frozenset | None: ...
 
 
 class NpmLockfileResolver(WorkspaceMemberResolver):
     package_manager = NPM_PACKAGE_MANAGER
     lock_file_names = (NPM_LOCK_FILE_NAME, NPM_SHRINKWRAP_FILE_NAME)
 
-    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+    def _read_member_names(self, lock_file: Path) -> frozenset | None:
         return _npm_lockfile_member_names(lock_file)
 
 
@@ -233,7 +231,7 @@ class PnpmLockfileResolver(WorkspaceMemberResolver):
     package_manager = PNPM_PACKAGE_MANAGER
     lock_file_names = (PNPM_LOCK_FILE_NAME,)
 
-    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+    def _read_member_names(self, lock_file: Path) -> frozenset | None:
         return _pnpm_lockfile_member_names(lock_file)
 
 
@@ -244,7 +242,7 @@ class YarnLockfileResolver(WorkspaceMemberResolver):
     lock_file_names = (YARN_LOCK_FILE_NAME,)
     may_use_workspace_globs = True
 
-    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+    def _read_member_names(self, lock_file: Path) -> frozenset | None:
         return _yarn_lockfile_member_names(lock_file)
 
 
@@ -254,7 +252,7 @@ class BunLockfileResolver(WorkspaceMemberResolver):
     package_manager = BUN_PACKAGE_MANAGER
     lock_file_names = (BUN_LOCK_FILE_NAME,)
 
-    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+    def _read_member_names(self, lock_file: Path) -> frozenset | None:
         return _bun_lockfile_member_names(lock_file)
 
 
@@ -275,7 +273,7 @@ class OpaqueLockfileResolver(WorkspaceMemberResolver):
     def lock_file_names(self) -> tuple:
         return self._lock_file_names
 
-    def _read_member_names(self, lock_file: Path) -> Optional[frozenset]:
+    def _read_member_names(self, lock_file: Path) -> frozenset | None:
         return None
 
 

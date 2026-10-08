@@ -1,6 +1,5 @@
 import dataclasses
 import json
-from typing import Optional
 
 from requests import Response
 
@@ -45,7 +44,7 @@ class ReportClient:
         self.client = client
 
     def request_sbom_report_execution(
-        self, params: ReportParameters, zip_file: InMemoryZip = None, repository_url: Optional[str] = None
+        self, params: ReportParameters, zip_file: InMemoryZip = None, repository_url: str | None = None
     ) -> models.ReportExecution:
         report_type = 'zipped-file' if zip_file else 'repository-url'
         url_path = f'{self.SERVICE_NAME}/{self.CREATE_SBOM_REPORT_REQUEST_PATH}'.format(report_type=report_type)

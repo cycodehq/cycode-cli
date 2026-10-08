@@ -1,7 +1,6 @@
 import json
 import re
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -26,7 +25,7 @@ MINIMUM_BUN_VERSION = (1, 2)
 BUN_VERSION_COMMAND = ['bun', '--version']
 
 
-def _indicates_bun(package_json_content: Optional[str]) -> bool:
+def _indicates_bun(package_json_content: str | None) -> bool:
     """Return True if package.json content signals that this project uses Bun."""
     if not package_json_content:
         return False
@@ -43,7 +42,7 @@ def _indicates_bun(package_json_content: Optional[str]) -> bool:
     return isinstance(engines, dict) and 'bun' in engines
 
 
-def _parse_bun_version(raw_version: Optional[str]) -> Optional[tuple[int, int]]:
+def _parse_bun_version(raw_version: str | None) -> tuple[int, int] | None:
     """Parse the (major, minor) version from `bun --version` output (e.g. '1.2.3')."""
     if not raw_version:
         return None
@@ -91,7 +90,7 @@ class RestoreBunDependencies(BaseRestoreDependencies):
             return False
         return True
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / BUN_LOCK_FILE_NAME if manifest_dir else None
 

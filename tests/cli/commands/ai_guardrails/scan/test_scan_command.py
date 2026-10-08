@@ -3,7 +3,6 @@
 import json
 import time
 from io import StringIO
-from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
@@ -334,8 +333,8 @@ class TestSelfDetach:
         self,
         mock_ctx: MagicMock,
         mocker: MockerFixture,
-        config: Optional[GuardrailConfig],
-        policy: Optional[dict] = None,
+        config: GuardrailConfig | None,
+        policy: dict | None = None,
     ) -> str:
         payload = json.dumps({'hook_event_name': 'beforeSubmitPrompt', 'conversation_id': 'c-1', 'prompt': 'test'})
         mocker.patch('sys.stdin', StringIO(payload))
@@ -513,7 +512,7 @@ class TestSelfDetach:
         mocker: MockerFixture,
         mock_respawn: MagicMock,
         not_detached: None,
-        mcp_server: Optional[str],
+        mcp_server: str | None,
         expect_detach: bool,
     ) -> None:
         config = platform_config(mcp='report', mcp_server=mcp_server)

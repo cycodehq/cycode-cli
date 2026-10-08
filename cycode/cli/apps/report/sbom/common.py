@@ -1,7 +1,7 @@
 import pathlib
 import time
 from platform import platform
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode.cli import consts
 from cycode.cli.apps.report.sbom.sbom_report_file import SbomReportFile
@@ -20,7 +20,7 @@ def _poll_report_execution_until_completed(
     progress_bar: 'BaseProgressBar',
     client: 'ReportClient',
     report_execution_id: int,
-    polling_timeout: Optional[int] = None,
+    polling_timeout: int | None = None,
 ) -> ReportExecutionSchema:
     if polling_timeout is None:
         polling_timeout = configuration_manager.get_report_polling_timeout_in_seconds()
@@ -50,8 +50,8 @@ def send_report_feedback(
     report_command_type: str,
     request_report_parameters: dict,
     report_execution_id: int,
-    error_message: Optional[str] = None,
-    request_zip_file_size: Optional[int] = None,
+    error_message: str | None = None,
+    request_zip_file_size: int | None = None,
     **kwargs,
 ) -> None:
     try:
@@ -77,7 +77,7 @@ def create_sbom_report(
     progress_bar: 'BaseProgressBar',
     client: 'ReportClient',
     report_execution_id: int,
-    output_file: Optional[pathlib.Path],
+    output_file: pathlib.Path | None,
     output_format: str,
 ) -> None:
     report_execution = _poll_report_execution_until_completed(progress_bar, client, report_execution_id)

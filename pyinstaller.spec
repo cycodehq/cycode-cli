@@ -6,7 +6,6 @@ import os
 import platform
 import re
 import subprocess
-import sys
 
 _IS_WINDOWS = platform.system() == 'Windows'
 
@@ -47,8 +46,7 @@ _hiddenimports = [
 
 # truststore is imported lazily inside cycode/cli/utils/trust_store.py, and it picks its platform
 # backend behind a sys.platform branch. Only the current platform's backend actually resolves.
-if sys.version_info >= (3, 10):
-    _hiddenimports += ['truststore', 'truststore._windows', 'truststore._macos', 'truststore._openssl']
+_hiddenimports += ['truststore', 'truststore._windows', 'truststore._macos', 'truststore._openssl']
 
 
 def _build_windows_version_info(version: str):

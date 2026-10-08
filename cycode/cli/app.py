@@ -1,7 +1,7 @@
 import importlib
 import logging
 import sys
-from typing import Annotated, Optional
+from typing import Annotated
 
 import click
 import typer
@@ -51,13 +51,12 @@ _SUBAPP_MODULES: dict[str, str] = {
     'auth': 'cycode.cli.apps.auth',
     'configure': 'cycode.cli.apps.configure',
     'ignore': 'cycode.cli.apps.ignore',
+    'mcp': 'cycode.cli.apps.mcp',
     'report': 'cycode.cli.apps.report',
     'import': 'cycode.cli.apps.report_import',
     'scan': 'cycode.cli.apps.scan',
     'status': 'cycode.cli.apps.status',
 }
-if sys.version_info >= (3, 10):
-    _SUBAPP_MODULES['mcp'] = 'cycode.cli.apps.mcp'
 
 # Aliases: alternate spellings that resolve to a primary subcommand key.
 _SUBAPP_ALIASES: dict[str, str] = {
@@ -80,7 +79,7 @@ _ROOT_OPTS_WITH_VALUE = frozenset(
 )
 
 
-def _detect_invocation() -> tuple[Optional[str], Optional[str]]:
+def _detect_invocation() -> tuple[str | None, str | None]:
     """Return (top-level-subapp, second-level-subcommand) parsed from sys.argv.
 
     Both values may be None: when no positional arg matches a known subapp,
@@ -113,7 +112,7 @@ def _detect_invocation() -> tuple[Optional[str], Optional[str]]:
 _INVOKED_SUBAPP, _INVOKED_SUBCOMMAND = _detect_invocation()
 
 
-def _register_subapps(only: Optional[str]) -> None:
+def _register_subapps(only: str | None) -> None:
     if only is not None:
         app.add_typer(importlib.import_module(_SUBAPP_MODULES[only]).app)
         return
@@ -189,32 +188,32 @@ def app_callback(
         OutputTypeOption, typer.Option('--output', '-o', case_sensitive=False, help='Specify the output type.')
     ] = OutputTypeOption.RICH,
     user_agent: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(hidden=True, help='Characteristic JSON object that lets servers identify the application.'),
     ] = None,
     client_secret: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Specify a Cycode client secret for this specific scan execution.',
             rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
     client_id: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Specify a Cycode client ID for this specific scan execution.',
             rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
     id_token: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Specify a Cycode OIDC ID token for this specific scan execution.',
             rich_help_panel=_AUTH_RICH_HELP_PANEL,
         ),
     ] = None,
     _: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             '--install-completion',
             callback=install_callback,

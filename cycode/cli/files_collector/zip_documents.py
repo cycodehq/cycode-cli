@@ -1,6 +1,5 @@
 import timeit
 from pathlib import Path
-from typing import Optional
 
 from cycode.cli import consts
 from cycode.cli.exceptions import custom_exceptions
@@ -20,7 +19,7 @@ def _validate_zip_file_size(scan_type: str, zip_file_size: int) -> None:
 def zip_documents(
     scan_type: str,
     documents: list[Document],
-    zip_file: Optional[InMemoryZip] = None,
+    zip_file: InMemoryZip | None = None,
 ) -> InMemoryZip:
     if zip_file is None:
         zip_file = InMemoryZip()

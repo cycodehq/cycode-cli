@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cycode.cli.apps.configure.consts import (
     CONFIGURATION_MANAGER,
     CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE,
@@ -19,7 +17,7 @@ def get_credentials_update_result_message() -> str:
     return CREDENTIALS_UPDATED_SUCCESSFULLY_MESSAGE.format(filename=CREDENTIALS_MANAGER.get_filename())
 
 
-def get_credentials_environment_variables_override_warning() -> Optional[str]:
+def get_credentials_environment_variables_override_warning() -> str | None:
     if _are_credentials_exist_in_environment_variables():
         return CREDENTIALS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
 
@@ -38,7 +36,7 @@ def get_urls_update_result_message() -> str:
     )
 
 
-def get_urls_environment_variables_override_warning() -> Optional[str]:
+def get_urls_environment_variables_override_warning() -> str | None:
     if _are_urls_exist_in_environment_variables():
         return URLS_ARE_SET_IN_ENVIRONMENT_VARIABLES_MESSAGE
 

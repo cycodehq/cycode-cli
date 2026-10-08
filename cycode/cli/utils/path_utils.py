@@ -3,7 +3,7 @@ import os
 import tempfile
 from functools import cache
 from pathlib import PurePath, PurePosixPath, PureWindowsPath
-from typing import TYPE_CHECKING, AnyStr, Optional, Union
+from typing import TYPE_CHECKING, AnyStr, Union
 
 import typer
 
@@ -31,7 +31,7 @@ def get_absolute_path(path: str) -> str:
     return os.path.abspath(path)
 
 
-def _get_starting_chunk(filename: str, length: int = 1024) -> Optional[bytes]:
+def _get_starting_chunk(filename: str, length: int = 1024) -> bytes | None:
     # We are using our own implementation of get_starting_chunk
     # because the original one from binaryornot uses print()...
 
@@ -79,7 +79,7 @@ def join_paths(path: str, filename: str) -> str:
     return os.path.join(path, filename)
 
 
-def get_file_content(file_path: Union[str, 'PathLike']) -> Optional[AnyStr]:
+def get_file_content(file_path: Union[str, 'PathLike']) -> AnyStr | None:
     try:
         with open(file_path, encoding='UTF-8') as f:
             return f.read()
@@ -115,7 +115,7 @@ def quarantine_corrupt_file(filename: str) -> None:
         logger.warning('Failed to quarantine corrupt file, %s', {'filename': filename}, exc_info=e)
 
 
-def load_json(txt: str) -> Optional[dict]:
+def load_json(txt: str) -> dict | None:
     try:
         return json.loads(txt)
     except json.JSONDecodeError:
@@ -152,7 +152,7 @@ def concat_unique_id(filename: str, unique_id: str) -> str:
     return str(PurePosixPath(unique_id, *_to_relative_posix_parts(filename)))
 
 
-def _as_scan_root(value: object) -> Optional[str]:
+def _as_scan_root(value: object) -> str | None:
     if isinstance(value, (str, os.PathLike)):
         return os.fspath(value) or None
 
@@ -181,7 +181,7 @@ def get_scan_roots_from_context(ctx: typer.Context) -> tuple[str, ...]:
     return tuple(dict.fromkeys(scan_roots))
 
 
-def get_path_from_context(ctx: typer.Context) -> Optional[str]:
+def get_path_from_context(ctx: typer.Context) -> str | None:
     scan_roots = get_scan_roots_from_context(ctx)
     return scan_roots[0] if scan_roots else None
 

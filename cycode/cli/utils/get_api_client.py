@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 import click
 
@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 
 def _get_cycode_client(
     create_client_func: callable,
-    client_id: Optional[str],
-    client_secret: Optional[str],
+    client_id: str | None,
+    client_secret: str | None,
     hide_response_log: bool,
-    id_token: Optional[str] = None,
+    id_token: str | None = None,
 ) -> Union['ScanClient', 'ReportClient', 'ImportSbomClient', 'AISecurityManagerClient']:
     if client_id and id_token:
         return create_client_func(client_id, None, hide_response_log, id_token)
@@ -80,6 +80,6 @@ def _get_configured_credentials() -> tuple[str, str]:
     return credentials_manager.get_credentials()
 
 
-def _get_configured_oidc_credentials() -> tuple[Optional[str], Optional[str]]:
+def _get_configured_oidc_credentials() -> tuple[str | None, str | None]:
     credentials_manager = CredentialsManager()
     return credentials_manager.get_oidc_credentials()

@@ -6,7 +6,7 @@ import re
 import sys
 from collections.abc import Iterator
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import tomli_w
 
@@ -61,14 +61,14 @@ def _codex_skills_dir() -> Path:
     return _codex_home() / 'skills'
 
 
-def _codex_config_toml_path(scope: str, repo_path: Optional[Path] = None) -> Path:
+def _codex_config_toml_path(scope: str, repo_path: Path | None = None) -> Path:
     """Return the Codex ``config.toml`` path for the given scope."""
     if scope == 'repo' and repo_path:
         return repo_path / _CONFIG_DIR_NAME / _CONFIG_TOML_NAME
     return _codex_home() / _CONFIG_TOML_NAME
 
 
-def _load_codex_config(config_path: Optional[Path] = None) -> Optional[dict]:
+def _load_codex_config(config_path: Path | None = None) -> dict | None:
     """Load and parse Codex's ``config.toml``. Returns None on missing/invalid."""
     path = config_path or (_codex_home() / _CONFIG_TOML_NAME)
     if not path.exists():
@@ -82,7 +82,7 @@ def _load_codex_config(config_path: Optional[Path] = None) -> Optional[dict]:
         return None
 
 
-def _email_from_auth(auth_path: Optional[Path] = None) -> Optional[str]:
+def _email_from_auth(auth_path: Path | None = None) -> str | None:
     """Best-effort extraction of the signed-in Codex user's email.
 
     Reads ``~/.codex/auth.json`` and decodes the JWT in ``tokens.id_token``
@@ -108,7 +108,7 @@ def _email_from_auth(auth_path: Optional[Path] = None) -> Optional[str]:
     return claims.get('email')
 
 
-def _resolve_codex_plugin_dir(plugin_name: str, marketplace: str) -> Optional[Path]:
+def _resolve_codex_plugin_dir(plugin_name: str, marketplace: str) -> Path | None:
     """Find ``~/.codex/plugins/cache/<marketplace>/<plugin>/<hash>/``."""
     return resolve_cached_plugin_dir(_codex_home() / 'plugins' / 'cache', marketplace, plugin_name)
 
@@ -177,13 +177,13 @@ def _local_mcp_server_names() -> Iterator[str]:
         yield from entry.get('mcp_server_names') or []
 
 
-def _split_mcp_tool_name(tool_name: str) -> tuple[Optional[str], Optional[str]]:
+def _split_mcp_tool_name(tool_name: str) -> tuple[str | None, str | None]:
     """Split ``mcp__<namespace>__<tool>`` into ``(server config key, tool)``; unknown namespaces split on ``__``."""
     rest = tool_name[len('mcp__') :]
     names = list(_local_mcp_server_names())
     # Codex appends `_<12 hex>` to a namespace on collision or length overflow.
     for suffix in ('__', r'_+[0-9a-f]{12}__'):
-        best: Optional[tuple[int, str]] = None
+        best: tuple[int, str] | None = None
         for name in names:
             namespace = _sanitize_mcp_name(name).rstrip('_')
             match = namespace and re.match(re.escape(namespace) + suffix, rest)
@@ -196,7 +196,7 @@ def _split_mcp_tool_name(tool_name: str) -> tuple[Optional[str], Optional[str]]:
     return (parts[1] if len(parts) >= 2 else None), (parts[2] if len(parts) >= 3 else None)
 
 
-def _enable_codex_hooks_feature(scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+def _enable_codex_hooks_feature(scope: str, repo_path: Path | None = None) -> tuple[bool, str]:
     """Set ``[features] hooks = true`` in Codex's ``config.toml``.
 
     Codex's hook scripts are gated behind this feature flag. We preserve any
@@ -234,7 +234,7 @@ class Codex(IDE):
     display_name: ClassVar[str] = 'Codex'
     hook_events: ClassVar[list[str]] = list(_HOOK_EVENTS)
 
-    def settings_path(self, scope: str, repo_path: Optional[Path] = None) -> Path:
+    def settings_path(self, scope: str, repo_path: Path | None = None) -> Path:
         if scope == 'repo' and repo_path:
             return repo_path / _CONFIG_DIR_NAME / _HOOKS_FILE_NAME
         return _codex_home() / _HOOKS_FILE_NAME
@@ -264,7 +264,7 @@ class Codex(IDE):
             },
         }
 
-    def post_install(self, scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+    def post_install(self, scope: str, repo_path: Path | None = None) -> tuple[bool, str]:
         return _enable_codex_hooks_feature(scope, repo_path)
 
     def matches_payload(self, raw_payload: dict) -> bool:
@@ -333,7 +333,7 @@ class Codex(IDE):
             source=raw_payload.get('source'),
         )
 
-    def get_user_email(self) -> Optional[str]:
+    def get_user_email(self) -> str | None:
         return _email_from_auth()
 
     def get_session_context(self) -> tuple[list[dict], dict]:

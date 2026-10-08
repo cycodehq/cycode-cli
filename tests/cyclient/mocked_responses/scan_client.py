@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
 import responses
@@ -16,7 +15,7 @@ def get_zipped_file_scan_async_url(scan_type: str, scan_client: ScanClient) -> s
     return f'{api_url}/{service_url}'
 
 
-def get_zipped_file_scan_async_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
+def get_zipped_file_scan_async_response(url: str, scan_id: UUID | None = None) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
 
@@ -27,19 +26,19 @@ def get_zipped_file_scan_async_response(url: str, scan_id: Optional[UUID] = None
     return responses.Response(method=responses.POST, url=url, json=json_response, status=200)
 
 
-def get_scan_details_url(scan_type: str, scan_id: Optional[UUID], scan_client: ScanClient) -> str:
+def get_scan_details_url(scan_type: str, scan_id: UUID | None, scan_client: ScanClient) -> str:
     api_url = scan_client.scan_cycode_client.api_url
     service_url = scan_client.get_scan_details_path(scan_type, str(scan_id))
     return f'{api_url}/{service_url}'
 
 
-def get_scan_aggregation_report_url(aggregation_id: Optional[UUID], scan_client: ScanClient, scan_type: str) -> str:
+def get_scan_aggregation_report_url(aggregation_id: UUID | None, scan_client: ScanClient, scan_type: str) -> str:
     api_url = scan_client.scan_cycode_client.api_url
     service_url = scan_client.get_scan_aggregation_report_url_path(str(aggregation_id), scan_type)
     return f'{api_url}/{service_url}'
 
 
-def get_scan_aggregation_report_url_response(url: str, aggregation_id: Optional[UUID] = None) -> responses.Response:
+def get_scan_aggregation_report_url_response(url: str, aggregation_id: UUID | None = None) -> responses.Response:
     if not aggregation_id:
         aggregation_id = uuid4()
     json_response = {'report_url': f'https://app.domain/cli-logs-aggregation/{aggregation_id}'}
@@ -47,7 +46,7 @@ def get_scan_aggregation_report_url_response(url: str, aggregation_id: Optional[
     return responses.Response(method=responses.GET, url=url, json=json_response, status=200)
 
 
-def get_scan_details_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
+def get_scan_details_response(url: str, scan_id: UUID | None = None) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
 
@@ -155,7 +154,7 @@ def get_scan_from_upload_id_url(scan_type: str, scan_client: ScanClient) -> str:
     return f'{api_url}/{service_url}'
 
 
-def get_scan_from_upload_id_response(url: str, scan_id: Optional[UUID] = None) -> responses.Response:
+def get_scan_from_upload_id_response(url: str, scan_id: UUID | None = None) -> responses.Response:
     if not scan_id:
         scan_id = uuid4()
     return responses.Response(method=responses.POST, url=url, json={'scan_id': str(scan_id)}, status=200)

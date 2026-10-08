@@ -3,7 +3,7 @@ import tempfile
 from collections import defaultdict
 from os import SEEK_END
 from pathlib import Path
-from typing import IO, Optional
+from typing import IO
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from cycode.cli import consts
@@ -17,7 +17,7 @@ logger = get_logger('ZIP')
 _SPOOL_DIRECTORY_NAME = 'tmp'
 
 
-def _get_spool_directory(configuration_manager: ConfigurationManager) -> Optional[str]:
+def _get_spool_directory(configuration_manager: ConfigurationManager) -> str | None:
     """Directory to spill big ZIPs into. None falls back to the system temp directory."""
     try:
         directory = Path(configuration_manager.global_config_file_manager.get_config_directory_path())
@@ -47,7 +47,7 @@ class InMemoryZip:
         self._files_count = 0
         self._extension_statistics = defaultdict(int)
 
-    def append(self, filename: str, unique_id: Optional[str], content: str) -> None:
+    def append(self, filename: str, unique_id: str | None, content: str) -> None:
         self._files_count += 1
         self._extension_statistics[Path(filename).suffix] += 1
 

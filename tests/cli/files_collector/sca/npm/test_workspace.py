@@ -3,7 +3,6 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
@@ -903,7 +902,7 @@ class TestPnpmImportersSlicing:
             ('root importer only', "lockfileVersion: '9.0'\nimporters:\n  .: {}\n", None),
         ],
     )
-    def test_lockfile_shapes(self, tmp_path: Path, label: str, text: str, expected: Optional[set]) -> None:
+    def test_lockfile_shapes(self, tmp_path: Path, label: str, text: str, expected: set | None) -> None:
         got = self._members(tmp_path, text)
         assert got == (None if expected is None else frozenset(expected)), label
 

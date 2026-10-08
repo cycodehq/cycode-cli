@@ -1,5 +1,5 @@
 import re
-from typing import Annotated, Optional
+from typing import Annotated
 
 import click
 import typer
@@ -22,7 +22,7 @@ def _is_package_pattern_valid(package: str) -> bool:
 
 def ignore_command(  # noqa: C901
     by_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Ignore a specific file or directory while scanning.',
             show_default=False,
@@ -30,7 +30,7 @@ def ignore_command(  # noqa: C901
         ),
     ] = None,
     by_rule: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Ignore scanning a specific Secrets rule ID or IaC rule ID.',
             show_default=False,
@@ -38,7 +38,7 @@ def ignore_command(  # noqa: C901
         ),
     ] = None,
     by_value: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Ignore a specific value.',
             show_default=False,
@@ -46,7 +46,7 @@ def ignore_command(  # noqa: C901
         ),
     ] = None,
     by_sha: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Ignore a specific SHA512 representation of a string.',
             show_default=False,
@@ -54,7 +54,7 @@ def ignore_command(  # noqa: C901
         ),
     ] = None,
     by_package: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Ignore scanning a specific package version. Expected pattern: [cyan]name@version[/].',
             show_default=False,
@@ -62,7 +62,7 @@ def ignore_command(  # noqa: C901
         ),
     ] = None,
     by_cve: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help='Ignore scanning a specific CVE. Expected pattern: [cyan]CVE-YYYY-NNN[/].',
             show_default=False,

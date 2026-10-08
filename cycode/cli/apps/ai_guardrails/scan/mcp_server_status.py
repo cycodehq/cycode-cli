@@ -7,7 +7,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
 
@@ -34,7 +34,7 @@ def get_mcp_server_statuses_cache_path() -> Path:
     return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / MCP_SERVER_STATUSES_FILE_NAME
 
 
-def is_enforced(status: Optional[McpServerAuthorizationStatus]) -> bool:
+def is_enforced(status: McpServerAuthorizationStatus | None) -> bool:
     """``status`` is None when the platform never saw the server."""
     return status == McpServerAuthorizationStatus.UNAUTHORIZED
 
@@ -43,7 +43,7 @@ def is_enforced(status: Optional[McpServerAuthorizationStatus]) -> bool:
 class McpServerStatuses:
     servers: list[McpServerStatus]
     fetched_at: float
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
     ttl_seconds: float = DEFAULT_TTL_SECONDS
     _by_alias: dict = field(init=False, repr=False)
 
@@ -58,7 +58,7 @@ class McpServerStatuses:
             if known is None or _RESTRICTIVENESS[server.status] > _RESTRICTIVENESS[known]:
                 self._by_alias[key] = server.status
 
-    def status_of(self, alias: str) -> Optional[McpServerAuthorizationStatus]:
+    def status_of(self, alias: str) -> McpServerAuthorizationStatus | None:
         return self._by_alias.get(alias.lower())
 
 
@@ -78,7 +78,7 @@ class McpServerStatusesSchema(Schema):
 
 
 def save_mcp_server_statuses(
-    servers: list[McpServerStatus], tenant_id: Optional[str], ttl_seconds: float = DEFAULT_TTL_SECONDS
+    servers: list[McpServerStatus], tenant_id: str | None, ttl_seconds: float = DEFAULT_TTL_SECONDS
 ) -> None:
     path = get_mcp_server_statuses_cache_path()
     statuses = McpServerStatuses(servers=servers, fetched_at=time.time(), tenant_id=tenant_id, ttl_seconds=ttl_seconds)
@@ -89,7 +89,7 @@ def save_mcp_server_statuses(
         logger.debug('Failed to save MCP server statuses cache', exc_info=e)
 
 
-def load_mcp_server_statuses() -> Optional[McpServerStatuses]:
+def load_mcp_server_statuses() -> McpServerStatuses | None:
     path = get_mcp_server_statuses_cache_path()
     if not path.exists():
         return None

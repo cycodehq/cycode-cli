@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -47,7 +47,7 @@ def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
         return consts.GIT_EMPTY_TREE_OBJECT
 
 
-def get_staged_diff_index(repo: 'Repo', paths: Optional[list[str]] = None) -> tuple[str, 'DiffIndex']:
+def get_staged_diff_index(repo: 'Repo', paths: list[str] | None = None) -> tuple[str, 'DiffIndex']:
     """Diff the index against HEAD, or against the empty tree in repositories with no commits.
 
     GitPython only inverts the `R` flag for HEAD, so `R` must be off for the empty tree to keep
@@ -65,7 +65,7 @@ def get_staged_diff_index(repo: 'Repo', paths: Optional[list[str]] = None) -> tu
     return head_reference, repo.index.diff(head_reference, create_patch=True, R=reverse, paths=paths or None)
 
 
-def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: Optional[int]) -> bool:
+def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: int | None) -> bool:
     if max_commits_count is None:
         return False
 
@@ -73,7 +73,7 @@ def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_
 
 
 def collect_commit_range_diff_documents(
-    ctx: typer.Context, path: str, commit_range: str, max_commits_count: Optional[int] = None
+    ctx: typer.Context, path: str, commit_range: str, max_commits_count: int | None = None
 ) -> list[Document]:
     """Collects documents from a specified commit range in a Git repository.
 
@@ -138,7 +138,7 @@ def collect_commit_range_diff_documents(
     return commit_documents_to_scan
 
 
-def calculate_pre_receive_commit_range(repo_path: str, branch_update_details: str) -> Optional[str]:
+def calculate_pre_receive_commit_range(repo_path: str, branch_update_details: str) -> str | None:
     end_commit = _get_end_commit_from_branch_update_details(branch_update_details)
 
     # branch is deleted, no need to perform scan
@@ -168,7 +168,7 @@ def _get_end_commit_from_branch_update_details(update_details: str) -> str:
     return end_commit
 
 
-def _get_oldest_unupdated_commit_for_branch(repo: 'Repo', commit: str) -> Optional[str]:
+def _get_oldest_unupdated_commit_for_branch(repo: 'Repo', commit: str) -> str | None:
     # get a list of commits by chronological order that are not in the remote repository yet
     # more info about rev-list command: https://git-scm.com/docs/git-rev-list
 
@@ -181,12 +181,12 @@ def _get_oldest_unupdated_commit_for_branch(repo: 'Repo', commit: str) -> Option
     return commits[0]
 
 
-def _get_file_content_from_commit_diff(repo: 'Repo', commit: str, diff: 'Diff') -> Optional[str]:
+def _get_file_content_from_commit_diff(repo: 'Repo', commit: str, diff: 'Diff') -> str | None:
     file_path = get_diff_file_path(diff, relative=True)
     return get_file_content_from_commit_path(repo, commit, file_path)
 
 
-def _get_blob_content(blob: Optional['Blob']) -> Optional[str]:
+def _get_blob_content(blob: 'Blob | None') -> str | None:
     """Read a diff-side blob's content in-process, with no subprocess spawn.
 
     `diff.a_blob`/`diff.b_blob` already hold whatever git loaded to compute the patch, so this is
@@ -266,7 +266,7 @@ def parse_pre_receive_input() -> str:
     return pre_receive_input.splitlines()[0]
 
 
-def parse_pre_push_input() -> Optional[str]:
+def parse_pre_push_input() -> str | None:
     """Parse input to pre-push hook details.
 
     Example input:
@@ -289,7 +289,7 @@ def is_invoked_by_pre_commit_framework() -> bool:
     return os.getenv(consts.PRE_COMMIT_FRAMEWORK_ENV_VAR_NAME) == '1'
 
 
-def get_pre_commit_framework_push_range() -> Optional[str]:
+def get_pre_commit_framework_push_range() -> str | None:
     """Get the commit range to scan when invoked as a pre-push hook by the pre-commit framework.
 
     The pre-commit framework reads git's pre-push stdin itself and never forwards it to hooks.
@@ -379,7 +379,7 @@ def _get_default_branches_for_merge_base(repo: 'Repo') -> list[str]:
     return default_branches
 
 
-def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
+def calculate_pre_push_commit_range(push_update_details: str) -> str | None:
     """Calculate the commit range for pre-push hook scanning.
 
     Args:
@@ -430,7 +430,7 @@ def calculate_pre_push_commit_range(push_update_details: str) -> Optional[str]:
     return f'{remote_object_name}..{local_object_name}'
 
 
-def get_diff_file_path(diff: 'Diff', relative: bool = False, repo: Optional['Repo'] = None) -> Optional[str]:
+def get_diff_file_path(diff: 'Diff', relative: bool = False, repo: 'Repo | None' = None) -> str | None:
     """Get the file path from a git Diff object.
 
     Args:
@@ -470,7 +470,7 @@ def get_pre_commit_modified_documents(
     repo_path: str,
     base_ref: str = consts.GIT_HEAD_COMMIT_REV,
     include_unstaged: bool = False,
-    paths: Optional[list[str]] = None,
+    paths: list[str] | None = None,
     collect_file_contents: bool = True,
 ) -> tuple[list[Document], list[Document], list[Document]]:
     """Diffs `base_ref` against the staged index (default) or the full working tree.
@@ -562,7 +562,7 @@ def get_pre_commit_modified_documents(
     return from_ref_documents, working_copy_documents, diff_documents
 
 
-def parse_commit_range(commit_range: str, path: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+def parse_commit_range(commit_range: str, path: str) -> tuple[str | None, str | None, str | None]:
     """Parses a git commit range string and returns the full SHAs for the 'from' and 'to' commits.
     Also, it returns the separator in the commit range.
 

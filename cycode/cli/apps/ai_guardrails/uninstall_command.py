@@ -1,7 +1,7 @@
 """Uninstall command for AI guardrails hooks."""
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -28,7 +28,7 @@ def uninstall_command(
         ),
     ] = DEFAULT_IDE_NAME,
     repo_path: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             '--repo-path',
             help='Repository path for repo-scoped uninstallation (defaults to current directory).',

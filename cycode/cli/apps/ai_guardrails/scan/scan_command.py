@@ -7,7 +7,7 @@ The handlers in ``handlers.py`` are agent-agnostic (they return
 ``HookDecision``); ``IDE.build_hook_response`` is the per-IDE translation step.
 """
 
-from typing import Annotated, Optional, Union
+from typing import Annotated
 from uuid import uuid4
 
 import click
@@ -46,9 +46,9 @@ def _get_auth_error_message(error: Exception) -> str:
 
 
 def _deny_for_event(
-    event_name: Optional[Union[str, AiHookEventType]],
+    event_name: str | AiHookEventType | None,
     user_message: str,
-    agent_message: Optional[str] = None,
+    agent_message: str | None = None,
 ) -> HookDecision:
     """Build a deny decision matched to ``event_name``'s response shape.
 
@@ -62,7 +62,7 @@ def _deny_for_event(
     return HookDecision.deny(target, user_message, agent_message)
 
 
-def _should_skip_payload(ide_integration: IDE, payload: Optional[dict]) -> bool:
+def _should_skip_payload(ide_integration: IDE, payload: dict | None) -> bool:
     """Fast exits that never scan: empty/foreign/synthetic payloads all answer a plain allow."""
     if not payload:
         logger.debug('Empty or invalid JSON payload received')

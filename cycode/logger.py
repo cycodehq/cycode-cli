@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import ClassVar, NamedTuple, Optional, Union
+from typing import ClassVar, NamedTuple
 
 import click
 import typer
@@ -42,10 +42,10 @@ class CreatedLogger(NamedTuple):
 
 class LoggersManager:
     loggers: ClassVar[set[CreatedLogger]] = set()
-    global_logging_level: Optional[int] = None
+    global_logging_level: int | None = None
 
 
-def get_logger_level() -> Optional[Union[int, str]]:
+def get_logger_level() -> int | str | None:
     if LoggersManager.global_logging_level is not None:
         return LoggersManager.global_logging_level
 
@@ -53,7 +53,7 @@ def get_logger_level() -> Optional[Union[int, str]]:
     return logging.getLevelName(config_level)
 
 
-def get_logger(logger_name: Optional[str] = None, control_level_in_runtime: bool = True) -> logging.Logger:
+def get_logger(logger_name: str | None = None, control_level_in_runtime: bool = True) -> logging.Logger:
     new_logger = logging.getLogger(logger_name)
     new_logger.setLevel(get_logger_level())
 

@@ -5,7 +5,6 @@ scanning, while pre-existing lock files are left untouched.
 """
 
 from pathlib import Path
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -60,7 +59,7 @@ def _make_execute_side_effect(lock_path: Path, content: str = _LOCK_CONTENT) -> 
     """Returns an execute_commands side_effect that writes the lock file."""
 
     def side_effect(
-        commands: list, timeout: int, output_file_path: Optional[str] = None, working_directory: Optional[str] = None
+        commands: list, timeout: int, output_file_path: str | None = None, working_directory: str | None = None
     ) -> str:
         lock_path.write_text(content)
         return 'output'

@@ -31,16 +31,17 @@ jobs:
           git checkout ${{ steps.latest_tag.outputs.LATEST_TAG }}
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Load cached Poetry setup
         id: cached_poetry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.local
-          key: poetry-ubuntu-1  # increment to reset cache
+          key: poetry-ubuntu-${{ steps.setup-python.outputs.python-version }}
 
       - name: Setup Poetry
         if: steps.cached_poetry.outputs.cache-hit != 'true'
@@ -61,10 +62,10 @@ jobs:
           echo "CLI_VERSION=$(poetry version --short)" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Login to Docker Hub
         if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
@@ -76,7 +77,7 @@ jobs:
       - name: Build and push
         id: docker_build
         if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -86,7 +87,7 @@ jobs:
       - name: Verify build
         id: docker_verify_build
         if: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/v') }}
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64

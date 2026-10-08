@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -21,7 +20,7 @@ class RestoreDenoDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return Path(document.path).name in DENO_MANIFEST_FILE_NAMES
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         if not manifest_dir:
             return None

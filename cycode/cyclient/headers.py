@@ -1,5 +1,4 @@
 import platform
-from typing import Optional
 from uuid import uuid4
 
 from cycode import __version__
@@ -25,7 +24,7 @@ def get_cli_user_agent() -> str:
 
 
 class _CorrelationId:
-    _id: Optional[str] = None
+    _id: str | None = None
 
     def get_correlation_id(self) -> str:
         """Get correlation ID.

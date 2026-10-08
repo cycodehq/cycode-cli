@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 import typer
 from rich.console import Console
@@ -35,18 +35,18 @@ class ConsolePrinter:
     def __init__(
         self,
         ctx: typer.Context,
-        console_override: Optional['Console'] = None,
-        console_err_override: Optional['Console'] = None,
-        output_type_override: Optional[str] = None,
+        console_override: 'Console | None' = None,
+        console_err_override: 'Console | None' = None,
+        output_type_override: str | None = None,
     ) -> None:
         self.ctx = ctx
         self.console = console_override or console
         self.console_err = console_err_override or console_err
         self.output_type = output_type_override or self.ctx.obj.get('output')
 
-        self.export_type: Optional[str] = None
-        self.export_file: Optional[Path] = None
-        self.console_record: Optional[ConsolePrinter] = None
+        self.export_type: str | None = None
+        self.export_file: Path | None = None
+        self.console_record: ConsolePrinter | None = None
 
     @property
     def scan_type(self) -> str:
@@ -87,7 +87,7 @@ class ConsolePrinter:
     def print_scan_results(
         self,
         local_scan_results: list['LocalScanResult'],
-        errors: Optional[dict[str, 'CliError']] = None,
+        errors: dict[str, 'CliError'] | None = None,
     ) -> None:
         if self.console_record:
             self.console_record.print_scan_results(local_scan_results, errors)
@@ -103,7 +103,7 @@ class ConsolePrinter:
             self.console_record.print_error(error)
         self.printer.print_error(error)
 
-    def print_exception(self, e: Optional[BaseException] = None, force_print: bool = False) -> None:
+    def print_exception(self, e: BaseException | None = None, force_print: bool = False) -> None:
         """Print traceback message in stderr if verbose mode is set."""
         if force_print or self.ctx.obj.get('verbose', False):
             if self.console_record:

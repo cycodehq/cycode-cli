@@ -5,7 +5,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
@@ -56,14 +56,14 @@ def _session_context_digest(report: dict) -> str:
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
-def _report_ttl_seconds(config: Optional[GuardrailConfig]) -> float:
+def _report_ttl_seconds(config: GuardrailConfig | None) -> float:
     """The response carries the MCP server statuses, so the guardrail's TTL applies while it is enabled."""
     if config is None or config.is_off_for_every_agent(BlockReason.UNAUTHORIZED_MCP_SERVER):
         return _SESSION_CONTEXT_TTL_SECONDS
     return config.ttl_seconds
 
 
-def _should_skip_report(digest: str, tenant_id: Optional[str], ttl_seconds: float) -> bool:
+def _should_skip_report(digest: str, tenant_id: str | None, ttl_seconds: float) -> bool:
     """Skip when the same payload was already sent for this tenant and the TTL hasn't expired."""
     try:
         cache = json.loads(_session_context_cache_path().read_text(encoding='utf-8'))
@@ -77,7 +77,7 @@ def _should_skip_report(digest: str, tenant_id: Optional[str], ttl_seconds: floa
         return False
 
 
-def _save_report_cache(digest: str, tenant_id: Optional[str]) -> None:
+def _save_report_cache(digest: str, tenant_id: str | None) -> None:
     try:
         cache_path = _session_context_cache_path()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -90,9 +90,9 @@ def _save_report_cache(digest: str, tenant_id: Optional[str]) -> None:
 
 def _report_session_context(
     ai_client: 'AISecurityManagerClient',
-    user_email: Optional[str],
-    tenant_id: Optional[str],
-    config: Optional[GuardrailConfig],
+    user_email: str | None,
+    tenant_id: str | None,
+    config: GuardrailConfig | None,
 ) -> None:
     """Report the device + cross-IDE session context to the AI security manager. Never raises.
 
@@ -195,7 +195,7 @@ def session_start_command(
     _report_session_context(ai_client, session_payload.ide_user_email, auth_info.tenant_id, config)
 
 
-def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: Optional[str]) -> Optional[GuardrailConfig]:
+def _sync_guardrail_config(ai_client: 'AISecurityManagerClient', tenant_id: str | None) -> GuardrailConfig | None:
     """Refresh the guardrail config cache when it is expired or belongs to another tenant.
 
     Every step here swallows its own failures - a broken cache or an unreachable platform

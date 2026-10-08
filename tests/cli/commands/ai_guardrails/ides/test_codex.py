@@ -324,7 +324,8 @@ def _make_jwt(claims: dict) -> str:
     """Build a JWT-shaped token with the given claims (signature ignored)."""
     header = base64.urlsafe_b64encode(b'{"alg":"RS256"}').rstrip(b'=').decode()
     payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b'=').decode()
-    return f'{header}.{payload}.signature-not-verified'
+    signature = base64.urlsafe_b64encode(b'signature-not-verified').rstrip(b'=').decode()
+    return f'{header}.{payload}.{signature}'
 
 
 def test_email_from_auth_returns_email(fs: FakeFilesystem, monkeypatch: pytest.MonkeyPatch) -> None:

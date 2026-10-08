@@ -1,11 +1,9 @@
-from typing import Optional
-
 import jwt
 
 _JWT_PAYLOAD_POSSIBLE_USER_ID_FIELD_NAMES = ('userId', 'internalId', 'token-user-id')
 
 
-def decode_jwt_unverified(token: str) -> Optional[dict]:
+def decode_jwt_unverified(token: str) -> dict | None:
     """Return JWT claims without signature verification, or None if the token is unreadable."""
     try:
         return jwt.decode(token, options={'verify_signature': False})
@@ -13,7 +11,7 @@ def decode_jwt_unverified(token: str) -> Optional[dict]:
         return None
 
 
-def get_user_and_tenant_ids_from_access_token(access_token: str) -> tuple[Optional[str], Optional[str]]:
+def get_user_and_tenant_ids_from_access_token(access_token: str) -> tuple[str | None, str | None]:
     payload = jwt.decode(access_token, options={'verify_signature': False})
 
     user_id = None

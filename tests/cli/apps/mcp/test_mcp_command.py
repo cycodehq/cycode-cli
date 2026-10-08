@@ -1,12 +1,8 @@
 import json
 import os
-import sys
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-if sys.version_info < (3, 10):
-    pytest.skip('MCP requires Python 3.10+', allow_module_level=True)
 
 from cycode.cli.apps.mcp.mcp_command import (
     _build_scan_summary,

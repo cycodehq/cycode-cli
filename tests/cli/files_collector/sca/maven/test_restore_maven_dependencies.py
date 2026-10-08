@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -63,8 +62,8 @@ class TestCleanup:
         def side_effect(
             commands: list,
             timeout: int,
-            output_file_path: Optional[str] = None,
-            working_directory: Optional[str] = None,
+            output_file_path: str | None = None,
+            working_directory: str | None = None,
         ) -> str:
             bom_path.write_text('{"bomFormat": "CycloneDX", "components": []}')
             return 'output'
@@ -92,8 +91,8 @@ class TestCleanup:
         def side_effect(
             commands: list,
             timeout: int,
-            output_file_path: Optional[str] = None,
-            working_directory: Optional[str] = None,
+            output_file_path: str | None = None,
+            working_directory: str | None = None,
         ) -> str:
             dep_tree_path.write_text('[INFO] com.example:my-app:jar:1.0.0\n')
             return '[INFO] BUILD SUCCESS'

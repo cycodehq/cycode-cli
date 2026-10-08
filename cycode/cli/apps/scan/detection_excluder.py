@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cycode.cli import consts
 from cycode.cli.cli_types import SeverityOption
 from cycode.cli.config import configuration_manager
@@ -116,7 +114,7 @@ def _is_detection_sha_configured_in_exclusions(detection: Detection, exclusions:
     return detection_sha in exclusions
 
 
-def _get_package_name(detection: Detection) -> Optional[str]:
+def _get_package_name(detection: Detection) -> str | None:
     package_name = detection.detection_details.get('vulnerable_component')
     package_version = detection.detection_details.get('vulnerable_component_version')
 
@@ -130,7 +128,7 @@ def _get_package_name(detection: Detection) -> Optional[str]:
     return None
 
 
-def _get_cve_identifier(detection: Detection) -> Optional[str]:
+def _get_cve_identifier(detection: Detection) -> str | None:
     return detection.detection_details.get('alert', {}).get('cve_identifier')
 
 

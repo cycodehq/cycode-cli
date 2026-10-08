@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -24,13 +24,13 @@ def sbom_command(
         str, typer.Option('--vendor', '-v', help='Vendor Name.', case_sensitive=False, show_default=False)
     ],
     labels: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Option(
             '--label', '-l', help='Label, can be specified multiple times.', case_sensitive=False, show_default=False
         ),
     ] = None,
     owners: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Option(
             '--owner',
             '-o',

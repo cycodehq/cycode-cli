@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -39,7 +39,7 @@ logger = get_logger('SCA File Collector')
 
 
 def _add_ecosystem_related_files_if_exists(
-    documents: list[Document], repo: Optional['Repo'] = None, commit_rev: Optional[str] = None
+    documents: list[Document], repo: 'Repo | None' = None, commit_rev: str | None = None
 ) -> None:
     documents_to_add: list[Document] = []
     for doc in documents:
@@ -81,7 +81,7 @@ def perform_sca_pre_commit_scan_actions(
 
 
 def _get_doc_ecosystem_related_project_files(
-    doc: Document, documents: list[Document], ecosystem: str, commit_rev: Optional[str], repo: Optional['Repo']
+    doc: Document, documents: list[Document], ecosystem: str, commit_rev: str | None, repo: 'Repo | None'
 ) -> list[Document]:
     documents_to_add: list[Document] = []
     for ecosystem_project_file in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.get(ecosystem):
@@ -102,7 +102,7 @@ def _is_project_file_exists_in_documents(documents: list[Document], file: str) -
     return any(doc for doc in documents if file == doc.path)
 
 
-def _get_project_file_ecosystem(document: Document) -> Optional[str]:
+def _get_project_file_ecosystem(document: Document) -> str | None:
     for ecosystem, project_files in consts.PROJECT_FILES_BY_ECOSYSTEM_MAP.items():
         for project_file in project_files:
             if document.path.endswith(project_file):
@@ -118,7 +118,7 @@ def _try_restore_dependencies(
     ctx: typer.Context,
     restore_dependencies: 'BaseRestoreDependencies',
     document: Document,
-) -> Optional[Document]:
+) -> Document | None:
     if not restore_dependencies.is_project(document):
         return None
 

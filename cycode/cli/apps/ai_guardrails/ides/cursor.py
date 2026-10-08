@@ -3,7 +3,7 @@
 import json
 import platform
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_files
@@ -51,7 +51,7 @@ def _cursor_skills_dir() -> Path:
     return Path.home() / '.cursor' / 'skills'
 
 
-def _load_cursor_mcp_config(config_path: Optional[Path] = None) -> Optional[dict]:
+def _load_cursor_mcp_config(config_path: Path | None = None) -> dict | None:
     """Load and parse `~/.cursor/mcp.json`. Returns None if missing/invalid."""
     path = config_path or _cursor_mcp_config_path()
     if not path.exists():
@@ -71,7 +71,7 @@ def _cursor_mcp_config_paths(workspace_roots: object) -> list[Path]:
     return paths
 
 
-def _server_command_line(server: dict) -> Optional[str]:
+def _server_command_line(server: dict) -> str | None:
     command = server.get('command')
     if not isinstance(command, str) or not command:
         return None
@@ -79,7 +79,7 @@ def _server_command_line(server: dict) -> Optional[str]:
     return ' '.join([command, *(str(arg) for arg in args)]) if isinstance(args, list) else command
 
 
-def _resolve_mcp_server_name(raw_payload: dict) -> Optional[str]:
+def _resolve_mcp_server_name(raw_payload: dict) -> str | None:
     """Cursor sends the server's url or command, but the platform knows it by its mcp.json entry name."""
     url = raw_payload.get('url')
     command = raw_payload.get('command')
@@ -107,7 +107,7 @@ class Cursor(IDE):
     display_name: ClassVar[str] = 'Cursor'
     hook_events: ClassVar[list[str]] = list(_CURSOR_EVENT_MAPPING)
 
-    def settings_path(self, scope: str, repo_path: Optional[Path] = None) -> Path:
+    def settings_path(self, scope: str, repo_path: Path | None = None) -> Path:
         if scope == 'repo' and repo_path:
             return repo_path / _REPO_SUBDIR / _HOOKS_FILE_NAME
         return _user_hooks_dir() / _HOOKS_FILE_NAME

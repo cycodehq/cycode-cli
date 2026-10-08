@@ -11,8 +11,9 @@ touching any handler in this module.
 import json
 import os
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import typer
 
@@ -48,15 +49,15 @@ HandlerFn = Callable[[typer.Context, AIHookPayload, dict], HookDecision]
 class ScanOutcome(NamedTuple):
     """What one guardrail scan came back with; the verdict is the server's, which applied the tenant's floors."""
 
-    violation_summary: Optional[str] = None
-    scan_id: Optional[str] = None
-    verdict: Optional[GuardrailsMode] = None
+    violation_summary: str | None = None
+    scan_id: str | None = None
+    verdict: GuardrailsMode | None = None
 
 
 NO_SCAN = ScanOutcome()
 
 
-def _parse_verdict(verdict: Optional[str]) -> Optional[GuardrailsMode]:
+def _parse_verdict(verdict: str | None) -> GuardrailsMode | None:
     """The server spells the verdict "Block"/"Report" and omits it when the scan found nothing to decide on."""
     if not verdict:
         return None
@@ -105,7 +106,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
         )
         block_reason = BlockReason.SCAN_FAILURE
         error_message = str(e)
-        raise e
+        raise
     finally:
         ai_client.create_event(
             payload,
@@ -192,7 +193,7 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
         )
         block_reason = BlockReason.SCAN_FAILURE
         error_message = str(e)
-        raise e
+        raise
     finally:
         ai_client.create_event(
             payload,
@@ -236,7 +237,7 @@ def _handle_arg_scan(
     policy: dict,
     feature: _ArgScanFeature,
     scan_text: str,
-    pre_scan_finding: Optional[_PreScanFinding] = None,
+    pre_scan_finding: _PreScanFinding | None = None,
 ) -> HookDecision:
     """Shared scan + decision flow for MCP_EXECUTION and COMMAND_EXEC events.
 
@@ -297,7 +298,7 @@ def _handle_arg_scan(
         )
         block_reason = BlockReason.SCAN_FAILURE
         error_message = str(e)
-        raise e
+        raise
     finally:
         ai_client.create_event(
             payload,
@@ -309,7 +310,7 @@ def _handle_arg_scan(
         )
 
 
-def _check_mcp_server_authorization(payload: AIHookPayload, policy: dict) -> Optional[_PreScanFinding]:
+def _check_mcp_server_authorization(payload: AIHookPayload, policy: dict) -> _PreScanFinding | None:
     """Fails open: no server name or no cached statuses lets the call through."""
     mcp_config = get_policy_value(policy, 'mcp', default={})
     if not get_policy_value(mcp_config, 'check_server', default=False):
@@ -366,7 +367,7 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
     )
 
 
-def get_handler_for_event(event_type: str) -> Optional[HandlerFn]:
+def get_handler_for_event(event_type: str) -> HandlerFn | None:
     """Look up the handler for a canonical event type."""
     handlers: dict[str, HandlerFn] = {
         AiHookEventType.PROMPT.value: handle_before_submit_prompt,
@@ -383,10 +384,10 @@ def get_effective_mode(feature_config: dict, action_key: str = 'action') -> Guar
 
 
 def should_detach_scan(
-    config: Optional['GuardrailConfig'],
+    config: 'GuardrailConfig | None',
     policy: dict,
     event_name: str,
-    ide_name: Optional[str],
+    ide_name: str | None,
 ) -> bool:
     """Whether this event's scan is safe to run detached.
 
@@ -403,7 +404,7 @@ def should_detach_scan(
 
 def build_ai_guardrails_scan_parameters(
     ctx: typer.Context,
-    paths: Optional[tuple[str, ...]],
+    paths: tuple[str, ...] | None,
     payload: AIHookPayload,
     event_type: AiHookEventType,
 ) -> dict:

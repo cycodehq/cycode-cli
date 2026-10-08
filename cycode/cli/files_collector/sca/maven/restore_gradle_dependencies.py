@@ -1,7 +1,6 @@
 import os
 import platform
 import re
-from typing import Optional
 
 import typer
 
@@ -22,7 +21,7 @@ GRADLEW_BAT_FILE_NAME = 'gradlew.bat'
 
 class RestoreGradleDependencies(BaseRestoreDependencies):
     def __init__(
-        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, projects: Optional[set[str]] = None
+        self, ctx: typer.Context, is_git_diff: bool, command_timeout: int, projects: set[str] | None = None
     ) -> None:
         super().__init__(ctx, is_git_diff, command_timeout, create_output_file_manually=True)
         self.gradle_executable = self._resolve_gradle_executable()
@@ -58,7 +57,7 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
     def get_lock_file_names(self) -> list[str]:
         return [self.get_lock_file_name()]
 
-    def get_working_directory(self, document: Document) -> Optional[str]:
+    def get_working_directory(self, document: Document) -> str | None:
         return get_path_from_context(self.ctx) if self.is_gradle_sub_projects() else None
 
     def get_all_projects(self) -> set[str]:

@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -44,17 +44,15 @@ class HookDecision:
 
     action: DecisionAction
     event_type: AiHookEventType
-    user_message: Optional[str] = None
-    agent_message: Optional[str] = None
+    user_message: str | None = None
+    agent_message: str | None = None
 
     @classmethod
     def allow(cls, event_type: AiHookEventType) -> 'HookDecision':
         return cls(action=DecisionAction.ALLOW, event_type=event_type)
 
     @classmethod
-    def deny(
-        cls, event_type: AiHookEventType, user_message: str, agent_message: Optional[str] = None
-    ) -> 'HookDecision':
+    def deny(cls, event_type: AiHookEventType, user_message: str, agent_message: str | None = None) -> 'HookDecision':
         return cls(
             action=DecisionAction.DENY,
             event_type=event_type,
@@ -63,7 +61,7 @@ class HookDecision:
         )
 
     @classmethod
-    def ask(cls, event_type: AiHookEventType, user_message: str, agent_message: Optional[str] = None) -> 'HookDecision':
+    def ask(cls, event_type: AiHookEventType, user_message: str, agent_message: str | None = None) -> 'HookDecision':
         return cls(
             action=DecisionAction.ASK,
             event_type=event_type,
@@ -92,7 +90,7 @@ class IDE(ABC):
     # --- install / status ---
 
     @abstractmethod
-    def settings_path(self, scope: str, repo_path: Optional[Path] = None) -> Path:
+    def settings_path(self, scope: str, repo_path: Path | None = None) -> Path:
         """Return the hooks/settings file path for the given scope.
 
         `scope` is 'user' or 'repo'. `repo_path` is required when scope == 'repo'.
@@ -108,7 +106,7 @@ class IDE(ABC):
         ``hooks_manager`` can treat them uniformly.
         """
 
-    def post_install(self, scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+    def post_install(self, scope: str, repo_path: Path | None = None) -> tuple[bool, str]:
         """Run IDE-specific actions after the hooks file is written.
 
         Default: no-op success. Override to perform extra setup that doesn't
@@ -120,7 +118,7 @@ class IDE(ABC):
         """
         return True, ''
 
-    def post_uninstall(self, scope: str, repo_path: Optional[Path] = None) -> tuple[bool, str]:
+    def post_uninstall(self, scope: str, repo_path: Path | None = None) -> tuple[bool, str]:
         """Run IDE-specific cleanup after the hooks file is removed.
 
         Default: no-op success. Override to undo whatever ``post_install``
@@ -169,7 +167,7 @@ class IDE(ABC):
         """
         return AIHookPayload(ide_provider=self.name)
 
-    def get_user_email(self) -> Optional[str]:
+    def get_user_email(self) -> str | None:
         """Best-effort read of the user's email from IDE-specific config.
 
         Default: None. Override if the IDE stores a usable account locally.

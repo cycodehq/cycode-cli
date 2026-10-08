@@ -2,7 +2,7 @@ import secrets
 import time
 from abc import ABC, abstractmethod
 from threading import Lock
-from typing import Any, Optional
+from typing import Any
 
 import arrow
 from requests import Response
@@ -97,7 +97,7 @@ class BaseTokenAuthClient(CycodeClient, ABC):
         jwt_creator = self._create_jwt_creator()
         self._credentials_manager.update_access_token(self._access_token, self._expires_in.timestamp(), jwt_creator)
 
-    def get_request_headers(self, additional_headers: Optional[dict] = None, without_auth: bool = False) -> dict:
+    def get_request_headers(self, additional_headers: dict | None = None, without_auth: bool = False) -> dict:
         headers = super().get_request_headers(additional_headers=additional_headers)
 
         if not without_auth:

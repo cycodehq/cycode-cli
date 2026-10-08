@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from cycode.cli.apps.auth.models import AuthInfo
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError, RequestHttpError
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from typer import Context
 
 
-def get_authorization_info(ctx: 'Context') -> Optional[AuthInfo]:
+def get_authorization_info(ctx: 'Context') -> AuthInfo | None:
     printer = ctx.obj.get('console_printer')
 
     client_id = ctx.obj.get('client_id')
@@ -50,8 +50,8 @@ def get_authorization_info(ctx: 'Context') -> Optional[AuthInfo]:
 
 
 def _try_oidc_authorization(
-    ctx: 'Context', printer: any, client_id: Optional[str], id_token: Optional[str]
-) -> Optional[AuthInfo]:
+    ctx: 'Context', printer: any, client_id: str | None, id_token: str | None
+) -> AuthInfo | None:
     if not client_id or not id_token:
         return None
 

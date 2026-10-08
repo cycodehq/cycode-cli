@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import typer
@@ -26,7 +26,7 @@ def is_scan_failed(ctx: typer.Context) -> bool:
 
 
 def is_cycodeignore_allowed_by_scan_config(ctx: typer.Context) -> bool:
-    scan_config: Optional[ScanConfiguration] = ctx.obj.get('scan_config')
+    scan_config: ScanConfiguration | None = ctx.obj.get('scan_config')
     return scan_config.is_cycode_ignore_allowed if scan_config else True
 
 

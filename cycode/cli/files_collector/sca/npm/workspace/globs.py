@@ -72,8 +72,7 @@ def _split_workspace_patterns(declared: list) -> _WorkspacePatterns:
         stripped = entry.strip()
         is_excluded = stripped.startswith(_NEGATION_PREFIX)
         normalized = (stripped[1:] if is_excluded else stripped).strip()
-        if normalized.startswith('./'):
-            normalized = normalized[2:]
+        normalized = normalized.removeprefix('./')
 
         normalized = normalized.rstrip('/')
         if not normalized:

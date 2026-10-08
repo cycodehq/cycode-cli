@@ -1,5 +1,3 @@
-from typing import Optional
-
 import responses
 from responses import matchers
 
@@ -24,7 +22,7 @@ def get_member_details_url(import_sbom_client: ImportSbomClient) -> str:
 
 
 def get_member_details_response(
-    url: str, email: str, external_id: Optional[str] = None, status: int = 200
+    url: str, email: str, external_id: str | None = None, status: int = 200
 ) -> responses.Response:
     items = []
     if external_id:
@@ -58,7 +56,7 @@ def mock_member_details_response(
     responses_module: responses,
     import_sbom_client: ImportSbomClient,
     email: str,
-    external_id: Optional[str] = None,
+    external_id: str | None = None,
     status: int = 200,
 ) -> None:
     """Mock the member details lookup endpoint"""

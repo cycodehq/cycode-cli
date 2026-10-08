@@ -10,7 +10,6 @@ The test below catches that drift by comparing the hand-maintained set
 against what Click's introspection sees on the built command.
 """
 
-from typing import Optional
 from unittest.mock import patch
 
 import click
@@ -77,6 +76,6 @@ def test_detect_invocation_finds_subcommand_past_flags(argv: list[str]) -> None:
         (['cycode', 'version'], ('status', None)),
     ],
 )
-def test_detect_invocation_edge_cases(argv: list[str], expected: tuple[Optional[str], Optional[str]]) -> None:
+def test_detect_invocation_edge_cases(argv: list[str], expected: tuple[str | None, str | None]) -> None:
     with patch('sys.argv', argv):
         assert _detect_invocation() == expected

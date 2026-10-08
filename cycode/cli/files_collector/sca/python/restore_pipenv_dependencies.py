@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -21,7 +20,7 @@ class RestorePipenvDependencies(BaseRestoreDependencies):
     def is_project(self, document: Document) -> bool:
         return Path(document.path).name == PIPENV_MANIFEST_FILE_NAME
 
-    def try_restore_dependencies(self, document: Document) -> Optional[Document]:
+    def try_restore_dependencies(self, document: Document) -> Document | None:
         manifest_dir = self.get_manifest_dir(document)
         lockfile_path = Path(manifest_dir) / PIPENV_LOCK_FILE_NAME if manifest_dir else None
 
