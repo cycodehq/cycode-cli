@@ -759,21 +759,27 @@ def _age_report_cache(seconds: float) -> None:
     cache_path.write_text(json.dumps(cache), encoding='utf-8')
 
 
-def _statuses_client(mcp_servers: list | None = _SERVERS) -> MagicMock:
+def _statuses_client(treat_unreviewed: bool = False) -> MagicMock:
     ai_client = MagicMock()
-    ai_client.report_session_context.return_value = SessionContextResponse(mcp_servers=mcp_servers)
+    ai_client.report_session_context.return_value = SessionContextResponse(
+        mcp_servers=_SERVERS, should_treat_unreviewed_as_unauthorized=treat_unreviewed
+    )
     return ai_client
 
 
+@pytest.mark.parametrize('treat_unreviewed', [True, False])
 def test_session_context_response_saves_the_mcp_server_statuses(
-    mock_ctx: MagicMock, monkeypatch: pytest.MonkeyPatch, mock_save_mcp_server_statuses: MagicMock
+    treat_unreviewed: bool,
+    mock_ctx: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_save_mcp_server_statuses: MagicMock,
 ) -> None:
     config = _guardrail_config_with_mcp_server({'cursor': 'Block'})
 
-    _run_with_config(mock_ctx, monkeypatch, _statuses_client(), config)
+    _run_with_config(mock_ctx, monkeypatch, _statuses_client(treat_unreviewed), config)
 
-    # Cached with the guardrail config's TTL.
-    mock_save_mcp_server_statuses.assert_called_once_with(_SERVERS, 'tenant-a', 600)
+    # Cached with the guardrail config's TTL and the policy's strict-mode flag.
+    mock_save_mcp_server_statuses.assert_called_once_with(_SERVERS, 'tenant-a', 600, treat_unreviewed)
 
 
 @pytest.mark.parametrize('response', [None, SessionContextResponse(mcp_servers=None)])

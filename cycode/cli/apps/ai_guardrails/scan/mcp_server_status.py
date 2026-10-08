@@ -14,7 +14,12 @@ from marshmallow import EXCLUDE, Schema, fields, post_load
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import DEFAULT_TTL_SECONDS
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY
 from cycode.cli.utils.path_utils import atomic_write_text, quarantine_corrupt_file
-from cycode.cyclient.models import McpServerAuthorizationStatus, McpServerStatus, McpServerStatusSchema
+from cycode.cyclient.models import (
+    McpServerAuthorizationStatus,
+    McpServerStatus,
+    McpServerStatusSchema,
+    TrueOnlyBoolean,
+)
 from cycode.logger import get_logger
 
 logger = get_logger('AI Guardrails')
@@ -34,8 +39,10 @@ def get_mcp_server_statuses_cache_path() -> Path:
     return Path.home() / CYCODE_CONFIGURATION_DIRECTORY / MCP_SERVER_STATUSES_FILE_NAME
 
 
-def is_enforced(status: McpServerAuthorizationStatus | None) -> bool:
+def is_enforced(status: McpServerAuthorizationStatus | None, treat_unreviewed: bool) -> bool:
     """``status`` is None when the platform never saw the server."""
+    if treat_unreviewed:
+        return status != McpServerAuthorizationStatus.AUTHORIZED
     return status == McpServerAuthorizationStatus.UNAUTHORIZED
 
 
@@ -45,6 +52,7 @@ class McpServerStatuses:
     fetched_at: float
     tenant_id: str | None = None
     ttl_seconds: float = DEFAULT_TTL_SECONDS
+    treat_unreviewed_as_unauthorized: bool = False
     _by_alias: dict = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -70,6 +78,7 @@ class McpServerStatusesSchema(Schema):
     fetched_at = fields.Float(required=True)
     tenant_id = fields.String(allow_none=True, load_default=None)
     ttl_seconds = fields.Float(allow_none=True, load_default=None)
+    treat_unreviewed_as_unauthorized = TrueOnlyBoolean(data_key='should_treat_unreviewed_as_unauthorized')
 
     @post_load
     def build_dto(self, data: dict[str, Any], **_) -> McpServerStatuses:
@@ -78,10 +87,19 @@ class McpServerStatusesSchema(Schema):
 
 
 def save_mcp_server_statuses(
-    servers: list[McpServerStatus], tenant_id: str | None, ttl_seconds: float = DEFAULT_TTL_SECONDS
+    servers: list[McpServerStatus],
+    tenant_id: str | None,
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    treat_unreviewed_as_unauthorized: bool = False,
 ) -> None:
     path = get_mcp_server_statuses_cache_path()
-    statuses = McpServerStatuses(servers=servers, fetched_at=time.time(), tenant_id=tenant_id, ttl_seconds=ttl_seconds)
+    statuses = McpServerStatuses(
+        servers=servers,
+        fetched_at=time.time(),
+        tenant_id=tenant_id,
+        ttl_seconds=ttl_seconds,
+        treat_unreviewed_as_unauthorized=treat_unreviewed_as_unauthorized,
+    )
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(str(path), json.dumps(McpServerStatusesSchema().dump(statuses)))
