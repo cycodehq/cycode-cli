@@ -10,6 +10,8 @@ from cycode.cli.exceptions.custom_exceptions import FileCollectionError
 from cycode.cli.files_collector.sca.npm import workspace
 from cycode.cli.files_collector.sca.sca_file_collector import (
     _add_dependencies_tree_documents,
+    _get_doc_ecosystem_related_project_files,
+    _get_project_file_ecosystem,
     _try_restore_dependencies,
 )
 from cycode.cli.models import Document
@@ -106,3 +108,22 @@ class TestNpmWorkspaceCacheLifetime:
         _add_dependencies_tree_documents(ctx, [Document(str(manifest), manifest.read_text())])
 
         assert workspace.find_covering_workspace(str(member_dir)) is not None
+
+
+class TestPnpmWorkspaceRelatedProjectFiles:
+    """A diff scan uploads the changed project file plus the project files beside it."""
+
+    def test_pnpm_workspace_file_is_an_npm_project_file(self) -> None:
+        assert _get_project_file_ecosystem(Document('repo/pnpm-workspace.yaml', '')) == 'npm'
+
+    def test_changed_pnpm_lockfile_brings_the_workspace_file_along(self, tmp_path: Path) -> None:
+        """Without pnpm-workspace.yaml the backend cannot tell which directories the root lockfile resolves."""
+        (tmp_path / 'package.json').write_text('{"name": "root"}')
+        (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - "packages/*"\n')
+        lock_file = tmp_path / 'pnpm-lock.yaml'
+        lock_file.write_text("lockfileVersion: '9.0'\n")
+
+        changed = Document(str(lock_file), lock_file.read_text())
+        related = _get_doc_ecosystem_related_project_files(changed, [changed], 'npm', None, None)
+
+        assert str(tmp_path / 'pnpm-workspace.yaml') in [document.path for document in related]
