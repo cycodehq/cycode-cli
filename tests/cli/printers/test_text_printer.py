@@ -6,6 +6,7 @@ from rich.console import Console
 
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,
+    MALICIOUS_PACKAGE_POLICY_ID,
     PACKAGE_VULNERABILITY_POLICY_ID,
     UNMAINTAINED_PACKAGE_POLICY_ID,
 )
@@ -127,3 +128,43 @@ def test_package_vulnerability_still_prints_the_patched_version(printer: TextPri
 
     assert 'First patched version: 4.17.21' in result
     assert 'OSSF' not in result
+
+
+def test_malicious_package_prints_the_advisory_and_the_removal_instruction(
+    printer: TextPrinter, output: io.StringIO
+) -> None:
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID,
+        package_name='evil-pkg',
+        package_version='1.0.0',
+        threat_id='MAL-2024-1234',
+        advisory_url='https://osv.dev/vulnerability/MAL-2024-1234',
+    )
+
+    result = _render(printer, output, detection)
+
+    assert 'Advisory: MAL-2024-1234' in result
+    assert 'Remove it from your dependencies immediately.' in result
+
+
+def test_malicious_package_offers_no_fix_version(printer: TextPrinter, output: io.StringIO) -> None:
+    """Malware has no patched version, so the vulnerability policy's rows must not leak into it."""
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID,
+        threat_id='MAL-2024-1234',
+        alert={'first_patched_version': '2.0.0'},
+    )
+
+    result = _render(printer, output, detection)
+
+    assert 'First patched version' not in result
+    assert 'CVEs' not in result
+
+
+def test_malicious_package_without_an_advisory_id(printer: TextPrinter, output: io.StringIO) -> None:
+    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID)
+
+    result = _render(printer, output, detection)
+
+    assert 'Advisory: N/A' in result
+    assert 'Remove it from your dependencies immediately.' in result

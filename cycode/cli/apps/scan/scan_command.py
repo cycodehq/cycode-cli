@@ -97,6 +97,7 @@ def scan_command(
         ScaScanTypeOption.PACKAGE_VULNERABILITIES,
         ScaScanTypeOption.LICENSE_COMPLIANCE,
         ScaScanTypeOption.UNMAINTAINED_PACKAGES,
+        ScaScanTypeOption.MALICIOUS_PACKAGES,
     ),
     monitor: Annotated[
         bool,

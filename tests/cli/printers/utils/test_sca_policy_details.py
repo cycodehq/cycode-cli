@@ -1,5 +1,6 @@
 from cycode.cli.consts import (
     LICENSE_COMPLIANCE_POLICY_ID,
+    MALICIOUS_PACKAGE_POLICY_ID,
     PACKAGE_VULNERABILITY_POLICY_ID,
     UNMAINTAINED_PACKAGE_POLICY_ID,
 )
@@ -79,13 +80,58 @@ def test_unmaintained_package_without_a_scorecard() -> None:
     ]
 
 
+MALICIOUS_REMEDIATION = 'This package has been identified as malicious. Remove it from your dependencies immediately.'
+
+
+def test_malicious_package_links_the_advisory_and_tells_you_to_remove_it() -> None:
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID,
+        threat_id='MAL-2024-1234',
+        advisory_url='https://osv.dev/vulnerability/MAL-2024-1234',
+    )
+
+    assert get_sca_policy_details(detection) == [
+        ('Advisory', '[link=https://osv.dev/vulnerability/MAL-2024-1234]MAL-2024-1234[/]'),
+        ('Remediation', MALICIOUS_REMEDIATION),
+    ]
+
+
+def test_malicious_package_without_an_advisory_url_shows_the_bare_id() -> None:
+    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID, threat_id='MAL-2024-1234')
+
+    assert get_sca_policy_details(detection) == [
+        ('Advisory', 'MAL-2024-1234'),
+        ('Remediation', MALICIOUS_REMEDIATION),
+    ]
+
+
+def test_malicious_package_without_a_threat_id_still_tells_you_to_remove_it() -> None:
+    """The remediation never depends on the advisory: removal is the only fix whether or not we can name it."""
+    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID, advisory_url='https://osv.dev/vulnerability/MAL-2024-1234')
+
+    assert get_sca_policy_details(detection) == [
+        ('Advisory', 'N/A'),
+        ('Remediation', MALICIOUS_REMEDIATION),
+    ]
+
+
+def test_malicious_package_reports_no_fix_version() -> None:
+    """Malware has no patched version, so the vulnerability policy's rows must not leak into it."""
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID, threat_id='MAL-2024-1234', alert={'first_patched_version': '2.0.0'}
+    )
+
+    labels = [label for label, _ in get_sca_policy_details(detection)]
+    assert 'First patched version' not in labels
+
+
 def test_only_package_vulnerability_reports_a_cve() -> None:
     """A CVE belongs to the vulnerability policy alone.
 
     It used to be rendered for every SCA detection, so an unmaintained or license finding - neither of which
     carries a vulnerability_id - showed an empty CVEs row.
     """
-    for policy_id in (LICENSE_COMPLIANCE_POLICY_ID, UNMAINTAINED_PACKAGE_POLICY_ID):
+    for policy_id in (LICENSE_COMPLIANCE_POLICY_ID, UNMAINTAINED_PACKAGE_POLICY_ID, MALICIOUS_PACKAGE_POLICY_ID):
         detection = _make_detection(policy_id, vulnerability_id='CVE-2021-23337')
 
         labels = [label for label, _ in get_sca_policy_details(detection)]
