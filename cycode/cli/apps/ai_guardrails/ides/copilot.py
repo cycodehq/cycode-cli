@@ -474,7 +474,8 @@ class Copilot(IDE):
             'hookSpecificOutput': {
                 'hookEventName': 'PreToolUse',
                 'permissionDecision': decision.action.value,  # 'deny' or 'ask'
-                'permissionDecisionReason': decision.user_message or '',
+                # Copilot VS Code shows a deny reason to the user rather than the model, which is harmless
+                'permissionDecisionReason': decision.permission_reason,
             }
         }
 

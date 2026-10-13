@@ -47,6 +47,16 @@ class HookDecision:
     user_message: str | None = None
     agent_message: str | None = None
 
+    @property
+    def model_message(self) -> str:
+        """What a tool deny tells the model: the findings the user sees, then the agent's instructions."""
+        return '\n'.join(message for message in (self.user_message, self.agent_message) if message)
+
+    @property
+    def permission_reason(self) -> str:
+        """A PreToolUse permissionDecisionReason: a deny reason goes to the model, an ask reason to the user."""
+        return self.model_message if self.action == DecisionAction.DENY else self.user_message or ''
+
     @classmethod
     def allow(cls, event_type: AiHookEventType) -> 'HookDecision':
         return cls(action=DecisionAction.ALLOW, event_type=event_type)

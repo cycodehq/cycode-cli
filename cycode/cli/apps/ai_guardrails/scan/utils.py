@@ -13,9 +13,11 @@ from typing import TYPE_CHECKING
 
 from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
 from cycode.cli.cli_types import SeverityOption
+from cycode.cli.utils.string_utils import obfuscate_text
 
 if TYPE_CHECKING:
     from cycode.cli.models import LocalScanResult
+    from cycode.cyclient.models import Detection
 
 # Keeps the hook message readable when a single file trips dozens of detections
 MAX_VIOLATION_DETAIL_LINES = 5
@@ -98,35 +100,50 @@ def output_json(obj: dict) -> None:
     print(json.dumps(obj), end='')  # noqa: T201
 
 
-def _build_detection_lines(
-    local_scan_results: list['LocalScanResult'], max_lines: int = MAX_VIOLATION_DETAIL_LINES
-) -> str:
-    """One line per distinct finding: what it is, and the value hash identifying it.
+def _describe_detection(detection: 'Detection', content: str) -> str:
+    details = detection.detection_details
+    description = detection.type or detection.message
 
-    The value hash is safe to display; the value itself is not. Detections excluded by an existing
+    line = details.get('line')
+    if isinstance(line, int) and line >= 0:
+        description += f' (line {line + 1})'  # the scanner reports 0-based lines
+
+    start, length = details.get('start_position'), details.get('length')
+    if isinstance(start, int) and isinstance(length, int) and start >= 0 and length > 0:
+        value = content[start : start + length]
+        if value:
+            description += f': {obfuscate_text(value)}'
+
+    return description
+
+
+def build_violation_summary(
+    local_scan_results: list['LocalScanResult'], max_lines: int = MAX_VIOLATION_DETAIL_LINES
+) -> tuple[str, tuple[str, ...]]:
+    """One line per distinct finding (what it is, where, the masked value), and the value hashes to ignore them by.
+
+    The masked value and hash are safe to display; the value itself is not. Detections excluded by an existing
     ignore rule are already gone from `document_detections`, so only what actually blocked is listed.
     """
-    type_by_sha = {}
+    # Keyed by value hash so a repeated value is listed once; detections without one key by their description
+    finding_by_key = {}
     for local_scan_result in local_scan_results:
         for document_detections in local_scan_result.document_detections:
             for detection in document_detections.detections:
+                description = _describe_detection(detection, document_detections.document.content)
                 sha = detection.detection_details.get('sha512')
-                if sha and sha not in type_by_sha:
-                    type_by_sha[sha] = detection.type or detection.message
+                finding_by_key.setdefault(sha or description, (sha, description))
 
-    if not type_by_sha:
-        return ''
-
-    lines = [f'  - {detection_type}: {sha}' for sha, detection_type in list(type_by_sha.items())[:max_lines]]
-    remaining = len(type_by_sha) - len(lines)
+    listed = list(finding_by_key.values())[:max_lines]
+    lines = [_build_severity_line(local_scan_results)] + [f'  - {description}' for _, description in listed]
+    remaining = len(finding_by_key) - len(listed)
     if remaining:
         lines.append(f'  - ...and {remaining} more')
 
-    return '\n' + '\n'.join(lines)
+    return '\n'.join(lines), tuple(sha for sha, _ in listed if sha)
 
 
-def build_violation_summary(local_scan_results: list['LocalScanResult']) -> str:
-    """Build violation summary string with severity breakdown and emojis."""
+def _build_severity_line(local_scan_results: list['LocalScanResult']) -> str:
     detections_count = 0
     severity_counts = defaultdict(int)
 
@@ -143,5 +160,4 @@ def build_violation_summary(local_scan_results: list['LocalScanResult']) -> str:
         count = severity_counts[severity]
         severity_parts.append(f'{emoji} {severity.upper()} - {count}')
 
-    summary = f'Cycode found {detections_count} violations: {" | ".join(severity_parts)}'
-    return summary + _build_detection_lines(local_scan_results)
+    return f'Cycode found {detections_count} violations: {" | ".join(severity_parts)}'

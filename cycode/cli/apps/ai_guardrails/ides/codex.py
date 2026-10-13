@@ -319,7 +319,7 @@ class Codex(IDE):
             'hookSpecificOutput': {
                 'hookEventName': 'PreToolUse',
                 'permissionDecision': decision.action.value,  # 'deny' or 'ask'
-                'permissionDecisionReason': decision.user_message or '',
+                'permissionDecisionReason': decision.permission_reason,
             }
         }
 

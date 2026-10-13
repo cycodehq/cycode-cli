@@ -1,6 +1,7 @@
 """Tests for AI guardrails handlers."""
 
 import os
+import sys
 import threading
 import time
 from multiprocessing import synchronize
@@ -96,17 +97,32 @@ def test_handle_before_submit_prompt_with_secrets_blocked(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
     """Test that prompt with secrets is blocked."""
-    mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-456', GuardrailsMode.BLOCK)
+    mock_scan.return_value = ScanOutcome('Found 1 secret: API key', 'scan-id-456', GuardrailsMode.BLOCK, ('sha-aaa',))
 
-    result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
+    with patch.object(sys, 'argv', ['/opt/cycode/bin/cycode']):
+        result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
     assert result.action == DecisionAction.DENY
     assert result.event_type == AiHookEventType.PROMPT
     assert 'Found 1 secret: API key' in result.user_message
+    # The agent never saw the prompt, so the developer gets a complete command (running binary, real sha) to pass on
+    assert 'Ask your code agent to run `/opt/cycode/bin/cycode ignore --by-sha sha-aaa`' in result.user_message
     mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.BLOCKED
     assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_PROMPT
+
+    # Several secrets: one command per finding, in the listed order
+    mock_scan.return_value = ScanOutcome('Found 2 secrets', 'scan-id-457', GuardrailsMode.BLOCK, ('sha-aaa', 'sha-bbb'))
+    with patch.object(sys, 'argv', ['/opt/cycode/bin/cycode']):
+        result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
+
+    assert 'Remove the secrets and resend.' in result.user_message
+    assert result.user_message.endswith(
+        'then resend:\n'
+        '  `/opt/cycode/bin/cycode ignore --by-sha sha-aaa`\n'
+        '  `/opt/cycode/bin/cycode ignore --by-sha sha-bbb`'
+    )
 
 
 @patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
@@ -226,18 +242,25 @@ def test_handle_before_read_file_with_secrets(
 ) -> None:
     """Test that file with secrets is blocked, and merely reported when the verdict says so."""
     mock_is_denied.return_value = False
-    mock_scan.return_value = ScanOutcome('Found 1 secret: password', 'scan-id-456', GuardrailsMode.BLOCK)
+    mock_scan.return_value = ScanOutcome(
+        'Found 1 secret: password', 'scan-id-456', GuardrailsMode.BLOCK, ('sha-aaa', 'sha-bbb')
+    )
     payload = AIHookPayload(
         event_name='FileRead',
         ide_provider='cursor',
         file_path='/path/to/file.txt',
     )
 
-    result = handle_before_read_file(mock_ctx, payload, default_policy)
+    with patch.object(sys, 'argv', ['/opt/cycode/bin/cycode']):
+        result = handle_before_read_file(mock_ctx, payload, default_policy)
 
     assert result.action == DecisionAction.DENY
     assert result.event_type == AiHookEventType.FILE_READ
     assert 'Found 1 secret: password' in result.user_message
+    # The agent may ignore a finding, but only on the developer's confirmation
+    assert 'Only for a finding the user confirms is a false positive' in result.agent_message
+    assert '\n  `/opt/cycode/bin/cycode ignore --by-sha sha-aaa`' in result.agent_message
+    assert '\n  `/opt/cycode/bin/cycode ignore --by-sha sha-bbb`' in result.agent_message
     call_args = mock_ctx.obj['ai_security_client'].create_event.call_args
     assert call_args.args[2] == AIHookOutcome.BLOCKED
     assert call_args.kwargs['block_reason'] == BlockReason.SECRETS_IN_FILE
@@ -485,34 +508,45 @@ def _local_scan_result_with_detections(*shas: str) -> LocalScanResult:
 
 
 def test_violation_summary_lists_one_line_per_distinct_sha() -> None:
-    """A blocked developer needs the value hash to act on the finding (e.g. `cycode ignore --by-sha`)."""
-    summary = build_violation_summary([_local_scan_result_with_detections('sha-aaa', 'sha-bbb', 'sha-aaa')])
+    """A blocked developer needs to find the value (line, masked value) and act on it (`cycode ignore --by-sha`)."""
+    local_scan_result = _local_scan_result_with_detections('sha-aaa', 'sha-bbb', 'sha-aaa')
+    local_scan_result.document_detections[0].document.content = 'first line\ntoken=ghp_abcdefghijklmnop\n'
+    local_scan_result.document_detections[0].detections[0].detection_details.update(
+        {'line': 1, 'start_position': 17, 'length': 20}
+    )
+
+    summary, shas = build_violation_summary([local_scan_result])
 
     assert 'Cycode found 3 violations' in summary
-    assert 'GitHub Token: sha-aaa' in summary
-    assert 'GitHub Token: sha-bbb' in summary
-    # Repeated values collapse to one line; the hash identifies the value, not the occurrence
-    assert summary.count('sha-aaa') == 1
+    assert '  - GitHub Token (line 2): ghp**************nop' in summary
+    assert 'ghp_abcdefghijklmnop' not in summary
+    # Without position details there is nothing to locate or mask, but the finding is still listed
+    assert '  - GitHub Token\n' in summary + '\n'
+    # Repeated values collapse to one finding; the hash identifies the value, not the occurrence
+    assert shas == ('sha-aaa', 'sha-bbb')
 
 
 def test_violation_summary_caps_the_detection_lines() -> None:
     """A file full of detections must not turn the hook message into a wall of text."""
     shas = [f'sha-{index}' for index in range(MAX_VIOLATION_DETAIL_LINES + 3)]
 
-    summary = build_violation_summary([_local_scan_result_with_detections(*shas)])
+    summary, listed_shas = build_violation_summary([_local_scan_result_with_detections(*shas)])
 
-    assert summary.count('GitHub Token: ') == MAX_VIOLATION_DETAIL_LINES
+    assert summary.count('  - GitHub Token') == MAX_VIOLATION_DETAIL_LINES
     assert '...and 3 more' in summary
+    # Only listed findings get an ignore command
+    assert listed_shas == tuple(shas[:MAX_VIOLATION_DETAIL_LINES])
 
 
-def test_violation_summary_omits_lines_without_a_sha() -> None:
-    """Non-secret scan types carry no value hash, so there is nothing to list."""
+def test_violation_summary_lists_findings_without_a_sha() -> None:
+    """Non-secret scan types carry no value hash: the finding is still listed, there is just nothing to ignore by."""
     local_scan_result = _local_scan_result_with_detections('sha-aaa')
     local_scan_result.document_detections[0].detections[0].detection_details = {}
 
-    summary = build_violation_summary([local_scan_result])
+    summary, shas = build_violation_summary([local_scan_result])
 
-    assert 'GitHub Token' not in summary
+    assert '  - GitHub Token' in summary
+    assert shas == ()
 
 
 # Tests for handle_before_mcp_execution

@@ -149,10 +149,13 @@ class Cursor(IDE):
         # FILE_READ / MCP_EXECUTION → permission shape
         if decision.action == DecisionAction.ALLOW:
             return {'permission': 'allow'}
+        # beforeReadFile has no agent_message; its deny user_message is what reaches the model
+        file_read_deny = decision.event_type == AiHookEventType.FILE_READ and decision.action == DecisionAction.DENY
         return {
             'permission': decision.action.value,  # 'deny' or 'ask'
-            'user_message': decision.user_message or '',
-            'agent_message': decision.agent_message or '',
+            'user_message': decision.model_message if file_read_deny else decision.user_message or '',
+            # The agent does not see user_message, and needs the findings (their sha) to act on its instructions
+            'agent_message': decision.model_message,
         }
 
     def build_session_payload(self, raw_payload: dict) -> AIHookPayload:
