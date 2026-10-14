@@ -397,8 +397,13 @@ class ClaudeCode(IDE):
         if decision.event_type == AiHookEventType.PROMPT:
             if decision.action == DecisionAction.ALLOW:
                 return {}
-            # Both DENY and (unexpected) ASK on prompts collapse to a block.
-            return {'decision': 'block', 'reason': decision.user_message or ''}
+            # Both DENY and (unexpected) ASK on prompts collapse to a block. Claude Code echoes the blocked
+            # prompt (secret included) under the reason unless suppressed; the reason already locates the finding.
+            return {
+                'decision': 'block',
+                'reason': decision.user_message or '',
+                'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'suppressOriginalPrompt': True},
+            }
 
         # FILE_READ / MCP_EXECUTION → hookSpecificOutput shape.
         if decision.action == DecisionAction.ALLOW:
@@ -412,7 +417,7 @@ class ClaudeCode(IDE):
             'hookSpecificOutput': {
                 'hookEventName': 'PreToolUse',
                 'permissionDecision': decision.action.value,  # 'deny' or 'ask'
-                'permissionDecisionReason': decision.user_message or '',
+                'permissionDecisionReason': decision.permission_reason,
             }
         }
 

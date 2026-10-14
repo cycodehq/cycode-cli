@@ -194,9 +194,11 @@ def test_parse_empty_payload_defaults() -> None:
 def test_build_prompt_responses() -> None:
     claude = ClaudeCode()
     assert claude.build_hook_response(HookDecision.allow(AiHookEventType.PROMPT)) == {}
+    # The blocked prompt carries the secret, so it must not be echoed back under the reason
     assert claude.build_hook_response(HookDecision.deny(AiHookEventType.PROMPT, 'no!')) == {
         'decision': 'block',
         'reason': 'no!',
+        'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'suppressOriginalPrompt': True},
     }
 
 
@@ -210,7 +212,8 @@ def test_build_permission_responses() -> None:
         'hookSpecificOutput': {
             'hookEventName': 'PreToolUse',
             'permissionDecision': 'deny',
-            'permissionDecisionReason': 'user!',
+            # A deny reason reaches the model, which needs both the findings and its instructions
+            'permissionDecisionReason': 'user!\nagent!',
         }
     }
 

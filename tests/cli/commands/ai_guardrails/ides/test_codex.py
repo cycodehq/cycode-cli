@@ -149,12 +149,12 @@ def test_build_mcp_execution_allow_and_deny() -> None:
     # Explicit permissionDecision "allow" is rejected by older Codex runtimes.
     assert allow == {}
 
-    deny = codex.build_hook_response(HookDecision.deny(AiHookEventType.MCP_EXECUTION, 'secret in args!'))
+    deny = codex.build_hook_response(HookDecision.deny(AiHookEventType.MCP_EXECUTION, 'secret in args!', 'agent!'))
     assert deny == {
         'hookSpecificOutput': {
             'hookEventName': 'PreToolUse',
             'permissionDecision': 'deny',
-            'permissionDecisionReason': 'secret in args!',
+            'permissionDecisionReason': 'secret in args!\nagent!',
         }
     }
 

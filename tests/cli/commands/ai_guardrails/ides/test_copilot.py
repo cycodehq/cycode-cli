@@ -282,12 +282,12 @@ def test_deny_prompt_response_shape() -> None:
 
 
 def test_deny_tool_response_shape() -> None:
-    response = Copilot().build_hook_response(HookDecision.deny(AiHookEventType.FILE_READ, 'Sensitive file'))
+    response = Copilot().build_hook_response(HookDecision.deny(AiHookEventType.FILE_READ, 'Sensitive file', 'agent!'))
     assert response == {
         'hookSpecificOutput': {
             'hookEventName': 'PreToolUse',
             'permissionDecision': 'deny',
-            'permissionDecisionReason': 'Sensitive file',
+            'permissionDecisionReason': 'Sensitive file\nagent!',
         }
     }
 

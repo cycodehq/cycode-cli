@@ -10,9 +10,11 @@ touching any handler in this module.
 
 import json
 import os
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from gettext import ngettext
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import typer
@@ -46,12 +48,53 @@ logger = get_logger('AI Guardrails')
 HandlerFn = Callable[[typer.Context, AIHookPayload, dict], HookDecision]
 
 
+def _ignore_commands(shas: tuple[str, ...]) -> list[str]:
+    """Ready-to-run ignore commands, one per finding, in the order the findings are listed.
+
+    Names the binary running this hook, which may not be on PATH (e.g. MDM installs). Repo scope: it lands in
+    the cwd's .cycode/config.yaml, which matches where the hook reads it as long as the agent runs it.
+    """
+    executable = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
+    if ' ' in executable:
+        executable = f'"{executable}"'
+    return [f'`{executable} ignore --by-sha {sha}`' for sha in shas]
+
+
+def _with_ignore_commands(shas: tuple[str, ...], one: str, many: str) -> str:
+    """`one` formatted with the single command, or `many` followed by the commands as a list; '' without shas."""
+    commands = _ignore_commands(shas)
+    if len(commands) == 1:
+        return one.format(command=commands[0])
+    if commands:
+        return many + ''.join(f'\n  {command}' for command in commands)
+    return ''
+
+
+def _false_positive_user_hint(shas: tuple[str, ...]) -> str:
+    # The agent never saw the blocked prompt, so the command has to be complete for the developer to pass on
+    return _with_ignore_commands(
+        shas,
+        one='Not a real secret? Ask your code agent to run {command}, then resend.',
+        many='Not real secrets? Ask your code agent to run the command for each one, then resend:',
+    )
+
+
+def _false_positive_agent_hint(shas: tuple[str, ...]) -> str:
+    # Ignoring is the developer's call; the agent may run it for them, but only once they confirm
+    return 'Tell the user what was blocked.' + _with_ignore_commands(
+        shas,
+        one=' Only if the user confirms it is a false positive, run {command} and retry.',
+        many=' Only for a finding the user confirms is a false positive, run its command and retry:',
+    )
+
+
 class ScanOutcome(NamedTuple):
     """What one guardrail scan came back with; the verdict is the server's, which applied the tenant's floors."""
 
     violation_summary: str | None = None
     scan_id: str | None = None
     verdict: GuardrailsMode | None = None
+    shas: tuple[str, ...] = ()
 
 
 NO_SCAN = ScanOutcome()
@@ -96,7 +139,10 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.PROMPT]
             if scan_outcome.verdict == GuardrailsMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
-                user_message = f'Remove secrets before sending. {scan_outcome.violation_summary}'
+                secrets = ngettext('secret', 'secrets', len(scan_outcome.shas))
+                user_message = f'{scan_outcome.violation_summary}\nRemove the {secrets} and resend.'
+                if scan_outcome.shas:
+                    user_message += f'\n{_false_positive_user_hint(scan_outcome.shas)}'
                 return HookDecision.deny(AiHookEventType.PROMPT, user_message)
             outcome = AIHookOutcome.WARNED
         return HookDecision.allow(AiHookEventType.PROMPT)
@@ -164,14 +210,15 @@ def handle_before_read_file(ctx: typer.Context, payload: AIHookPayload, policy: 
                 block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.FILE_READ]
                 if scan_outcome.verdict == GuardrailsMode.BLOCK:
                     outcome = AIHookOutcome.BLOCKED
-                    user_message = f'Cycode blocked reading {file_path}. {scan_outcome.violation_summary}'
+                    user_message = (
+                        f'Cycode blocked reading {file_path} because it contains a secret.\n'
+                        f'{scan_outcome.violation_summary}'
+                    )
                     return HookDecision.deny(
-                        AiHookEventType.FILE_READ,
-                        user_message,
-                        'Secrets detected; do not send this file to the model.',
+                        AiHookEventType.FILE_READ, user_message, _false_positive_agent_hint(scan_outcome.shas)
                     )
                 outcome = AIHookOutcome.WARNED
-                user_message = f'Cycode detected secrets in {file_path}. {scan_outcome.violation_summary}'
+                user_message = f'Cycode detected secrets in {file_path}.\n{scan_outcome.violation_summary}'
                 return HookDecision.ask(
                     AiHookEventType.FILE_READ,
                     user_message,
@@ -282,7 +329,7 @@ def _handle_arg_scan(
                 return HookDecision.deny(
                     feature.event_type,
                     feature.deny_message(scan_outcome.violation_summary),
-                    feature.deny_agent_message,
+                    f'{feature.deny_agent_message} {_false_positive_agent_hint(scan_outcome.shas)}',
                 )
             outcome = AIHookOutcome.WARNED
             return HookDecision.ask(
@@ -360,9 +407,11 @@ def handle_before_mcp_execution(ctx: typer.Context, payload: AIHookPayload, poli
         policy,
         _ArgScanFeature(
             event_type=AiHookEventType.MCP_EXECUTION,
-            deny_message=lambda v: f'Cycode blocked MCP tool call "{tool}". {v}',
+            deny_message=lambda v: (
+                f'Cycode blocked MCP tool call "{tool}" because its arguments contain a secret.\n{v}'
+            ),
             deny_agent_message='Do not pass secrets to tools. Use secret references (name/id) instead.',
-            ask_message=lambda v: f'Allow MCP tool call "{tool}"? {v}',
+            ask_message=lambda v: f'Allow MCP tool call "{tool}"?\n{v}',
             ask_agent_message='Possible secrets detected in tool arguments; proceed with caution.',
             scan_enabled=get_policy_value(policy, 'mcp', 'scan_args', default=True),
         ),
@@ -478,11 +527,14 @@ def _perform_scan(
     if not local_scan_result:
         return NO_SCAN
 
-    violation_summary = build_violation_summary([local_scan_result]) if local_scan_result.issue_detected else None
+    violation_summary, shas = (
+        build_violation_summary([local_scan_result]) if local_scan_result.issue_detected else (None, ())
+    )
     return ScanOutcome(
         violation_summary=violation_summary,
         scan_id=local_scan_result.scan_id,
         verdict=_parse_verdict(local_scan_result.verdict),
+        shas=shas,
     )
 
 

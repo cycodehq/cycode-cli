@@ -175,15 +175,22 @@ def test_build_prompt_responses() -> None:
 def test_build_permission_responses() -> None:
     cursor = Cursor()
     assert cursor.build_hook_response(HookDecision.allow(AiHookEventType.FILE_READ)) == {'permission': 'allow'}
+    # beforeReadFile drops agent_message and feeds user_message to the model, so it carries both
     assert cursor.build_hook_response(HookDecision.deny(AiHookEventType.FILE_READ, 'user!', 'agent!')) == {
         'permission': 'deny',
+        'user_message': 'user!\nagent!',
+        'agent_message': 'user!\nagent!',
+    }
+    assert cursor.build_hook_response(HookDecision.deny(AiHookEventType.MCP_EXECUTION, 'user!', 'agent!')) == {
+        'permission': 'deny',
         'user_message': 'user!',
-        'agent_message': 'agent!',
+        # The agent never sees user_message, so it gets the findings too
+        'agent_message': 'user!\nagent!',
     }
     assert cursor.build_hook_response(HookDecision.ask(AiHookEventType.MCP_EXECUTION, 'u', 'a')) == {
         'permission': 'ask',
         'user_message': 'u',
-        'agent_message': 'a',
+        'agent_message': 'u\na',
     }
 
 
