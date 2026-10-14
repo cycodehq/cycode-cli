@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from collections import defaultdict
+from gettext import ngettext
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -160,4 +161,5 @@ def _build_severity_line(local_scan_results: list['LocalScanResult']) -> str:
         count = severity_counts[severity]
         severity_parts.append(f'{emoji} {severity.upper()} - {count}')
 
-    return f'Cycode found {detections_count} violations: {" | ".join(severity_parts)}'
+    violations = ngettext('violation', 'violations', detections_count)
+    return f'Cycode found {detections_count} {violations}: {" | ".join(severity_parts)}'

@@ -14,6 +14,7 @@ import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from gettext import ngettext
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import typer
@@ -138,7 +139,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
             block_reason = SECRETS_BLOCK_REASON_BY_EVENT_TYPE[AiHookEventType.PROMPT]
             if scan_outcome.verdict == GuardrailsMode.BLOCK:
                 outcome = AIHookOutcome.BLOCKED
-                secrets = 'secrets' if len(scan_outcome.shas) > 1 else 'secret'
+                secrets = ngettext('secret', 'secrets', len(scan_outcome.shas))
                 user_message = f'{scan_outcome.violation_summary}\nRemove the {secrets} and resend.'
                 if scan_outcome.shas:
                     user_message += f'\n{_false_positive_user_hint(scan_outcome.shas)}'

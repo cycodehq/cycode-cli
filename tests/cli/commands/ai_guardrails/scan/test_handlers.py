@@ -545,6 +545,7 @@ def test_violation_summary_lists_findings_without_a_sha() -> None:
 
     summary, shas = build_violation_summary([local_scan_result])
 
+    assert 'Cycode found 1 violation:' in summary
     assert '  - GitHub Token' in summary
     assert shas == ()
 
