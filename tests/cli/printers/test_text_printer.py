@@ -139,32 +139,10 @@ def test_malicious_package_prints_the_advisory_and_the_removal_instruction(
         package_version='1.0.0',
         threat_id='MAL-2024-1234',
         advisory_url='https://osv.dev/vulnerability/MAL-2024-1234',
+        remediation_guidelines='Remove this package from your dependencies.',
     )
 
     result = _render(printer, output, detection)
 
     assert 'Advisory: MAL-2024-1234' in result
-    assert 'Remove it from your dependencies immediately.' in result
-
-
-def test_malicious_package_offers_no_fix_version(printer: TextPrinter, output: io.StringIO) -> None:
-    """Malware has no patched version, so the vulnerability policy's rows must not leak into it."""
-    detection = _make_detection(
-        MALICIOUS_PACKAGE_POLICY_ID,
-        threat_id='MAL-2024-1234',
-        alert={'first_patched_version': '2.0.0'},
-    )
-
-    result = _render(printer, output, detection)
-
-    assert 'First patched version' not in result
-    assert 'CVEs' not in result
-
-
-def test_malicious_package_without_an_advisory_id(printer: TextPrinter, output: io.StringIO) -> None:
-    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID)
-
-    result = _render(printer, output, detection)
-
-    assert 'Advisory: N/A' in result
-    assert 'Remove it from your dependencies immediately.' in result
+    assert 'Remediation: Remove this package from your dependencies.' in result

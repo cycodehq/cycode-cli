@@ -80,7 +80,7 @@ def test_unmaintained_package_without_a_scorecard() -> None:
     ]
 
 
-MALICIOUS_REMEDIATION = 'This package has been identified as malicious. Remove it from your dependencies immediately.'
+REMEDIATION = 'Remove this package from your dependencies.'
 
 
 def test_malicious_package_links_the_advisory_and_tells_you_to_remove_it() -> None:
@@ -88,30 +88,46 @@ def test_malicious_package_links_the_advisory_and_tells_you_to_remove_it() -> No
         MALICIOUS_PACKAGE_POLICY_ID,
         threat_id='MAL-2024-1234',
         advisory_url='https://osv.dev/vulnerability/MAL-2024-1234',
+        remediation_guidelines=REMEDIATION,
     )
 
     assert get_sca_policy_details(detection) == [
         ('Advisory', '[link=https://osv.dev/vulnerability/MAL-2024-1234]MAL-2024-1234[/]'),
-        ('Remediation', MALICIOUS_REMEDIATION),
+        ('Remediation', REMEDIATION),
     ]
 
 
 def test_malicious_package_without_an_advisory_url_shows_the_bare_id() -> None:
-    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID, threat_id='MAL-2024-1234')
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID, threat_id='MAL-2024-1234', remediation_guidelines=REMEDIATION
+    )
 
     assert get_sca_policy_details(detection) == [
         ('Advisory', 'MAL-2024-1234'),
-        ('Remediation', MALICIOUS_REMEDIATION),
+        ('Remediation', REMEDIATION),
     ]
 
 
 def test_malicious_package_without_a_threat_id_still_tells_you_to_remove_it() -> None:
     """The remediation never depends on the advisory: removal is the only fix whether or not we can name it."""
-    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID, advisory_url='https://osv.dev/vulnerability/MAL-2024-1234')
+    detection = _make_detection(
+        MALICIOUS_PACKAGE_POLICY_ID,
+        advisory_url='https://osv.dev/vulnerability/MAL-2024-1234',
+        remediation_guidelines=REMEDIATION,
+    )
 
     assert get_sca_policy_details(detection) == [
         ('Advisory', 'N/A'),
-        ('Remediation', MALICIOUS_REMEDIATION),
+        ('Remediation', REMEDIATION),
+    ]
+
+
+def test_malicious_package_without_remediation_guidelines() -> None:
+    detection = _make_detection(MALICIOUS_PACKAGE_POLICY_ID, threat_id='MAL-2024-1234')
+
+    assert get_sca_policy_details(detection) == [
+        ('Advisory', 'MAL-2024-1234'),
+        ('Remediation', 'N/A'),
     ]
 
 

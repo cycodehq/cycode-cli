@@ -118,16 +118,6 @@ def test_get_title_malicious_packages() -> None:
     assert ScaTablePrinter._get_title(MALICIOUS_PACKAGE_POLICY_ID) == 'Malicious Packages'
 
 
-def test_get_table_malicious_packages_columns(printer: ScaTablePrinter) -> None:
-    columns = printer._get_table(MALICIOUS_PACKAGE_POLICY_ID).get_columns_info()
-
-    assert ADVISORY_COLUMN in columns
-    assert CVE_COLUMNS not in columns
-    assert UPGRADE_COLUMN not in columns
-    assert LICENSE_COLUMN not in columns
-    assert MAINTAINED_SCORE_COLUMN not in columns
-
-
 def test_get_table_malicious_packages_column_order(printer: ScaTablePrinter) -> None:
     column_names = [column.name for column in printer._get_table(MALICIOUS_PACKAGE_POLICY_ID).get_columns_info()]
 

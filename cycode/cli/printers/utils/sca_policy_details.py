@@ -16,11 +16,6 @@ if TYPE_CHECKING:
 
 _NOT_AVAILABLE = 'N/A'
 
-# Malware carries no CVSS and no patched version, so removal is the whole remediation.
-_MALICIOUS_PACKAGE_REMEDIATION = (
-    'This package has been identified as malicious. Remove it from your dependencies immediately.'
-)
-
 
 def _package_vulnerability_details(detection: 'Detection') -> list[tuple[str, str]]:
     alert = detection.detection_details.get('alert') or {}
@@ -61,7 +56,7 @@ def _malicious_package_details(detection: 'Detection') -> list[tuple[str, str]]:
 
     return [
         ('Advisory', advisory),
-        ('Remediation', _MALICIOUS_PACKAGE_REMEDIATION),
+        ('Remediation', detection_details.get('remediation_guidelines') or _NOT_AVAILABLE),
     ]
 
 

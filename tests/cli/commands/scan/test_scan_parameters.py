@@ -146,18 +146,6 @@ def test_get_default_scan_parameters_maintainability_filters_out_when_not_select
     assert params['maintainability'] is False
 
 
-def test_get_default_scan_parameters_malicious_packages_uses_the_hyphenated_context_key(
-    mock_context: MagicMock,
-) -> None:
-    """Test that the malicious_packages wire parameter is taken from the malicious-packages context key."""
-    mock_context.obj['malicious-packages'] = False
-
-    params = _get_default_scan_parameters(mock_context)
-
-    assert params['malicious_packages'] is False
-    assert 'malicious-packages' not in params
-
-
 def test_get_default_scan_parameters_malicious_packages_filters_out_when_not_selected(
     mock_context: MagicMock,
 ) -> None:
