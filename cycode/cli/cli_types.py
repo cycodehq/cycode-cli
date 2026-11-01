@@ -41,6 +41,7 @@ class ScaScanTypeOption(StrEnum):
     PACKAGE_VULNERABILITIES = 'package-vulnerabilities'
     LICENSE_COMPLIANCE = 'license-compliance'
     UNMAINTAINED_PACKAGES = 'unmaintained-packages'
+    MALICIOUS_PACKAGES = 'malicious-packages'
 
 
 class SbomFormatOption(StrEnum):
