@@ -574,14 +574,14 @@ ssh = ["bcrypt (>=3.1.5)"]
 
 [[package]]
 name = "dunamai"
-version = "1.26.2"
+version = "1.26.3"
 description = "Dynamic version generation"
 optional = false
 python-versions = ">=3.5"
 groups = ["executable"]
 files = [
-    {file = "dunamai-1.26.2-py3-none-any.whl", hash = "sha256:4234be3a90c3ec13ecf75d94a2248068e5a3018e8112892fcd9f3a1f287c9c32"},
-    {file = "dunamai-1.26.2.tar.gz", hash = "sha256:84ea45eddf9bb4b40df7610b1b22a03137365e6257dbf9d7b72128fdccca564c"},
+    {file = "dunamai-1.26.3-py3-none-any.whl", hash = "sha256:cc486963f21ad5b5b20d95424909ff5029990241eea3e2272865e1542c5fd19f"},
+    {file = "dunamai-1.26.3.tar.gz", hash = "sha256:fe2f732186710ee5048044fdbef6c76c6afbb9ee7de4f6d00cf34256e9ec2e7f"},
 ]
 
 [package.dependencies]
@@ -2133,4 +2133,4 @@ standard = ["httptools (>=0.8.0)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "11a5bb4aab4db4f1cbaad0700a5c0dccaa7d31e77e207307ea7935bcb35a554c"
+content-hash = "0434c1bb3132f42016b6a70b207a3ebafe030af3fea2fd95fe0f5b62a060a801"
