@@ -3,6 +3,8 @@ from pathlib import Path
 import typer
 
 from cycode.cli.files_collector.sca.base_restore_dependencies import BaseRestoreDependencies, build_dep_tree_path
+from cycode.cli.files_collector.sca.python.restore_poetry_dependencies import POETRY_LOCK_FILE_NAME
+from cycode.cli.files_collector.sca.python.restore_uv_dependencies import UV_LOCK_FILE_NAME
 from cycode.cli.models import Document
 from cycode.cli.utils.path_utils import get_file_content
 from cycode.logger import get_logger
@@ -15,6 +17,7 @@ PIP_LOCK_FILE_NAME = 'pylock.toml'
 
 _POETRY_TOOL_SECTION = '[tool.poetry]'
 _UV_TOOL_SECTION = '[tool.uv]'
+_OTHER_TOOL_LOCK_FILE_NAMES = (UV_LOCK_FILE_NAME, POETRY_LOCK_FILE_NAME)
 
 
 def _indicates_plain_pip(pyproject_content: str | None) -> bool:
@@ -40,6 +43,11 @@ class RestorePipDependencies(BaseRestoreDependencies):
         manifest_dir = self.get_manifest_dir(document)
         if manifest_dir and (Path(manifest_dir) / PIP_LOCK_FILE_NAME).is_file():
             return True
+
+        # uv and Poetry don't require a [tool.*] section, so their lockfile is the reliable signal.
+        # Those handlers already claim this manifest; running `pip lock` on it too is redundant.
+        if manifest_dir and any((Path(manifest_dir) / name).is_file() for name in _OTHER_TOOL_LOCK_FILE_NAMES):
+            return False
 
         return _indicates_plain_pip(document.content)
 

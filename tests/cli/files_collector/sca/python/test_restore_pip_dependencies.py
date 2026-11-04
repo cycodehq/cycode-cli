@@ -52,6 +52,31 @@ class TestIsProject:
         )
         assert restore_pip.is_project(doc) is True
 
+    @pytest.mark.parametrize('lock_file_name', ['uv.lock', 'poetry.lock'])
+    def test_pyproject_toml_with_uv_or_poetry_lock_does_not_match(
+        self, restore_pip: RestorePipDependencies, tmp_path: Path, lock_file_name: str
+    ) -> None:
+        # No [tool.uv] / [tool.poetry] section, but the sibling lockfile shows another tool owns it
+        content = '[project]\nname = "test"\ndependencies = ["requests"]\n'
+        (tmp_path / 'pyproject.toml').write_text(content)
+        (tmp_path / lock_file_name).write_text('version = 1\n')
+        doc = Document(
+            str(tmp_path / 'pyproject.toml'),
+            content,
+            absolute_path=str(tmp_path / 'pyproject.toml'),
+        )
+        assert restore_pip.is_project(doc) is False
+
+    def test_requirements_txt_with_uv_lock_matches(self, restore_pip: RestorePipDependencies, tmp_path: Path) -> None:
+        (tmp_path / 'requirements.txt').write_text('requests==2.31.0\n')
+        (tmp_path / 'uv.lock').write_text('version = 1\n')
+        doc = Document(
+            str(tmp_path / 'requirements.txt'),
+            'requests==2.31.0\n',
+            absolute_path=str(tmp_path / 'requirements.txt'),
+        )
+        assert restore_pip.is_project(doc) is True
+
     def test_requirements_txt_matches(self, restore_pip: RestorePipDependencies) -> None:
         doc = Document('requirements.txt', 'requests==2.31.0\n')
         assert restore_pip.is_project(doc) is True
