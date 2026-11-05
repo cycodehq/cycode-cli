@@ -1,4 +1,6 @@
+import json
 import os
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import pytest
@@ -20,6 +22,7 @@ from cycode.cli.models import Document
 from cycode.cyclient.scan_client import ScanClient
 from tests.conftest import ZIP_CONTENT_PATH
 from tests.cyclient.mocked_responses.scan_client import (
+    get_detection_rules_url,
     get_scan_aggregation_report_url,
     get_scan_aggregation_report_url_response,
     get_scan_details_response,
@@ -170,6 +173,28 @@ def test_get_scan_details(
     scan_details_response = scan_client.get_scan_details(scan_type, str(scan_id))
     assert scan_details_response.id == str(scan_id)
     assert scan_details_response.scan_status == 'Completed'
+
+
+@responses.activate
+def test_get_detection_rules_splits_ids_into_small_requests(
+    scan_client: ScanClient, api_token_response: responses.Response
+) -> None:
+    requested_ids_per_call: list[list[str]] = []
+
+    def detection_rules_callback(request: requests.PreparedRequest) -> tuple[int, dict, str]:
+        ids = parse_qs(urlparse(request.url).query)['ids']
+        requested_ids_per_call.append(ids)
+        rules = [{'detection_rule_id': rule_id, 'classification_data': []} for rule_id in ids]
+        return 200, {}, json.dumps(rules)
+
+    responses.add(api_token_response)  # mock token based client
+    responses.add_callback(responses.GET, get_detection_rules_url(scan_client), callback=detection_rules_callback)
+
+    detection_rule_ids = [str(uuid4()) for _ in range(120)]
+    detection_rules = scan_client.get_detection_rules(detection_rule_ids)
+
+    assert max(len(ids) for ids in requested_ids_per_call) <= 50
+    assert sorted(rule.detection_rule_id for rule in detection_rules) == sorted(detection_rule_ids)
 
 
 @pytest.mark.parametrize('scan_type', list(ScanTypeOption))
