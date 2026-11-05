@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Run Cimon
-        uses: cycodelabs/cimon-action@1374f7193c5a4390740fa451feb05ce812955958 # v1.0.2
+        uses: cycodelabs/cimon-action@f6fe31f1d7306ec77f3ee6b8312f033d4084c0ca # v1.0.3
         with:
           client-id: ${{ secrets.CIMON_CLIENT_ID }}
           secret: ${{ secrets.CIMON_SECRET }}
@@ -74,4 +74,4 @@ jobs:
         run: poetry build
 
       - name: Publish a Python distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
