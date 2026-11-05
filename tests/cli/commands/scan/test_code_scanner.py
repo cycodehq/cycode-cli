@@ -10,6 +10,7 @@ from cycode.cli.apps.scan.code_scanner import (
     _get_scan_documents_thread_func,
     _perform_scan,
     _run_presigned_upload_scan,
+    _should_use_sync_flow,
     scan_disk_files,
     scan_documents,
 )
@@ -17,6 +18,26 @@ from cycode.cli.exceptions import custom_exceptions
 from cycode.cli.files_collector.file_excluder import _is_file_relevant_for_sca_scan
 from cycode.cli.files_collector.path_documents import _generate_document
 from cycode.cli.models import Document
+
+
+@pytest.mark.parametrize(
+    ('command_scan_type', 'scan_type', 'sync_option', 'expected'),
+    [
+        # IaC and SAST always use the async flow, regardless of --sync.
+        ('path', consts.IAC_SCAN_TYPE, False, False),
+        ('path', consts.IAC_SCAN_TYPE, True, False),
+        ('repository', consts.IAC_SCAN_TYPE, True, False),
+        ('path', consts.SAST_SCAN_TYPE, False, False),
+        ('path', consts.SAST_SCAN_TYPE, True, False),
+        # SCA/Secrets use the sync flow only with --sync on path/repository.
+        ('path', consts.SCA_SCAN_TYPE, True, True),
+        ('repository', consts.SECRET_SCAN_TYPE, True, True),
+        ('path', consts.SCA_SCAN_TYPE, False, False),
+        ('commit_history', consts.SCA_SCAN_TYPE, True, False),
+    ],
+)
+def test_should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: bool, expected: bool) -> None:
+    assert _should_use_sync_flow(command_scan_type, scan_type, sync_option) is expected
 
 
 def test_is_file_relevant_for_sca_scan() -> None:

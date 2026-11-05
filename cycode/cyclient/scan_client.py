@@ -23,6 +23,8 @@ from cycode.cyclient.logger import logger
 if TYPE_CHECKING:
     from cycode.cyclient.scan_config_base import ScanConfigBase
 
+_DETECTION_RULES_IDS_PER_REQUEST = 50
+
 
 class ScanClient:
     def __init__(
@@ -317,13 +319,18 @@ class ScanClient:
         return models.DetectionRuleSchema().load(response.json(), many=True)
 
     def get_detection_rules(self, detection_rules_ids: set[str] | list[str]) -> list[models.DetectionRule]:
-        response = self.scan_cycode_client.get(
-            url_path=self.get_detection_rules_path(),
-            params={'ids': detection_rules_ids},
-            hide_response_content_log=self._hide_response_log,
-        )
+        # The ids go in the query string; too many of them exceed the URL limit (HTTP 414).
+        ids = list(detection_rules_ids)
+        detection_rules = []
+        for start in range(0, len(ids), _DETECTION_RULES_IDS_PER_REQUEST):
+            response = self.scan_cycode_client.get(
+                url_path=self.get_detection_rules_path(),
+                params={'ids': ids[start : start + _DETECTION_RULES_IDS_PER_REQUEST]},
+                hide_response_content_log=self._hide_response_log,
+            )
+            detection_rules.extend(self.parse_detection_rules_response(response))
 
-        return self.parse_detection_rules_response(response)
+        return detection_rules
 
     def get_scan_detections_path(self) -> str:
         return f'{self.scan_config.get_detections_prefix()}/{self._DETECTIONS_SERVICE_CLI_CONTROLLER_PATH}'

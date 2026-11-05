@@ -121,26 +121,17 @@ def _should_use_sync_flow(command_scan_type: str, scan_type: str, sync_option: b
         Passing `--sync` option does not mean that sync flow will be used in all cases.
 
     The logic:
-    - for IAC scan, sync flow is always used
-    - for SAST scan, sync flow is not supported
-    - for SCA and Secrets scan, sync flow is supported only for path/repository scan
+    - for IaC and SAST scans, the async flow is always used
+    - for SCA and Secrets scans, sync flow is used only with `--sync` on path/repository scans
 
     """
-    if not sync_option and scan_type != consts.IAC_SCAN_TYPE:
+    if scan_type in {consts.IAC_SCAN_TYPE, consts.SAST_SCAN_TYPE}:
         return False
 
-    if command_scan_type not in {'path', 'repository', 'ai_guardrails'}:
+    if not sync_option:
         return False
 
-    if scan_type == consts.IAC_SCAN_TYPE:
-        # sync in the only available flow for IAC scan; we do not use detector directly anymore
-        return True
-
-    if scan_type is consts.SAST_SCAN_TYPE:  # noqa: SIM103
-        # SAST does not support sync flow
-        return False
-
-    return True
+    return command_scan_type in {'path', 'repository', 'ai_guardrails'}
 
 
 def _get_scan_documents_thread_func(
