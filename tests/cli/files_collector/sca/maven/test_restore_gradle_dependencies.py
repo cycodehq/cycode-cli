@@ -117,8 +117,7 @@ class TestDefaultCommand:
         assert '-b' not in commands[0]
 
 
-# `gradle projects` output on Gradle 9.1+. The settings file includes ':a', ':a:b' and
-# ':tenant-service-implementation', and moves the projectDir of the last one to
+# The settings file moves the projectDir of ':tenant-service-implementation' to
 # components/services/tenant/implementation.
 _PROJECTS_OUTPUT_WITH_LOCATIONS = """
 Projects:
@@ -145,7 +144,6 @@ project ':tenant-service-implementation' - /components/services/tenant/implement
 To see a list of the tasks of a project, run gradle <project-path>:tasks
 """
 
-# `gradle projects` output before Gradle 9.1: no "Project locations" section
 _PROJECTS_OUTPUT_WITHOUT_LOCATIONS = """
 Root project 'root'
 +--- Project ':a'
@@ -208,7 +206,6 @@ class TestSubProjectCommands:
         assert locations == {tmp_path.resolve(): ':', (tmp_path / 'a' / 'b').resolve(): ':a:b'}
 
     def test_scan_root_in_subproject_maps_from_build_root(self, tmp_path: Path) -> None:
-        # `gradle projects` run in the ':a' directory reports locations relative to the build root above it
         output = (
             "Project ':a'\n\nProject hierarchy:\n\nProject ':a'\n\\--- Project ':a:b'\n\n"
             "Project locations:\n\nproject ':a' - /a\nproject ':a:b' - /a/b\n"
@@ -240,7 +237,6 @@ class TestSubProjectCommands:
         assert restore.get_commands(str(tmp_path / BUILD_GRADLE_FILE_NAME)) == [
             [GRADLE_EXECUTABLE, 'dependencies', '-q', '--console', 'plain']
         ]
-        # The fallback cannot resolve remapped projects
         remapped = tmp_path / 'components' / 'services' / 'tenant' / 'implementation' / BUILD_GRADLE_FILE_NAME
         assert restore.get_commands(str(remapped)) == []
 
