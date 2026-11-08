@@ -59,8 +59,8 @@ class RestoreGradleDependencies(BaseRestoreDependencies):
         if self.is_gradle_sub_projects():
             return self.get_commands_for_sub_projects(manifest_file_path)
 
-        # Gradle 9 removed -b (--build-file). -p starts Gradle in the manifest directory: Gradle finds the root
-        # settings file above it and selects the project whose projectDir is that directory.
+        # Gradle finds the root settings file above it and selects the project whose projectDir
+        # is that directory.
         manifest_dir = str(Path(manifest_file_path).parent)
         return [[self.gradle_executable, '-p', manifest_dir, 'dependencies', '-q', '--console', 'plain']]
 
