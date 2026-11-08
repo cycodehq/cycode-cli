@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -80,9 +81,7 @@ class TestResolveGradleExecutable:
         with patch(f'{_GRADLE_MODULE}.platform.system', return_value='Linux'):
             restore = RestoreGradleDependencies(mock_ctx, is_git_diff=False, command_timeout=30)
         commands = restore.get_commands(str(tmp_path / BUILD_GRADLE_FILE_NAME))
-        assert commands == [
-            [str(wrapper), 'dependencies', '-b', str(tmp_path / BUILD_GRADLE_FILE_NAME), '-q', '--console', 'plain']
-        ]
+        assert commands == [[str(wrapper), '-p', str(tmp_path), 'dependencies', '-q', '--console', 'plain']]
 
     def test_wrapper_is_threaded_into_sub_project_commands(self, tmp_path: Path) -> None:
         wrapper = tmp_path / GRADLEW_FILE_NAME
@@ -102,6 +101,144 @@ class TestResolveGradleExecutable:
 
         commands = restore.get_commands_for_sub_projects(str(manifest))
         assert commands == [[str(wrapper), ':module-a:dependencies', '-q', '--console', 'plain']]
+
+
+class TestDefaultCommand:
+    def test_uses_project_dir_instead_of_build_file(
+        self, restore_gradle: RestoreGradleDependencies, tmp_path: Path
+    ) -> None:
+        manifest = tmp_path / 'x' / 'y' / BUILD_GRADLE_KTS_FILE_NAME
+
+        commands = restore_gradle.get_commands(str(manifest))
+
+        assert commands == [
+            [GRADLE_EXECUTABLE, '-p', str(tmp_path / 'x' / 'y'), 'dependencies', '-q', '--console', 'plain']
+        ]
+        assert '-b' not in commands[0]
+
+
+# The settings file moves the projectDir of ':tenant-service-implementation' to
+# components/services/tenant/implementation.
+_PROJECTS_OUTPUT_WITH_LOCATIONS = """
+Projects:
+
+------------------------------------------------------------
+Root project 'root'
+------------------------------------------------------------
+
+Location: /repo
+
+Project hierarchy:
+
+Root project 'root'
++--- Project ':a'
+|    \\--- Project ':a:b'
+\\--- Project ':tenant-service-implementation'
+
+Project locations:
+
+project ':a' - /a
+project ':a:b' - /a/b
+project ':tenant-service-implementation' - /components/services/tenant/implementation
+
+To see a list of the tasks of a project, run gradle <project-path>:tasks
+"""
+
+_PROJECTS_OUTPUT_WITHOUT_LOCATIONS = """
+Root project 'root'
++--- Project ':a'
+|    \\--- Project ':a:b'
+\\--- Project ':tenant-service-implementation'
+"""
+
+
+def _sub_projects_restore(tmp_path: Path, projects_output: str) -> RestoreGradleDependencies:
+    ctx = MagicMock(spec=typer.Context)
+    ctx.obj = {'monitor': False, 'gradle_all_sub_projects': True}
+    ctx.params = {'path': str(tmp_path)}
+    with patch(f'{_GRADLE_MODULE}.shell', return_value=projects_output):
+        return RestoreGradleDependencies(ctx, is_git_diff=False, command_timeout=30)
+
+
+class TestSubProjectCommands:
+    def test_remapped_project_dir_uses_real_project_path(self, tmp_path: Path) -> None:
+        restore = _sub_projects_restore(tmp_path, _PROJECTS_OUTPUT_WITH_LOCATIONS)
+        manifest = tmp_path / 'components' / 'services' / 'tenant' / 'implementation' / BUILD_GRADLE_FILE_NAME
+
+        assert restore.get_commands(str(manifest)) == [
+            [GRADLE_EXECUTABLE, ':tenant-service-implementation:dependencies', '-q', '--console', 'plain']
+        ]
+
+    def test_nested_project_uses_full_path(self, tmp_path: Path) -> None:
+        restore = _sub_projects_restore(tmp_path, _PROJECTS_OUTPUT_WITH_LOCATIONS)
+        manifest = tmp_path / 'a' / 'b' / BUILD_GRADLE_KTS_FILE_NAME
+
+        assert restore.get_commands(str(manifest)) == [
+            [GRADLE_EXECUTABLE, ':a:b:dependencies', '-q', '--console', 'plain']
+        ]
+
+    def test_root_manifest_runs_root_dependencies(self, tmp_path: Path) -> None:
+        restore = _sub_projects_restore(tmp_path, _PROJECTS_OUTPUT_WITH_LOCATIONS)
+
+        assert restore.get_commands(str(tmp_path / BUILD_GRADLE_FILE_NAME)) == [
+            [GRADLE_EXECUTABLE, 'dependencies', '-q', '--console', 'plain']
+        ]
+
+    def test_manifest_outside_the_build_is_skipped(self, tmp_path: Path) -> None:
+        restore = _sub_projects_restore(tmp_path, _PROJECTS_OUTPUT_WITH_LOCATIONS)
+
+        assert restore.get_commands(str(tmp_path / 'implementation' / BUILD_GRADLE_FILE_NAME)) == []
+
+    def test_relative_manifest_path_is_resolved(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        restore = _sub_projects_restore(tmp_path, _PROJECTS_OUTPUT_WITH_LOCATIONS)
+        monkeypatch.chdir(tmp_path / '..')
+
+        manifest = Path(tmp_path.name) / 'a' / BUILD_GRADLE_FILE_NAME
+        assert restore.get_commands(str(manifest)) == [
+            [GRADLE_EXECUTABLE, ':a:dependencies', '-q', '--console', 'plain']
+        ]
+
+    def test_parses_crlf_line_endings(self, tmp_path: Path) -> None:
+        output = "Project locations:\r\n\r\nproject ':a:b' - /a/b\r\n"
+
+        locations = RestoreGradleDependencies._parse_project_locations(output, tmp_path)
+
+        assert locations == {tmp_path.resolve(): ':', (tmp_path / 'a' / 'b').resolve(): ':a:b'}
+
+    def test_scan_root_in_subproject_maps_from_build_root(self, tmp_path: Path) -> None:
+        output = (
+            "Project ':a'\n\nProject hierarchy:\n\nProject ':a'\n\\--- Project ':a:b'\n\n"
+            "Project locations:\n\nproject ':a' - /a\nproject ':a:b' - /a/b\n"
+        )
+        scan_root = tmp_path / 'a'
+
+        locations = RestoreGradleDependencies._parse_project_locations(output, scan_root)
+
+        assert locations == {
+            tmp_path.resolve(): ':',
+            scan_root.resolve(): ':a',
+            (scan_root / 'b').resolve(): ':a:b',
+        }
+
+    @pytest.mark.skipif(sys.platform != 'win32', reason='backslash is a path separator only on Windows')
+    def test_parses_windows_separators_case_insensitively(self, tmp_path: Path) -> None:
+        output = "Project locations:\r\n\r\nproject ':a:b' - \\A\\B\r\n"
+        restore = _sub_projects_restore(tmp_path, output)
+
+        assert restore._get_sub_project_path(str(tmp_path / 'a' / 'b' / BUILD_GRADLE_FILE_NAME)) == ':a:b'
+
+    def test_older_gradle_falls_back_to_directory_name(self, tmp_path: Path) -> None:
+        restore = _sub_projects_restore(tmp_path, _PROJECTS_OUTPUT_WITHOUT_LOCATIONS)
+
+        assert restore.project_locations == {}
+        assert restore.get_commands(str(tmp_path / 'a' / BUILD_GRADLE_FILE_NAME)) == [
+            [GRADLE_EXECUTABLE, ':a:dependencies', '-q', '--console', 'plain']
+        ]
+        assert restore.get_commands(str(tmp_path / BUILD_GRADLE_FILE_NAME)) == [
+            [GRADLE_EXECUTABLE, 'dependencies', '-q', '--console', 'plain']
+        ]
+        remapped = tmp_path / 'components' / 'services' / 'tenant' / 'implementation' / BUILD_GRADLE_FILE_NAME
+        assert restore.get_commands(str(remapped)) == []
 
 
 class TestCleanup:
