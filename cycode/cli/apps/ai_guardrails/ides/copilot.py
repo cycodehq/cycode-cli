@@ -111,8 +111,10 @@ _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide copilot'
 
 # Copilot CLI leaves an `@path` mention in the prompt as typed: quoted, with
 # backslash-escaped spaces (a file dragged into a terminal), or plain up to the next
-# whitespace. Never mid-word, so an email address is not a mention.
-_MENTION_PATTERN = re.compile(r'(?<!\S)@("[^"]+"|\'[^\']+\'|(?:\\ |\S)+)')
+# whitespace. Never mid-word, so an email address is not a mention. A lookahead, so
+# every `@` is read on its own: a quote left open must not swallow the mentions after
+# it, and a quoted path never spans lines.
+_MENTION_PATTERN = re.compile(r'(?<!\S)@(?=("[^"\n]+"|\'[^\'\n]+\'|(?:\\ |\S)+))')
 _MENTION_TRAILING_PUNCTUATION = '.,;:!?)]}'
 # Copilot CLI replaces a pasted image with this placeholder, naming the file it saved
 # in the temp directory.
