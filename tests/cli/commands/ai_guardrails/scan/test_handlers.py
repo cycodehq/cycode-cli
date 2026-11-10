@@ -74,7 +74,7 @@ def default_policy() -> dict[str, Any]:
 # Tests for handle_before_submit_prompt
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
 def test_handle_before_submit_prompt_no_secrets(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -92,7 +92,7 @@ def test_handle_before_submit_prompt_no_secrets(
     assert call_args.kwargs['block_reason'] is None
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
 def test_handle_before_submit_prompt_with_secrets_blocked(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -125,7 +125,7 @@ def test_handle_before_submit_prompt_with_secrets_blocked(
     )
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
 def test_handle_before_submit_prompt_with_secrets_warned(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -141,7 +141,7 @@ def test_handle_before_submit_prompt_with_secrets_warned(
     assert call_args.args[2] == AIHookOutcome.WARNED
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
 def test_handle_before_submit_prompt_scan_failure_fail_open(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -158,7 +158,7 @@ def test_handle_before_submit_prompt_scan_failure_fail_open(
     assert call_args.kwargs['block_reason'] == BlockReason.SCAN_FAILURE
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
 def test_handle_before_submit_prompt_scan_failure_fail_closed(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -548,6 +548,140 @@ def test_violation_summary_lists_findings_without_a_sha() -> None:
     assert 'Cycode found 1 violation:' in summary
     assert '  - GitHub Token' in summary
     assert shas == ()
+
+
+# Tests for images attached to prompts
+
+_PNG = b'\x89PNG\r\n\x1a\n' + b'\x00\x00\x00\rIHDR'
+_JPEG = b'\xff\xd8\xff\xe0' + b'\x00\x10JFIF'
+
+
+def _scanned_documents(mock_perform_scan: MagicMock) -> list[Document]:
+    return mock_perform_scan.call_args.args[1]
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan', return_value=ScanOutcome(scan_id='scan-id-1'))
+def test_prompt_and_its_images_are_scanned_together(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    fs.create_file('/images/shot.png', contents=_PNG)
+    fs.create_file('/images/Screenshot', contents=_JPEG)
+    mock_payload.image_paths = ['/images/shot.png', '/images/Screenshot']
+
+    result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
+
+    assert result == HookDecision.allow(AiHookEventType.PROMPT)
+    mock_perform_scan.assert_called_once()
+    documents = _scanned_documents(mock_perform_scan)
+    # Image entries keep an image extension: the server picks what to read text out of by extension and signature
+    assert [document.path for document in documents] == [
+        'prompt-content.txt',
+        'image-1-shot.png',
+        'image-2-Screenshot.jpg',
+    ]
+    assert documents[0].content == 'Test prompt'
+    assert documents[1].content == _PNG
+    assert documents[2].content == _JPEG
+    assert documents[2].absolute_path == '/images/Screenshot'
+    # One scan, one event, labelled as a prompt
+    assert mock_perform_scan.call_args.args[2]['metadata']['ai_guardrails']['detection_source'] == 'secrets_in_prompt'
+    mock_ctx.obj['ai_security_client'].create_event.assert_called_once()
+    assert mock_ctx.obj['ai_security_client'].create_event.call_args.kwargs['scan_id'] == 'scan-id-1'
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan', return_value=ScanOutcome(scan_id='scan-id-1'))
+def test_prompt_with_only_an_image_is_scanned(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    fs.create_file('/images/shot.png', contents=_PNG)
+    mock_payload.prompt = ''
+    mock_payload.image_paths = ['/images/shot.png']
+
+    handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
+
+    assert [document.path for document in _scanned_documents(mock_perform_scan)] == ['image-1-shot.png']
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan')
+def test_prompt_without_text_or_images_is_not_scanned(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    mock_payload.prompt = ''
+    # Gone between collection and the scan: nothing left to send
+    mock_payload.image_paths = ['/images/deleted.png']
+
+    result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
+
+    assert result == HookDecision.allow(AiHookEventType.PROMPT)
+    mock_perform_scan.assert_not_called()
+    assert mock_ctx.obj['ai_security_client'].create_event.call_args.kwargs['scan_id'] is None
+
+
+def _image_finding_scan(batch: list[Document]) -> tuple[str, None, LocalScanResult]:
+    """A server answer with one Block-verdict secret in the prompt text and one in the attached image."""
+
+    def detection(sha: str) -> Detection:
+        return Detection(
+            detection_type_id='type-id',
+            type='GitHub Token',
+            message='Hardcoded secret',
+            detection_details={'sha512': sha, 'line': 0, 'start_position': 0, 'length': 4},
+            detection_rule_id='rule-id',
+            severity='High',
+        )
+
+    text_document, image_document = batch
+    return (
+        'scan-id-1',
+        None,
+        LocalScanResult(
+            scan_id='scan-id-1',
+            report_url=None,
+            document_detections=[
+                DocumentDetections(document=text_document, detections=[detection('sha-text')]),
+                DocumentDetections(document=image_document, detections=[detection('sha-image')]),
+            ],
+            issue_detected=True,
+            detections_count=2,
+            relevant_detections_count=2,
+            verdict='Block',
+        ),
+    )
+
+
+def test_blocked_prompt_names_the_image_the_secret_is_in(
+    mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    fs.create_file('/attachments/uuid-1/diagram.png', contents=_PNG)
+    mock_payload.prompt = 'ghp_ in the text'
+    mock_payload.image_paths = ['/attachments/uuid-1/diagram.png']
+
+    with patch(
+        'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',
+        return_value=_image_finding_scan,
+    ):
+        result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
+
+    assert result.action == DecisionAction.DENY
+    assert '  - GitHub Token (line 1): g**_\n' in result.user_message
+    # Positions in an image point into text the server read out of it: the developer is told the file instead
+    assert '  - GitHub Token in image "diagram.png"\n' in result.user_message
+    assert 'ignore --by-sha sha-image' in result.user_message
+    assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[2] == AIHookOutcome.BLOCKED
+
+
+def test_violation_summary_lists_a_value_once_per_document() -> None:
+    """The same value in the prompt and in an image is two places to remove it from, but one value to ignore."""
+    local_scan_result = _local_scan_result_with_detections('sha-aaa')
+    image = Document(path='image-1-shot.png', content=_PNG, absolute_path='/pasted/copilot-image-1.png')
+    local_scan_result.document_detections.append(
+        DocumentDetections(document=image, detections=local_scan_result.document_detections[0].detections)
+    )
+
+    summary, shas = build_violation_summary([local_scan_result])
+
+    assert summary.splitlines()[1:] == ['  - GitHub Token', '  - GitHub Token in image "copilot-image-1.png"']
+    assert shas == ('sha-aaa',)
 
 
 # Tests for handle_before_mcp_execution

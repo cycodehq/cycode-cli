@@ -1,20 +1,24 @@
 """Tests for AI guardrails scan command."""
 
 import json
+import os
 import time
 from io import StringIO
 from unittest.mock import MagicMock
 
 import pytest
+from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockerFixture
 from typer.testing import CliRunner
 
 from cycode.cli.apps.ai_guardrails import app as ai_guardrails_app
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
+from cycode.cli.apps.ai_guardrails.ides.copilot import Copilot, _vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import get_prompt_marks_path
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
-from tests.cli.commands.ai_guardrails.scan.conftest import platform_config
+from tests.cli.commands.ai_guardrails.scan.conftest import platform_config, resolved_guardrails_payload
 
 
 @pytest.fixture(autouse=True)
@@ -567,6 +571,128 @@ class TestSelfDetach:
 
         mock_respawn.assert_called_once()
         handler.assert_called_once()
+
+
+def _copilot_config(prompt: str = 'Block', **settings: str | bool | None) -> GuardrailConfig:
+    """A cached platform config whose copilot cells are Block, except the prompt one given."""
+    payload = resolved_guardrails_payload(**settings)
+    for guardrail in payload['guardrails']:
+        guardrail['agents']['copilot'] = prompt if guardrail['key'] == 'secrets_in_prompt' else 'Block'
+    return GuardrailConfig(payload=payload, fetched_at=time.time())
+
+
+class TestPromptImages:
+    """Images attached to Copilot prompts: collected once, when the tenant scans them, by the process that scans."""
+
+    _PAYLOAD = {  # noqa: RUF012
+        'timestamp': '2026-11-09T10:15:32.000Z',
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-images-1',
+        'prompt': 'what does this screenshot say?',
+    }
+
+    @pytest.fixture
+    def respawn(self, mocker: MockerFixture) -> MagicMock:
+        return mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.respawn_detached', return_value=True)
+
+    @pytest.fixture
+    def handler(self, mocker: MockerFixture, respawn: MagicMock) -> MagicMock:
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command._initialize_clients')
+        handler = MagicMock(return_value=HookDecision.allow(AiHookEventType.PROMPT))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.get_handler_for_event', return_value=handler)
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_policy', return_value={'fail_open': True})
+        return handler
+
+    @pytest.fixture
+    def collect(self, mocker: MockerFixture) -> MagicMock:
+        return mocker.patch.object(Copilot, 'collect_prompt_images', return_value=['/pasted/copilot-image-1.png'])
+
+    def _run(self, mock_ctx: MagicMock, mocker: MockerFixture, config: GuardrailConfig | None, payload: dict) -> None:
+        mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
+        mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=config)
+        scan_command(mock_ctx, ide='copilot')
+
+    def test_images_are_collected_when_the_tenant_scans_them(
+        self, mock_ctx: MagicMock, mocker: MockerFixture, handler: MagicMock, collect: MagicMock, respawn: MagicMock
+    ) -> None:
+        self._run(mock_ctx, mocker, _copilot_config(scan_images=True), self._PAYLOAD)
+
+        respawn.assert_not_called()
+        collect.assert_called_once_with(self._PAYLOAD)
+        assert handler.call_args.args[1].image_paths == ['/pasted/copilot-image-1.png']
+
+    @pytest.mark.parametrize('config', [None, _copilot_config(), _copilot_config(scan_images=False)])
+    def test_text_only_without_the_setting(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        handler: MagicMock,
+        collect: MagicMock,
+        config: GuardrailConfig | None,
+    ) -> None:
+        self._run(mock_ctx, mocker, config, self._PAYLOAD)
+
+        collect.assert_not_called()
+        handler.assert_called_once()
+        assert handler.call_args.args[1].image_paths == []
+
+    def test_only_prompt_events_collect_images(
+        self, mock_ctx: MagicMock, mocker: MockerFixture, handler: MagicMock, collect: MagicMock, fs: FakeFilesystem
+    ) -> None:
+        fs.create_file('/Users/user/.gitconfig')
+        payload = {
+            'timestamp': '2026-11-09T10:15:33.000Z',
+            'hook_event_name': 'PreToolUse',
+            'session_id': 'session-images-1',
+            'tool_name': 'read_file',
+            'tool_input': {'filePath': '/Users/user/.gitconfig'},
+        }
+
+        self._run(mock_ctx, mocker, _copilot_config(scan_images=True), payload)
+
+        collect.assert_not_called()
+        handler.assert_called_once()
+
+    def test_failed_collection_still_scans_the_text(
+        self, mock_ctx: MagicMock, mocker: MockerFixture, handler: MagicMock, collect: MagicMock
+    ) -> None:
+        collect.side_effect = RuntimeError('unexpected')
+
+        self._run(mock_ctx, mocker, _copilot_config(scan_images=True), self._PAYLOAD)
+
+        handler.assert_called_once()
+        assert handler.call_args.args[1].image_paths == []
+
+    def test_images_are_collected_by_the_detached_child_not_the_parent(
+        self,
+        mock_ctx: MagicMock,
+        mocker: MockerFixture,
+        monkeypatch: pytest.MonkeyPatch,
+        handler: MagicMock,
+        respawn: MagicMock,
+        fs: FakeFilesystem,
+    ) -> None:
+        """Collecting moves the session's prompt mark past the image, so a parent that collected before detaching
+        would leave the child that scans nothing to find."""
+        paste = _vscode_user_data_dir() / 'User' / 'workspaceStorage' / 'vscode-chat-images' / 'image-1.png'
+        fs.create_file(paste, contents=b'\x89PNG\r\n\x1a\n' + b'pasted')
+        os.utime(paste, (time.time() - 5, time.time() - 5))
+        config = _copilot_config(prompt='Report', scan_images=True)  # the parent detaches
+
+        monkeypatch.delenv('_CYCODE_DETACHED', raising=False)
+        self._run(mock_ctx, mocker, config, self._PAYLOAD)
+
+        respawn.assert_called_once()
+        handler.assert_not_called()
+        assert not get_prompt_marks_path().exists()
+
+        monkeypatch.setenv('_CYCODE_DETACHED', '1')
+        self._run(mock_ctx, mocker, config, self._PAYLOAD)
+
+        respawn.assert_called_once()
+        handler.assert_called_once()
+        assert handler.call_args.args[1].image_paths == [str(paste)]
+        assert self._PAYLOAD['session_id'] in json.loads(get_prompt_marks_path().read_text(encoding='utf-8'))
 
 
 class TestDefaultIdeParameterViaCli:

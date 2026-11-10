@@ -36,7 +36,7 @@ def _does_file_exceed_max_size_limit(filename: str) -> bool:
     return get_file_size(filename) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
 
 
-def _does_document_exceed_max_size_limit(content: str) -> bool:
+def _does_document_exceed_max_size_limit(content: str | bytes) -> bool:
     return get_content_size(content) > consts.FILE_MAX_SIZE_LIMIT_IN_BYTES
 
 
@@ -145,7 +145,7 @@ class Excluder:
 
         return not (scan_type == consts.SCA_SCAN_TYPE and not _is_file_relevant_for_sca_scan(filename))
 
-    def _is_relevant_document_to_scan(self, scan_type: str, filename: str, content: str) -> bool:
+    def _is_relevant_document_to_scan(self, scan_type: str, filename: str, content: str | bytes) -> bool:
         if not self._is_relevant_file_to_scan_common(scan_type, filename):
             return False
 

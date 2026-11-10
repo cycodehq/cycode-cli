@@ -18,7 +18,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import IDE, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.detach import is_detached_child, respawn_detached
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import apply_platform_config, load_guardrail_config
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event, should_detach_scan
-from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
+from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value, load_policy
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.apps.ai_guardrails.scan.utils import output_json, read_stdin_text, safe_json_parse
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
@@ -85,6 +85,15 @@ def _should_skip_payload(ide_integration: IDE, payload: dict | None) -> bool:
         return True
 
     return False
+
+
+def _collect_prompt_images(ide_integration: IDE, payload: dict) -> list[str]:
+    """Best-effort: an image that can't be collected goes unscanned, but the prompt text is still scanned."""
+    try:
+        return ide_integration.collect_prompt_images(payload)
+    except Exception as e:
+        logger.debug('Failed to collect prompt images, scanning the text only', exc_info=e)
+        return []
 
 
 def _initialize_clients(ctx: typer.Context) -> None:
@@ -168,6 +177,11 @@ def scan_command(
 
     try:
         _initialize_clients(ctx)
+
+        if event_name == AiHookEventType.PROMPT and get_policy_value(policy, 'prompt', 'scan_images', default=False):
+            # Here rather than in parse_hook_payload: collecting moves the session's prompt mark forward, so it
+            # runs once, after the detach decision - a parent that detached would leave its child nothing to find.
+            unified_payload.image_paths = _collect_prompt_images(ide_integration, payload)
 
         decision = handler(ctx, unified_payload, policy)
         logger.debug('Hook handler completed', extra={'event_name': event_name, 'action': decision.action.value})

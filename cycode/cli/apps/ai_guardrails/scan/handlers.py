@@ -27,6 +27,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import is_enforced, load_mcp_server_statuses
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import image_file_name, read_prompt_image
 from cycode.cli.apps.ai_guardrails.scan.types import (
     SECRETS_BLOCK_REASON_BY_EVENT_TYPE,
     AiHookEventType,
@@ -46,6 +47,8 @@ from cycode.logger import get_logger
 logger = get_logger('AI Guardrails')
 
 HandlerFn = Callable[[typer.Context, AIHookPayload, dict], HookDecision]
+
+_TEXT_DOCUMENT_NAME = 'prompt-content.txt'
 
 
 def _ignore_commands(shas: tuple[str, ...]) -> list[str]:
@@ -112,7 +115,7 @@ def _parse_verdict(verdict: str | None) -> GuardrailsMode | None:
 
 
 def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
-    """Scan prompt text for secrets before it's sent to the AI model."""
+    """Scan prompt text, and the images attached to it, for secrets before it's sent to the AI model."""
     ai_client = ctx.obj['ai_security_client']
 
     prompt = payload.prompt or ''
@@ -126,13 +129,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
     error_message = None
 
     try:
-        scan_outcome = _scan_text_for_secrets(
-            ctx,
-            clipped,
-            timeout_ms,
-            payload=payload,
-            event_type=AiHookEventType.PROMPT,
-        )
+        scan_outcome = _scan_prompt_for_secrets(ctx, clipped, payload.image_paths, timeout_ms, payload=payload)
         scan_id = scan_outcome.scan_id
 
         if scan_outcome.violation_summary:
@@ -538,6 +535,23 @@ def _perform_scan(
     )
 
 
+def _scan_documents_for_secrets(
+    ctx: typer.Context,
+    documents: list[Document],
+    timeout_ms: int,
+    payload: AIHookPayload,
+    event_type: AiHookEventType,
+) -> ScanOutcome:
+    """Scan in-memory documents for secrets, all in one scan."""
+    if not documents:
+        return NO_SCAN
+
+    scan_ctx = _setup_scan_context(ctx)
+    timeout_seconds = timeout_ms / 1000.0
+    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, None, payload, event_type)
+    return _perform_scan(scan_ctx, documents, scan_parameters, timeout_seconds)
+
+
 def _scan_text_for_secrets(
     ctx: typer.Context,
     text: str,
@@ -546,14 +560,38 @@ def _scan_text_for_secrets(
     event_type: AiHookEventType,
 ) -> ScanOutcome:
     """Scan text content for secrets using Cycode CLI."""
-    if not text:
-        return NO_SCAN
+    documents = [Document(path=_TEXT_DOCUMENT_NAME, content=text, is_git_diff_format=False)] if text else []
+    return _scan_documents_for_secrets(ctx, documents, timeout_ms, payload, event_type)
 
-    document = Document(path='prompt-content.txt', content=text, is_git_diff_format=False)
-    scan_ctx = _setup_scan_context(ctx)
-    timeout_seconds = timeout_ms / 1000.0
-    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, None, payload, event_type)
-    return _perform_scan(scan_ctx, [document], scan_parameters, timeout_seconds)
+
+def _image_documents(image_paths: list[str]) -> list[Document]:
+    """One bytes document per attached image.
+
+    The entry name keeps an image extension because the server picks the files to read text out of by extension as
+    well as signature. The original path stays on the document, to name the image in the block message.
+    """
+    documents = []
+    for index, image_path in enumerate(image_paths, start=1):
+        content = read_prompt_image(image_path)
+        if content is None:
+            logger.debug('Attached image is gone or no longer scannable, %s', {'path': image_path})
+            continue
+        name = f'image-{index}-{image_file_name(image_path, content)}'
+        documents.append(Document(path=name, content=content, is_git_diff_format=False, absolute_path=image_path))
+    return documents
+
+
+def _scan_prompt_for_secrets(
+    ctx: typer.Context,
+    text: str,
+    image_paths: list[str],
+    timeout_ms: int,
+    payload: AIHookPayload,
+) -> ScanOutcome:
+    """Scan the prompt text and its attached images for secrets; no text and no images means no scan."""
+    documents = [Document(path=_TEXT_DOCUMENT_NAME, content=text, is_git_diff_format=False)] if text else []
+    documents.extend(_image_documents(image_paths))
+    return _scan_documents_for_secrets(ctx, documents, timeout_ms, payload, AiHookEventType.PROMPT)
 
 
 def _scan_path_for_secrets(

@@ -50,11 +50,11 @@ def _get_code_snippet_syntax_from_file(
     detection_details = detection.detection_details
     detection_line = get_detection_line(scan_type, detection)
     start_line_index = _get_code_segment_start_line(detection_line, lines_to_display_before)
-    detection_position = get_position_in_line(document.content, detection_details.get('start_position', -1))
+    detection_position = get_position_in_line(document.text_content, detection_details.get('start_position', -1))
     violation_length = detection_details.get('length', -1)
 
     code_lines_to_render = []
-    document_content_lines = document.content.splitlines()
+    document_content_lines = document.text_content.splitlines()
     total_lines_to_display = lines_to_display_before + 1 + lines_to_display_after
 
     for line_index in range(total_lines_to_display):
@@ -89,9 +89,9 @@ def _get_code_snippet_syntax_from_git_diff(
     detection_position = detection_details.get('start_position', -1)
     violation_length = detection_details.get('length', -1)
 
-    document_content_lines = document.content.splitlines()
+    document_content_lines = document.text_content.splitlines()
     line_content = document_content_lines[detection_line] if 0 <= detection_line < len(document_content_lines) else ''
-    detection_position_in_line = get_position_in_line(document.content, detection_position)
+    detection_position_in_line = get_position_in_line(document.text_content, detection_position)
     if scan_type == consts.SECRET_SCAN_TYPE and obfuscate:
         violation = line_content[detection_position_in_line : detection_position_in_line + violation_length]
         line_content = line_content.replace(violation, obfuscate_text(violation))

@@ -84,11 +84,11 @@ class TablePrinter(TablePrinterBase):
         if self.scan_type == SECRET_SCAN_TYPE:
             detection_line = detection_details.get('line', -1)
 
-        detection_column = get_position_in_line(document.content, detection_details.get('start_position', -1))
+        detection_column = get_position_in_line(document.text_content, detection_details.get('start_position', -1))
         violation_length = detection_details.get('length', -1)
 
         violation = ''
-        file_content_lines = document.content.splitlines()
+        file_content_lines = document.text_content.splitlines()
         if detection_line < len(file_content_lines):
             line = file_content_lines[detection_line]
             violation = line[detection_column : detection_column + violation_length]

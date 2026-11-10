@@ -105,6 +105,13 @@ class GuardrailConfig:
         globs = settings.get('globs')
         return globs if isinstance(globs, list) and globs else _default_sensitive_globs()
 
+    def scans_prompt_images(self) -> bool:
+        """Whether images attached to a prompt are scanned along with its text.
+
+        Only a platform that reads text out of images sends the setting, so a missing value means text only.
+        """
+        return (self._guardrails.get(BlockReason.SECRETS_IN_PROMPT) or {}).get('scan_images') is True
+
     def is_expired(self) -> bool:
         return time.time() - self.fetched_at > self.ttl_seconds
 
@@ -129,7 +136,10 @@ def apply_platform_config(policy: dict, config: GuardrailConfig | None, ide_name
     def action(guardrail_key: str) -> str:
         return PolicyMode.BLOCK.value if cell(guardrail_key) == GuardrailCellMode.BLOCK else PolicyMode.WARN.value
 
-    policy.setdefault('prompt', {})['action'] = action(BlockReason.SECRETS_IN_PROMPT)
+    prompt = policy.setdefault('prompt', {})
+    prompt['action'] = action(BlockReason.SECRETS_IN_PROMPT)
+    # Unlike the modes, no built-in default: a cold start can't know the platform reads images, so text only.
+    prompt['scan_images'] = config is not None and config.scans_prompt_images()
 
     file_read = policy.setdefault('file_read', {})
     file_read['scan_content'] = cell(BlockReason.SECRETS_IN_FILE) != GuardrailCellMode.OFF

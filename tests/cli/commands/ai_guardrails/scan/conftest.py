@@ -10,6 +10,7 @@ def resolved_guardrails_payload(
     mcp: str = 'Report',
     globs: list | None = None,
     mcp_server: str | None = None,
+    scan_images: bool | None = None,
 ) -> dict:
     """A platform resolved-config payload with the given per-guardrail modes for the cursor agent."""
     payload = {
@@ -26,6 +27,8 @@ def resolved_guardrails_payload(
             {'key': 'secrets_in_mcp_args', 'event_type': 'McpExecution', 'agents': {'cursor': mcp}},
         ],
     }
+    if scan_images is not None:
+        payload['guardrails'][0]['scan_images'] = scan_images
     if mcp_server is not None:
         payload['guardrails'].append(
             {
@@ -38,9 +41,9 @@ def resolved_guardrails_payload(
     return payload
 
 
-def platform_config(fetched_at: float | None = None, **modes: str | None) -> GuardrailConfig:
-    """A cached platform config; keyword args are the per-guardrail modes (see resolved_guardrails_payload)."""
+def platform_config(fetched_at: float | None = None, **settings: str | bool | None) -> GuardrailConfig:
+    """A cached platform config; keyword args are the per-guardrail settings (see resolved_guardrails_payload)."""
     return GuardrailConfig(
-        payload=resolved_guardrails_payload(**modes),
+        payload=resolved_guardrails_payload(**settings),
         fetched_at=time.time() if fetched_at is None else fetched_at,
     )
