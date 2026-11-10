@@ -602,6 +602,18 @@ def test_collect_prompt_images_finds_cli_mentions_against_cwd(fs: FakeFilesystem
     assert images == [shot, spaced, absolute]
 
 
+def test_collect_prompt_images_reads_every_mention_after_an_unclosed_quote(fs: FakeFilesystem) -> None:
+    second = _create_file(fs, Path('/Users/user/project/second.png'), _png(b'second'))
+    third = _create_file(fs, Path('/Users/user/project/third.png'), _png(b'third'))
+    payload = {
+        **_AGENT_PROMPT_PAYLOAD,
+        'prompt': 'see @"first shot.png and @second.png, then @third.png "done"',
+    }
+
+    # The open quote reads to the next quote, but every mention in between is still its own
+    assert Copilot().collect_prompt_images(payload) == [second, third]
+
+
 @pytest.mark.skipif(os.sep != '/', reason='a backslash is a path separator on Windows')
 def test_collect_prompt_images_unescapes_spaces_in_a_dragged_path(fs: FakeFilesystem) -> None:
     shot = _create_file(fs, Path('/Users/user/Desktop/Screenshot 2026-11-09 at 10.15.32.png'), _png(b'shot'))
