@@ -159,6 +159,18 @@ class IDE(ABC):
     def parse_hook_payload(self, raw_payload: dict) -> AIHookPayload:
         """Normalize a raw stdin payload into the canonical ``AIHookPayload``."""
 
+    def collect_prompt_images(self, raw_payload: dict) -> list[str]:
+        """Return the paths of the images attached to a prompt, to scan along with its text.
+
+        ``scan_command`` calls it only for prompt events of a tenant that scans images, and only
+        in the process that runs the scan (never in a parent about to detach): collecting may
+        move per-session state forward, so a second call for the same prompt finds nothing.
+
+        Default: ``[]`` (attachments are out of the hook's reach). Override for IDEs that leave
+        them on disk.
+        """
+        return []
+
     @abstractmethod
     def build_hook_response(self, decision: HookDecision) -> dict:
         """Translate a canonical ``HookDecision`` into the IDE-specific JSON.

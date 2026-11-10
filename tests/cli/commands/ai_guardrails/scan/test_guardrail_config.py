@@ -203,3 +203,36 @@ def test_apply_platform_config_mcp_server_cells() -> None:
     assert policy['mcp']['check_server'] is True
     assert policy['mcp']['server_action'] == 'warn'
     assert policy['mcp']['action'] == 'warn'
+
+
+# --- images attached to prompts ---
+
+
+def test_prompt_images_are_scanned_only_when_the_platform_says_so() -> None:
+    assert _config(scan_images=True).scans_prompt_images() is True
+    assert _config(scan_images=False).scans_prompt_images() is False
+    # A platform that predates the setting doesn't read images, so a missing value means text only
+    assert _config().scans_prompt_images() is False
+
+
+def test_prompt_images_setting_ignores_other_guardrails() -> None:
+    payload = _payload()
+    payload['guardrails'][1]['scan_images'] = True  # secrets_in_file
+    assert GuardrailConfig(payload=payload, fetched_at=time.time()).scans_prompt_images() is False
+
+
+@pytest.mark.parametrize(
+    ('config', 'expected'),
+    [
+        (None, False),  # no cache: nothing says the platform reads images
+        (_config(), False),
+        (_config(scan_images=False), False),
+        (_config(scan_images=True), True),
+    ],
+)
+def test_apply_platform_config_sets_prompt_scan_images(config: GuardrailConfig | None, expected: bool) -> None:
+    policy: dict = {}
+
+    apply_platform_config(policy, config, 'copilot')
+
+    assert policy['prompt']['scan_images'] is expected

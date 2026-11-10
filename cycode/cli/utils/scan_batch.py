@@ -61,7 +61,8 @@ def split_documents_into_batches(
     current_size = 0
     current_batch = []
     for document in documents:
-        document_size = len(document.content.encode('UTF-8'))
+        content = document.content
+        document_size = len(content) if isinstance(content, bytes) else len(content.encode('UTF-8'))
 
         exceeds_max_size = current_size + document_size > max_size
         if exceeds_max_size:
