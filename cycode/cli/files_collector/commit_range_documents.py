@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 
 logger = get_logger('Commit Range Collector')
 
+# GitPython's patch parser expects the default `a/` and `b/` path prefixes. Pin them so a user's
+# `diff.noprefix=true` (or `diff.mnemonicPrefix`) in their git config cannot make every path vanish.
+GIT_DIFF_PREFIXES = {'src_prefix': 'a/', 'dst_prefix': 'b/'}
+
 
 def get_safe_head_reference_for_diff(repo: 'Repo') -> str:
     """Get a safe reference to use for diffing against the current HEAD.
@@ -62,7 +66,9 @@ def get_staged_diff_index(repo: 'Repo', paths: list[str] | None = None) -> tuple
     """
     head_reference = get_safe_head_reference_for_diff(repo)
     reverse = head_reference == consts.GIT_HEAD_COMMIT_REV
-    return head_reference, repo.index.diff(head_reference, create_patch=True, R=reverse, paths=paths or None)
+    return head_reference, repo.index.diff(
+        head_reference, create_patch=True, **GIT_DIFF_PREFIXES, R=reverse, paths=paths or None
+    )
 
 
 def _does_reach_to_max_commits_to_scan_limit(commit_ids: list[str], max_commits_count: int | None) -> bool:
@@ -110,9 +116,9 @@ def collect_commit_range_diff_documents(
         commit_id = commit.hexsha
         commit_ids_to_scan.append(commit_id)
         if commit.parents:
-            diff_index = commit.diff(commit.parents[0], create_patch=True, R=True)
+            diff_index = commit.diff(commit.parents[0], create_patch=True, **GIT_DIFF_PREFIXES, R=True)
         else:
-            diff_index = commit.diff(git_proxy.get_null_tree(), create_patch=True)
+            diff_index = commit.diff(git_proxy.get_null_tree(), create_patch=True, **GIT_DIFF_PREFIXES)
         for diff in diff_index:
             commit_documents_to_scan.append(
                 Document(
@@ -213,7 +219,9 @@ def get_commit_range_modified_documents(
     diff_documents = []
 
     repo = git_proxy.get_repo(path)
-    diff_index = repo.commit(from_commit_rev).diff(to_commit_rev, create_patch=True, R=reverse_diff)
+    diff_index = repo.commit(from_commit_rev).diff(
+        to_commit_rev, create_patch=True, **GIT_DIFF_PREFIXES, R=reverse_diff
+    )
 
     modified_files_diff = [
         diff for diff in diff_index if diff.change_type != consts.COMMIT_DIFF_DELETED_FILE_CHANGE_TYPE
@@ -519,13 +527,13 @@ def get_pre_commit_modified_documents(
             diff_target = repo.tree(consts.GIT_EMPTY_TREE_OBJECT)
 
         if include_unstaged:
-            diff_index = diff_target.diff(None, create_patch=True, paths=paths or None)
+            diff_index = diff_target.diff(None, create_patch=True, **GIT_DIFF_PREFIXES, paths=paths or None)
         else:
             # `Diffable.diff()` defaults `other` to the staged index, so omitting it here diffs
             # `base_ref` against the index only -- the same "staged changes against an arbitrary
             # ref" semantics as `git diff --cached <base_ref>`, verified to produce identical,
             # correctly-directed patches.
-            diff_index = diff_target.diff(create_patch=True, paths=paths or None)
+            diff_index = diff_target.diff(create_patch=True, **GIT_DIFF_PREFIXES, paths=paths or None)
 
     progress_bar.set_section_length(progress_bar_section, len(diff_index))
     for diff in diff_index:
