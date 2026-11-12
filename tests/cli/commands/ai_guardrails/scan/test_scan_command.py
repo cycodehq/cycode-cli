@@ -573,16 +573,17 @@ class TestSelfDetach:
         handler.assert_called_once()
 
 
-def _copilot_config(prompt: str = 'Block', **settings: str | bool | None) -> GuardrailConfig:
+def _copilot_config(prompt: str = 'Block') -> GuardrailConfig:
     """A cached platform config whose copilot cells are Block, except the prompt one given."""
-    payload = resolved_guardrails_payload(**settings)
+    payload = resolved_guardrails_payload()
     for guardrail in payload['guardrails']:
         guardrail['agents']['copilot'] = prompt if guardrail['key'] == 'secrets_in_prompt' else 'Block'
     return GuardrailConfig(payload=payload, fetched_at=time.time())
 
 
 class TestPromptImages:
-    """Images attached to Copilot prompts: collected once, when the tenant scans them, by the process that scans."""
+    """Images attached to Copilot prompts: always collected, once, by the process that scans. The platform decides
+    whether to read them."""
 
     _PAYLOAD = {  # noqa: RUF012
         'timestamp': '2026-11-09T10:15:32.000Z',
@@ -612,29 +613,22 @@ class TestPromptImages:
         mocker.patch('cycode.cli.apps.ai_guardrails.scan.scan_command.load_guardrail_config', return_value=config)
         scan_command(mock_ctx, ide='copilot')
 
-    def test_images_are_collected_when_the_tenant_scans_them(
-        self, mock_ctx: MagicMock, mocker: MockerFixture, handler: MagicMock, collect: MagicMock, respawn: MagicMock
-    ) -> None:
-        self._run(mock_ctx, mocker, _copilot_config(scan_images=True), self._PAYLOAD)
-
-        respawn.assert_not_called()
-        collect.assert_called_once_with(self._PAYLOAD)
-        assert handler.call_args.args[1].image_paths == ['/pasted/copilot-image-1.png']
-
-    @pytest.mark.parametrize('config', [None, _copilot_config(), _copilot_config(scan_images=False)])
-    def test_text_only_without_the_setting(
+    # No cached config (a cold start) falls back to the built-in modes; images are collected either way.
+    @pytest.mark.parametrize('config', [None, _copilot_config()])
+    def test_images_are_always_collected_for_a_prompt(
         self,
         mock_ctx: MagicMock,
         mocker: MockerFixture,
         handler: MagicMock,
         collect: MagicMock,
+        respawn: MagicMock,
         config: GuardrailConfig | None,
     ) -> None:
         self._run(mock_ctx, mocker, config, self._PAYLOAD)
 
-        collect.assert_not_called()
-        handler.assert_called_once()
-        assert handler.call_args.args[1].image_paths == []
+        respawn.assert_not_called()
+        collect.assert_called_once_with(self._PAYLOAD)
+        assert handler.call_args.args[1].image_paths == ['/pasted/copilot-image-1.png']
 
     def test_only_prompt_events_collect_images(
         self, mock_ctx: MagicMock, mocker: MockerFixture, handler: MagicMock, collect: MagicMock, fs: FakeFilesystem
@@ -648,7 +642,7 @@ class TestPromptImages:
             'tool_input': {'filePath': '/Users/user/.gitconfig'},
         }
 
-        self._run(mock_ctx, mocker, _copilot_config(scan_images=True), payload)
+        self._run(mock_ctx, mocker, _copilot_config(), payload)
 
         collect.assert_not_called()
         handler.assert_called_once()
@@ -658,7 +652,7 @@ class TestPromptImages:
     ) -> None:
         collect.side_effect = RuntimeError('unexpected')
 
-        self._run(mock_ctx, mocker, _copilot_config(scan_images=True), self._PAYLOAD)
+        self._run(mock_ctx, mocker, _copilot_config(), self._PAYLOAD)
 
         handler.assert_called_once()
         assert handler.call_args.args[1].image_paths == []
@@ -677,7 +671,7 @@ class TestPromptImages:
         paste = _vscode_user_data_dir() / 'User' / 'workspaceStorage' / 'vscode-chat-images' / 'image-1.png'
         fs.create_file(paste, contents=b'\x89PNG\r\n\x1a\n' + b'pasted')
         os.utime(paste, (time.time() - 5, time.time() - 5))
-        config = _copilot_config(prompt='Report', scan_images=True)  # the parent detaches
+        config = _copilot_config(prompt='Report')  # the parent detaches
 
         monkeypatch.delenv('_CYCODE_DETACHED', raising=False)
         self._run(mock_ctx, mocker, config, self._PAYLOAD)
