@@ -18,7 +18,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import IDE, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.detach import is_detached_child, respawn_detached
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import apply_platform_config, load_guardrail_config
 from cycode.cli.apps.ai_guardrails.scan.handlers import get_handler_for_event, should_detach_scan
-from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value, load_policy
+from cycode.cli.apps.ai_guardrails.scan.policy import load_policy
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.apps.ai_guardrails.scan.utils import output_json, read_stdin_text, safe_json_parse
 from cycode.cli.exceptions.custom_exceptions import HttpUnauthorizedError
@@ -178,7 +178,8 @@ def scan_command(
     try:
         _initialize_clients(ctx)
 
-        if event_name == AiHookEventType.PROMPT and get_policy_value(policy, 'prompt', 'scan_images', default=False):
+        if event_name == AiHookEventType.PROMPT:
+            # Always sent: the platform decides whether to read them (its Scan attached images setting).
             # Here rather than in parse_hook_payload: collecting moves the session's prompt mark forward, so it
             # runs once, after the detach decision - a parent that detached would leave its child nothing to find.
             unified_payload.image_paths = _collect_prompt_images(ide_integration, payload)

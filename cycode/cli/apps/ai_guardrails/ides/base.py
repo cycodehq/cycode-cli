@@ -162,9 +162,9 @@ class IDE(ABC):
     def collect_prompt_images(self, raw_payload: dict) -> list[str]:
         """Return the paths of the images attached to a prompt, to scan along with its text.
 
-        ``scan_command`` calls it only for prompt events of a tenant that scans images, and only
-        in the process that runs the scan (never in a parent about to detach): collecting may
-        move per-session state forward, so a second call for the same prompt finds nothing.
+        ``scan_command`` calls it for every prompt event, only in the process that runs the scan
+        (never in a parent about to detach): collecting may move per-session state forward, so a
+        second call for the same prompt finds nothing. The platform decides whether to read them.
 
         Default: ``[]`` (attachments are out of the hook's reach). Override for IDEs that leave
         them on disk.
