@@ -87,6 +87,15 @@ def _should_skip_payload(ide_integration: IDE, payload: dict | None) -> bool:
     return False
 
 
+def _collect_prompt_images(ide_integration: IDE, payload: dict) -> list[str]:
+    """Best-effort: an image that can't be collected goes unscanned, but the prompt text is still scanned."""
+    try:
+        return ide_integration.collect_prompt_images(payload)
+    except Exception as e:
+        logger.debug('Failed to collect prompt images, scanning the text only', exc_info=e)
+        return []
+
+
 def _initialize_clients(ctx: typer.Context) -> None:
     """Initialize API clients.
 
@@ -168,6 +177,12 @@ def scan_command(
 
     try:
         _initialize_clients(ctx)
+
+        if event_name == AiHookEventType.PROMPT:
+            # Always sent: the platform decides whether to read them (its Scan attached images setting).
+            # Here rather than in parse_hook_payload: collecting moves the session's prompt mark forward, so it
+            # runs once, after the detach decision - a parent that detached would leave its child nothing to find.
+            unified_payload.image_paths = _collect_prompt_images(ide_integration, payload)
 
         decision = handler(ctx, unified_payload, policy)
         logger.debug('Hook handler completed', extra={'event_name': event_name, 'action': decision.action.value})

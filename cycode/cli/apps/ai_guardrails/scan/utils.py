@@ -17,7 +17,7 @@ from cycode.cli.cli_types import SeverityOption
 from cycode.cli.utils.string_utils import obfuscate_text
 
 if TYPE_CHECKING:
-    from cycode.cli.models import LocalScanResult
+    from cycode.cli.models import Document, LocalScanResult
     from cycode.cyclient.models import Detection
 
 # Keeps the hook message readable when a single file trips dozens of detections
@@ -101,9 +101,15 @@ def output_json(obj: dict) -> None:
     print(json.dumps(obj), end='')  # noqa: T201
 
 
-def _describe_detection(detection: 'Detection', content: str) -> str:
+def _describe_detection(detection: 'Detection', document: 'Document') -> str:
     details = detection.detection_details
     description = detection.type or detection.message
+
+    if isinstance(document.content, bytes):
+        # An attached image: its line and position point into text the server read out of it, which the developer
+        # never sees. Its name is what tells them which attachment to remove.
+        image_name = os.path.basename(document.absolute_path or document.path)
+        return f'{description} in image "{image_name}"'
 
     line = details.get('line')
     if isinstance(line, int) and line >= 0:
@@ -111,7 +117,7 @@ def _describe_detection(detection: 'Detection', content: str) -> str:
 
     start, length = details.get('start_position'), details.get('length')
     if isinstance(start, int) and isinstance(length, int) and start >= 0 and length > 0:
-        value = content[start : start + length]
+        value = document.text_content[start : start + length]
         if value:
             description += f': {obfuscate_text(value)}'
 
@@ -126,14 +132,16 @@ def build_violation_summary(
     The masked value and hash are safe to display; the value itself is not. Detections excluded by an existing
     ignore rule are already gone from `document_detections`, so only what actually blocked is listed.
     """
-    # Keyed by value hash so a repeated value is listed once; detections without one key by their description
+    # Keyed by value hash so a repeated value is listed once; detections without one key by their description.
+    # Per document too: the same value in the prompt and in an attached image is two places to remove it from.
     finding_by_key = {}
     for local_scan_result in local_scan_results:
         for document_detections in local_scan_result.document_detections:
+            document = document_detections.document
             for detection in document_detections.detections:
-                description = _describe_detection(detection, document_detections.document.content)
+                description = _describe_detection(detection, document)
                 sha = detection.detection_details.get('sha512')
-                finding_by_key.setdefault(sha or description, (sha, description))
+                finding_by_key.setdefault((document.path, sha or description), (sha, description))
 
     listed = list(finding_by_key.values())[:max_lines]
     lines = [_build_severity_line(local_scan_results)] + [f'  - {description}' for _, description in listed]
@@ -141,7 +149,7 @@ def build_violation_summary(
     if remaining:
         lines.append(f'  - ...and {remaining} more')
 
-    return '\n'.join(lines), tuple(sha for sha, _ in listed if sha)
+    return '\n'.join(lines), tuple(dict.fromkeys(sha for sha, _ in listed if sha))
 
 
 def _build_severity_line(local_scan_results: list['LocalScanResult']) -> str:

@@ -755,6 +755,8 @@ prompts, files the agent reads, and MCP tool arguments are scanned for secrets b
 
 Scanning happens server-side, so the scanned content leaves the machine: the prompt text, the contents of
 files the agent reads, and MCP tool arguments are sent to your Cycode tenant to be checked for secrets.
+For GitHub Copilot, unless your tenant turns image scanning off, PNG and JPEG images attached to a prompt
+are sent along with its text.
 
 Each event is also reported with context about the developer and the machine, so a finding can be attributed
 to the device and user it came from. Some of this is personal data:

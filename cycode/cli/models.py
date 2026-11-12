@@ -8,19 +8,30 @@ class Document:
     def __init__(
         self,
         path: str,
-        content: str,
+        content: str | bytes,
         is_git_diff_format: bool = False,
         unique_id: str | None = None,
         absolute_path: str | None = None,
     ) -> None:
         self.path = path
+        # bytes for binary content scanned as is (an image attached to an AI prompt); text otherwise
         self.content = content
         self.is_git_diff_format = is_git_diff_format
         self.unique_id = unique_id
         self.absolute_path = absolute_path
 
+    @property
+    def text_content(self) -> str:
+        """The content as text; '' for binary content.
+
+        The server reads the text out of binary content (OCR of an image) and reports positions into that text,
+        which never exists locally, so there is no line or value to cut out of it here.
+        """
+        return self.content if isinstance(self.content, str) else ''
+
     def __repr__(self) -> str:
-        return f'path:{self.path}, content:{self.content}'
+        content = f'<{len(self.content)} bytes>' if isinstance(self.content, bytes) else self.content
+        return f'path:{self.path}, content:{content}'
 
 
 class DocumentDetections:

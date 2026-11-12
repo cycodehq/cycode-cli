@@ -8,6 +8,7 @@ IDE inherits the same baseline guarantees (and fails fast if it doesn't).
 from pathlib import Path
 
 import pytest
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from cycode.cli.apps.ai_guardrails.ides import IDES
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
@@ -143,6 +144,12 @@ def test_get_skills_returns_path_content_dicts(ide: IDE) -> None:
         assert isinstance(skill, dict)
         assert isinstance(skill.get('path'), str)
         assert isinstance(skill.get('content'), str)
+
+
+def test_collect_prompt_images_finds_nothing_on_an_empty_disk(ide: IDE, fs: FakeFilesystem) -> None:
+    """Most IDEs never collect images; none returns an image that isn't there."""
+    images = ide.collect_prompt_images({'session_id': 'session-1', 'prompt': '@shot.png [image: pasted.png]'})
+    assert images == []
 
 
 # HookDecision helpers
