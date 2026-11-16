@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from gettext import ngettext
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -27,6 +27,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import is_enforced, load_mcp_server_statuses
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage
 from cycode.cli.apps.ai_guardrails.scan.types import (
     SECRETS_BLOCK_REASON_BY_EVENT_TYPE,
     AiHookEventType,
@@ -46,6 +47,8 @@ from cycode.logger import get_logger
 logger = get_logger('AI Guardrails')
 
 HandlerFn = Callable[[typer.Context, AIHookPayload, dict], HookDecision]
+
+_TEXT_DOCUMENT_NAME = 'prompt-content.txt'
 
 
 def _ignore_commands(shas: tuple[str, ...]) -> list[str]:
@@ -112,7 +115,7 @@ def _parse_verdict(verdict: str | None) -> GuardrailsMode | None:
 
 
 def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, policy: dict) -> HookDecision:
-    """Scan prompt text for secrets before it's sent to the AI model."""
+    """Scan prompt text, and the images attached to it, for secrets before it's sent to the AI model."""
     ai_client = ctx.obj['ai_security_client']
 
     prompt = payload.prompt or ''
@@ -127,11 +130,7 @@ def handle_before_submit_prompt(ctx: typer.Context, payload: AIHookPayload, poli
 
     try:
         scan_outcome = _scan_text_for_secrets(
-            ctx,
-            clipped,
-            timeout_ms,
-            payload=payload,
-            event_type=AiHookEventType.PROMPT,
+            ctx, clipped, timeout_ms, payload=payload, event_type=AiHookEventType.PROMPT, images=payload.images
         )
         scan_id = scan_outcome.scan_id
 
@@ -538,22 +537,53 @@ def _perform_scan(
     )
 
 
+def _scan_documents_for_secrets(
+    ctx: typer.Context,
+    documents: list[Document],
+    timeout_ms: int,
+    payload: AIHookPayload,
+    event_type: AiHookEventType,
+    paths: tuple[str, ...] | None = None,
+) -> ScanOutcome:
+    """Scan in-memory documents for secrets, all in one scan; no documents means no scan."""
+    if not documents:
+        return NO_SCAN
+
+    scan_ctx = _setup_scan_context(ctx)
+    timeout_seconds = timeout_ms / 1000.0
+    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, paths, payload, event_type)
+    return _perform_scan(scan_ctx, documents, scan_parameters, timeout_seconds)
+
+
+def _image_documents(images: Sequence[PromptImage]) -> list[Document]:
+    """One bytes document per attached image.
+
+    The entry name keeps an image extension because the server picks the files to scan by extension as well as
+    signature. The original path stays on the document, to name the image in the block message.
+    """
+    return [
+        Document(
+            path=f'image-{index}-{image.file_name}',
+            content=image.content,
+            is_git_diff_format=False,
+            absolute_path=image.path,
+        )
+        for index, image in enumerate(images, start=1)
+    ]
+
+
 def _scan_text_for_secrets(
     ctx: typer.Context,
     text: str,
     timeout_ms: int,
     payload: AIHookPayload,
     event_type: AiHookEventType,
+    images: Sequence[PromptImage] = (),
 ) -> ScanOutcome:
-    """Scan text content for secrets using Cycode CLI."""
-    if not text:
-        return NO_SCAN
-
-    document = Document(path='prompt-content.txt', content=text, is_git_diff_format=False)
-    scan_ctx = _setup_scan_context(ctx)
-    timeout_seconds = timeout_ms / 1000.0
-    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, None, payload, event_type)
-    return _perform_scan(scan_ctx, [document], scan_parameters, timeout_seconds)
+    """Scan text, and the images attached with it, for secrets in one scan."""
+    documents = [Document(path=_TEXT_DOCUMENT_NAME, content=text, is_git_diff_format=False)] if text else []
+    documents.extend(_image_documents(images))
+    return _scan_documents_for_secrets(ctx, documents, timeout_ms, payload, event_type)
 
 
 def _scan_path_for_secrets(
@@ -576,9 +606,8 @@ def _scan_path_for_secrets(
         content = f.read(max_bytes)
 
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
-    timeout_seconds = timeout_ms / 1000.0
 
     document = Document(path=os.path.basename(file_path), content=content, is_git_diff_format=False)
-    scan_ctx = _setup_scan_context(ctx)
-    scan_parameters = build_ai_guardrails_scan_parameters(scan_ctx, (file_path,), payload, AiHookEventType.FILE_READ)
-    return _perform_scan(scan_ctx, [document], scan_parameters, timeout_seconds)
+    return _scan_documents_for_secrets(
+        ctx, [document], timeout_ms, payload, AiHookEventType.FILE_READ, paths=(file_path,)
+    )

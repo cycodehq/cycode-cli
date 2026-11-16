@@ -195,3 +195,19 @@ def test_is_rolled_over_matches_the_interpreter(monkeypatch: 'MonkeyPatch', spoo
         assert zip_file.is_rolled_over is rolled_by_interpreter
 
     zip_file.cleanup()
+
+
+def test_append_bytes_round_trips_unchanged() -> None:
+    """Binary content (an image attached to an AI prompt) must reach the server byte for byte."""
+    image = b'\x89PNG\r\n\x1a\n' + bytes(range(256)) + b'\xff\xfe\xed'
+    zip_file = InMemoryZip()
+    zip_file.append('image-1-shot.png', None, image)
+    zip_file.append('prompt-content.txt', None, 'text \udc96 stays utf-8')
+    zip_file.close()
+
+    with zipfile.ZipFile(BytesIO(zip_file.read()), 'r') as zf:
+        assert zf.read('image-1-shot.png') == image
+        # Text keeps the surrogate-safe encoding
+        assert zf.read('prompt-content.txt') == b'text ? stays utf-8'
+
+    assert zip_file.extension_statistics == {'.png': 1, '.txt': 1}
