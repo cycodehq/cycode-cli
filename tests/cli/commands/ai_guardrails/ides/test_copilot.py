@@ -26,6 +26,7 @@ from cycode.cli.apps.ai_guardrails.ides.copilot import (
 )
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
     FIRST_PROMPT_LOOKBACK_SECONDS,
+    PromptImage,
     get_prompt_mark,
     get_prompt_marks_path,
     save_prompt_mark,
@@ -562,6 +563,10 @@ def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
 # --- prompt images ----------------------------------------------------------------
 
 
+def _paths(images: list[PromptImage]) -> list[str]:
+    return [image.path for image in images]
+
+
 def _png(marker: bytes) -> bytes:
     return b'\x89PNG\r\n\x1a\n' + marker
 
@@ -613,7 +618,7 @@ def test_collect_prompt_images_finds_cli_mentions_against_cwd(fs: FakeFilesystem
 
     images = Copilot().collect_prompt_images(payload)
 
-    assert images == [shot, spaced, absolute]
+    assert _paths(images) == [shot, spaced, absolute]
 
 
 def test_collect_prompt_images_reads_every_mention_after_an_unclosed_quote(fs: FakeFilesystem) -> None:
@@ -625,7 +630,7 @@ def test_collect_prompt_images_reads_every_mention_after_an_unclosed_quote(fs: F
     }
 
     # The open quote reads to the next quote, but every mention in between is still its own
-    assert Copilot().collect_prompt_images(payload) == [second, third]
+    assert _paths(Copilot().collect_prompt_images(payload)) == [second, third]
 
 
 @pytest.mark.skipif(os.sep != '/', reason='a backslash is a path separator on Windows')
@@ -633,7 +638,7 @@ def test_collect_prompt_images_unescapes_spaces_in_a_dragged_path(fs: FakeFilesy
     shot = _create_file(fs, Path('/Users/user/Desktop/Screenshot 2026-11-09 at 10.15.32.png'), _png(b'shot'))
     payload = {**_AGENT_PROMPT_PAYLOAD, 'prompt': r'@/Users/user/Desktop/Screenshot\ 2026-11-09\ at\ 10.15.32.png ?'}
 
-    assert Copilot().collect_prompt_images(payload) == [shot]
+    assert _paths(Copilot().collect_prompt_images(payload)) == [shot]
 
 
 def test_collect_prompt_images_finds_cli_paste_in_the_temp_dir(fs: FakeFilesystem) -> None:
@@ -646,7 +651,7 @@ def test_collect_prompt_images_finds_cli_paste_in_the_temp_dir(fs: FakeFilesyste
     }
 
     # The placeholder is prompt text: only its base name is looked up, inside the temp directory
-    assert Copilot().collect_prompt_images(payload) == [pasted]
+    assert _paths(Copilot().collect_prompt_images(payload)) == [pasted]
 
 
 @pytest.mark.parametrize('system', ['Darwin', 'Linux', 'Windows'])
@@ -660,7 +665,7 @@ def test_collect_prompt_images_finds_vscode_attachments(
     second = _vscode_copy(fs, 'image.png', _png(b'second'), now - 5, product_name)
 
     # In the order they were attached
-    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [first, second]
+    assert _paths(Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD)) == [first, second]
 
 
 def test_collect_prompt_images_skips_another_chats_attachments(
@@ -671,14 +676,14 @@ def test_collect_prompt_images_skips_another_chats_attachments(
     _vscode_copy(fs, 'other.png', _png(b'other'), now - 5, chat='chat-2')
     _vscode_copy(fs, 'unknown.png', _png(b'unknown'), now - 5, chat='chat-without-a-session')
 
-    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [own]
+    assert _paths(Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD)) == [own]
 
 
 def test_cli_prompt_takes_no_vscode_attachments(fs: FakeFilesystem, vscode_chats: dict[str, str]) -> None:
     _vscode_copy(fs, 'image.png', _png(b'vscode'), time.time() - 5)
     payload = {**_AGENT_PROMPT_PAYLOAD, 'session_id': 'copilot-cli-session'}
 
-    assert Copilot().collect_prompt_images(payload) == []
+    assert _paths(Copilot().collect_prompt_images(payload)) == []
 
 
 @pytest.mark.parametrize(
@@ -704,7 +709,7 @@ def test_first_prompt_takes_vscode_attachments_from_the_lookback(
     recent = _vscode_copy(fs, 'image-recent.png', _png(b'recent'), now - (FIRST_PROMPT_LOOKBACK_SECONDS - 60))
     _vscode_copy(fs, 'image-old.png', _png(b'old'), now - (FIRST_PROMPT_LOOKBACK_SECONDS + 60))
 
-    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [recent]
+    assert _paths(Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD)) == [recent]
 
 
 def test_later_prompt_takes_vscode_attachments_since_the_previous_one(
@@ -716,10 +721,10 @@ def test_later_prompt_takes_vscode_attachments_since_the_previous_one(
     _vscode_copy(fs, 'image-previous-prompt.png', _png(b'previous'), now - 120)
     current = _vscode_copy(fs, 'image-this-prompt.png', _png(b'current'), now - 10)
 
-    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [current]
+    assert _paths(Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD)) == [current]
     # The mark moved to this prompt, so its images are not collected again by the next one
     assert get_prompt_mark(session_id, time.time()) >= now
-    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == []
+    assert _paths(Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD)) == []
 
 
 def test_collect_prompt_images_marks_only_the_prompting_session(fs: FakeFilesystem) -> None:

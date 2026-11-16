@@ -11,9 +11,9 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
     FIRST_PROMPT_LOOKBACK_SECONDS,
     MAX_PROMPT_IMAGES,
+    PromptImage,
     get_prompt_mark,
     get_prompt_marks_path,
-    image_file_name,
     modified_between,
     read_prompt_image,
     save_prompt_mark,
@@ -160,20 +160,21 @@ def test_select_keeps_order_and_drops_non_images(fs: FakeFilesystem) -> None:
 
     selected = select_prompt_images(['/images/b.png', '/images/readme.md', Path('/images/a.jpg'), '/images/gone.png'])
 
-    assert selected == ['/images/b.png', str(Path('/images/a.jpg'))]
+    assert selected == [
+        PromptImage(path='/images/b.png', content=png(b'b')),
+        PromptImage(path=str(Path('/images/a.jpg')), content=jpeg(b'a')),
+    ]
 
 
 def test_select_keeps_one_path_per_content(fs: FakeFilesystem) -> None:
-    """VS Code saves a paste when it is made and copies it again on send: one image, two files."""
-    fs.create_file('/sent/image.png', contents=png(b'same'))
-    fs.create_file('/pasted/image-1784034535752.png', contents=png(b'same'))
-    fs.create_file('/pasted/image-1784034535999.png', contents=png(b'other'))
+    """The same image can be attached twice, for example pasted and also mentioned by path."""
+    fs.create_file('/pasted/image.png', contents=png(b'same'))
+    fs.create_file('/mentioned/image.png', contents=png(b'same'))
+    fs.create_file('/mentioned/other.png', contents=png(b'other'))
 
-    selected = select_prompt_images(
-        ['/sent/image.png', '/pasted/image-1784034535752.png', '/pasted/image-1784034535999.png']
-    )
+    selected = select_prompt_images(['/pasted/image.png', '/mentioned/image.png', '/mentioned/other.png'])
 
-    assert selected == ['/sent/image.png', '/pasted/image-1784034535999.png']
+    assert [image.path for image in selected] == ['/pasted/image.png', '/mentioned/other.png']
 
 
 def test_select_caps_the_number_of_images(fs: FakeFilesystem) -> None:
@@ -186,14 +187,14 @@ def test_select_caps_the_number_of_images(fs: FakeFilesystem) -> None:
 
     selected = select_prompt_images(['/images/copy.png', *paths])
 
-    assert selected == ['/images/copy.png', *paths[1:MAX_PROMPT_IMAGES]]
+    assert [image.path for image in selected] == ['/images/copy.png', *paths[1:MAX_PROMPT_IMAGES]]
     assert len(selected) == MAX_PROMPT_IMAGES
 
 
-def test_image_file_name_names_the_actual_format() -> None:
-    assert image_file_name('/x/shot.png', png()) == 'shot.png'
-    assert image_file_name('/x/photo.JPEG', jpeg()) == 'photo.JPEG'
-    assert image_file_name('/x/photo.jpg', jpeg()) == 'photo.jpg'
+def test_prompt_image_file_name_names_the_actual_format() -> None:
+    assert PromptImage('/x/shot.png', png()).file_name == 'shot.png'
+    assert PromptImage('/x/photo.JPEG', jpeg()).file_name == 'photo.JPEG'
+    assert PromptImage('/x/photo.jpg', jpeg()).file_name == 'photo.jpg'
     # The server picks images by extension as well as signature, so a missing or wrong one is completed
-    assert image_file_name('/x/screenshot', png()) == 'screenshot.png'
-    assert image_file_name('/x/actually-a-jpeg.png', jpeg()) == 'actually-a-jpeg.png.jpg'
+    assert PromptImage('/x/screenshot', png()).file_name == 'screenshot.png'
+    assert PromptImage('/x/actually-a-jpeg.png', jpeg()).file_name == 'actually-a-jpeg.png.jpg'

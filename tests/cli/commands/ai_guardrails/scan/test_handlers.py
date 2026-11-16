@@ -26,6 +26,7 @@ from cycode.cli.apps.ai_guardrails.scan.handlers import (
 )
 from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import McpServerStatuses
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType, AIHookOutcome, BlockReason
 from cycode.cli.apps.ai_guardrails.scan.utils import MAX_VIOLATION_DETAIL_LINES, build_violation_summary
 from cycode.cli.models import Document, DocumentDetections, LocalScanResult
@@ -74,7 +75,7 @@ def default_policy() -> dict[str, Any]:
 # Tests for handle_before_submit_prompt
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_submit_prompt_no_secrets(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -92,7 +93,7 @@ def test_handle_before_submit_prompt_no_secrets(
     assert call_args.kwargs['block_reason'] is None
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_submit_prompt_with_secrets_blocked(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -125,7 +126,7 @@ def test_handle_before_submit_prompt_with_secrets_blocked(
     )
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_submit_prompt_with_secrets_warned(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -141,7 +142,7 @@ def test_handle_before_submit_prompt_with_secrets_warned(
     assert call_args.args[2] == AIHookOutcome.WARNED
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_submit_prompt_scan_failure_fail_open(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -158,7 +159,7 @@ def test_handle_before_submit_prompt_scan_failure_fail_open(
     assert call_args.kwargs['block_reason'] == BlockReason.SCAN_FAILURE
 
 
-@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_prompt_for_secrets')
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._scan_text_for_secrets')
 def test_handle_before_submit_prompt_scan_failure_fail_closed(
     mock_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict[str, Any]
 ) -> None:
@@ -564,9 +565,7 @@ def _scanned_documents(mock_perform_scan: MagicMock) -> list[Document]:
 def test_prompt_and_its_images_are_scanned_together(
     mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
 ) -> None:
-    fs.create_file('/images/shot.png', contents=_PNG)
-    fs.create_file('/images/Screenshot', contents=_JPEG)
-    mock_payload.image_paths = ['/images/shot.png', '/images/Screenshot']
+    mock_payload.images = [PromptImage('/images/shot.png', _PNG), PromptImage('/images/Screenshot', _JPEG)]
 
     result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
@@ -593,9 +592,8 @@ def test_prompt_and_its_images_are_scanned_together(
 def test_prompt_with_only_an_image_is_scanned(
     mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
 ) -> None:
-    fs.create_file('/images/shot.png', contents=_PNG)
     mock_payload.prompt = ''
-    mock_payload.image_paths = ['/images/shot.png']
+    mock_payload.images = [PromptImage('/images/shot.png', _PNG)]
 
     handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
@@ -607,8 +605,7 @@ def test_prompt_without_text_or_images_is_not_scanned(
     mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
 ) -> None:
     mock_payload.prompt = ''
-    # Gone between collection and the scan: nothing left to send
-    mock_payload.image_paths = ['/images/deleted.png']
+    mock_payload.images = []
 
     result = handle_before_submit_prompt(mock_ctx, mock_payload, default_policy)
 
@@ -652,9 +649,8 @@ def _image_finding_scan(batch: list[Document]) -> tuple[str, None, LocalScanResu
 def test_blocked_prompt_names_the_image_the_secret_is_in(
     mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
 ) -> None:
-    fs.create_file('/attachments/uuid-1/diagram.png', contents=_PNG)
     mock_payload.prompt = 'ghp_ in the text'
-    mock_payload.image_paths = ['/attachments/uuid-1/diagram.png']
+    mock_payload.images = [PromptImage('/attachments/uuid-1/diagram.png', _PNG)]
 
     with patch(
         'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',

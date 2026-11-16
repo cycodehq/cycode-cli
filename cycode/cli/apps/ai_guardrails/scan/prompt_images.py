@@ -14,6 +14,7 @@ import json
 import os
 import stat
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from cycode.cli.consts import CYCODE_CONFIGURATION_DIRECTORY, FILE_MAX_SIZE_LIMIT_IN_BYTES
@@ -139,23 +140,30 @@ def read_prompt_image(path: str | os.PathLike) -> bytes | None:
     return content if len(content) <= FILE_MAX_SIZE_LIMIT_IN_BYTES else None
 
 
-def image_file_name(path: str, content: bytes) -> str:
-    """The file's name, plus the extension of its actual format when its own extension doesn't name that format."""
-    name = os.path.basename(path)
-    extensions = _image_extensions(content)
-    if extensions and os.path.splitext(name)[1].lower() not in extensions:
-        name += extensions[0]
-    return name
+@dataclass(frozen=True)
+class PromptImage:
+    """An image attached to a prompt, read once when it is collected: where it was, and its bytes."""
+
+    path: str
+    content: bytes
+
+    @property
+    def file_name(self) -> str:
+        """The file's name, plus the extension of its actual format when its own extension doesn't name it."""
+        name = os.path.basename(self.path)
+        extensions = _image_extensions(self.content)
+        if extensions and os.path.splitext(name)[1].lower() not in extensions:
+            name += extensions[0]
+        return name
 
 
-def select_prompt_images(candidates: Iterable[str | os.PathLike]) -> list[str]:
+def select_prompt_images(candidates: Iterable[str | os.PathLike]) -> list[PromptImage]:
     """The candidates to scan, in order: scannable images (see read_prompt_image), each content once, at most
     MAX_PROMPT_IMAGES.
 
-    Once per content because one attachment can be on disk twice: VS Code saves a paste when it is made and copies
-    it again when the prompt is sent.
+    Once per content because the same image can be attached twice, for example pasted and also mentioned by path.
     """
-    selected: list[str] = []
+    selected: list[PromptImage] = []
     seen_digests: set[str] = set()
     for candidate in candidates:
         content = read_prompt_image(candidate)
@@ -171,6 +179,6 @@ def select_prompt_images(candidates: Iterable[str | os.PathLike]) -> list[str]:
             break
 
         seen_digests.add(digest)
-        selected.append(str(candidate))
+        selected.append(PromptImage(path=str(candidate), content=content))
 
     return selected

@@ -182,7 +182,7 @@ def scan_command(
             # Always sent: the server decides whether to scan them.
             # Here rather than in parse_hook_payload: collecting moves the session's prompt mark forward, so it
             # runs once, after the detach decision - a parent that detached would leave its child nothing to find.
-            unified_payload.image_paths = _collect_prompt_images(ide_integration, payload)
+            unified_payload.images = _collect_prompt_images(ide_integration, payload)
 
         decision = handler(ctx, unified_payload, policy)
         logger.debug('Hook handler completed', extra={'event_name': event_name, 'action': decision.action.value})

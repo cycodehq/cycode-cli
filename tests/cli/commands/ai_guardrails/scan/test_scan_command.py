@@ -15,7 +15,7 @@ from cycode.cli.apps.ai_guardrails import app as ai_guardrails_app
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.copilot import Copilot, _vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
-from cycode.cli.apps.ai_guardrails.scan.prompt_images import get_prompt_marks_path
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage, get_prompt_marks_path
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from tests.cli.commands.ai_guardrails.scan.conftest import platform_config, resolved_guardrails_payload
@@ -581,6 +581,9 @@ def _copilot_config(prompt: str = 'Block') -> GuardrailConfig:
     return GuardrailConfig(payload=payload, fetched_at=time.time())
 
 
+_PASTED_IMAGE = PromptImage(path='/pasted/copilot-image-1.png', content=b'\x89PNG\r\n\x1a\n' + b'pasted')
+
+
 class TestPromptImages:
     """Images attached to Copilot prompts: always collected, once, by the process that scans. The server decides
     whether to scan them."""
@@ -606,7 +609,7 @@ class TestPromptImages:
 
     @pytest.fixture
     def collect(self, mocker: MockerFixture) -> MagicMock:
-        return mocker.patch.object(Copilot, 'collect_prompt_images', return_value=['/pasted/copilot-image-1.png'])
+        return mocker.patch.object(Copilot, 'collect_prompt_images', return_value=[_PASTED_IMAGE])
 
     def _run(self, mock_ctx: MagicMock, mocker: MockerFixture, config: GuardrailConfig | None, payload: dict) -> None:
         mocker.patch('sys.stdin', StringIO(json.dumps(payload)))
@@ -628,7 +631,7 @@ class TestPromptImages:
 
         respawn.assert_not_called()
         collect.assert_called_once_with(self._PAYLOAD)
-        assert handler.call_args.args[1].image_paths == ['/pasted/copilot-image-1.png']
+        assert handler.call_args.args[1].images == [_PASTED_IMAGE]
 
     def test_only_prompt_events_collect_images(
         self, mock_ctx: MagicMock, mocker: MockerFixture, handler: MagicMock, collect: MagicMock, fs: FakeFilesystem
@@ -655,7 +658,7 @@ class TestPromptImages:
         self._run(mock_ctx, mocker, _copilot_config(), self._PAYLOAD)
 
         handler.assert_called_once()
-        assert handler.call_args.args[1].image_paths == []
+        assert handler.call_args.args[1].images == []
 
     def test_images_are_collected_by_the_detached_child_not_the_parent(
         self,
@@ -689,7 +692,7 @@ class TestPromptImages:
 
         respawn.assert_called_once()
         handler.assert_called_once()
-        assert handler.call_args.args[1].image_paths == [str(paste)]
+        assert [image.path for image in handler.call_args.args[1].images] == [str(paste)]
         assert self._PAYLOAD['session_id'] in json.loads(get_prompt_marks_path().read_text(encoding='utf-8'))
 
 

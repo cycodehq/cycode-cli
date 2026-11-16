@@ -49,6 +49,7 @@ from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, 
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
+    PromptImage,
     get_prompt_mark,
     modified_between,
     save_prompt_mark,
@@ -563,7 +564,7 @@ class Copilot(IDE):
             mcp_arguments=mcp_arguments,
         )
 
-    def collect_prompt_images(self, raw_payload: dict) -> list[str]:
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
         """Images attached to a prompt, found where Copilot saved them before the hook ran.
 
         Copilot CLI names its attachments in the prompt: an `@path` mention as typed, or

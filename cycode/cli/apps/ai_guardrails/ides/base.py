@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 
@@ -159,8 +160,8 @@ class IDE(ABC):
     def parse_hook_payload(self, raw_payload: dict) -> AIHookPayload:
         """Normalize a raw stdin payload into the canonical ``AIHookPayload``."""
 
-    def collect_prompt_images(self, raw_payload: dict) -> list[str]:
-        """Return the paths of the images attached to a prompt, to scan along with its text.
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
+        """Return the images attached to a prompt, read once, to scan along with its text.
 
         ``scan_command`` calls it for every prompt event, only in the process that runs the scan
         (never in a parent about to detach): collecting may move per-session state forward, so a
