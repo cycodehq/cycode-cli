@@ -29,9 +29,11 @@ import json
 import os
 import platform
 import re
+import sqlite3
 import tempfile
 import time
 from collections.abc import Iterable
+from contextlib import closing
 from pathlib import Path
 from typing import ClassVar
 from urllib.parse import urlparse
@@ -120,13 +122,14 @@ _MENTION_TRAILING_PUNCTUATION = '.,;:!?)]}'
 # in the temp directory.
 _PASTED_IMAGE_PATTERN = re.compile(r'\[image:\s*([^\]\r\n]+?)\s*\]')
 
-# VS Code (stable and Insiders) saves attachments in two places. The Copilot harness
-# copies them into the chat's session data when the prompt is sent - under VS Code's
-# chat id, not the hook's session_id, hence every chat. A paste, in either harness, is
-# also saved to one shared folder when it is pasted.
+# VS Code (stable and Insiders) agent sessions copy a prompt's attachments into the
+# chat's session data when it is sent. That folder is named after VS Code's chat id, not
+# the hook's session_id; the chat's session database records the agent runtime's session
+# id, which is the hook's, under one of these keys.
 _VSCODE_PRODUCT_NAMES = ('Code', 'Code - Insiders')
 _VSCODE_ATTACHMENT_COPIES_GLOB = 'agentSessionData/*/attachments/*/*'
-_VSCODE_PASTED_IMAGES_DIR_PARTS = ('User', 'workspaceStorage', 'vscode-chat-images')
+_VSCODE_CHAT_DB_NAME = 'session.db'
+_VSCODE_CHAT_SESSION_KEYS = ('defaultChatProviderData', 'agentHost.chatProviderData')
 
 
 def _copilot_home() -> Path:
@@ -447,19 +450,47 @@ def _pasted_cli_images(prompt: str) -> list[Path]:
     return [temp_dir / os.path.basename(name) for name in _PASTED_IMAGE_PATTERN.findall(prompt)]
 
 
-def _vscode_saved_attachments(since: float, until: float) -> list[Path]:
-    """Attachment files VS Code saved in ``[since, until)``.
+def _vscode_chat_session_id(chat_dir: Path) -> str | None:
+    """The agent runtime's session id that VS Code recorded for a chat, or None."""
+    db_path = chat_dir / _VSCODE_CHAT_DB_NAME
+    if not db_path.is_file():
+        return None
+    placeholders = ', '.join('?' * len(_VSCODE_CHAT_SESSION_KEYS))
+    query = f'SELECT value FROM session_metadata WHERE key IN ({placeholders})'  # noqa: S608
+    try:
+        # Read-only: VS Code keeps writing to the file while the chat is open
+        with closing(sqlite3.connect(f'{db_path.resolve().as_uri()}?mode=ro', uri=True, timeout=1)) as connection:
+            values = [value for (value,) in connection.execute(query, _VSCODE_CHAT_SESSION_KEYS)]
+    except sqlite3.Error as e:
+        logger.debug('Failed to read a VS Code chat session database, %s', {'path': str(db_path)}, exc_info=e)
+        return None
+    for value in values:
+        try:
+            session_id = json.loads(value).get('sdkSessionId')
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if isinstance(session_id, str) and session_id:
+            return session_id
+    return None
 
-    Send-time copies come before pastes, so a paste found in both keeps the name it
-    was attached under once the duplicate is dropped.
+
+def _vscode_saved_attachments(session_id: str | None, since: float, until: float) -> list[Path]:
+    """Attachment files VS Code saved in ``[since, until)`` for this session's chat.
+
+    Other chats' attachments, in any window, never count. A prompt with no VS Code chat
+    of its own (Copilot CLI, or VS Code's local chat) gets none.
     """
+    if not session_id:
+        return []
     copies: list[Path] = []
-    pastes: list[Path] = []
     for product_name in _VSCODE_PRODUCT_NAMES:
-        user_data_dir = _vscode_user_data_dir(product_name)
-        copies.extend(user_data_dir.glob(_VSCODE_ATTACHMENT_COPIES_GLOB))
-        pastes.extend(user_data_dir.joinpath(*_VSCODE_PASTED_IMAGES_DIR_PARTS).glob('*'))
-    return [*modified_between(copies, since, until), *modified_between(pastes, since, until)]
+        copies.extend(_vscode_user_data_dir(product_name).glob(_VSCODE_ATTACHMENT_COPIES_GLOB))
+    recent = modified_between(copies, since, until)
+    # <chat id>/attachments/<attachment id>/<file>
+    chats_of_this_session = {
+        chat_dir for chat_dir in {path.parents[2] for path in recent} if _vscode_chat_session_id(chat_dir) == session_id
+    }
+    return [path for path in recent if path.parents[2] in chats_of_this_session]
 
 
 class Copilot(IDE):
@@ -537,7 +568,8 @@ class Copilot(IDE):
 
         Copilot CLI names its attachments in the prompt: an `@path` mention as typed, or
         a pasted image's placeholder. VS Code names none, so its attachments are the files
-        it saved since the session's previous prompt (see prompt_images).
+        it saved for this session's chat since the session's previous prompt (see
+        prompt_images).
         """
         session_id = raw_payload.get('session_id')
         prompt = raw_payload.get('prompt') or ''
@@ -548,7 +580,7 @@ class Copilot(IDE):
             [
                 *_mentioned_files(prompt, raw_payload.get('cwd')),
                 *_pasted_cli_images(prompt),
-                *_vscode_saved_attachments(since, now),
+                *_vscode_saved_attachments(session_id, since, now),
             ]
         )
         save_prompt_mark(session_id, now)

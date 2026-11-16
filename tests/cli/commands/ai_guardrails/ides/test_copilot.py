@@ -6,6 +6,7 @@ Chat 0.56.0) and Copilot CLI, with identifying values swapped for dummies.
 
 import json
 import os
+import sqlite3
 import tempfile
 import time
 from pathlib import Path
@@ -18,6 +19,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.copilot import (
     Copilot,
     _read_copilot_plugin,
+    _vscode_chat_session_id,
     _vscode_mcp_config_path,
     _vscode_user_data_dir,
     split_mcp_tool_name,
@@ -571,16 +573,28 @@ def _create_file(fs: FakeFilesystem, path: Path, content: bytes, modified_at: fl
     return str(path)
 
 
-def _vscode_copy(fs: FakeFilesystem, name: str, content: bytes, modified_at: float, product_name: str = 'Code') -> str:
+def _vscode_copy(
+    fs: FakeFilesystem,
+    name: str,
+    content: bytes,
+    modified_at: float,
+    product_name: str = 'Code',
+    chat: str = 'chat-1',
+) -> str:
     """A send-time copy of an attachment, in a chat's session data."""
-    path = _vscode_user_data_dir(product_name) / 'agentSessionData' / 'chat-1' / 'attachments' / 'uuid-1' / name
+    path = _vscode_user_data_dir(product_name) / 'agentSessionData' / chat / 'attachments' / 'uuid-1' / name
     return _create_file(fs, path, content, modified_at)
 
 
-def _vscode_paste(fs: FakeFilesystem, name: str, content: bytes, modified_at: float, product_name: str = 'Code') -> str:
-    """A paste, saved when it was made to VS Code's shared chat-images folder."""
-    path = _vscode_user_data_dir(product_name) / 'User' / 'workspaceStorage' / 'vscode-chat-images' / name
-    return _create_file(fs, path, content, modified_at)
+@pytest.fixture
+def vscode_chats(mocker: MockerFixture) -> dict[str, str]:
+    """The session id each VS Code chat folder records; its database is read in the tests further down."""
+    chats = {'chat-1': _VSCODE_PROMPT_PAYLOAD['session_id'], 'chat-2': 'another-session'}
+    mocker.patch(
+        'cycode.cli.apps.ai_guardrails.ides.copilot._vscode_chat_session_id',
+        side_effect=lambda chat_dir: chats.get(chat_dir.name),
+    )
+    return chats
 
 
 def test_collect_prompt_images_finds_cli_mentions_against_cwd(fs: FakeFilesystem) -> None:
@@ -638,17 +652,33 @@ def test_collect_prompt_images_finds_cli_paste_in_the_temp_dir(fs: FakeFilesyste
 @pytest.mark.parametrize('system', ['Darwin', 'Linux', 'Windows'])
 @pytest.mark.parametrize('product_name', ['Code', 'Code - Insiders'])
 def test_collect_prompt_images_finds_vscode_attachments(
-    fs: FakeFilesystem, mocker: MockerFixture, system: str, product_name: str
+    fs: FakeFilesystem, mocker: MockerFixture, vscode_chats: dict[str, str], system: str, product_name: str
 ) -> None:
     mocker.patch('cycode.cli.apps.ai_guardrails.ides.copilot.platform.system', return_value=system)
     now = time.time()
-    copy = _vscode_copy(fs, 'diagram.png', _png(b'copy'), now - 5, product_name)
-    paste = _vscode_paste(fs, 'image-1784034535752.png', _png(b'paste'), now - 20, product_name)
+    first = _vscode_copy(fs, 'diagram.png', _png(b'first'), now - 20, product_name)
+    second = _vscode_copy(fs, 'image.png', _png(b'second'), now - 5, product_name)
 
-    images = Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD)
+    # In the order they were attached
+    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [first, second]
 
-    # Copies first, then pastes
-    assert images == [copy, paste]
+
+def test_collect_prompt_images_skips_another_chats_attachments(
+    fs: FakeFilesystem, vscode_chats: dict[str, str]
+) -> None:
+    now = time.time()
+    own = _vscode_copy(fs, 'own.png', _png(b'own'), now - 5)
+    _vscode_copy(fs, 'other.png', _png(b'other'), now - 5, chat='chat-2')
+    _vscode_copy(fs, 'unknown.png', _png(b'unknown'), now - 5, chat='chat-without-a-session')
+
+    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [own]
+
+
+def test_cli_prompt_takes_no_vscode_attachments(fs: FakeFilesystem, vscode_chats: dict[str, str]) -> None:
+    _vscode_copy(fs, 'image.png', _png(b'vscode'), time.time() - 5)
+    payload = {**_AGENT_PROMPT_PAYLOAD, 'session_id': 'copilot-cli-session'}
+
+    assert Copilot().collect_prompt_images(payload) == []
 
 
 @pytest.mark.parametrize(
@@ -667,29 +697,24 @@ def test_vscode_user_data_dir_per_platform(mocker: MockerFixture, system: str, b
     assert _vscode_mcp_config_path() == Path.home().joinpath(*base_parts, 'Code', 'User', 'mcp.json')
 
 
-def test_collect_prompt_images_keeps_a_paste_saved_twice_once(fs: FakeFilesystem) -> None:
-    """The Copilot harness copies a paste on send, so the same bytes are in both folders."""
+def test_first_prompt_takes_vscode_attachments_from_the_lookback(
+    fs: FakeFilesystem, vscode_chats: dict[str, str]
+) -> None:
     now = time.time()
-    copy = _vscode_copy(fs, 'image.png', _png(b'same'), now - 2)
-    _vscode_paste(fs, 'image-1784034535752.png', _png(b'same'), now - 30)
-
-    assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [copy]
-
-
-def test_first_prompt_takes_vscode_attachments_from_the_lookback(fs: FakeFilesystem) -> None:
-    now = time.time()
-    recent = _vscode_paste(fs, 'image-recent.png', _png(b'recent'), now - (FIRST_PROMPT_LOOKBACK_SECONDS - 60))
-    _vscode_paste(fs, 'image-old.png', _png(b'old'), now - (FIRST_PROMPT_LOOKBACK_SECONDS + 60))
+    recent = _vscode_copy(fs, 'image-recent.png', _png(b'recent'), now - (FIRST_PROMPT_LOOKBACK_SECONDS - 60))
+    _vscode_copy(fs, 'image-old.png', _png(b'old'), now - (FIRST_PROMPT_LOOKBACK_SECONDS + 60))
 
     assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [recent]
 
 
-def test_later_prompt_takes_vscode_attachments_since_the_previous_one(fs: FakeFilesystem) -> None:
+def test_later_prompt_takes_vscode_attachments_since_the_previous_one(
+    fs: FakeFilesystem, vscode_chats: dict[str, str]
+) -> None:
     session_id = _VSCODE_PROMPT_PAYLOAD['session_id']
     now = time.time()
     save_prompt_mark(session_id, now - 60)
-    _vscode_paste(fs, 'image-previous-prompt.png', _png(b'previous'), now - 120)
-    current = _vscode_paste(fs, 'image-this-prompt.png', _png(b'current'), now - 10)
+    _vscode_copy(fs, 'image-previous-prompt.png', _png(b'previous'), now - 120)
+    current = _vscode_copy(fs, 'image-this-prompt.png', _png(b'current'), now - 10)
 
     assert Copilot().collect_prompt_images(_VSCODE_PROMPT_PAYLOAD) == [current]
     # The mark moved to this prompt, so its images are not collected again by the next one
@@ -703,3 +728,46 @@ def test_collect_prompt_images_marks_only_the_prompting_session(fs: FakeFilesyst
 
     marks = json.loads(get_prompt_marks_path().read_text(encoding='utf-8'))
     assert list(marks) == [_VSCODE_PROMPT_PAYLOAD['session_id']]
+
+
+# --- the session a VS Code chat records (a real SQLite file, so no fake filesystem) ---------
+
+
+def _chat_db(tmp_path: Path, rows: dict[str, str] | None) -> Path:
+    chat_dir = tmp_path / 'chat-1'
+    chat_dir.mkdir()
+    if rows is not None:
+        with sqlite3.connect(chat_dir / 'session.db') as connection:
+            connection.execute('CREATE TABLE session_metadata (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL)')
+            connection.executemany('INSERT INTO session_metadata VALUES (?, ?)', rows.items())
+        connection.close()
+    return chat_dir
+
+
+@pytest.mark.parametrize('key', ['defaultChatProviderData', 'agentHost.chatProviderData'])
+def test_vscode_chat_session_id_reads_the_agent_session(tmp_path: Path, key: str) -> None:
+    chat_dir = _chat_db(tmp_path, {'isRead': 'true', key: json.dumps({'sdkSessionId': 'session-1'})})
+
+    assert _vscode_chat_session_id(chat_dir) == 'session-1'
+
+
+@pytest.mark.parametrize(
+    'rows',
+    [
+        None,  # no database
+        {'isRead': 'true'},  # a chat that isn't an agent session
+        {'defaultChatProviderData': 'not json'},
+        {'defaultChatProviderData': json.dumps({'sdkSessionId': ''})},
+        {'defaultChatProviderData': json.dumps(['sdkSessionId'])},
+    ],
+)
+def test_vscode_chat_session_id_none_without_an_agent_session(tmp_path: Path, rows: dict[str, str] | None) -> None:
+    assert _vscode_chat_session_id(_chat_db(tmp_path, rows)) is None
+
+
+def test_vscode_chat_session_id_none_for_an_unreadable_database(tmp_path: Path) -> None:
+    chat_dir = tmp_path / 'chat-1'
+    chat_dir.mkdir()
+    (chat_dir / 'session.db').write_bytes(b'not a database')
+
+    assert _vscode_chat_session_id(chat_dir) is None

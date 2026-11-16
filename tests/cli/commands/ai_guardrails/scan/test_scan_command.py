@@ -582,8 +582,8 @@ def _copilot_config(prompt: str = 'Block') -> GuardrailConfig:
 
 
 class TestPromptImages:
-    """Images attached to Copilot prompts: always collected, once, by the process that scans. The platform decides
-    whether to read them."""
+    """Images attached to Copilot prompts: always collected, once, by the process that scans. The server decides
+    whether to scan them."""
 
     _PAYLOAD = {  # noqa: RUF012
         'timestamp': '2026-11-09T10:15:32.000Z',
@@ -668,9 +668,13 @@ class TestPromptImages:
     ) -> None:
         """Collecting moves the session's prompt mark past the image, so a parent that collected before detaching
         would leave the child that scans nothing to find."""
-        paste = _vscode_user_data_dir() / 'User' / 'workspaceStorage' / 'vscode-chat-images' / 'image-1.png'
+        paste = _vscode_user_data_dir() / 'agentSessionData' / 'chat-1' / 'attachments' / 'uuid-1' / 'image-1.png'
         fs.create_file(paste, contents=b'\x89PNG\r\n\x1a\n' + b'pasted')
         os.utime(paste, (time.time() - 5, time.time() - 5))
+        mocker.patch(
+            'cycode.cli.apps.ai_guardrails.ides.copilot._vscode_chat_session_id',
+            return_value=self._PAYLOAD['session_id'],
+        )
         config = _copilot_config(prompt='Report')  # the parent detaches
 
         monkeypatch.delenv('_CYCODE_DETACHED', raising=False)
