@@ -24,16 +24,16 @@ logger = get_logger('AI Guardrails')
 
 PROMPT_MARKS_FILE_NAME = 'ai-guardrails-prompt-marks.json'
 
-# Each image is read by OCR on the server, within the IDE's hook timeout
+# Each image adds to the scan's time, which the IDE's hook timeout bounds
 MAX_PROMPT_IMAGES = 5
 
-# Covers a paste made a while before sending, without reaching far into other chats' images
+# Covers attachments saved a while before the prompt was sent
 FIRST_PROMPT_LOOKBACK_SECONDS = 600
 
 # A session idle this long loses its mark; if it comes back, its next prompt falls back to the lookback
 _MARK_RETENTION_SECONDS = 7 * 24 * 60 * 60
 
-# The formats the server reads text out of, by signature (a file's own extension can be wrong or missing), with the
+# The image formats sent for scanning, by signature (a file's own extension can be wrong or missing), with the
 # extensions that name each one
 _IMAGE_FORMATS = (
     (b'\x89PNG\r\n\x1a\n', ('.png',)),

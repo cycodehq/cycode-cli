@@ -24,8 +24,8 @@ class Document:
     def text_content(self) -> str:
         """The content as text; '' for binary content.
 
-        The server reads the text out of binary content (OCR of an image) and reports positions into that text,
-        which never exists locally, so there is no line or value to cut out of it here.
+        Positions the server reports for binary content don't point into anything stored locally, so there is no
+        line or value to cut out of it here.
         """
         return self.content if isinstance(self.content, str) else ''
 
