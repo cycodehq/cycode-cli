@@ -4,6 +4,8 @@ import json
 import os
 import re
 import sys
+import tempfile
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import ClassVar
@@ -25,6 +27,12 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
+    PromptImage,
+    mentioned_files,
+    modified_between,
+    select_prompt_images,
+)
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.utils.jwt_utils import decode_jwt_unverified
 from cycode.logger import get_logger
@@ -42,6 +50,16 @@ _CODEX_EVENT_NAMES = frozenset(e.split(':', 1)[0] for e in _HOOK_EVENTS)
 
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide codex'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide codex'
+
+# The prompt names each attached image only by an [Image #N] chip. Codex's terminal UI saves an image pasted from the
+# clipboard as codex-clipboard-<random>.png in the temp directory and keeps it; an image dragged in, picked from the
+# @ popup or passed with --image is attached from where it is, and nothing names it.
+_IMAGE_CHIP_PATTERN = re.compile(r'\[Image #(\d+)\]')
+_CLIPBOARD_IMAGE_GLOB = 'codex-clipboard-*.png'
+_CLIPBOARD_IMAGE_NAME_PATTERN = re.compile(r'codex-clipboard-[A-Za-z0-9]+\.png')
+_CLIPBOARD_IMAGE_NAME_PREFIX = 'codex-clipboard-'
+# How long after its paste a prompt may still be sent with the image
+_CLIPBOARD_IMAGE_MAX_AGE_SECONDS = 60 * 60
 
 
 def _codex_home() -> Path:
@@ -229,6 +247,41 @@ def _enable_codex_hooks_feature(scope: str, repo_path: Path | None = None) -> tu
         return False, f'Failed to write Codex config at {config_path}'
 
 
+# --- prompt images ------------------------------------------------------------
+
+
+def _sent_clipboard_image_names(transcript_path: str) -> set[str]:
+    """Names of the clipboard images the session's earlier prompts sent, as its transcript records them.
+
+    Codex records a prompt only once its hook lets it through, so a blocked prompt sent again finds its images again.
+    """
+    names: set[str] = set()
+    try:
+        with open(transcript_path, encoding='utf-8', errors='replace') as transcript:
+            for line in transcript:
+                if _CLIPBOARD_IMAGE_NAME_PREFIX in line:
+                    names.update(_CLIPBOARD_IMAGE_NAME_PATTERN.findall(line))
+    except OSError as e:
+        logger.debug('Failed to read the Codex transcript, %s', {'path': transcript_path}, exc_info=e)
+    return names
+
+
+def _pasted_clipboard_images(prompt: str, transcript_path: object, now: float) -> list[Path]:
+    """The newest recent clipboard pastes no earlier prompt sent, one per [Image #N] chip in the prompt.
+
+    A chip doesn't say whether its image was pasted, dragged in or picked from the @ popup, so a prompt with a dragged
+    or picked image takes the newest unsent paste in its place. Without a transcript nothing tells a sent paste from an
+    unsent one, so none is taken: the prompt Codex sends to title a new thread has none and quotes the user's prompt,
+    chips included.
+    """
+    chips_count = len(set(_IMAGE_CHIP_PATTERN.findall(prompt)))
+    if not chips_count or not isinstance(transcript_path, str) or not transcript_path:
+        return []
+    sent = _sent_clipboard_image_names(transcript_path)
+    pastes = [path for path in Path(tempfile.gettempdir()).glob(_CLIPBOARD_IMAGE_GLOB) if path.name not in sent]
+    return modified_between(pastes, now - _CLIPBOARD_IMAGE_MAX_AGE_SECONDS, now)[-chips_count:]
+
+
 class Codex(IDE):
     name: ClassVar[str] = 'codex'
     display_name: ClassVar[str] = 'Codex'
@@ -301,6 +354,21 @@ class Codex(IDE):
             mcp_tool_name=mcp_tool_name,
             mcp_arguments=mcp_arguments,
         )
+
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
+        """Images attached to a prompt: clipboard pastes, one per chip, and `@path` mentions.
+
+        The payload names no image, and the transcript records a prompt only after its hook.
+        """
+        prompt = raw_payload.get('prompt') or ''
+        images = select_prompt_images(
+            [
+                *_pasted_clipboard_images(prompt, raw_payload.get('transcript_path'), time.time()),
+                *mentioned_files(prompt, raw_payload.get('cwd')),
+            ]
+        )
+        logger.debug('Collected prompt images, %s', {'images_count': len(images)})
+        return images
 
     def build_hook_response(self, decision: HookDecision) -> dict:
         # Codex hook response shapes:
