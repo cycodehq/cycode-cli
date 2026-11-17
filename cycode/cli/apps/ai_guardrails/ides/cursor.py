@@ -39,9 +39,9 @@ _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide cursor'
 
 # The hook payload names no image attached to a prompt; Cursor's own record of the prompt does. It is the
 # conversation's bubble whose requestId is the hook's generation_id, in the cursorDiskKV table of Cursor's global
-# state database, and context.selectedImages lists each image's file: a pasted, dropped or picked image is saved in
-# the workspace's storage when it is attached, an @-mentioned one stays where it is. Cursor starts saving the record
-# just before it runs the hook, so the record may take a moment to appear.
+# state database, and context.selectedImages lists each pasted, dropped or picked image, saved in the workspace's
+# storage when it is attached. An @-mentioned file is only a link the agent may read later, not an attachment.
+# Cursor starts saving the record just before it runs the hook, so the record may take a moment to appear.
 _STATE_DB_PATH_PARTS = ('User', 'globalStorage', 'state.vscdb')
 _PROMPT_RECORD_QUERY = 'SELECT value FROM cursorDiskKV WHERE key >= ? AND key < ? AND instr(value, ?) > 0'
 _PROMPT_RECORD_WAIT_SECONDS = 1.0
