@@ -556,13 +556,23 @@ def test_collect_prompt_images_ignores_pastes_older_than_an_hour(fs: FakeFilesys
     assert Codex().collect_prompt_images(_prompt_payload('[Image #1]', _transcript(fs))) == []
 
 
-@pytest.mark.parametrize('transcript_path', [None, '', '/missing/rollout.jsonl'])
-def test_collect_prompt_images_without_a_transcript_takes_recent_pastes(
+@pytest.mark.parametrize('transcript_path', [None, ''])
+def test_collect_prompt_images_takes_no_paste_without_a_transcript(
     fs: FakeFilesystem, transcript_path: str | None
 ) -> None:
+    _paste(fs, 'Recent11', time.time() - 5)
+    # The prompt Codex sends to title a new thread has no transcript and quotes the user's prompt, chips included
+    title_prompt = 'Generate a concise, single-line task title.\n\nUser prompt:\nwhat does it say? [Image #1]'
+
+    assert Codex().collect_prompt_images(_prompt_payload(title_prompt, transcript_path)) == []
+
+
+def test_collect_prompt_images_takes_recent_pastes_before_the_transcript_is_written(fs: FakeFilesystem) -> None:
     pasted = _paste(fs, 'Recent11', time.time() - 5)
 
-    assert _paths(Codex().collect_prompt_images(_prompt_payload('[Image #1]', transcript_path))) == [pasted]
+    payload = _prompt_payload('[Image #1]', '/Users/user/.codex/sessions/2026/11/17/rollout-new.jsonl')
+
+    assert _paths(Codex().collect_prompt_images(payload)) == [pasted]
 
 
 def test_collect_prompt_images_finds_mentions_against_cwd(fs: FakeFilesystem) -> None:

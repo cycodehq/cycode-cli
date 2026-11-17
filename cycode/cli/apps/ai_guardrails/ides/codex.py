@@ -250,13 +250,11 @@ def _enable_codex_hooks_feature(scope: str, repo_path: Path | None = None) -> tu
 # --- prompt images ------------------------------------------------------------
 
 
-def _sent_clipboard_image_names(transcript_path: object) -> set[str]:
+def _sent_clipboard_image_names(transcript_path: str) -> set[str]:
     """Names of the clipboard images the session's earlier prompts sent, as its transcript records them.
 
     Codex records a prompt only once its hook lets it through, so a blocked prompt sent again finds its images again.
     """
-    if not isinstance(transcript_path, str) or not transcript_path:
-        return set()
     names: set[str] = set()
     try:
         with open(transcript_path, encoding='utf-8', errors='replace') as transcript:
@@ -271,11 +269,13 @@ def _sent_clipboard_image_names(transcript_path: object) -> set[str]:
 def _pasted_clipboard_images(prompt: str, transcript_path: object, now: float) -> list[Path]:
     """The newest recent clipboard pastes no earlier prompt sent, one per [Image #N] chip in the prompt.
 
-    A chip doesn't say whether its image was pasted or dragged in, so a prompt with a dragged image may take an
-    unrelated recent paste as well.
+    A chip doesn't say whether its image was pasted, dragged in or picked from the @ popup, so a prompt with a dragged
+    or picked image takes the newest unsent paste in its place. Without a transcript nothing tells a sent paste from an
+    unsent one, so none is taken: the prompt Codex sends to title a new thread has none and quotes the user's prompt,
+    chips included.
     """
     chips_count = len(set(_IMAGE_CHIP_PATTERN.findall(prompt)))
-    if not chips_count:
+    if not chips_count or not isinstance(transcript_path, str) or not transcript_path:
         return []
     sent = _sent_clipboard_image_names(transcript_path)
     pastes = [path for path in Path(tempfile.gettempdir()).glob(_CLIPBOARD_IMAGE_GLOB) if path.name not in sent]
