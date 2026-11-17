@@ -51,6 +51,7 @@ from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
     PromptImage,
     get_prompt_mark,
+    mentioned_files,
     modified_between,
     save_prompt_mark,
     select_prompt_images,
@@ -112,13 +113,6 @@ _PLUGIN_MANIFEST_LOCATIONS = (
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide copilot'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide copilot'
 
-# Copilot CLI leaves an `@path` mention in the prompt as typed: quoted, with
-# backslash-escaped spaces (a file dragged into a terminal), or plain up to the next
-# whitespace. Never mid-word, so an email address is not a mention. A lookahead, so
-# every `@` is read on its own: a quote left open must not swallow the mentions after
-# it, and a quoted path never spans lines.
-_MENTION_PATTERN = re.compile(r'(?<!\S)@(?=("[^"\n]+"|\'[^\'\n]+\'|(?:\\ |\S)+))')
-_MENTION_TRAILING_PUNCTUATION = '.,;:!?)]}'
 # Copilot CLI replaces a pasted image with this placeholder, naming the file it saved
 # in the temp directory.
 _PASTED_IMAGE_PATTERN = re.compile(r'\[image:\s*([^\]\r\n]+?)\s*\]')
@@ -423,27 +417,6 @@ def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[st
 # --- prompt images ------------------------------------------------------------------
 
 
-def _mentioned_files(prompt: str, cwd: str | None) -> list[Path]:
-    """Existing files named by `@` mentions, resolved against the hook's cwd."""
-    base = Path(cwd) if cwd else Path()
-    files = []
-    for match in _MENTION_PATTERN.finditer(prompt):
-        token = match.group(1)
-        if len(token) > 1 and token[0] == token[-1] and token[0] in '"\'':
-            spellings = [token[1:-1]]
-        else:
-            if os.sep == '/':
-                token = token.replace('\\ ', ' ')
-            # The mention may end a sentence ("look at @shot.png.")
-            spellings = [token, token.rstrip(_MENTION_TRAILING_PUNCTUATION)]
-        for spelling in spellings:
-            path = base / os.path.expanduser(spelling)
-            if os.path.isfile(path):
-                files.append(path)
-                break
-    return files
-
-
 def _pasted_cli_images(prompt: str) -> list[Path]:
     """Images pasted into Copilot CLI, saved in the temp directory its placeholder names."""
     temp_dir = Path(tempfile.gettempdir())
@@ -579,7 +552,7 @@ class Copilot(IDE):
 
         images = select_prompt_images(
             [
-                *_mentioned_files(prompt, raw_payload.get('cwd')),
+                *mentioned_files(prompt, raw_payload.get('cwd')),
                 *_pasted_cli_images(prompt),
                 *_vscode_saved_attachments(session_id, since, now),
             ]
