@@ -2,7 +2,10 @@
 
 import base64
 import json
+import os
 import sys
+import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,6 +21,7 @@ from cycode.cli.apps.ai_guardrails.ides.codex import (
     _load_codex_config,
     _read_codex_plugin,
 )
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 if sys.version_info >= (3, 11):
@@ -460,3 +464,111 @@ def test_get_skills_reads_user_scope_skills(fs: FakeFilesystem) -> None:
 
 def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
     assert Codex().get_skills() == []
+
+
+# --- prompt images ----------------------------------------------------------------
+
+
+def _png(marker: bytes) -> bytes:
+    return b'\x89PNG\r\n\x1a\n' + marker
+
+
+def _paste(fs: FakeFilesystem, name: str, modified_at: float) -> str:
+    """An image the terminal UI saved from the clipboard."""
+    path = Path(tempfile.gettempdir()) / f'codex-clipboard-{name}.png'
+    fs.create_file(path, contents=_png(name.encode()))
+    os.utime(path, (modified_at, modified_at))
+    return str(path)
+
+
+def _transcript(fs: FakeFilesystem, *sent: str) -> str:
+    """A session transcript whose earlier prompts sent these images, as Codex records them."""
+    path = '/Users/user/.codex/sessions/2026/11/17/rollout-session-1.jsonl'
+    lines = [json.dumps({'type': 'session_meta', 'payload': {'id': 'session-1'}})]
+    for index, image in enumerate(sent, start=1):
+        content = [
+            {'type': 'input_text', 'text': f'<image name=[Image #{index}] path="{image}">'},
+            {'type': 'input_image', 'image_url': 'data:image/png;base64,iVBORw0KGgo='},
+            {'type': 'input_text', 'text': '</image>'},
+        ]
+        lines.append(json.dumps({'type': 'response_item', 'payload': {'role': 'user', 'content': content}}))
+    fs.create_file(path, contents='\n'.join(lines) + '\n')
+    return path
+
+
+def _prompt_payload(prompt: str, transcript_path: str | None = None) -> dict:
+    return {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': 'session-1',
+        'turn_id': 'turn-1',
+        'transcript_path': transcript_path,
+        'cwd': '/Users/user/project',
+        'prompt': prompt,
+    }
+
+
+def _paths(images: list[PromptImage]) -> list[str]:
+    return [image.path for image in images]
+
+
+def test_collect_prompt_images_takes_the_newest_paste_per_chip(fs: FakeFilesystem) -> None:
+    now = time.time()
+    _paste(fs, 'Old111', now - 300)
+    middle = _paste(fs, 'Mid222', now - 60)
+    newest = _paste(fs, 'New333', now - 5)
+
+    images = Codex().collect_prompt_images(_prompt_payload('[Image #1] [Image #2] what changed?', _transcript(fs)))
+
+    # Oldest first, the order they were pasted in
+    assert _paths(images) == [middle, newest]
+
+
+def test_collect_prompt_images_skips_pastes_an_earlier_prompt_sent(fs: FakeFilesystem) -> None:
+    now = time.time()
+    earlier = _paste(fs, 'Earlier1', now - 120)
+    unsent = _paste(fs, 'Unsent22', now - 60)
+    _paste(fs, 'Sent3333', now - 5)
+    transcript = _transcript(fs, earlier, str(Path(tempfile.gettempdir()) / 'codex-clipboard-Sent3333.png'))
+
+    # A prompt blocked before isn't in the transcript, so its paste is found again when it is sent again
+    assert _paths(Codex().collect_prompt_images(_prompt_payload('[Image #1] again', transcript))) == [unsent]
+
+
+def test_collect_prompt_images_takes_no_paste_without_a_chip(fs: FakeFilesystem) -> None:
+    _paste(fs, 'Recent11', time.time() - 5)
+
+    assert Codex().collect_prompt_images(_prompt_payload('no image here', _transcript(fs))) == []
+
+
+def test_collect_prompt_images_counts_a_repeated_chip_once(fs: FakeFilesystem) -> None:
+    now = time.time()
+    _paste(fs, 'First111', now - 60)
+    newest = _paste(fs, 'Second22', now - 5)
+
+    payload = _prompt_payload('compare [Image #1] with itself: [Image #1]', _transcript(fs))
+
+    assert _paths(Codex().collect_prompt_images(payload)) == [newest]
+
+
+def test_collect_prompt_images_ignores_pastes_older_than_an_hour(fs: FakeFilesystem) -> None:
+    _paste(fs, 'Stale111', time.time() - 2 * 60 * 60)
+
+    assert Codex().collect_prompt_images(_prompt_payload('[Image #1]', _transcript(fs))) == []
+
+
+@pytest.mark.parametrize('transcript_path', [None, '', '/missing/rollout.jsonl'])
+def test_collect_prompt_images_without_a_transcript_takes_recent_pastes(
+    fs: FakeFilesystem, transcript_path: str | None
+) -> None:
+    pasted = _paste(fs, 'Recent11', time.time() - 5)
+
+    assert _paths(Codex().collect_prompt_images(_prompt_payload('[Image #1]', transcript_path))) == [pasted]
+
+
+def test_collect_prompt_images_finds_mentions_against_cwd(fs: FakeFilesystem) -> None:
+    shot = Path('/Users/user/project/docs/shot.png')
+    fs.create_file(shot, contents=_png(b'shot'))
+
+    images = Codex().collect_prompt_images(_prompt_payload('explain @docs/shot.png', _transcript(fs)))
+
+    assert _paths(images) == [str(shot)]
