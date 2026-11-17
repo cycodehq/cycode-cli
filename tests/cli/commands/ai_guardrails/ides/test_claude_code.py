@@ -1,9 +1,13 @@
 """Claude Code IDE integration tests."""
 
 import json
+import os
+import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockerFixture
 
@@ -13,8 +17,15 @@ from cycode.cli.apps.ai_guardrails.ides.claude_code import (
     _email_from_config,
     _read_claude_plugin,
     _resolve_mcp_server_name,
+    _user_id,
     load_claude_config,
     resolve_plugins,
+)
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
+    FIRST_PROMPT_LOOKBACK_SECONDS,
+    PromptImage,
+    get_prompt_mark,
+    save_prompt_mark,
 )
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
@@ -510,3 +521,143 @@ def test_resolve_plugins_surfaces_plugin_skills(fs: FakeFilesystem) -> None:
 
     entry = plugins['dummy-plugin@dummy-marketplace']
     assert [Path(s['path']).parent.name for s in entry['skill_files']] == ['cached-skill']
+
+
+# --- prompt images ----------------------------------------------------------------
+
+_SESSION_ID = '0c974f38-5b1e-4a3c-9d2f-7e6a1b2c3d4e'
+_PROJECT_KEY = '-Users-user-project'
+_TEMP_ROOT = '/tmp'  # noqa: S108 - Claude Code's default, on a fake filesystem
+
+
+def _png(marker: bytes) -> bytes:
+    return b'\x89PNG\r\n\x1a\n' + marker
+
+
+def _prompt_payload(prompt: str, session_id: str = _SESSION_ID) -> dict:
+    return {
+        'hook_event_name': 'UserPromptSubmit',
+        'session_id': session_id,
+        'transcript_path': f'/Users/user/.claude/projects/{_PROJECT_KEY}/{session_id}.jsonl',
+        'cwd': '/Users/user/project',
+        'prompt': prompt,
+    }
+
+
+def _session_images_dir(session_id: str = _SESSION_ID, root: str = _TEMP_ROOT) -> Path:
+    return Path(root) / f'claude-{_user_id()}' / _PROJECT_KEY / session_id / 'images'
+
+
+def _saved_image(
+    fs: FakeFilesystem,
+    name: str,
+    content: bytes,
+    modified_at: float,
+    session_id: str = _SESSION_ID,
+    root: str = _TEMP_ROOT,
+) -> str:
+    """An image Claude Code saved for a session."""
+    path = _session_images_dir(session_id, root) / name
+    fs.create_file(path, contents=content)
+    os.utime(path, (modified_at, modified_at))
+    return str(path)
+
+
+def _paths(images: list[PromptImage]) -> list[str]:
+    return [image.path for image in images]
+
+
+skip_without_uid = pytest.mark.skipif(_user_id() is None, reason='the folder is named after the uid')
+
+
+@skip_without_uid
+def test_collect_prompt_images_takes_the_images_its_chips_name(fs: FakeFilesystem) -> None:
+    now = time.time()
+    save_prompt_mark(_SESSION_ID, now - 60)
+    first = _saved_image(fs, '1.png', _png(b'first'), now - 600)
+    _saved_image(fs, '2.png', _png(b'second'), now - 300)
+    third = _saved_image(fs, '3.jpg', b'\xff\xd8\xff' + b'third', now - 120)
+
+    images = ClaudeCode().collect_prompt_images(_prompt_payload('[Image #3] compare with [Image #1] and [Image #9]'))
+
+    # In the prompt's order; an earlier prompt's image counts when a chip names it, an unknown number is skipped
+    assert _paths(images) == [third, first]
+
+
+@skip_without_uid
+def test_collect_prompt_images_takes_images_saved_since_the_previous_prompt(fs: FakeFilesystem) -> None:
+    now = time.time()
+    save_prompt_mark(_SESSION_ID, now - 60)
+    _saved_image(fs, '1.png', _png(b'previous prompt'), now - 120)
+    second = _saved_image(fs, '2.png', _png(b'this prompt'), now - 2)
+    third = _saved_image(fs, '3.webp', _png(b'this prompt, any extension'), now - 1)
+
+    # VS Code and the desktop app put no chip in the prompt; an image-only prompt has no text at all
+    assert _paths(ClaudeCode().collect_prompt_images(_prompt_payload(''))) == [second, third]
+    # The mark moved to this prompt, so the next one doesn't take them again
+    assert get_prompt_mark(_SESSION_ID, time.time()) >= now
+    assert _paths(ClaudeCode().collect_prompt_images(_prompt_payload('next'))) == []
+
+
+@skip_without_uid
+def test_first_prompt_takes_images_from_the_lookback(fs: FakeFilesystem) -> None:
+    now = time.time()
+    recent = _saved_image(fs, '2.png', _png(b'recent'), now - (FIRST_PROMPT_LOOKBACK_SECONDS - 60))
+    _saved_image(fs, '1.png', _png(b'old'), now - (FIRST_PROMPT_LOOKBACK_SECONDS + 60))
+
+    assert _paths(ClaudeCode().collect_prompt_images(_prompt_payload('what is this?'))) == [recent]
+
+
+@skip_without_uid
+def test_collect_prompt_images_reads_only_this_sessions_folder(fs: FakeFilesystem) -> None:
+    now = time.time()
+    own = _saved_image(fs, '1.png', _png(b'own'), now - 5)
+    _saved_image(fs, '1.png', _png(b'other session'), now - 5, session_id='another-session')
+    other_user = Path(_TEMP_ROOT, 'claude-0') / _PROJECT_KEY / _SESSION_ID / 'images' / '1.png'
+    fs.create_file(other_user, contents=_png(b'other user'))
+
+    assert _paths(ClaudeCode().collect_prompt_images(_prompt_payload('[Image #1]'))) == [own]
+
+
+@skip_without_uid
+@pytest.mark.parametrize('session_id', ['', '*', '../images', 'a/b', None, 7])
+def test_collect_prompt_images_looks_up_no_folder_for_an_unusable_session_id(
+    fs: FakeFilesystem, session_id: object
+) -> None:
+    _saved_image(fs, '1.png', _png(b'own'), time.time() - 5)
+
+    payload = {**_prompt_payload('[Image #1]'), 'session_id': session_id}
+
+    assert ClaudeCode().collect_prompt_images(payload) == []
+
+
+@skip_without_uid
+def test_collect_prompt_images_honors_the_temp_dir_override(
+    fs: FakeFilesystem, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv('CLAUDE_CODE_TMPDIR', '/scratch/tmp')
+    now = time.time()
+    _saved_image(fs, '1.png', _png(b'default root'), now - 5)
+    moved = _saved_image(fs, '2.png', _png(b'moved root'), now - 5, root='/scratch/tmp')
+
+    assert _paths(ClaudeCode().collect_prompt_images(_prompt_payload('[Image #1] [Image #2]'))) == [moved]
+
+
+def test_collect_prompt_images_without_a_uid_looks_in_the_system_temp_dir(
+    fs: FakeFilesystem, mocker: MockerFixture
+) -> None:
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides.claude_code._user_id', return_value=None)
+    path = Path(tempfile.gettempdir()) / 'claude' / _PROJECT_KEY / _SESSION_ID / 'images' / '1.png'
+    fs.create_file(path, contents=_png(b'windows'))
+
+    assert _paths(ClaudeCode().collect_prompt_images(_prompt_payload('[Image #1]'))) == [str(path)]
+
+
+def test_collect_prompt_images_finds_mentions_against_cwd(fs: FakeFilesystem) -> None:
+    shot = Path('/Users/user/project/docs/shot.png')
+    fs.create_file(shot, contents=_png(b'shot'))
+    fs.create_file('/Users/user/project/notes.txt', contents=b'not an image')
+
+    images = ClaudeCode().collect_prompt_images(_prompt_payload('look at @docs/shot.png and @notes.txt'))
+
+    assert _paths(images) == [str(shot)]
