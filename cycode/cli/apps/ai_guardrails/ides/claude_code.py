@@ -315,8 +315,8 @@ def _resolve_mcp_server_name(server: str, config: dict | None, cwd: str | None) 
 
 
 def _user_id() -> int | None:
-    """The process's uid; None where there is none (Windows)."""
-    return os.getuid() if hasattr(os, 'getuid') else None
+    """The process's uid; None on Windows, which has none."""
+    return None if os.name == 'nt' else os.getuid()
 
 
 def _session_image_dirs(session_id: str) -> list[Path]:
