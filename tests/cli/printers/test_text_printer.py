@@ -146,3 +146,30 @@ def test_malicious_package_prints_the_advisory_and_the_removal_instruction(
 
     assert 'Advisory: MAL-2024-1234' in result
     assert 'Remediation: Remove this package from your dependencies.' in result
+
+
+_LONG_REPORT_URL = 'https://app.eu.cycode.com/cli-logs-aggregation/01234567-89ab-cdef-0123-456789abcdef'
+
+
+@pytest.fixture
+def narrow_printer(output: io.StringIO) -> TextPrinter:
+    ctx = MagicMock()
+    ctx.obj = {'scan_type': 'sast', 'show_secret': False}
+    ctx.info_name = 'path'
+    return TextPrinter(ctx, Console(file=output, width=80), Console(stderr=True))
+
+
+def test_report_url_is_not_wrapped_on_a_narrow_console(narrow_printer: TextPrinter, output: io.StringIO) -> None:
+    narrow_printer.print_report_urls([], aggregation_report_url=_LONG_REPORT_URL)
+
+    assert output.getvalue().splitlines() == [f'Report URL: {_LONG_REPORT_URL}']
+
+
+def test_multiple_report_urls_are_not_wrapped_on_a_narrow_console(
+    narrow_printer: TextPrinter, output: io.StringIO
+) -> None:
+    report_urls = [_LONG_REPORT_URL, _LONG_REPORT_URL.replace('abcdef', 'fedcba')]
+
+    narrow_printer.print_report_urls(report_urls)
+
+    assert output.getvalue().splitlines() == ['Report URLs:', *(f'- {url}' for url in report_urls)]
