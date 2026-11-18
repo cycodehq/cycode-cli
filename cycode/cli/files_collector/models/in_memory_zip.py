@@ -63,7 +63,8 @@ class InMemoryZip:
         self.zip.close()
 
     def cleanup(self) -> None:
-        """Release the buffer, deleting the spilled temp file if there is one."""
+        """Close the archive and release the buffer, deleting the spilled temp file if there is one."""
+        self.zip.close()
         self._buffer.close()
 
     def __enter__(self) -> 'InMemoryZip':  # noqa: PYI034  # typing.Self needs Python 3.11

@@ -1,5 +1,7 @@
 """Tests for InMemoryZip class, specifically for handling surrogate characters and encoding issues."""
 
+import gc
+import sys
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -156,6 +158,22 @@ def test_cleanup_is_idempotent() -> None:
 
     zip_file.cleanup()
     zip_file.cleanup()
+
+
+def test_cleanup_closes_an_archive_that_was_never_closed(monkeypatch: 'MonkeyPatch') -> None:
+    """A commit range with nothing to scan releases its placeholder archive without closing it first.
+
+    ZipFile.__del__ must not then try to finalize the archive into the released buffer.
+    """
+    unraisable_exceptions = []
+    monkeypatch.setattr(sys, 'unraisablehook', unraisable_exceptions.append)
+
+    zip_file = InMemoryZip()
+    zip_file.cleanup()
+    del zip_file
+    gc.collect()
+
+    assert unraisable_exceptions == []
 
 
 def test_used_as_a_context_manager() -> None:
