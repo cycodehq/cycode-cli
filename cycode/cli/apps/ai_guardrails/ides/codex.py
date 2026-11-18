@@ -26,6 +26,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._transcript_utils import reverse_readline
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
@@ -269,6 +270,19 @@ def _is_user_message(item: dict) -> bool:
     return item.get('type') == 'response_item' and isinstance(payload, dict) and payload.get('role') == 'user'
 
 
+def _transcript_items_newest_first(transcript_path: str) -> Iterator[dict]:
+    """The transcript's lines that may be a session's start, a turn's start or a user message, newest first."""
+    for line in reverse_readline(Path(transcript_path)):
+        if not any(marker in line for marker in _TRANSCRIPT_LINE_MARKERS):
+            continue
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(item, dict):
+            yield item
+
+
 def _paste_window_start(transcript_path: str, now: float) -> float:
     """Where the pastes this prompt may carry begin: at the session's last prompt that its hook let through.
 
@@ -276,30 +290,25 @@ def _paste_window_start(transcript_path: str, now: float) -> float:
     leaves only turn bookkeeping, so its pastes are found again when it is sent again. The user message written before
     the first turn holds the session's context, not a prompt. Until a prompt goes through, the window reaches back
     from the session's (latest) start, which Codex writes when the first prompt is submitted.
+
+    Read from the end, which the last prompt is usually near: a user message is a prompt once a turn's start shows up
+    before it, and the session's context once the session's start does.
     """
-    session_start = last_prompt = None
-    turn_seen = False
+    session_start = latest_message = None
+    session_seen = False
     try:
-        with open(transcript_path, encoding='utf-8', errors='replace') as transcript:
-            for line in transcript:
-                if not any(marker in line for marker in _TRANSCRIPT_LINE_MARKERS):
-                    continue
-                try:
-                    item = json.loads(line)
-                except ValueError:
-                    continue
-                if not isinstance(item, dict):
-                    continue
-                if item.get('type') == 'session_meta':
-                    session_start, turn_seen = _transcript_time(item), False
-                elif item.get('type') == 'turn_context':
-                    turn_seen = True
-                elif turn_seen and _is_user_message(item):
-                    last_prompt = _transcript_time(item) or last_prompt
+        for item in _transcript_items_newest_first(transcript_path):
+            if item.get('type') == 'session_meta':
+                if not session_seen:
+                    session_start, session_seen = _transcript_time(item), True
+                latest_message = None
+            elif item.get('type') == 'turn_context':
+                if latest_message is not None:
+                    return latest_message
+            elif latest_message is None and _is_user_message(item):
+                latest_message = _transcript_time(item)
     except OSError as e:
         logger.debug('Failed to read the Codex transcript, %s', {'path': transcript_path}, exc_info=e)
-    if last_prompt is not None:
-        return last_prompt
     return (session_start if session_start is not None else now) - _FIRST_PROMPT_PASTE_LOOKBACK_SECONDS
 
 

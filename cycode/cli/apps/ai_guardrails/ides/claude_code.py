@@ -18,6 +18,7 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._transcript_utils import reverse_readline
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
@@ -65,43 +66,6 @@ _SESSION_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]+')
 # --- transcript JSONL parsing -------------------------------------------------
 
 
-def _reverse_readline(path: Path, buf_size: int = 8192) -> Iterator[str]:
-    """Yield lines of `path` from end to start without loading the file.
-
-    The Claude Code transcript can be very large; reading from the tail keeps
-    memory bounded since we only care about the most recent entries.
-    """
-    with path.open('rb') as f:
-        f.seek(0, 2)
-        file_size = f.tell()
-        if file_size == 0:
-            return
-
-        remaining = file_size
-        buffer = b''
-
-        while remaining > 0:
-            read_size = min(buf_size, remaining)
-            remaining -= read_size
-            f.seek(remaining)
-            chunk = f.read(read_size)
-            buffer = chunk + buffer
-
-            while b'\n' in buffer:
-                newline_pos = buffer.rfind(b'\n')
-                if newline_pos == len(buffer) - 1:
-                    newline_pos = buffer.rfind(b'\n', 0, newline_pos)
-                    if newline_pos == -1:
-                        break
-                line = buffer[newline_pos + 1 :]
-                buffer = buffer[: newline_pos + 1]
-                if line.strip():
-                    yield line.decode('utf-8', errors='replace')
-
-        if buffer.strip():
-            yield buffer.decode('utf-8', errors='replace')
-
-
 def _extract_model(entry: dict) -> str | None:
     """Extract model from a transcript entry (top level or nested in message)."""
     return entry.get('model') or (entry.get('message') or {}).get('model')
@@ -134,7 +98,7 @@ def extract_from_claude_transcript(
     generation_id = None
 
     try:
-        for line in _reverse_readline(path):
+        for line in reverse_readline(path):
             line = line.strip()
             if not line:
                 continue

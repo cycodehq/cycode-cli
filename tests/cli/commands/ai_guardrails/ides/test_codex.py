@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from unittest.mock import patch
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
+from cycode.cli.apps.ai_guardrails.ides._transcript_utils import reverse_readline
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.codex import (
     Codex,
@@ -602,6 +604,51 @@ def test_collect_prompt_images_skips_a_resumed_sessions_context(fs: FakeFilesyst
     transcript = _transcript(fs, now - 300, (now - 250, True), extra=resumed)
 
     assert _paths(Codex().collect_prompt_images(_prompt_payload('[Image #1]', transcript))) == [pasted]
+
+
+def test_collect_prompt_images_reads_the_transcript_back_to_the_last_prompt_only(fs: FakeFilesystem) -> None:
+    now = time.time()
+    pasted = _paste(fs, 'After222', now - 30)
+    transcript = _transcript(fs, now - 900, *[(now - 800 + 10 * turn, turn % 2 == 0) for turn in range(60)])
+    lines_read = []
+
+    def counting_reverse_readline(path: Path) -> Iterator[str]:
+        for line in reverse_readline(path):
+            lines_read.append(line)
+            yield line
+
+    with patch('cycode.cli.apps.ai_guardrails.ides.codex.reverse_readline', counting_reverse_readline):
+        images = Codex().collect_prompt_images(_prompt_payload('[Image #1]', transcript))
+
+    assert _paths(images) == [pasted]
+    # Of 60 turns, only the last (blocked) one and the one before it (which went through) are read
+    assert len(lines_read) == 6
+
+
+def test_collect_prompt_images_looks_back_from_a_resumed_sessions_latest_start(fs: FakeFilesystem) -> None:
+    now = time.time()
+    _paste(fs, 'BeforeRe', now - 1000)
+    pasted = _paste(fs, 'AfterRe1', now - 400)
+    # No prompt went through before or after the resume
+    resumed = (
+        json.dumps({'timestamp': _at(now - 20), 'type': 'session_meta', 'payload': {'id': 'session-1'}}),
+        json.dumps(_message(now - 20, 'user', '<environment_context>')),
+    )
+    transcript = _transcript(fs, now - 3000, (now - 2900, False), extra=resumed)
+
+    payload = _prompt_payload('[Image #1] [Image #2]', transcript)
+
+    assert _paths(Codex().collect_prompt_images(payload)) == [pasted]
+
+
+def test_collect_prompt_images_takes_the_newest_message_of_a_turn(fs: FakeFilesystem) -> None:
+    now = time.time()
+    _paste(fs, 'Between1', now - 150)
+    # A message sent while the turn ran, after the one that started it
+    steered = (json.dumps(_message(now - 100, 'user', 'and also this')),)
+    transcript = _transcript(fs, now - 300, (now - 200, True), extra=steered)
+
+    assert Codex().collect_prompt_images(_prompt_payload('[Image #1]', transcript)) == []
 
 
 def test_collect_prompt_images_takes_no_paste_without_a_chip(fs: FakeFilesystem) -> None:
