@@ -4,7 +4,6 @@ import json
 import os
 import re
 import tempfile
-import time
 from collections.abc import Iterator
 from copy import deepcopy
 from pathlib import Path
@@ -23,11 +22,10 @@ from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDec
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
     PromptImage,
-    get_prompt_mark,
+    collect_since_prompt_mark,
+    image_chips,
     mentioned_files,
     modified_between,
-    save_prompt_mark,
-    select_prompt_images,
 )
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.logger import get_logger
@@ -57,7 +55,6 @@ _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide claude-code'
 # counts up across the session, and a pasted or dragged image shows in the prompt as its [Image #<number>] chip.
 _TEMP_DIR_ENV_VAR = 'CLAUDE_CODE_TMPDIR'
 _SESSION_IMAGES_DIR_NAME = 'images'
-_IMAGE_CHIP_PATTERN = re.compile(r'\[Image #(\d+)\]')
 _SAVED_IMAGE_NAME_PATTERN = re.compile(r'(\d+)\.[A-Za-z]+')
 # The session id names a folder; one that could leave it (or match others) is not looked up
 _SESSION_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]+')
@@ -306,8 +303,9 @@ def _saved_session_images(session_id: str | None, prompt: str, since: float, unt
     """This prompt's images among those Claude Code saved for the session.
 
     Those its chips name, then those saved since the session's previous prompt: VS Code and the desktop app put no chip
-    in the prompt, and an image is saved again when its prompt is sent, so a prompt sent again after a block still
-    finds it.
+    in the prompt. Claude Code also saves an image again when its prompt is sent, so a prompt sent again after a block
+    finds it in that window too. The chips don't rely on that: they are the prompt's own reference to its files, so a
+    named image is found even if Claude Code didn't save it again.
     """
     if not isinstance(session_id, str) or not session_id:
         return []
@@ -323,7 +321,7 @@ def _saved_session_images(session_id: str | None, prompt: str, since: float, unt
             if match:
                 saved.setdefault(int(match.group(1)), path)
 
-    chips = dict.fromkeys(int(number) for number in _IMAGE_CHIP_PATTERN.findall(prompt))
+    chips = dict.fromkeys(int(number) for number in image_chips(prompt))
     named = [saved[number] for number in chips if number in saved]
     return named + modified_between(saved.values(), since, until)
 
@@ -436,19 +434,13 @@ class ClaudeCode(IDE):
         """Images attached to a prompt: those Claude Code saved for it, and `@path` mentions."""
         session_id = raw_payload.get('session_id')
         prompt = raw_payload.get('prompt') or ''
-        now = time.time()
-        since = get_prompt_mark(session_id, now)
-
-        images = select_prompt_images(
-            [
-                *_saved_session_images(session_id, prompt, since, now),
+        return collect_since_prompt_mark(
+            session_id,
+            lambda since, until: [
+                *_saved_session_images(session_id, prompt, since, until),
                 *mentioned_files(prompt, raw_payload.get('cwd')),
-            ]
+            ],
         )
-        save_prompt_mark(session_id, now)
-
-        logger.debug('Collected prompt images, %s', {'images_count': len(images), 'since': since})
-        return images
 
     def build_hook_response(self, decision: HookDecision) -> dict:
         if decision.event_type == AiHookEventType.PROMPT:

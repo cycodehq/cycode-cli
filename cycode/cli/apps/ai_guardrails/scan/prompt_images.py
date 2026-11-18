@@ -14,7 +14,8 @@ import json
 import os
 import re
 import stat
-from collections.abc import Iterable
+import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +32,9 @@ MAX_PROMPT_IMAGES = 5
 
 # Covers attachments saved a while before the prompt was sent
 FIRST_PROMPT_LOOKBACK_SECONDS = 600
+
+# A pasted or dragged image's placeholder in the prompt text, as Claude Code and Codex write it
+_IMAGE_CHIP_PATTERN = re.compile(r'\[Image #(\d+)\]')
 
 # A session idle this long loses its mark; if it comes back, its next prompt falls back to the lookback
 _MARK_RETENTION_SECONDS = 7 * 24 * 60 * 60
@@ -210,3 +214,23 @@ def select_prompt_images(candidates: Iterable[str | os.PathLike]) -> list[Prompt
         selected.append(PromptImage(path=str(candidate), content=content))
 
     return selected
+
+
+def image_chips(prompt: str) -> list[str]:
+    """The numbers of the prompt's ``[Image #N]`` placeholders, as written and in the prompt's order."""
+    return _IMAGE_CHIP_PATTERN.findall(prompt)
+
+
+def collect_since_prompt_mark(
+    session_id: str | None, gather: Callable[[float, float], Iterable[str | os.PathLike]]
+) -> list[PromptImage]:
+    """The images ``gather`` finds in the session's window ``[since, now)``, then the session's mark moves to now.
+
+    The mark moves only after the images are selected; moving it first would leave this prompt's files to no one.
+    """
+    now = time.time()
+    since = get_prompt_mark(session_id, now)
+    images = select_prompt_images(gather(since, now))
+    save_prompt_mark(session_id, now)
+    logger.debug('Collected prompt images, %s', {'images_count': len(images), 'since': since})
+    return images

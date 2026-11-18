@@ -11,8 +11,9 @@ import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockerFixture
 
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
-from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor, _cursor_user_data_dir
+from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 
 
@@ -267,7 +268,7 @@ def _png(marker: bytes) -> bytes:
 @pytest.fixture
 def cursor_user_data(tmp_path: Path, mocker: MockerFixture) -> Path:
     user_data = tmp_path / 'Cursor'
-    mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor._cursor_user_data_dir', return_value=user_data)
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor.vscode_user_data_dir', return_value=user_data)
     mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor._PROMPT_RECORD_WAIT_SECONDS', 0)
     return user_data
 
@@ -413,6 +414,6 @@ def test_collect_prompt_images_skips_malformed_records(cursor_user_data: Path, t
     ],
 )
 def test_cursor_user_data_dir_per_platform(mocker: MockerFixture, system: str, base_parts: tuple[str, ...]) -> None:
-    mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor.platform.system', return_value=system)
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides._vscode_utils.platform.system', return_value=system)
 
-    assert _cursor_user_data_dir() == Path.home().joinpath(*base_parts, 'Cursor')
+    assert vscode_user_data_dir('Cursor') == Path.home().joinpath(*base_parts, 'Cursor')

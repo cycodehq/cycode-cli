@@ -31,6 +31,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDec
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
     PromptImage,
+    image_chips,
     mentioned_files,
     modified_between,
     select_prompt_images,
@@ -56,7 +57,6 @@ _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide codex'
 # The prompt names each attached image only by an [Image #N] chip. Codex's terminal UI saves an image pasted from the
 # clipboard as codex-clipboard-<random>.png in the temp directory and keeps it; an image dragged in, picked from the
 # @ popup or passed with --image is attached from where it is, and nothing names it.
-_IMAGE_CHIP_PATTERN = re.compile(r'\[Image #(\d+)\]')
 _CLIPBOARD_IMAGE_GLOB = 'codex-clipboard-*.png'
 # How long after its paste a prompt may still be sent with the image
 _CLIPBOARD_IMAGE_MAX_AGE_SECONDS = 60 * 60
@@ -283,32 +283,48 @@ def _transcript_items_newest_first(transcript_path: str) -> Iterator[dict]:
             yield item
 
 
+def _last_prompt_time(transcript_path: str) -> float | None:
+    """When the session's last prompt that its hook let through was sent, or None if none was.
+
+    Codex writes a prompt into the transcript as a user message only once its hook lets it through; a blocked prompt
+    leaves only turn bookkeeping. Read from the end, which the last prompt is usually near. A user message is that
+    prompt once a turn's start shows up before it. If a session's start shows up first, the message came before the
+    session's first turn: it is the session's context, not a prompt, and the read goes on to the session before it.
+    """
+    newest_message = None
+    for item in _transcript_items_newest_first(transcript_path):
+        kind = item.get('type')
+        if kind == 'turn_context' and newest_message is not None:
+            return newest_message
+        if kind == 'session_meta':
+            newest_message = None
+        elif newest_message is None and _is_user_message(item):
+            newest_message = _transcript_time(item)
+    return None
+
+
+def _session_start_time(transcript_path: str) -> float | None:
+    """When the session (re)started: its latest session_meta, which Codex writes when its first prompt is submitted."""
+    for item in _transcript_items_newest_first(transcript_path):
+        if item.get('type') == 'session_meta':
+            return _transcript_time(item)
+    return None
+
+
 def _paste_window_start(transcript_path: str, now: float) -> float:
     """Where the pastes this prompt may carry begin: at the session's last prompt that its hook let through.
 
-    Codex writes a prompt into the transcript as a user message only once its hook lets it through; a blocked prompt
-    leaves only turn bookkeeping, so its pastes are found again when it is sent again. The user message written before
-    the first turn holds the session's context, not a prompt. Until a prompt goes through, the window reaches back
-    from the session's (latest) start, which Codex writes when the first prompt is submitted.
-
-    Read from the end, which the last prompt is usually near: a user message is a prompt once a turn's start shows up
-    before it, and the session's context once the session's start does.
+    A blocked prompt isn't one, so its pastes are found again when it is sent again. Until a prompt goes through, the
+    window reaches back from the session's start.
     """
-    session_start = latest_message = None
-    session_seen = False
     try:
-        for item in _transcript_items_newest_first(transcript_path):
-            if item.get('type') == 'session_meta':
-                if not session_seen:
-                    session_start, session_seen = _transcript_time(item), True
-                latest_message = None
-            elif item.get('type') == 'turn_context':
-                if latest_message is not None:
-                    return latest_message
-            elif latest_message is None and _is_user_message(item):
-                latest_message = _transcript_time(item)
+        last_prompt = _last_prompt_time(transcript_path)
+        if last_prompt is not None:
+            return last_prompt
+        session_start = _session_start_time(transcript_path)
     except OSError as e:
         logger.debug('Failed to read the Codex transcript, %s', {'path': transcript_path}, exc_info=e)
+        session_start = None
     return (session_start if session_start is not None else now) - _FIRST_PROMPT_PASTE_LOOKBACK_SECONDS
 
 
@@ -320,7 +336,7 @@ def _pasted_clipboard_images(prompt: str, transcript_path: object, now: float) -
     a transcript there is no session to go by, so none is taken: the prompt Codex sends to title a new thread has
     none and quotes the user's prompt, chips included.
     """
-    chips_count = len(set(_IMAGE_CHIP_PATTERN.findall(prompt)))
+    chips_count = len(set(image_chips(prompt)))
     if not chips_count or not isinstance(transcript_path, str) or not transcript_path:
         return []
     since = max(_paste_window_start(transcript_path, now), now - _CLIPBOARD_IMAGE_MAX_AGE_SECONDS)

@@ -15,13 +15,13 @@ import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockerFixture
 
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.copilot import (
     Copilot,
     _read_copilot_plugin,
     _vscode_chat_session_id,
     _vscode_mcp_config_path,
-    _vscode_user_data_dir,
     split_mcp_tool_name,
 )
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
@@ -587,7 +587,7 @@ def _vscode_copy(
     chat: str = 'chat-1',
 ) -> str:
     """A send-time copy of an attachment, in a chat's session data."""
-    path = _vscode_user_data_dir(product_name) / 'agentSessionData' / chat / 'attachments' / 'uuid-1' / name
+    path = vscode_user_data_dir(product_name) / 'agentSessionData' / chat / 'attachments' / 'uuid-1' / name
     return _create_file(fs, path, content, modified_at)
 
 
@@ -659,7 +659,7 @@ def test_collect_prompt_images_finds_cli_paste_in_the_temp_dir(fs: FakeFilesyste
 def test_collect_prompt_images_finds_vscode_attachments(
     fs: FakeFilesystem, mocker: MockerFixture, vscode_chats: dict[str, str], system: str, product_name: str
 ) -> None:
-    mocker.patch('cycode.cli.apps.ai_guardrails.ides.copilot.platform.system', return_value=system)
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides._vscode_utils.platform.system', return_value=system)
     now = time.time()
     first = _vscode_copy(fs, 'diagram.png', _png(b'first'), now - 20, product_name)
     second = _vscode_copy(fs, 'image.png', _png(b'second'), now - 5, product_name)
@@ -695,10 +695,10 @@ def test_cli_prompt_takes_no_vscode_attachments(fs: FakeFilesystem, vscode_chats
     ],
 )
 def test_vscode_user_data_dir_per_platform(mocker: MockerFixture, system: str, base_parts: tuple[str, ...]) -> None:
-    mocker.patch('cycode.cli.apps.ai_guardrails.ides.copilot.platform.system', return_value=system)
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides._vscode_utils.platform.system', return_value=system)
 
-    assert _vscode_user_data_dir() == Path.home().joinpath(*base_parts, 'Code')
-    assert _vscode_user_data_dir('Code - Insiders') == Path.home().joinpath(*base_parts, 'Code - Insiders')
+    assert vscode_user_data_dir() == Path.home().joinpath(*base_parts, 'Code')
+    assert vscode_user_data_dir('Code - Insiders') == Path.home().joinpath(*base_parts, 'Code - Insiders')
     assert _vscode_mcp_config_path() == Path.home().joinpath(*base_parts, 'Code', 'User', 'mcp.json')
 
 

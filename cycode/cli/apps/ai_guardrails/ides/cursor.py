@@ -4,7 +4,6 @@ import json
 import platform
 import sqlite3
 import time
-from contextlib import closing
 from pathlib import Path
 from typing import ClassVar
 from urllib.parse import urlparse
@@ -13,6 +12,7 @@ from urllib.request import url2pathname
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_files
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import read_only_query, vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage, select_prompt_images
@@ -49,21 +49,10 @@ _PROMPT_RECORD_POLL_SECONDS = 0.2
 
 
 def _user_hooks_dir() -> Path:
-    """Per-platform Cursor user-scope settings directory."""
+    """Per-platform Cursor user-scope settings directory: ~/.cursor on macOS, its user data directory elsewhere."""
     if platform.system() == 'Darwin':
         return Path.home() / '.cursor'
-    if platform.system() == 'Windows':
-        return Path.home() / 'AppData' / 'Roaming' / 'Cursor'
-    return Path.home() / '.config' / 'Cursor'
-
-
-def _cursor_user_data_dir() -> Path:
-    """Per-platform Cursor user data directory."""
-    if platform.system() == 'Darwin':
-        return Path.home() / 'Library' / 'Application Support' / 'Cursor'
-    if platform.system() == 'Windows':
-        return Path.home() / 'AppData' / 'Roaming' / 'Cursor'
-    return Path.home() / '.config' / 'Cursor'
+    return vscode_user_data_dir('Cursor')
 
 
 def _cursor_mcp_config_path() -> Path:
@@ -142,9 +131,7 @@ def _image_file_path(value: object) -> str | None:
 def _prompt_record_image_paths(db_path: Path, conversation_id: str, generation_id: str) -> list[str] | None:
     """The image files Cursor's record of the prompt lists; None while there is no record."""
     key_range = (f'bubbleId:{conversation_id}:', f'bubbleId:{conversation_id};')
-    # Read-only: Cursor keeps writing to the file
-    with closing(sqlite3.connect(f'{db_path.resolve().as_uri()}?mode=ro', uri=True, timeout=1)) as connection:
-        values = [value for (value,) in connection.execute(_PROMPT_RECORD_QUERY, (*key_range, generation_id))]
+    values = [value for (value,) in read_only_query(db_path, _PROMPT_RECORD_QUERY, (*key_range, generation_id))]
 
     paths: list[str] | None = None
     for value in values:
@@ -170,7 +157,7 @@ def _prompt_record_images(conversation_id: object, generation_id: object) -> lis
         return []
     if not isinstance(generation_id, str) or not generation_id:
         return []
-    db_path = _cursor_user_data_dir().joinpath(*_STATE_DB_PATH_PARTS)
+    db_path = vscode_user_data_dir('Cursor').joinpath(*_STATE_DB_PATH_PARTS)
     if not db_path.is_file():
         return []
 
