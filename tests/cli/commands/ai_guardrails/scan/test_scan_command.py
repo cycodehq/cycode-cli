@@ -12,8 +12,9 @@ from pytest_mock import MockerFixture
 from typer.testing import CliRunner
 
 from cycode.cli.apps.ai_guardrails import app as ai_guardrails_app
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
-from cycode.cli.apps.ai_guardrails.ides.copilot import Copilot, _vscode_user_data_dir
+from cycode.cli.apps.ai_guardrails.ides.copilot import Copilot
 from cycode.cli.apps.ai_guardrails.scan.guardrail_config import GuardrailConfig
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage, get_prompt_marks_path
 from cycode.cli.apps.ai_guardrails.scan.scan_command import scan_command
@@ -671,7 +672,7 @@ class TestPromptImages:
     ) -> None:
         """Collecting moves the session's prompt mark past the image, so a parent that collected before detaching
         would leave the child that scans nothing to find."""
-        paste = _vscode_user_data_dir() / 'agentSessionData' / 'chat-1' / 'attachments' / 'uuid-1' / 'image-1.png'
+        paste = vscode_user_data_dir() / 'agentSessionData' / 'chat-1' / 'attachments' / 'uuid-1' / 'image-1.png'
         fs.create_file(paste, contents=b'\x89PNG\r\n\x1a\n' + b'pasted')
         os.utime(paste, (time.time() - 5, time.time() - 5))
         mocker.patch(

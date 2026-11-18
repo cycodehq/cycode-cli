@@ -1,9 +1,9 @@
 """Images attached to an AI prompt, scanned for secrets along with its text.
 
-Some IDEs (GitHub Copilot) save a prompt's attachments to disk before its hook runs, yet never name them in the
-hook payload. The IDE integration finds the candidates (``IDE.collect_prompt_images``); this module holds what is
-IDE-agnostic about them: the filters every candidate passes, and the per-session prompt marks that turn "files saved
-for this prompt" into "files saved since the session's previous prompt".
+Some IDEs (GitHub Copilot, Claude Code) save a prompt's attachments to disk before its hook runs, yet never name them
+in the hook payload. The IDE integration finds the candidates (``IDE.collect_prompt_images``); this module holds what
+is IDE-agnostic about them: `@path` mentions, the filters every candidate passes, and the per-session prompt marks that
+turn "files saved for this prompt" into "files saved since the session's previous prompt".
 
 A session's first prompt looks back a fixed time rather than to session start: VS Code fires SessionStart together
 with the first prompt, after its attachments were already saved.
@@ -12,8 +12,10 @@ with the first prompt, after its attachments were already saved.
 import hashlib
 import json
 import os
+import re
 import stat
-from collections.abc import Iterable
+import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +33,9 @@ MAX_PROMPT_IMAGES = 5
 # Covers attachments saved a while before the prompt was sent
 FIRST_PROMPT_LOOKBACK_SECONDS = 600
 
+# A pasted or dragged image's placeholder in the prompt text, as Claude Code and Codex write it
+_IMAGE_CHIP_PATTERN = re.compile(r'\[Image #(\d+)\]')
+
 # A session idle this long loses its mark; if it comes back, its next prompt falls back to the lookback
 _MARK_RETENTION_SECONDS = 7 * 24 * 60 * 60
 
@@ -41,6 +46,12 @@ _IMAGE_FORMATS = (
     (b'\xff\xd8\xff', ('.jpg', '.jpeg')),
 )
 _SIGNATURE_LENGTH = max(len(signature) for signature, _ in _IMAGE_FORMATS)
+
+# An `@path` mention as typed in a prompt: quoted, with backslash-escaped spaces (a file dragged into a terminal), or
+# plain up to the next whitespace. Never mid-word, so an email address is not a mention. A lookahead, so every `@` is
+# read on its own: a quote left open must not swallow the mentions after it, and a quoted path never spans lines.
+_MENTION_PATTERN = re.compile(r'(?<!\S)@(?=("[^"\n]+"|\'[^\'\n]+\'|(?:\\ |\S)+))')
+_MENTION_TRAILING_PUNCTUATION = '.,;:!?)]}'
 
 
 def get_prompt_marks_path() -> Path:
@@ -113,6 +124,27 @@ def modified_between(paths: Iterable[Path], since: float, until: float) -> list[
     return [path for _, path in sorted(dated, key=lambda item: item[0])]
 
 
+def mentioned_files(prompt: str, cwd: str | None) -> list[Path]:
+    """Existing files named by `@` mentions, resolved against the hook's cwd."""
+    base = Path(cwd) if cwd else Path()
+    files = []
+    for match in _MENTION_PATTERN.finditer(prompt):
+        token = match.group(1)
+        if len(token) > 1 and token[0] == token[-1] and token[0] in '"\'':
+            spellings = [token[1:-1]]
+        else:
+            if os.sep == '/':
+                token = token.replace('\\ ', ' ')
+            # The mention may end a sentence ("look at @shot.png.")
+            spellings = [token, token.rstrip(_MENTION_TRAILING_PUNCTUATION)]
+        for spelling in spellings:
+            path = base / os.path.expanduser(spelling)
+            if os.path.isfile(path):
+                files.append(path)
+                break
+    return files
+
+
 def _image_extensions(content: bytes) -> tuple[str, ...]:
     return next((extensions for signature, extensions in _IMAGE_FORMATS if content.startswith(signature)), ())
 
@@ -182,3 +214,23 @@ def select_prompt_images(candidates: Iterable[str | os.PathLike]) -> list[Prompt
         selected.append(PromptImage(path=str(candidate), content=content))
 
     return selected
+
+
+def image_chips(prompt: str) -> list[str]:
+    """The numbers of the prompt's ``[Image #N]`` placeholders, as written and in the prompt's order."""
+    return _IMAGE_CHIP_PATTERN.findall(prompt)
+
+
+def collect_since_prompt_mark(
+    session_id: str | None, gather: Callable[[float, float], Iterable[str | os.PathLike]]
+) -> list[PromptImage]:
+    """The images ``gather`` finds in the session's window ``[since, now)``, then the session's mark moves to now.
+
+    The mark moves only after the images are selected; moving it first would leave this prompt's files to no one.
+    """
+    now = time.time()
+    since = get_prompt_mark(session_id, now)
+    images = select_prompt_images(gather(since, now))
+    save_prompt_mark(session_id, now)
+    logger.debug('Collected prompt images, %s', {'images_count': len(images), 'since': since})
+    return images

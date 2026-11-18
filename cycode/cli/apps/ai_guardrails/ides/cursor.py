@@ -2,14 +2,20 @@
 
 import json
 import platform
+import sqlite3
+import time
 from pathlib import Path
 from typing import ClassVar
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from cycode.cli.apps.ai_guardrails.consts import CYCODE_SCAN_PROMPT_COMMAND, CYCODE_SESSION_START_COMMAND
 from cycode.cli.apps.ai_guardrails.ides._plugin_utils import build_global_config_files
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import read_only_query, vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage, select_prompt_images
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.logger import get_logger
 
@@ -31,14 +37,22 @@ _MCP_CONFIG_FILENAME = 'mcp.json'
 _SCAN_COMMAND = CYCODE_SCAN_PROMPT_COMMAND
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide cursor'
 
+# The hook payload names no image attached to a prompt; Cursor's own record of the prompt does. It is the
+# conversation's bubble whose requestId is the hook's generation_id, in the cursorDiskKV table of Cursor's global
+# state database, and context.selectedImages lists each pasted, dropped or picked image, saved in the workspace's
+# storage when it is attached. An @-mentioned file is only a link the agent may read later, not an attachment.
+# Cursor starts saving the record just before it runs the hook, so the record may take a moment to appear.
+_STATE_DB_PATH_PARTS = ('User', 'globalStorage', 'state.vscdb')
+_PROMPT_RECORD_QUERY = 'SELECT value FROM cursorDiskKV WHERE key >= ? AND key < ? AND instr(value, ?) > 0'
+_PROMPT_RECORD_WAIT_SECONDS = 1.0
+_PROMPT_RECORD_POLL_SECONDS = 0.2
+
 
 def _user_hooks_dir() -> Path:
-    """Per-platform Cursor user-scope settings directory."""
+    """Per-platform Cursor user-scope settings directory: ~/.cursor on macOS, its user data directory elsewhere."""
     if platform.system() == 'Darwin':
         return Path.home() / '.cursor'
-    if platform.system() == 'Windows':
-        return Path.home() / 'AppData' / 'Roaming' / 'Cursor'
-    return Path.home() / '.config' / 'Cursor'
+    return vscode_user_data_dir('Cursor')
 
 
 def _cursor_mcp_config_path() -> Path:
@@ -102,6 +116,66 @@ def _resolve_mcp_server_name(raw_payload: dict) -> str | None:
     return command
 
 
+# --- prompt images ------------------------------------------------------------
+
+
+def _image_file_path(value: object) -> str | None:
+    """A selected image's file, given as a path or a file URI."""
+    if not isinstance(value, str) or not value:
+        return None
+    if value.startswith('file:'):
+        return url2pathname(urlparse(value).path)
+    return value
+
+
+def _prompt_record_image_paths(db_path: Path, conversation_id: str, generation_id: str) -> list[str] | None:
+    """The image files Cursor's record of the prompt lists; None while there is no record."""
+    key_range = (f'bubbleId:{conversation_id}:', f'bubbleId:{conversation_id};')
+    values = [value for (value,) in read_only_query(db_path, _PROMPT_RECORD_QUERY, (*key_range, generation_id))]
+
+    paths: list[str] | None = None
+    for value in values:
+        try:
+            bubble = json.loads(value)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(bubble, dict) or bubble.get('requestId') != generation_id:
+            continue
+        paths = paths or []
+        context = bubble.get('context')
+        selected = context.get('selectedImages') if isinstance(context, dict) else None
+        for image in selected if isinstance(selected, list) else []:
+            path = _image_file_path(image.get('path')) if isinstance(image, dict) else None
+            if path:
+                paths.append(path)
+    return paths
+
+
+def _prompt_record_images(conversation_id: object, generation_id: object) -> list[str]:
+    """The image files Cursor's record of the prompt lists, waiting a moment for the record to be saved."""
+    if not isinstance(conversation_id, str) or not conversation_id:
+        return []
+    if not isinstance(generation_id, str) or not generation_id:
+        return []
+    db_path = vscode_user_data_dir('Cursor').joinpath(*_STATE_DB_PATH_PARTS)
+    if not db_path.is_file():
+        return []
+
+    deadline = time.monotonic() + _PROMPT_RECORD_WAIT_SECONDS
+    while True:
+        try:
+            paths = _prompt_record_image_paths(db_path, conversation_id, generation_id)
+        except sqlite3.Error as e:
+            logger.debug('Failed to read Cursor state database, %s', {'path': str(db_path)}, exc_info=e)
+            return []
+        if paths is not None:
+            return paths
+        if time.monotonic() >= deadline:
+            logger.debug('Cursor has not saved the prompt yet, scanning its text only')
+            return []
+        time.sleep(_PROMPT_RECORD_POLL_SECONDS)
+
+
 class Cursor(IDE):
     name: ClassVar[str] = 'cursor'
     display_name: ClassVar[str] = 'Cursor'
@@ -139,6 +213,13 @@ class Cursor(IDE):
             mcp_tool_name=raw_payload.get('tool_name') or raw_payload.get('tool'),
             mcp_arguments=(raw_payload.get('arguments') or raw_payload.get('tool_input') or raw_payload.get('input')),
         )
+
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
+        """Images attached to a prompt, as Cursor's record of the prompt lists them."""
+        paths = _prompt_record_images(raw_payload.get('conversation_id'), raw_payload.get('generation_id'))
+        images = select_prompt_images(paths)
+        logger.debug('Collected prompt images, %s', {'images_count': len(images)})
+        return images
 
     def build_hook_response(self, decision: HookDecision) -> dict:
         if decision.event_type == AiHookEventType.PROMPT:

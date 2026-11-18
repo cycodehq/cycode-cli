@@ -27,13 +27,10 @@ but by the time the hook runs Copilot has saved every attached image to disk; se
 
 import json
 import os
-import platform
 import re
 import sqlite3
 import tempfile
-import time
 from collections.abc import Iterable
-from contextlib import closing
 from pathlib import Path
 from typing import ClassVar
 from urllib.parse import urlparse
@@ -46,14 +43,14 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import read_only_query, vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
     PromptImage,
-    get_prompt_mark,
+    collect_since_prompt_mark,
+    mentioned_files,
     modified_between,
-    save_prompt_mark,
-    select_prompt_images,
 )
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.logger import get_logger
@@ -112,13 +109,6 @@ _PLUGIN_MANIFEST_LOCATIONS = (
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide copilot'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide copilot'
 
-# Copilot CLI leaves an `@path` mention in the prompt as typed: quoted, with
-# backslash-escaped spaces (a file dragged into a terminal), or plain up to the next
-# whitespace. Never mid-word, so an email address is not a mention. A lookahead, so
-# every `@` is read on its own: a quote left open must not swallow the mentions after
-# it, and a quoted path never spans lines.
-_MENTION_PATTERN = re.compile(r'(?<!\S)@(?=("[^"\n]+"|\'[^\'\n]+\'|(?:\\ |\S)+))')
-_MENTION_TRAILING_PUNCTUATION = '.,;:!?)]}'
 # Copilot CLI replaces a pasted image with this placeholder, naming the file it saved
 # in the temp directory.
 _PASTED_IMAGE_PATTERN = re.compile(r'\[image:\s*([^\]\r\n]+?)\s*\]')
@@ -153,18 +143,9 @@ def _vscode_agent_plugins_dir() -> Path:
     return Path.home() / '.vscode' / 'agent-plugins'
 
 
-def _vscode_user_data_dir(product_name: str = 'Code') -> Path:
-    """Per-platform VS Code user data directory; ``product_name`` is 'Code' or 'Code - Insiders'."""
-    if platform.system() == 'Darwin':
-        return Path.home() / 'Library' / 'Application Support' / product_name
-    if platform.system() == 'Windows':
-        return Path.home() / 'AppData' / 'Roaming' / product_name
-    return Path.home() / '.config' / product_name
-
-
 def _vscode_user_dir() -> Path:
     """Per-platform VS Code user settings directory."""
-    return _vscode_user_data_dir() / 'User'
+    return vscode_user_data_dir() / 'User'
 
 
 def _vscode_mcp_config_path() -> Path:
@@ -423,27 +404,6 @@ def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[st
 # --- prompt images ------------------------------------------------------------------
 
 
-def _mentioned_files(prompt: str, cwd: str | None) -> list[Path]:
-    """Existing files named by `@` mentions, resolved against the hook's cwd."""
-    base = Path(cwd) if cwd else Path()
-    files = []
-    for match in _MENTION_PATTERN.finditer(prompt):
-        token = match.group(1)
-        if len(token) > 1 and token[0] == token[-1] and token[0] in '"\'':
-            spellings = [token[1:-1]]
-        else:
-            if os.sep == '/':
-                token = token.replace('\\ ', ' ')
-            # The mention may end a sentence ("look at @shot.png.")
-            spellings = [token, token.rstrip(_MENTION_TRAILING_PUNCTUATION)]
-        for spelling in spellings:
-            path = base / os.path.expanduser(spelling)
-            if os.path.isfile(path):
-                files.append(path)
-                break
-    return files
-
-
 def _pasted_cli_images(prompt: str) -> list[Path]:
     """Images pasted into Copilot CLI, saved in the temp directory its placeholder names."""
     temp_dir = Path(tempfile.gettempdir())
@@ -459,9 +419,7 @@ def _vscode_chat_session_id(chat_dir: Path) -> str | None:
     placeholders = ', '.join('?' * len(_VSCODE_CHAT_SESSION_KEYS))
     query = f'SELECT value FROM session_metadata WHERE key IN ({placeholders})'  # noqa: S608
     try:
-        # Read-only: VS Code keeps writing to the file while the chat is open
-        with closing(sqlite3.connect(f'{db_path.resolve().as_uri()}?mode=ro', uri=True, timeout=1)) as connection:
-            values = [value for (value,) in connection.execute(query, _VSCODE_CHAT_SESSION_KEYS)]
+        values = [value for (value,) in read_only_query(db_path, query, _VSCODE_CHAT_SESSION_KEYS)]
     except sqlite3.Error as e:
         logger.debug('Failed to read a VS Code chat session database, %s', {'path': str(db_path)}, exc_info=e)
         return None
@@ -485,7 +443,7 @@ def _vscode_saved_attachments(session_id: str | None, since: float, until: float
         return []
     copies: list[Path] = []
     for product_name in _VSCODE_PRODUCT_NAMES:
-        copies.extend(_vscode_user_data_dir(product_name).glob(_VSCODE_ATTACHMENT_COPIES_GLOB))
+        copies.extend(vscode_user_data_dir(product_name).glob(_VSCODE_ATTACHMENT_COPIES_GLOB))
     recent = modified_between(copies, since, until)
     # <chat id>/attachments/<attachment id>/<file>
     chats_of_this_session = {
@@ -574,20 +532,14 @@ class Copilot(IDE):
         """
         session_id = raw_payload.get('session_id')
         prompt = raw_payload.get('prompt') or ''
-        now = time.time()
-        since = get_prompt_mark(session_id, now)
-
-        images = select_prompt_images(
-            [
-                *_mentioned_files(prompt, raw_payload.get('cwd')),
+        return collect_since_prompt_mark(
+            session_id,
+            lambda since, until: [
+                *mentioned_files(prompt, raw_payload.get('cwd')),
                 *_pasted_cli_images(prompt),
-                *_vscode_saved_attachments(session_id, since, now),
-            ]
+                *_vscode_saved_attachments(session_id, since, until),
+            ],
         )
-        save_prompt_mark(session_id, now)
-
-        logger.debug('Collected prompt images, %s', {'images_count': len(images), 'since': since})
-        return images
 
     def build_hook_response(self, decision: HookDecision) -> dict:
         if decision.action == DecisionAction.ALLOW:
