@@ -118,10 +118,10 @@ class TextPrinter(PrinterBase):
         single_url = report_urls[0] if len(report_urls) == 1 else None
         single_url = aggregation_report_url or single_url
         if single_url:
-            self.console.print(f'[b]Report URL:[/] {single_url}')
+            self.console.print(f'[b]Report URL:[/] {single_url}', soft_wrap=True)
             return
 
         # If there are multiple report URLs, print them all
         self.console.print('[b]Report URLs:[/]')
         for report_url in report_urls:
-            self.console.print(f'- {report_url}')
+            self.console.print(f'- {report_url}', soft_wrap=True)
