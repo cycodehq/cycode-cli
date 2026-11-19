@@ -666,6 +666,124 @@ def test_blocked_prompt_names_the_image_the_secret_is_in(
     assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[2] == AIHookOutcome.BLOCKED
 
 
+# Tests for image files the agent reads
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan', return_value=ScanOutcome(scan_id='scan-id-1'))
+def test_file_read_of_an_image_sends_its_bytes(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    fs.create_file('/project/shot.png', contents=_PNG)
+
+    _scan_path_for_secrets(mock_ctx, '/project/shot.png', default_policy, payload=mock_payload)
+
+    (document,) = _scanned_documents(mock_perform_scan)
+    assert document.path == 'shot.png'
+    assert document.content == _PNG
+    assert document.absolute_path == '/project/shot.png'
+    assert mock_perform_scan.call_args.args[2]['metadata']['ai_guardrails']['detection_source'] == 'secrets_in_file'
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan', return_value=ScanOutcome(scan_id='scan-id-1'))
+def test_file_read_of_an_image_without_its_extension_is_named_with_it(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    """The server picks the files to read text out of by extension as well as signature."""
+    fs.create_file('/project/Screenshot', contents=_JPEG)
+
+    _scan_path_for_secrets(mock_ctx, '/project/Screenshot', default_policy, payload=mock_payload)
+
+    (document,) = _scanned_documents(mock_perform_scan)
+    assert document.path == 'Screenshot.jpg'
+    assert document.content == _JPEG
+
+
+@pytest.mark.parametrize(
+    ('file_name', 'contents'),
+    [
+        ('notes.txt', 'password=hunter2'),
+        ('fake.png', 'password=hunter2'),
+        ('animation.gif', 'GIF89a password=hunter2'),
+    ],
+    ids=['text file', 'text file named as an image', 'image format the server is not sent'],
+)
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan', return_value=ScanOutcome(scan_id='scan-id-1'))
+def test_file_read_of_anything_but_a_png_or_jpeg_sends_its_text(
+    mock_perform_scan: MagicMock,
+    mock_ctx: MagicMock,
+    mock_payload: AIHookPayload,
+    default_policy: dict,
+    fs: Any,
+    file_name: str,
+    contents: str,
+) -> None:
+    fs.create_file(f'/project/{file_name}', contents=contents)
+
+    _scan_path_for_secrets(mock_ctx, f'/project/{file_name}', default_policy, payload=mock_payload)
+
+    (document,) = _scanned_documents(mock_perform_scan)
+    assert document.path == file_name
+    assert document.content == contents
+
+
+@patch('cycode.cli.apps.ai_guardrails.scan.handlers._perform_scan', return_value=ScanOutcome(scan_id='scan-id-1'))
+def test_file_read_of_an_image_over_the_size_limit_sends_its_text(
+    mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
+) -> None:
+    fs.create_file('/project/huge.png', contents=_PNG + b'x' * 64)
+
+    with patch('cycode.cli.apps.ai_guardrails.scan.prompt_images.FILE_MAX_SIZE_LIMIT_IN_BYTES', len(_PNG)):
+        _scan_path_for_secrets(mock_ctx, '/project/huge.png', default_policy, payload=mock_payload)
+
+    (document,) = _scanned_documents(mock_perform_scan)
+    assert document.path == 'huge.png'
+    assert isinstance(document.content, str)
+
+
+def _image_file_finding_scan(batch: list[Document]) -> tuple[str, None, LocalScanResult]:
+    """A server answer with one Block-verdict secret in the image file read."""
+    (image_document,) = batch
+    detection = Detection(
+        detection_type_id='type-id',
+        type='GitHub Token',
+        message='Hardcoded secret',
+        detection_details={'sha512': 'sha-image', 'line': 0, 'start_position': 0, 'length': 4},
+        detection_rule_id='rule-id',
+        severity='High',
+    )
+    return (
+        'scan-id-1',
+        None,
+        LocalScanResult(
+            scan_id='scan-id-1',
+            report_url=None,
+            document_detections=[DocumentDetections(document=image_document, detections=[detection])],
+            issue_detected=True,
+            detections_count=1,
+            relevant_detections_count=1,
+            verdict='Block',
+        ),
+    )
+
+
+def test_blocked_file_read_names_the_image_the_secret_is_in(mock_ctx: MagicMock, default_policy: dict, fs: Any) -> None:
+    fs.create_file('/project/Screenshot', contents=_PNG)
+    payload = AIHookPayload(event_name='FileRead', ide_provider='claude-code', file_path='/project/Screenshot')
+
+    with patch(
+        'cycode.cli.apps.ai_guardrails.scan.handlers._get_scan_documents_thread_func',
+        return_value=_image_file_finding_scan,
+    ):
+        result = handle_before_read_file(mock_ctx, payload, default_policy)
+
+    assert result.action == DecisionAction.DENY
+    assert result.user_message.startswith('Cycode blocked reading /project/Screenshot because it contains a secret.')
+    # Positions in an image point into text the server read out of it: the developer is told the file instead
+    assert result.user_message.endswith('\n  - GitHub Token in image "Screenshot"')
+    assert 'ignore --by-sha sha-image' in result.agent_message
+    assert mock_ctx.obj['ai_security_client'].create_event.call_args.args[2] == AIHookOutcome.BLOCKED
+
+
 def test_violation_summary_lists_a_value_once_per_document() -> None:
     """The same value in the prompt and in an image is two places to remove it from, but one value to ignore."""
     local_scan_result = _local_scan_result_with_detections('sha-aaa')
