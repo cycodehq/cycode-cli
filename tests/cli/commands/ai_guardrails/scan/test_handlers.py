@@ -688,7 +688,7 @@ def test_file_read_of_an_image_sends_its_bytes(
 def test_file_read_of_an_image_without_its_extension_is_named_with_it(
     mock_perform_scan: MagicMock, mock_ctx: MagicMock, mock_payload: AIHookPayload, default_policy: dict, fs: Any
 ) -> None:
-    """The server picks the files to read text out of by extension as well as signature."""
+    """The server picks the files to scan by extension as well as signature."""
     fs.create_file('/project/Screenshot', contents=_JPEG)
 
     _scan_path_for_secrets(mock_ctx, '/project/Screenshot', default_policy, payload=mock_payload)

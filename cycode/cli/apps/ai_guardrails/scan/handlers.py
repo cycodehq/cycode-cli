@@ -590,7 +590,7 @@ def _file_document(file_path: str, max_bytes: int) -> Document:
     """The file to scan as a document: an image as its bytes, anything else as its text, up to ``max_bytes``.
 
     An image is what a prompt's attachment is scanned as (read_prompt_image). Its name keeps its format's extension
-    (PromptImage.file_name), as the server picks the files to read text out of by extension as well as signature.
+    (PromptImage.file_name), as the server picks the files to scan by extension as well as signature.
     """
     image_content = read_prompt_image(file_path)
     if image_content is not None:
