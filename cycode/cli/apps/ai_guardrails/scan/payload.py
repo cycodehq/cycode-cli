@@ -7,6 +7,10 @@ respective IDE class.
 
 import uuid
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage
 
 
 @dataclass
@@ -33,6 +37,9 @@ class AIHookPayload:
 
     # Event-specific data
     prompt: str | None = None  # PROMPT events
+    # Images attached to the prompt, scanned with its text. Filled by scan_command (IDE.collect_prompt_images),
+    # not at parse time: collecting moves per-session state forward, so only the process that scans may do it.
+    images: list['PromptImage'] = field(default_factory=list)
     file_path: str | None = None  # FILE_READ events
     mcp_server_name: str | None = None  # MCP_EXECUTION events
     mcp_tool_name: str | None = None

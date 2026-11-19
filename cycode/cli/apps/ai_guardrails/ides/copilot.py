@@ -19,12 +19,17 @@ runtime uses ``Read``/``path`` and ``<server>-<tool>`` — so both are accepted.
 Copilot hooks have no matchers, so ``PreToolUse`` fires for every tool; tools we
 don't scan pass through as raw event names, which match no handler and allow
 immediately.
+
+A ``UserPromptSubmit`` payload carries the prompt text only, never its attachments,
+but by the time the hook runs Copilot has saved every attached image to disk; see
+``Copilot.collect_prompt_images`` for where each runtime puts them.
 """
 
 import json
 import os
-import platform
 import re
+import sqlite3
+import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 from typing import ClassVar
@@ -38,8 +43,15 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import read_only_query, vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
+    PromptImage,
+    collect_since_prompt_mark,
+    mentioned_files,
+    modified_between,
+)
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.logger import get_logger
 
@@ -97,6 +109,19 @@ _PLUGIN_MANIFEST_LOCATIONS = (
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide copilot'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide copilot'
 
+# Copilot CLI replaces a pasted image with this placeholder, naming the file it saved
+# in the temp directory.
+_PASTED_IMAGE_PATTERN = re.compile(r'\[image:\s*([^\]\r\n]+?)\s*\]')
+
+# VS Code (stable and Insiders) agent sessions copy a prompt's attachments into the
+# chat's session data when it is sent. That folder is named after VS Code's chat id, not
+# the hook's session_id; the chat's session database records the agent runtime's session
+# id, which is the hook's, under one of these keys.
+_VSCODE_PRODUCT_NAMES = ('Code', 'Code - Insiders')
+_VSCODE_ATTACHMENT_COPIES_GLOB = 'agentSessionData/*/attachments/*/*'
+_VSCODE_CHAT_DB_NAME = 'session.db'
+_VSCODE_CHAT_SESSION_KEYS = ('defaultChatProviderData', 'agentHost.chatProviderData')
+
 
 def _copilot_home() -> Path:
     """Resolve Copilot's user-scope home directory (honors ``$COPILOT_HOME``)."""
@@ -120,11 +145,7 @@ def _vscode_agent_plugins_dir() -> Path:
 
 def _vscode_user_dir() -> Path:
     """Per-platform VS Code user settings directory."""
-    if platform.system() == 'Darwin':
-        return Path.home() / 'Library' / 'Application Support' / 'Code' / 'User'
-    if platform.system() == 'Windows':
-        return Path.home() / 'AppData' / 'Roaming' / 'Code' / 'User'
-    return Path.home() / '.config' / 'Code' / 'User'
+    return vscode_user_data_dir() / 'User'
 
 
 def _vscode_mcp_config_path() -> Path:
@@ -380,6 +401,57 @@ def split_mcp_tool_name(tool_name: str, server_names: Iterable[str]) -> tuple[st
     return None, rest or None
 
 
+# --- prompt images ------------------------------------------------------------------
+
+
+def _pasted_cli_images(prompt: str) -> list[Path]:
+    """Images pasted into Copilot CLI, saved in the temp directory its placeholder names."""
+    temp_dir = Path(tempfile.gettempdir())
+    # The base name only: the placeholder is prompt text, so it must not lead outside the temp directory
+    return [temp_dir / os.path.basename(name) for name in _PASTED_IMAGE_PATTERN.findall(prompt)]
+
+
+def _vscode_chat_session_id(chat_dir: Path) -> str | None:
+    """The agent runtime's session id that VS Code recorded for a chat, or None."""
+    db_path = chat_dir / _VSCODE_CHAT_DB_NAME
+    if not db_path.is_file():
+        return None
+    placeholders = ', '.join('?' * len(_VSCODE_CHAT_SESSION_KEYS))
+    query = f'SELECT value FROM session_metadata WHERE key IN ({placeholders})'  # noqa: S608
+    try:
+        values = [value for (value,) in read_only_query(db_path, query, _VSCODE_CHAT_SESSION_KEYS)]
+    except sqlite3.Error as e:
+        logger.debug('Failed to read a VS Code chat session database, %s', {'path': str(db_path)}, exc_info=e)
+        return None
+    for value in values:
+        try:
+            session_id = json.loads(value).get('sdkSessionId')
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if isinstance(session_id, str) and session_id:
+            return session_id
+    return None
+
+
+def _vscode_saved_attachments(session_id: str | None, since: float, until: float) -> list[Path]:
+    """Attachment files VS Code saved in ``[since, until)`` for this session's chat.
+
+    Other chats' attachments, in any window, never count. A prompt with no VS Code chat
+    of its own (Copilot CLI, or VS Code's local chat) gets none.
+    """
+    if not session_id:
+        return []
+    copies: list[Path] = []
+    for product_name in _VSCODE_PRODUCT_NAMES:
+        copies.extend(vscode_user_data_dir(product_name).glob(_VSCODE_ATTACHMENT_COPIES_GLOB))
+    recent = modified_between(copies, since, until)
+    # <chat id>/attachments/<attachment id>/<file>
+    chats_of_this_session = {
+        chat_dir for chat_dir in {path.parents[2] for path in recent} if _vscode_chat_session_id(chat_dir) == session_id
+    }
+    return [path for path in recent if path.parents[2] in chats_of_this_session]
+
+
 class Copilot(IDE):
     name: ClassVar[str] = 'copilot'
     display_name: ClassVar[str] = 'GitHub Copilot'
@@ -448,6 +520,25 @@ class Copilot(IDE):
             mcp_server_name=mcp_server_name,
             mcp_tool_name=mcp_tool_name,
             mcp_arguments=mcp_arguments,
+        )
+
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
+        """Images attached to a prompt, found where Copilot saved them before the hook ran.
+
+        Copilot CLI names its attachments in the prompt: an `@path` mention as typed, or
+        a pasted image's placeholder. VS Code names none, so its attachments are the files
+        it saved for this session's chat since the session's previous prompt (see
+        prompt_images).
+        """
+        session_id = raw_payload.get('session_id')
+        prompt = raw_payload.get('prompt') or ''
+        return collect_since_prompt_mark(
+            session_id,
+            lambda since, until: [
+                *mentioned_files(prompt, raw_payload.get('cwd')),
+                *_pasted_cli_images(prompt),
+                *_vscode_saved_attachments(session_id, since, until),
+            ],
         )
 
     def build_hook_response(self, decision: HookDecision) -> dict:

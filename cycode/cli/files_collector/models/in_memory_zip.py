@@ -47,24 +47,24 @@ class InMemoryZip:
         self._files_count = 0
         self._extension_statistics = defaultdict(int)
 
-    def append(self, filename: str, unique_id: str | None, content: str) -> None:
+    def append(self, filename: str, unique_id: str | None, content: str | bytes) -> None:
         self._files_count += 1
         self._extension_statistics[Path(filename).suffix] += 1
 
         if unique_id:
             filename = concat_unique_id(filename, unique_id)
 
-        # Encode content to bytes with error handling to handle surrogate characters
-        # that cannot be encoded to UTF-8. Use 'replace' to replace invalid characters
-        # with the Unicode replacement character (U+FFFD).
-        content_bytes = content.encode('utf-8', errors='replace')
+        # Bytes (an image) go in unchanged. Text is encoded with 'replace' so surrogate characters
+        # that cannot be encoded to UTF-8 become '?' instead of failing the scan.
+        content_bytes = content if isinstance(content, bytes) else content.encode('utf-8', errors='replace')
         self.zip.writestr(filename, content_bytes)
 
     def close(self) -> None:
         self.zip.close()
 
     def cleanup(self) -> None:
-        """Release the buffer, deleting the spilled temp file if there is one."""
+        """Close the archive and release the buffer, deleting the spilled temp file if there is one."""
+        self.zip.close()
         self._buffer.close()
 
     def __enter__(self) -> 'InMemoryZip':  # noqa: PYI034  # typing.Self needs Python 3.11

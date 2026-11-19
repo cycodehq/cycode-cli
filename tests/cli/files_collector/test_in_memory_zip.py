@@ -1,5 +1,7 @@
 """Tests for InMemoryZip class, specifically for handling surrogate characters and encoding issues."""
 
+import gc
+import sys
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -158,6 +160,22 @@ def test_cleanup_is_idempotent() -> None:
     zip_file.cleanup()
 
 
+def test_cleanup_closes_an_archive_that_was_never_closed(monkeypatch: 'MonkeyPatch') -> None:
+    """A commit range with nothing to scan releases its placeholder archive without closing it first.
+
+    ZipFile.__del__ must not then try to finalize the archive into the released buffer.
+    """
+    unraisable_exceptions = []
+    monkeypatch.setattr(sys, 'unraisablehook', unraisable_exceptions.append)
+
+    zip_file = InMemoryZip()
+    zip_file.cleanup()
+    del zip_file
+    gc.collect()
+
+    assert unraisable_exceptions == []
+
+
 def test_used_as_a_context_manager() -> None:
     zip_file = InMemoryZip()
     with zip_file as managed:
@@ -195,3 +213,19 @@ def test_is_rolled_over_matches_the_interpreter(monkeypatch: 'MonkeyPatch', spoo
         assert zip_file.is_rolled_over is rolled_by_interpreter
 
     zip_file.cleanup()
+
+
+def test_append_bytes_round_trips_unchanged() -> None:
+    """Binary content (an image attached to an AI prompt) must reach the server byte for byte."""
+    image = b'\x89PNG\r\n\x1a\n' + bytes(range(256)) + b'\xff\xfe\xed'
+    zip_file = InMemoryZip()
+    zip_file.append('image-1-shot.png', None, image)
+    zip_file.append('prompt-content.txt', None, 'text \udc96 stays utf-8')
+    zip_file.close()
+
+    with zipfile.ZipFile(BytesIO(zip_file.read()), 'r') as zf:
+        assert zf.read('image-1-shot.png') == image
+        # Text keeps the surrogate-safe encoding
+        assert zf.read('prompt-content.txt') == b'text ? stays utf-8'
+
+    assert zip_file.extension_statistics == {'.png': 1, '.txt': 1}

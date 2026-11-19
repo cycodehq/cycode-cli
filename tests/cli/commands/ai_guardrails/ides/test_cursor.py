@@ -1,12 +1,17 @@
 """Cursor IDE integration tests (payload parsing, response building, MCP context)."""
 
 import json
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
+from pytest_mock import MockerFixture
 
+from cycode.cli.apps.ai_guardrails.ides._vscode_utils import vscode_user_data_dir
 from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.ides.cursor import Cursor
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
@@ -248,3 +253,167 @@ def test_get_skills_reads_user_scope_skills(fs: FakeFilesystem) -> None:
 
 def test_get_skills_no_skills_dir_returns_empty(fs: FakeFilesystem) -> None:
     assert Cursor().get_skills() == []
+
+
+# --- prompt images (a real SQLite file, so no fake filesystem) ------------------------
+
+_CONVERSATION_ID = '6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f'
+_GENERATION_ID = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
+
+
+def _png(marker: bytes) -> bytes:
+    return b'\x89PNG\r\n\x1a\n' + marker
+
+
+@pytest.fixture
+def cursor_user_data(tmp_path: Path, mocker: MockerFixture) -> Path:
+    user_data = tmp_path / 'Cursor'
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor.vscode_user_data_dir', return_value=user_data)
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor._PROMPT_RECORD_WAIT_SECONDS', 0)
+    return user_data
+
+
+def _state_db(user_data: Path, bubbles: dict[str, object]) -> Path:
+    """Cursor's global state database, holding these bubbles of the conversation (by bubble id)."""
+    db_path = user_data / 'User' / 'globalStorage' / 'state.vscdb'
+    db_path.parent.mkdir(parents=True)
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute('CREATE TABLE cursorDiskKV (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB)')
+        connection.executemany(
+            'INSERT INTO cursorDiskKV VALUES (?, ?)',
+            [(key, value if isinstance(value, str) else json.dumps(value)) for key, value in bubbles.items()],
+        )
+    return db_path
+
+
+def _bubble(request_id: str, *image_paths: str) -> dict:
+    return {
+        'type': 1,
+        'requestId': request_id,
+        'context': {
+            'selectedImages': [{'uuid': f'uuid-{index}', 'path': path} for index, path in enumerate(image_paths)]
+        },
+    }
+
+
+def _image(directory: Path, name: str) -> str:
+    path = directory / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_png(name.encode()))
+    return str(path)
+
+
+def _prompt_payload(**overrides: object) -> dict:
+    return {
+        'hook_event_name': 'beforeSubmitPrompt',
+        'conversation_id': _CONVERSATION_ID,
+        'generation_id': _GENERATION_ID,
+        'prompt': 'what does this screenshot show?',
+        'attachments': [],
+        **overrides,
+    }
+
+
+def test_collect_prompt_images_reads_the_prompts_record(cursor_user_data: Path, tmp_path: Path) -> None:
+    pasted = _image(cursor_user_data / 'User' / 'workspaceStorage' / 'ws-1' / 'images', 'image-uuid-1.png')
+    mentioned = _image(tmp_path / 'project', 'diagram.png')
+    earlier = _image(tmp_path / 'project', 'earlier.png')
+    other = _image(tmp_path / 'project', 'other.png')
+    _state_db(
+        cursor_user_data,
+        {
+            f'bubbleId:{_CONVERSATION_ID}:bubble-1': _bubble('earlier-generation', earlier),
+            f'bubbleId:{_CONVERSATION_ID}:bubble-2': _bubble(_GENERATION_ID, pasted, Path(mentioned).as_uri()),
+            'bubbleId:another-conversation:bubble-3': _bubble(_GENERATION_ID, other),
+            f'composerData:{_CONVERSATION_ID}': {'latestChatGenerationUUID': _GENERATION_ID},
+        },
+    )
+
+    images = Cursor().collect_prompt_images(_prompt_payload())
+
+    assert [image.path for image in images] == [pasted, mentioned]
+
+
+def test_collect_prompt_images_finds_nothing_in_a_record_without_images(cursor_user_data: Path) -> None:
+    _state_db(cursor_user_data, {f'bubbleId:{_CONVERSATION_ID}:bubble-1': _bubble(_GENERATION_ID)})
+
+    assert Cursor().collect_prompt_images(_prompt_payload()) == []
+
+
+def test_collect_prompt_images_waits_for_the_record(
+    cursor_user_data: Path, tmp_path: Path, mocker: MockerFixture
+) -> None:
+    pasted = _image(tmp_path / 'images', 'pasted.png')
+    db_path = _state_db(cursor_user_data, {})
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor._PROMPT_RECORD_WAIT_SECONDS', 5)
+
+    def save_the_record(_: float) -> None:
+        with closing(sqlite3.connect(db_path)) as connection, connection:
+            key = f'bubbleId:{_CONVERSATION_ID}:bubble-1'
+            connection.execute(
+                'INSERT INTO cursorDiskKV VALUES (?, ?)', (key, json.dumps(_bubble(_GENERATION_ID, pasted)))
+            )
+
+    sleep = mocker.patch('cycode.cli.apps.ai_guardrails.ides.cursor.time.sleep', side_effect=save_the_record)
+
+    assert [image.path for image in Cursor().collect_prompt_images(_prompt_payload())] == [pasted]
+    sleep.assert_called_once()
+
+
+def test_collect_prompt_images_gives_up_when_the_record_never_comes(cursor_user_data: Path) -> None:
+    _state_db(cursor_user_data, {f'bubbleId:{_CONVERSATION_ID}:bubble-1': _bubble('earlier-generation')})
+
+    assert Cursor().collect_prompt_images(_prompt_payload()) == []
+
+
+@pytest.mark.parametrize(
+    'overrides',
+    [{'conversation_id': None}, {'generation_id': ''}, {'conversation_id': 7}, {'generation_id': ['x']}],
+)
+def test_collect_prompt_images_needs_both_ids(cursor_user_data: Path, tmp_path: Path, overrides: dict) -> None:
+    pasted = _image(tmp_path / 'images', 'pasted.png')
+    _state_db(cursor_user_data, {f'bubbleId:{_CONVERSATION_ID}:bubble-1': _bubble(_GENERATION_ID, pasted)})
+
+    assert Cursor().collect_prompt_images(_prompt_payload(**overrides)) == []
+
+
+def test_collect_prompt_images_without_a_state_database(cursor_user_data: Path) -> None:
+    assert Cursor().collect_prompt_images(_prompt_payload()) == []
+
+
+def test_collect_prompt_images_skips_an_unreadable_database(cursor_user_data: Path) -> None:
+    db_path = cursor_user_data / 'User' / 'globalStorage' / 'state.vscdb'
+    db_path.parent.mkdir(parents=True)
+    db_path.write_bytes(b'not a database')
+
+    assert Cursor().collect_prompt_images(_prompt_payload()) == []
+
+
+def test_collect_prompt_images_skips_malformed_records(cursor_user_data: Path, tmp_path: Path) -> None:
+    pasted = _image(tmp_path / 'images', 'pasted.png')
+    _state_db(
+        cursor_user_data,
+        {
+            f'bubbleId:{_CONVERSATION_ID}:bubble-1': f'not json {_GENERATION_ID}',
+            f'bubbleId:{_CONVERSATION_ID}:bubble-2': {
+                'requestId': _GENERATION_ID,
+                'context': {'selectedImages': [None, {'path': 7}, {'path': ''}, {'path': pasted}]},
+            },
+        },
+    )
+
+    assert [image.path for image in Cursor().collect_prompt_images(_prompt_payload())] == [pasted]
+
+
+@pytest.mark.parametrize(
+    ('system', 'base_parts'),
+    [
+        ('Darwin', ('Library', 'Application Support')),
+        ('Linux', ('.config',)),
+        ('Windows', ('AppData', 'Roaming')),
+    ],
+)
+def test_cursor_user_data_dir_per_platform(mocker: MockerFixture, system: str, base_parts: tuple[str, ...]) -> None:
+    mocker.patch('cycode.cli.apps.ai_guardrails.ides._vscode_utils.platform.system', return_value=system)
+
+    assert vscode_user_data_dir('Cursor') == Path.home().joinpath(*base_parts, 'Cursor')

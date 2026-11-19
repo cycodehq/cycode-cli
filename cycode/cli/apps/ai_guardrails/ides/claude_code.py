@@ -1,7 +1,9 @@
 """Claude Code IDE integration for AI guardrails."""
 
 import json
+import os
 import re
+import tempfile
 from collections.abc import Iterator
 from copy import deepcopy
 from pathlib import Path
@@ -15,8 +17,16 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._transcript_utils import reverse_readline
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
+    PromptImage,
+    collect_since_prompt_mark,
+    image_chips,
+    mentioned_files,
+    modified_between,
+)
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.logger import get_logger
 
@@ -39,45 +49,18 @@ _CLAUDE_SETTINGS_PATH = Path.home() / '.claude' / 'settings.json'
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide claude-code'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide claude-code'
 
+# Claude Code saves every image attached to a prompt (pasted, dragged in, or attached in VS Code or the desktop app)
+# before the prompt's hook runs, as <number>.<ext> in the session's folder of its temp directory,
+# <temp root>/claude-<uid>/<project>/<session_id>/images, the temp root being $CLAUDE_CODE_TMPDIR or /tmp. The number
+# counts up across the session, and a pasted or dragged image shows in the prompt as its [Image #<number>] chip.
+_TEMP_DIR_ENV_VAR = 'CLAUDE_CODE_TMPDIR'
+_SESSION_IMAGES_DIR_NAME = 'images'
+_SAVED_IMAGE_NAME_PATTERN = re.compile(r'(\d+)\.[A-Za-z]+')
+# The session id names a folder; one that could leave it (or match others) is not looked up
+_SESSION_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]+')
+
 
 # --- transcript JSONL parsing -------------------------------------------------
-
-
-def _reverse_readline(path: Path, buf_size: int = 8192) -> Iterator[str]:
-    """Yield lines of `path` from end to start without loading the file.
-
-    The Claude Code transcript can be very large; reading from the tail keeps
-    memory bounded since we only care about the most recent entries.
-    """
-    with path.open('rb') as f:
-        f.seek(0, 2)
-        file_size = f.tell()
-        if file_size == 0:
-            return
-
-        remaining = file_size
-        buffer = b''
-
-        while remaining > 0:
-            read_size = min(buf_size, remaining)
-            remaining -= read_size
-            f.seek(remaining)
-            chunk = f.read(read_size)
-            buffer = chunk + buffer
-
-            while b'\n' in buffer:
-                newline_pos = buffer.rfind(b'\n')
-                if newline_pos == len(buffer) - 1:
-                    newline_pos = buffer.rfind(b'\n', 0, newline_pos)
-                    if newline_pos == -1:
-                        break
-                line = buffer[newline_pos + 1 :]
-                buffer = buffer[: newline_pos + 1]
-                if line.strip():
-                    yield line.decode('utf-8', errors='replace')
-
-        if buffer.strip():
-            yield buffer.decode('utf-8', errors='replace')
 
 
 def _extract_model(entry: dict) -> str | None:
@@ -112,7 +95,7 @@ def extract_from_claude_transcript(
     generation_id = None
 
     try:
-        for line in _reverse_readline(path):
+        for line in reverse_readline(path):
             line = line.strip()
             if not line:
                 continue
@@ -289,6 +272,60 @@ def _resolve_mcp_server_name(server: str, config: dict | None, cwd: str | None) 
     return server
 
 
+# --- prompt images ------------------------------------------------------------
+
+
+def _user_id() -> int | None:
+    """The process's uid; None on Windows, which has none."""
+    return None if os.name == 'nt' else os.getuid()
+
+
+def _session_image_dirs(session_id: str) -> list[Path]:
+    """The folders where Claude Code saved this session's images (normally one).
+
+    Without a uid (Windows) the folder is looked for under any claude* folder of the system temp directory.
+    """
+    if not _SESSION_ID_PATTERN.fullmatch(session_id):
+        return []
+    override = os.environ.get(_TEMP_DIR_ENV_VAR)
+    uid = _user_id()
+    if uid is not None:
+        root = Path(override or '/tmp')  # noqa: S108 - Claude Code's own location, read only
+        user_dir_pattern = f'claude-{uid}'
+    else:
+        root = Path(override or tempfile.gettempdir())
+        user_dir_pattern = 'claude*'
+    pattern = f'{user_dir_pattern}/*/{session_id}/{_SESSION_IMAGES_DIR_NAME}'
+    return [path for path in root.glob(pattern) if path.is_dir()]
+
+
+def _saved_session_images(session_id: str | None, prompt: str, since: float, until: float) -> list[Path]:
+    """This prompt's images among those Claude Code saved for the session.
+
+    Those its chips name, then those saved since the session's previous prompt: VS Code and the desktop app put no chip
+    in the prompt. Claude Code also saves an image again when its prompt is sent, so a prompt sent again after a block
+    finds it in that window too. The chips don't rely on that: they are the prompt's own reference to its files, so a
+    named image is found even if Claude Code didn't save it again.
+    """
+    if not isinstance(session_id, str) or not session_id:
+        return []
+    saved: dict[int, Path] = {}
+    for directory in _session_image_dirs(session_id):
+        try:
+            paths = list(directory.iterdir())
+        except OSError as e:
+            logger.debug('Failed to list a session images folder, %s', {'path': str(directory)}, exc_info=e)
+            continue
+        for path in paths:
+            match = _SAVED_IMAGE_NAME_PATTERN.fullmatch(path.name)
+            if match:
+                saved.setdefault(int(match.group(1)), path)
+
+    chips = dict.fromkeys(int(number) for number in image_chips(prompt))
+    named = [saved[number] for number in chips if number in saved]
+    return named + modified_between(saved.values(), since, until)
+
+
 # --- IDE integration ----------------------------------------------------------
 
 
@@ -391,6 +428,18 @@ class ClaudeCode(IDE):
             mcp_server_name=mcp_server_name,
             mcp_tool_name=mcp_tool_name,
             mcp_arguments=mcp_arguments,
+        )
+
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
+        """Images attached to a prompt: those Claude Code saved for it, and `@path` mentions."""
+        session_id = raw_payload.get('session_id')
+        prompt = raw_payload.get('prompt') or ''
+        return collect_since_prompt_mark(
+            session_id,
+            lambda since, until: [
+                *_saved_session_images(session_id, prompt, since, until),
+                *mentioned_files(prompt, raw_payload.get('cwd')),
+            ],
         )
 
     def build_hook_response(self, decision: HookDecision) -> dict:

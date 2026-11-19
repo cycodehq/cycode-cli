@@ -4,7 +4,10 @@ import json
 import os
 import re
 import sys
+import tempfile
+import time
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import ClassVar
 
@@ -23,8 +26,16 @@ from cycode.cli.apps.ai_guardrails.ides._plugin_utils import (
     walk_enabled_plugins,
 )
 from cycode.cli.apps.ai_guardrails.ides._skill_utils import walk_plugin_skills, walk_skill_dirs
+from cycode.cli.apps.ai_guardrails.ides._transcript_utils import reverse_readline
 from cycode.cli.apps.ai_guardrails.ides.base import IDE, DecisionAction, HookDecision
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import (
+    PromptImage,
+    image_chips,
+    mentioned_files,
+    modified_between,
+    select_prompt_images,
+)
 from cycode.cli.apps.ai_guardrails.scan.types import AiHookEventType
 from cycode.cli.utils.jwt_utils import decode_jwt_unverified
 from cycode.logger import get_logger
@@ -42,6 +53,17 @@ _CODEX_EVENT_NAMES = frozenset(e.split(':', 1)[0] for e in _HOOK_EVENTS)
 
 _SCAN_COMMAND = f'{CYCODE_SCAN_PROMPT_COMMAND} --ide codex'
 _SESSION_START_COMMAND = f'{CYCODE_SESSION_START_COMMAND} --ide codex'
+
+# The prompt names each attached image only by an [Image #N] chip. Codex's terminal UI saves an image pasted from the
+# clipboard as codex-clipboard-<random>.png in the temp directory and keeps it; an image dragged in, picked from the
+# @ popup or passed with --image is attached from where it is, and nothing names it.
+_CLIPBOARD_IMAGE_GLOB = 'codex-clipboard-*.png'
+# How long after its paste a prompt may still be sent with the image
+_CLIPBOARD_IMAGE_MAX_AGE_SECONDS = 60 * 60
+# How long before a session's first prompt its pastes may have been made: Codex starts the transcript at that prompt
+_FIRST_PROMPT_PASTE_LOOKBACK_SECONDS = 10 * 60
+# Transcript lines worth parsing: the session's start, a turn's start, and user messages
+_TRANSCRIPT_LINE_MARKERS = ('session_meta', 'turn_context', '"user"')
 
 
 def _codex_home() -> Path:
@@ -229,6 +251,99 @@ def _enable_codex_hooks_feature(scope: str, repo_path: Path | None = None) -> tu
         return False, f'Failed to write Codex config at {config_path}'
 
 
+# --- prompt images ------------------------------------------------------------
+
+
+def _transcript_time(item: dict) -> float | None:
+    """When a transcript line was written, from its timestamp such as 2026-11-17T16:27:50.595Z."""
+    timestamp = item.get('timestamp')
+    if not isinstance(timestamp, str):
+        return None
+    try:
+        return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp()
+    except ValueError:
+        return None
+
+
+def _is_user_message(item: dict) -> bool:
+    payload = item.get('payload')
+    return item.get('type') == 'response_item' and isinstance(payload, dict) and payload.get('role') == 'user'
+
+
+def _transcript_items_newest_first(transcript_path: str) -> Iterator[dict]:
+    """The transcript's lines that may be a session's start, a turn's start or a user message, newest first."""
+    for line in reverse_readline(Path(transcript_path)):
+        if not any(marker in line for marker in _TRANSCRIPT_LINE_MARKERS):
+            continue
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(item, dict):
+            yield item
+
+
+def _last_prompt_time(transcript_path: str) -> float | None:
+    """When the session's last prompt that its hook let through was sent, or None if none was.
+
+    Codex writes a prompt into the transcript as a user message only once its hook lets it through; a blocked prompt
+    leaves only turn bookkeeping. Read from the end, which the last prompt is usually near. A user message is that
+    prompt once a turn's start shows up before it. If a session's start shows up first, the message came before the
+    session's first turn: it is the session's context, not a prompt, and the read goes on to the session before it.
+    """
+    newest_message = None
+    for item in _transcript_items_newest_first(transcript_path):
+        kind = item.get('type')
+        if kind == 'turn_context' and newest_message is not None:
+            return newest_message
+        if kind == 'session_meta':
+            newest_message = None
+        elif newest_message is None and _is_user_message(item):
+            newest_message = _transcript_time(item)
+    return None
+
+
+def _session_start_time(transcript_path: str) -> float | None:
+    """When the session (re)started: its latest session_meta, which Codex writes when its first prompt is submitted."""
+    for item in _transcript_items_newest_first(transcript_path):
+        if item.get('type') == 'session_meta':
+            return _transcript_time(item)
+    return None
+
+
+def _paste_window_start(transcript_path: str, now: float) -> float:
+    """Where the pastes this prompt may carry begin: at the session's last prompt that its hook let through.
+
+    A blocked prompt isn't one, so its pastes are found again when it is sent again. Until a prompt goes through, the
+    window reaches back from the session's start.
+    """
+    try:
+        last_prompt = _last_prompt_time(transcript_path)
+        if last_prompt is not None:
+            return last_prompt
+        session_start = _session_start_time(transcript_path)
+    except OSError as e:
+        logger.debug('Failed to read the Codex transcript, %s', {'path': transcript_path}, exc_info=e)
+        session_start = None
+    return (session_start if session_start is not None else now) - _FIRST_PROMPT_PASTE_LOOKBACK_SECONDS
+
+
+def _pasted_clipboard_images(prompt: str, transcript_path: object, now: float) -> list[Path]:
+    """The newest clipboard pastes made since the session's last prompt that went through, one per [Image #N] chip.
+
+    A chip doesn't say whether its image was pasted, dragged in or picked from the @ popup, so a dragged or picked
+    image takes in its place a paste made since then that a blocked prompt, or another session, left behind. Without
+    a transcript there is no session to go by, so none is taken: the prompt Codex sends to title a new thread has
+    none and quotes the user's prompt, chips included.
+    """
+    chips_count = len(set(image_chips(prompt)))
+    if not chips_count or not isinstance(transcript_path, str) or not transcript_path:
+        return []
+    since = max(_paste_window_start(transcript_path, now), now - _CLIPBOARD_IMAGE_MAX_AGE_SECONDS)
+    pastes = list(Path(tempfile.gettempdir()).glob(_CLIPBOARD_IMAGE_GLOB))
+    return modified_between(pastes, since, now)[-chips_count:]
+
+
 class Codex(IDE):
     name: ClassVar[str] = 'codex'
     display_name: ClassVar[str] = 'Codex'
@@ -301,6 +416,21 @@ class Codex(IDE):
             mcp_tool_name=mcp_tool_name,
             mcp_arguments=mcp_arguments,
         )
+
+    def collect_prompt_images(self, raw_payload: dict) -> list[PromptImage]:
+        """Images attached to a prompt: clipboard pastes, one per chip, and `@path` mentions.
+
+        The payload names no image, and the transcript records a prompt only after its hook.
+        """
+        prompt = raw_payload.get('prompt') or ''
+        images = select_prompt_images(
+            [
+                *_pasted_clipboard_images(prompt, raw_payload.get('transcript_path'), time.time()),
+                *mentioned_files(prompt, raw_payload.get('cwd')),
+            ]
+        )
+        logger.debug('Collected prompt images, %s', {'images_count': len(images)})
+        return images
 
     def build_hook_response(self, decision: HookDecision) -> dict:
         # Codex hook response shapes:
