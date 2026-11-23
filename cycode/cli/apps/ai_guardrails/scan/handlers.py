@@ -27,7 +27,7 @@ from cycode.cli.apps.ai_guardrails.ides.base import HookDecision
 from cycode.cli.apps.ai_guardrails.scan.mcp_server_status import is_enforced, load_mcp_server_statuses
 from cycode.cli.apps.ai_guardrails.scan.payload import AIHookPayload
 from cycode.cli.apps.ai_guardrails.scan.policy import get_policy_value
-from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage
+from cycode.cli.apps.ai_guardrails.scan.prompt_images import PromptImage, read_prompt_image
 from cycode.cli.apps.ai_guardrails.scan.types import (
     SECRETS_BLOCK_REASON_BY_EVENT_TYPE,
     AiHookEventType,
@@ -586,6 +586,22 @@ def _scan_text_for_secrets(
     return _scan_documents_for_secrets(ctx, documents, timeout_ms, payload, event_type)
 
 
+def _file_document(file_path: str, max_bytes: int) -> Document:
+    """The file to scan as a document: an image as its bytes, anything else as its text, up to ``max_bytes``.
+
+    An image is what a prompt's attachment is scanned as (read_prompt_image). Its name keeps its format's extension
+    (PromptImage.file_name), as the server picks the files to scan by extension as well as signature.
+    """
+    image_content = read_prompt_image(file_path)
+    if image_content is not None:
+        image = PromptImage(path=file_path, content=image_content)
+        return Document(path=image.file_name, content=image.content, is_git_diff_format=False, absolute_path=file_path)
+
+    with open(file_path, encoding='utf-8', errors='replace') as f:
+        content = f.read(max_bytes)
+    return Document(path=os.path.basename(file_path), content=content, is_git_diff_format=False)
+
+
 def _scan_path_for_secrets(
     ctx: typer.Context,
     file_path: str,
@@ -601,13 +617,10 @@ def _scan_path_for_secrets(
         return NO_SCAN
 
     max_bytes = get_policy_value(policy, 'secrets', 'max_bytes', default=200000)
-
-    with open(file_path, encoding='utf-8', errors='replace') as f:
-        content = f.read(max_bytes)
+    document = _file_document(file_path, max_bytes)
 
     timeout_ms = get_policy_value(policy, 'secrets', 'timeout_ms', default=30000)
 
-    document = Document(path=os.path.basename(file_path), content=content, is_git_diff_format=False)
     return _scan_documents_for_secrets(
         ctx, [document], timeout_ms, payload, AiHookEventType.FILE_READ, paths=(file_path,)
     )
