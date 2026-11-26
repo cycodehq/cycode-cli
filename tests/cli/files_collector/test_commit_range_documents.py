@@ -180,6 +180,34 @@ def test_git_mv_pre_commit_scan() -> None:
             assert file_path == renamed_path
 
 
+@pytest.mark.parametrize(
+    'diff_config',
+    [
+        pytest.param({'noprefix': 'true'}, id='noprefix'),
+        pytest.param({'srcPrefix': 'old/', 'dstPrefix': 'new/'}, id='custom-prefixes'),
+    ],
+)
+def test_staged_diff_keeps_paths_with_non_default_diff_prefix_config(diff_config: dict[str, str]) -> None:
+    """User-level `diff.*` prefix settings must not hide staged files from the pre-commit scan."""
+    with temporary_git_repository() as (temp_dir, repo):
+        with repo.config_writer() as config:
+            for key, value in diff_config.items():
+                config.set_value('diff', key, value)
+
+        with open(os.path.join(temp_dir, 'first.txt'), 'w') as f:
+            f.write('first')
+        repo.index.add(['first.txt'])
+        repo.index.commit('init')
+
+        with open(os.path.join(temp_dir, 'second.txt'), 'w') as f:
+            f.write('second')
+        repo.index.add(['second.txt'])
+
+        _, diff_index = get_staged_diff_index(repo)
+
+        assert [get_diff_file_path(diff, relative=True) for diff in diff_index] == ['second.txt']
+
+
 class TestGetDiffFilePath:
     """Test the get_diff_file_path function with various diff scenarios."""
 
